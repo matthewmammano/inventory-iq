@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Help - {{ squad }}</title>
+</head>
+<body>
+  <h2>Help for {{ squad|upper }}</h2>
+  <p>If you need help, call or text Matt Mammano (developer):</p>
+  <h3>(908) 910-5439</h3>
+  <a href="{{ url_for('inventory.index', squad=squad) }}">← Back to Dashboard</a>
+</body>
+</html>
