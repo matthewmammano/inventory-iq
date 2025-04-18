@@ -25,8 +25,7 @@ class LogBase(db.Model):
     action = db.Column(db.String(100), nullable=False)
     quantity_delta = db.Column(db.Integer, nullable=False)
     admin = db.Column(db.Boolean, default=False)
-    item_id = db.Column(db.Integer, db.ForeignKey('all_items.id'))
-    item = db.relationship('Item', backref='logs')
+    item_id = db.Column(db.Integer)
 
 
 _squad_model_cache = {}
