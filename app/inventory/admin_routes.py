@@ -5,6 +5,10 @@ from app.inventory.models import get_squad_models
 from datetime import datetime, timezone
 from app import db
 from app.utils import generate_upc_from_id
+from dotenv import load_dotenv
+import os
+
+load_dotenv()
 
 USER_TIMEOUT_SECONDS = 86400  # 24 hours
 ADMIN_TIMEOUT_SECONDS = 21600  # 6 hours
@@ -84,7 +88,8 @@ def admin_items(squad):
 # Help page
 @bp.route('/<squad>/help')
 def help_page(squad):
-    return render_template('inventory/help.html', squad=squad)
+    developer_phone = os.getenv('DEVELOPER_PHONE', 'UNAVAILABLE')
+    return render_template('inventory/help.html', squad=squad, contact_phone=developer_phone)
 
 
 @bp.route('/<squad>/admin-panel/edit-items')
