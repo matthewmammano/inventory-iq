@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# Flask
+instance/
+.env
+
+# DB
+*.sqlite
+*.db
+
+# VS Code
+.vscode/
+
+# Python Environment
+venv/
+env/
