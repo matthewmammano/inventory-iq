@@ -2,6 +2,7 @@ import pytz
 from app import db
 from app.auth.models import User
 
+
 class ItemBase(db.Model):
     __abstract__ = True
     id = db.Column(db.Integer, primary_key=True, index=True)
@@ -11,8 +12,10 @@ class ItemBase(db.Model):
     name = db.Column(db.String(255), unique=False, nullable=False)
     min_quantity = db.Column(db.Integer)
     max_quantity = db.Column(db.Integer)
-    quantity = db.Column(db.Integer, nullable=True)  # updated on EVERY change in log (to that item) and also to admin item edits (in table)
+    # updated on EVERY change in log (to that item) and also admin table edits
+    quantity = db.Column(db.Integer, nullable=True)
     image = db.Column(db.String(255))
+
 
 class LogBase(db.Model):
     __abstract__ = True
@@ -25,7 +28,9 @@ class LogBase(db.Model):
     item_id = db.Column(db.Integer, db.ForeignKey('item.id'))
     item = db.relationship('Item', backref='logs')
 
+
 _squad_model_cache = {}
+
 
 def get_squad_models(squad_name):
     if squad_name in _squad_model_cache:

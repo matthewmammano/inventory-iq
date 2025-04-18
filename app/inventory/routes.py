@@ -9,11 +9,13 @@ from app.utils import generate_upc_from_id
 USER_TIMEOUT_SECONDS = 86400
 ADMIN_TIMEOUT_SECONDS = 21600
 
+
 @bp.before_request
 def check_squad_validity():
     squad = request.view_args.get('squad')
 
-    if not squad: return
+    if not squad:
+        return
 
     user_id = session.get(f'user_id:{squad}')
     last_active = session.get(f'last_active:{squad}')
@@ -25,7 +27,7 @@ def check_squad_validity():
     if now - last_active > USER_TIMEOUT_SECONDS:
         session.clear()
         return redirect(url_for('auth.login'))
-    
+
     session[f'last_active:{squad}'] = now
 
     user = User.query.get(user_id)
@@ -35,17 +37,18 @@ def check_squad_validity():
 
     if not user.password:
         return redirect(url_for('auth.set_password'))
-    
+
     if session.get(f'admin:{squad}'):
         last_active = session.get('admin_last_active')
-        
+
         if last_active and now - last_active > ADMIN_TIMEOUT_SECONDS:
             session.pop(f'admin:{user.username}', None)
             session.pop(f'admin_last_active:{user.username}', None)
             return redirect(url_for('inventory.index', squad=user.username))
 
         session['admin_last_active:{squad}'] = now
-    
+
+
 @bp.route('/<squad>/admin', methods=['GET', 'POST'])
 def admin_login(squad):
     if request.method == 'POST':
@@ -58,12 +61,14 @@ def admin_login(squad):
             return render_template('inventory/admin_login.html', squad=squad, error='Wrong password')
     return render_template('inventory/admin_login.html', squad=squad)
 
+
 # Admin dashboard (protected)
 @bp.route('/<squad>/admin-panel')
 def admin_panel(squad):
-    if not session.get(f'admin'):
+    if not session.get('admin'):
         return redirect(url_for('inventory.index', squad=squad))
     return render_template('inventory/admin_panel.html', squad=squad)
+
 
 @bp.route('/<squad>/admin-panel/items')
 def admin_items(squad):
@@ -74,10 +79,12 @@ def admin_items(squad):
     items = Item.query.order_by(Item.name).all()
     return render_template('inventory/admin_items.html', squad=squad, items=items)
 
+
 # Help page
 @bp.route('/<squad>/help')
 def help_page(squad):
     return render_template('inventory/help.html', squad=squad)
+
 
 @bp.route('/<squad>/')
 def index(squad):
@@ -88,6 +95,7 @@ def index(squad):
     items = Item.query.order_by(Item.last_accessed.desc().nullslast()).all()
     return render_template('inventory/index.html', items=items, squad=squad)
 
+
 @bp.route('/<squad>/admin-panel/edit-items')
 def edit_items(squad):
     if not session.get(f'admin:{squad}'):
@@ -95,13 +103,18 @@ def edit_items(squad):
 
     Item, _ = get_squad_models(squad)
     items = Item.query.order_by(Item.name).all()
-    return render_template('inventory/admin_edit_items.html', squad=squad, items=items)
+    return render_template(
+        'inventory/admin_edit_items.html',
+        squad=squad,
+        items=items)
+
 
 @bp.route('/<squad>/admin-panel/move-items')
 def move_items(squad):
     if not session.get(f'admin:{squad}'):
         return redirect(url_for('inventory.admin_login', squad=squad))
     return render_template('inventory/move_items.html', squad=squad)
+
 
 @bp.route('/<squad>/admin-panel/recount-items')
 def recount_items(squad):
@@ -135,7 +148,7 @@ def save_items(squad):
         image = form.getlist('image')[i].strip()
         threshold = form.getlist('threshold')[i]
 
-        if not name or not category or not increments or not image or not threshold:
+        if not (name and category and increments and image and threshold):
             continue  # skip incomplete rows
 
         item = Item(
@@ -157,4 +170,3 @@ def save_items(squad):
     db.session.commit()
 
     return redirect(url_for('inventory.admin_items', squad=squad))
-

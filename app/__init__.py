@@ -7,6 +7,7 @@ load_dotenv()
 
 db = SQLAlchemy()
 
+
 def load_squad_dbs():
     binds = {}
     for db_file in os.listdir('instance/squads'):
