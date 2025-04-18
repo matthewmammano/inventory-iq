@@ -1,4 +1,5 @@
 import pytz
+from datetime import datetime, timezone
 from app import db
 from app.auth.models import User
 
@@ -12,15 +13,14 @@ class ItemBase(db.Model):
     name = db.Column(db.String(255), unique=False, nullable=False)
     min_quantity = db.Column(db.Integer)
     max_quantity = db.Column(db.Integer)
-    # updated on EVERY change in log (to that item) and also admin table edits
-    quantity = db.Column(db.Integer, nullable=True)
+    quantity = db.Column(db.Integer, nullable=True)  # updated on EVERY change in log (to that item) and also admin table edits
     image = db.Column(db.String(255))
 
 
 class LogBase(db.Model):
     __abstract__ = True
     id = db.Column(db.Integer, primary_key=True, index=True)
-    timestamp = db.Column(db.DateTime(timezone=True), nullable=False)
+    timestamp_utc = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
     upc = db.Column(db.String(12), nullable=False)
     action = db.Column(db.String(100), nullable=False)
     quantity_delta = db.Column(db.Integer, nullable=False)
