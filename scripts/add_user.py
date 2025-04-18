@@ -18,15 +18,18 @@ with app.app_context():
         print(f'{username} added to instance/users.db')
 
         db_path = f'instance/squads/{username}.db'
+
         if 'SQLALCHEMY_BINDS' not in app.config:
             app.config['SQLALCHEMY_BINDS'] = {}
-        app.config['SQLALCHEMY_BINDS'][username] = f'sqlite:///{db_path}'
-        
+
+        app.config['SQLALCHEMY_BINDS'][username] = f'sqlite:///{db_path}'        
         new_engine = create_engine(f'sqlite:///{db_path}')
         db.engines[username] = new_engine
 
         Item, Scan = get_squad_models(username)
-        db.create_all(bind_key=username)
+
+        db.create_all(bind=username)
+        
         print(f'Database created at instance/squads/{username}.db')
 
     else:
