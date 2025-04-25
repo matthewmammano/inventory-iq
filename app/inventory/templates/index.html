@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% from "macros.html" import header_logo %}
+
+{% block title %}Scan Item{% endblock %}
+
+{% block header_right %}{{ header_logo(url_for('static', filename='images/logos/'+logo_img))}}{% endblock %}
+
+{% block header_title %}{{ squad }}{% endblock %}
+{% block sub_title %}Scan{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/scan.css') }}">
+{% endblock %}
+
+
+{% block content %}
+
+<article>
+    <div>        
+        <input type="text" id="search" name="search" placeholder="Scan item or search here..." />
+        <ul id="results"></ul>
+    </div>
+</article>
+
+<!-- Placeholder Images with Links -->
+<a href="{{ url_for('guest.admin_login', squad=squad) }}" class="admin-tab">
+    <span>ADMIN</span>
+</a>
+
+<!-- Placeholder for Semi-Transparent Overlay -->
+<div id="overlay"></div>
+
+{% endblock %}
+
+
+
+{% block extra_js %}
+
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
+
+<script>
+    const allItems = [
+        {% for item in items %}
+        {
+            name: "{{ item.name }}",
+            category: "{{ item.category.category_name }}",
+            upc: "{{ item.upc }}",
+            last_accessed: "{{ item.last_accessed.isoformat() if item.last_accessed else '' }}"
+        },
+        {% endfor %}
+    ];
+
+    const fuse = new Fuse(allItems, {
+        keys: ['name', 'category', 'upc'],
+        threshold: 1, // Lower = stricter, 0.0 = exact match
+        includeScore: true
+    });
+
+
+    document.getElementById('search').addEventListener('input', (e) => {
+        showResults(e.target.value.toLowerCase())
+    })
+
+    function showResults(query) {
+        let results = allItems.map(item => {
+            let score = 1;  // worst case
+            if (query) {
+                const match = fuse.search(query, { limit: 1, includeScore: true }).find(r => r.item === item);
+                if (match) score = match.score;
+            } else {
+                score = 0;  // perfect match if no query
+            }
+            return { item, score };
+        });
+
+        results.sort((a, b) => {
+            if (a.score !== b.score) return a.score - b.score;
+            return new Date(b.item.last_accessed || 0) - new Date(a.item.last_accessed || 0);
+        });
+
+        const list = document.getElementById('results');
+        list.innerHTML = '';
+        results.slice(0, 10).forEach(({ item }) => {
+            const li = document.createElement('li');
+            li.textContent = `${item.name} (${item.category})`;
+            li.onclick = () => alert(`Selected: ${item.name}`);
+            list.appendChild(li);
+        });
+    }
+
+
+
+    showResults('');
+</script>
+    
+{% endblock %}

@@ -1,69 +1,72 @@
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import LoginManager
 from dotenv import load_dotenv
+from datetime import timedelta
 import os
 import sys
 
 load_dotenv()
 
 db = SQLAlchemy()
-
-ROOT = os.path.abspath(os.path.dirname(__file__))
-SQUADS_DIR = os.path.join(ROOT, '..', 'instance', 'squads')
-USERS_DB = os.path.join(ROOT, '..', 'instance', 'users.db')
+login_manager = LoginManager()
 
 
 def create_app():
     """Create and configure the Flask application."""
-    from sqlalchemy import create_engine
-    from app.auth.models import User
-    from app.inventory.models import get_squad_models
 
     app = Flask(__name__)
-    os.makedirs(os.path.dirname(USERS_DB), exist_ok=True)
-    os.makedirs(SQUADS_DIR, exist_ok=True)
 
+    # Ensure instance folder exists
+    os.makedirs(app.instance_path, exist_ok=True)
+
+    # Set up SQLAlchemy with a single database for users, items, and logs
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY')
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.abspath(USERS_DB)}'
-    app.config['SQLALCHEMY_BINDS'] = {}
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{os.path.join(app.instance_path, "inventory_iq.db")}'
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-    print(f"SQLALCHEMY_DATABASE_URI: {app.config['SQLALCHEMY_DATABASE_URI']}")
-    print(f"SQLALCHEMY_BINDS: {app.config['SQLALCHEMY_BINDS']}")
+    # Session settings: Handle session lifetime
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=2)  # Session expires after 2 days of inactivity
+    app.config['SESSION_PROTECTION'] = 'strong'  # Strong protection against session hijacking
 
+    # Initialize database
     db.init_app(app)
+    login_manager.init_app(app)
 
-    from . import auth, inventory
-    app.register_blueprint(auth.bp, url_prefix='/')
-    app.register_blueprint(inventory.bp, url_prefix='/inventory')
+    # Set the login view for unauthorized users
+    login_manager.login_view = 'auth.login'
+    login_manager.login_message = 'Please log in to access this page.'
+    login_manager.login_message_category = 'warning'
 
+    # Import models to ensure they're registered with SQLAlchemy
+    from app.auth.models import Users, UserAlerts, UserLocations
+    from app.inventory.models import Items, ActionLogs
+
+
+    # Register blueprints
+    from app.auth import bp as auth_bp
+    from app.inventory import admin_bp, guest_bp
+    
+    app.register_blueprint(auth_bp, url_prefix='/')
+    app.register_blueprint(guest_bp, url_prefix='/inventory')
+    app.register_blueprint(admin_bp, url_prefix='/inventory')
+
+    # Create all database tables
+    @login_manager.user_loader
+    def load_user(user_id):
+        """Load a user from the database by ID."""
+        return Users.query.get(int(user_id))
+    
     with app.app_context():
-        print("[INFO] Creating users.db tables...")
+        print("[INFO] Initializing database tables...")
         try:
             db.create_all()
-            print("[INFO] ✅ users.db initialized successfully!")
+            print("[INFO] ✅ Database tables created successfully!")
         except Exception as e:
-            print(f"[CRITICAL] Failed to create users.db: {e}")
+            print(f"[CRITICAL] Failed to create database tables: {e}")
             sys.exit(1)
-
-        print("[INFO] Checking squads in users.db...")
-        try:
-            squad_names = [user.username for user in User.query.all()]
-        except Exception as e:
-            print(f"[CRITICAL] Failed to load users from users.db: {e}")
-            sys.exit(1)
-
-        for squad_name in squad_names:
-            db_path = os.path.abspath(os.path.join(SQUADS_DIR, f"{squad_name}.db"))
-            app.config['SQLALCHEMY_BINDS'][squad_name] = f"sqlite:///{db_path}"
-
-            if not os.path.exists(db_path):
-                print(f"[INFO] Creating squad DB for: {squad_name}")
-                engine = create_engine(f"sqlite:///{db_path}")
-                Item, Log = get_squad_models(squad_name)
-                Item.metadata.create_all(bind=engine)
-                Log.metadata.create_all(bind=engine)
-                print(f"[INFO] ✅ Created {db_path} with tables [all_items, logs]")
-            else:
-                print(f"[INFO] Squad DB already exists: {db_path}")
-
+    
+    # Print startup information
+    print(f"[INFO] Application initialized with database: {app.config['SQLALCHEMY_DATABASE_URI']}")
+    
     return app

@@ -1,55 +1,81 @@
-import pytz
-from datetime import datetime, timezone
+from datetime import datetime
 from app import db
-from app.auth.models import User
+from app.auth.models import Users
 
 
-class ItemBase(db.Model):
-    __abstract__ = True
-    id = db.Column(db.Integer, primary_key=True, index=True)
-    upc = db.Column(db.String(12), unique=True, index=True)
-    category = db.Column(db.String(255), nullable=False)
-    increments = db.Column(db.String(255))
-    name = db.Column(db.String(255), unique=False, nullable=False)
-    min_quantity = db.Column(db.Integer)
-    max_quantity = db.Column(db.Integer)
-    quantity = db.Column(db.Integer, nullable=True)  # updated on EVERY change in log (to that item) and also admin table edits
+class Items(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    upc = db.Column(db.String(12))
+    # Like 'Trauma', 'Medications', etc.
+    category_id = db.Column(db.Integer, db.ForeignKey('user_categories.id'), nullable=False)
+    # Like 'individual', 'box', 'case', etc.
+    increments = db.Column(db.String(50))
+    name = db.Column(db.String(100), nullable=False)
+    # For low stock and reorders
+    min_quantity = db.Column(db.Integer, nullable=False)
+    max_quantity = db.Column(db.Integer, nullable=False)
+    # Quantitiy is updated on EVERY change in log (to that item) and also admin table edits
+    quantity = db.Column(db.Integer)
     image = db.Column(db.String(255))
+    last_accessed = db.Column(db.DateTime, default=datetime.utcnow)
+    # Foreign Key to Users table
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
 
-
-class LogBase(db.Model):
-    __abstract__ = True
-    id = db.Column(db.Integer, primary_key=True, index=True)
-    timestamp_utc = db.Column(db.DateTime, nullable=False, default=datetime.now(timezone.utc))
-    upc = db.Column(db.String(12), nullable=False)
-    action = db.Column(db.String(100), nullable=False)
-    quantity_delta = db.Column(db.Integer, nullable=False)
-    admin = db.Column(db.Boolean, default=False)
-    item_id = db.Column(db.Integer)
-
-
-_squad_model_cache = {}
-
-
-def get_squad_models(squad_name):
-    if squad_name in _squad_model_cache:
-        return _squad_model_cache[squad_name]
+    # Relationships
+    category = db.relationship('UserCategories', backref='item', lazy=True)
+    action_logs = db.relationship('ActionLogs', backref='item', lazy=True)
     
-    class Item(ItemBase):
-        __bind_key__ = squad_name
-        __tablename__ = 'all_items'
-        __table_args__ = {'extend_existing': True}
+    # Create index on user_id and others
+    __table_args__ = (
+        db.Index('idx_user_upc', 'user_id', 'upc'),
+        db.Index('idx_user_category', 'user_id', 'category_id'),
+        db.Index('idx_user_name', 'user_id', 'name'),
+        db.Index('idx_user_quantity', 'user_id', 'quantity'),
+        db.Index('idx_user_last_accessed', 'user_id', 'last_accessed'),
+    )
+    
+    def __repr__(self):
+        return f'<Item {self.name}>'
+    
+    @staticmethod
+    def calculate_upc_check_digit(upc11: str) -> str:
+        digits = [int(d) for d in upc11]
+        odd_sum = sum(digits[::2]) * 3
+        even_sum = sum(digits[1::2])
+        total = odd_sum + even_sum
+        return str((10 - total % 10) % 10)
 
-    class Log(LogBase):
-        __bind_key__ = squad_name
-        __tablename__ = 'logs'
-        __table_args__ = {'extend_existing': True}
+    @staticmethod
+    def generate_upc_from_id(item_id: int) -> str:
+        base = str(item_id).zfill(11)
+        return base + Items.calculate_upc_check_digit(base)
 
-        def get_timestamp(self, user_id):
-            # Get the user's timezone from the User model
-            user = User.query.get(user_id)
-            timezone = pytz.timezone(user.timezone if user else 'UTC')
-            return self.timestamp.astimezone(timezone)
 
-    _squad_model_cache[squad_name] = (Item, Log)
-    return Item, Log
+class ActionLogs(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    # All timestamps are UTC (then changed on the client side)
+    timestamp = db.Column(db.DateTime, default=datetime.utcnow)
+    # Foreign Key to Items table
+    item_id = db.Column(db.Integer, db.ForeignKey('items.id'))
+    # Foreign Keys to UserLocations table
+    from_location_id = db.Column(db.Integer, db.ForeignKey('user_locations.id'), nullable=True)
+    to_location_id = db.Column(db.Integer, db.ForeignKey('user_locations.id'), nullable=True)
+    quantity_delta = db.Column(db.Integer, nullable=False)
+    admin_action = db.Column(db.Boolean, default=False)
+    # Foreign Key to Users table
+    user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+
+    # Relationships
+    from_location = db.relationship('UserLocations', foreign_keys=[from_location_id], backref='from_location_logs', lazy=True)
+    to_location = db.relationship('UserLocations', foreign_keys=[to_location_id], backref='to_location_logs', lazy=True)
+    
+    # Create index on user_id and others
+    __table_args__ = (
+        db.Index('idx_user_timestamp', 'user_id', 'timestamp'),
+        db.Index('idx_user_item_id', 'user_id', 'item_id'),
+        db.Index('idx_user_from_location', 'user_id', 'from_location_id'),
+        db.Index('idx_user_to_location', 'user_id', 'to_location_id'),
+    )
+    
+    def __repr__(self):
+        return f'<ActionLog {self.from_location} to {self.to_location}>'

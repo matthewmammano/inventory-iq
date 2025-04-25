@@ -1,0 +1,7 @@
+{% macro header_logo(src) %}
+    <img src="{{ src }}" class="header-logo">
+{% endmacro %}
+
+{% macro header_button(url, text) %}
+    <a href="{{ url }}" class="header-button">{{ text }}</a>
+{% endmacro %}

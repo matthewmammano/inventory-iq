@@ -1,168 +1,234 @@
-from flask import render_template, request, redirect, url_for, session
-from app.inventory import bp
-from app.auth.models import User
-from app.inventory.models import get_squad_models
+from flask import render_template, request, redirect, url_for, session, flash
+from flask_login import current_user, login_required
+from app.inventory import admin_bp as bp
+from app.auth.models import Users, UserCategories
+from app.inventory.models import Items
 from datetime import datetime, timezone
 from app import db
-from app.utils import generate_upc_from_id
 from dotenv import load_dotenv
 import os
+import re
+import json
 
 load_dotenv()
 
-USER_TIMEOUT_SECONDS = 86400  # 24 hours
 ADMIN_TIMEOUT_SECONDS = 21600  # 6 hours
 
 
 @bp.before_request
-def check_squad_validity():
+def check_admin_authorization():
     '''
-    Check if the user squad account is logged in and if the session is still valid.
-    Also, check if the user is an admin and if the session is still valid.
-    If the session is invalid, redirect to appropriate page.
+    Secure all admin routes with the following checks:
+    1. User must be logged in (Flask-Login)
+    2. Admin session must be valid
+    3. Squad parameter must be valid
     '''
-    squad = request.view_args.get('squad')  # Get the squad from the URL
-
-    if not squad: return
-
-    user_id = session.get(f'user_id:{squad}')  # Get the user ID from the session
-    last_active = session.get(f'last_active:{squad}')  # Get the last active timestamp from the session
-    now = datetime.now(timezone.utc).timestamp()
-
-    if not user_id or not last_active or now - last_active > USER_TIMEOUT_SECONDS:
-        session.clear()
+    # Skip if it's a static asset or similar
+    if request.endpoint and 'static' in request.endpoint:
+        return
+        
+    # Check if user is logged in
+    if not current_user.is_authenticated:
+        flash('You must be logged in to access this page.', 'warning')
         return redirect(url_for('auth.login'))
-
-    session[f'last_active:{squad}'] = now  # Update the last active timestamp
-
-    user = User.query.get(user_id)
-    if not user or user.username != squad:
-        session.clear()
+        
+    # Get squad parameter
+    squad = request.view_args.get('squad')
+    if not squad:
+        flash('Squad name is required.', 'warning')
         return redirect(url_for('auth.login'))
-
-    if not user.password:
-        return redirect(url_for('auth.set_password'))
-
-    if session.get(f'admin:{squad}'):  # Check if the there is an admin session for the squad
-        last_active = session.get('admin_last_active:{squad}')
-
-        if not last_active or now - last_active > ADMIN_TIMEOUT_SECONDS:
-            session.pop(f'admin:{squad}', None)
-            session.pop(f'admin_last_active:{squad}', None)
-            return redirect(url_for('inventory.index', squad=squad))
-
-        session[f'admin_last_active:{squad}'] = now
-
-
-@bp.route('/<squad>/admin', methods=['GET', 'POST'])
-def admin_login(squad):
-    if request.method == 'POST':
-        password = request.form['password']
-        if password == '1234':  # ✅ Hardcoded for now
-            session[f'admin:{squad}'] = True
-            session[f'admin_last_active:{squad}'] = datetime.now(timezone.utc).timestamp()
-            return redirect(url_for('inventory.admin_panel', squad=squad))
-        else:
-            return render_template('inventory/admin_login.html', squad=squad, error='Wrong password')
-    return render_template('inventory/admin_login.html', squad=squad)
+    
+    # Verify the squad exists in the database
+    user = Users.query.filter_by(display_name=squad).first()
+    if user is None:
+        flash('Invalid squad name. Please try again.')
+        return redirect(url_for('auth.login'))
+    
+    if user.active is False:
+        flash('This squad is now inactive. Please contact support.')
+        return redirect(url_for('auth.login'))
+        
+    # Check admin session validity
+    if session.get('admin'):
+        now = datetime.now(timezone.utc).timestamp()
+        admin_last_active = session.get('admin_last_active')
+        
+        if not admin_last_active or now - admin_last_active > ADMIN_TIMEOUT_SECONDS:
+            session.pop('admin', None)
+            session.pop('admin_last_active', None)
+            flash('Admin session expired. Please log in with PIN and again.', 'warning')
+            return redirect(url_for('guest.index', squad=squad))
+            
+        # Update last active timestamp
+        session['admin_last_active'] = now
+    else:
+        session.pop('admin', None)
+        session.pop('admin_last_active', None)
+        flash('Admin session not found. Please log in with PIN.', 'warning')
+        return redirect(url_for('guest.index', squad=squad))
+    
+    # Verify the current user belongs to the requested squad
+    if current_user.display_name != squad:
+        flash('You do not have permission to access this squad.', 'warning')
+        return redirect(url_for('auth.login'))
 
 
 # Admin dashboard (protected)
 @bp.route('/<squad>/admin-panel')
 def admin_panel(squad):
-    if not session.get('admin'):
-        return redirect(url_for('inventory.index', squad=squad))
-    return render_template('inventory/admin_panel.html', squad=squad)
+    return render_template('admin_panel.html', squad=squad, admin=True)
 
 
-@bp.route('/<squad>/admin-panel/items')
-def admin_items(squad):
-    if not session.get(f'admin:{squad}'):
-        return redirect(url_for('inventory.admin_login', squad=squad))
-
-    Item, _ = get_squad_models(squad)
-    items = Item.query.order_by(Item.name).all()
-    return render_template('inventory/admin_items.html', squad=squad, items=items)
+# Admin item viewing page (protected)
+@bp.route('/<squad>/admin-panel/view-items')
+def admin_view_items(squad):
+    items = Items.query.filter_by(user_id=current_user.id).order_by(Items.name).all()
+    return render_template('admin_view_items.html', squad=squad, items=items, admin=True)
 
 
-# Help page
+# Admin help page (protected)
 @bp.route('/<squad>/help')
 def help_page(squad):
-    developer_phone = os.getenv('DEVELOPER_PHONE', 'UNAVAILABLE')
-    return render_template('inventory/help.html', squad=squad, contact_phone=developer_phone)
+    developer_phone = os.getenv('CONTACT_PHONE', 'UNAVAILABLE')
+    return render_template('help.html', squad=squad, contact_phone=developer_phone, admin=True)
 
 
-@bp.route('/<squad>/admin-panel/edit-items')
-def edit_items(squad):
-    if not session.get(f'admin:{squad}'):
-        return redirect(url_for('inventory.admin_login', squad=squad))
-
-    Item, _ = get_squad_models(squad)
-    items = Item.query.order_by(Item.name).all()
-    return render_template(
-        'inventory/admin_edit_items.html',
-        squad=squad,
-        items=items)
-
-
+# Admin move items page (protected)
 @bp.route('/<squad>/admin-panel/move-items')
 def move_items(squad):
-    if not session.get(f'admin:{squad}'):
-        return redirect(url_for('inventory.admin_login', squad=squad))
-    return render_template('inventory/move_items.html', squad=squad)
+    return render_template('move_items.html', squad=squad, admin=True)
 
 
+# Admin recount items page (protected)
 @bp.route('/<squad>/admin-panel/recount-items')
 def recount_items(squad):
-    if not session.get(f'admin:{squad}'):
-        return redirect(url_for('inventory.admin_login', squad=squad))
-    return render_template('inventory/recount_items.html', squad=squad)
+    return render_template('recount_items.html', squad=squad, admin=True)
 
 
-# ADMIN EDITING FEATURES ONLY --------------------
-@bp.route('/<squad>/admin-panel/edit-items', methods=['POST'])
+# Admin edit items in table page (protected)
+@bp.route('/<squad>/admin-panel/edit-items', methods=['GET', 'POST'])
 def save_items(squad):
-    form = request.form
-    count = len(form.getlist('name'))
-
-    if count == 0 or form.getlist('name')[0].strip() == '':
-        return redirect(url_for('inventory.admin_items', squad=squad))
-
-    Item, _ = get_squad_models(squad)
-
-    # 1. Delete all existing items
-    db.session.query(Item).delete()
-    db.session.commit()
-
-    # 2. Recreate all items from the form
+    if request.method == 'GET':
+        items = Items.query.filter_by(user_id=current_user.id).order_by(Items.name).all()
+        categories = UserCategories.query.filter_by(user_id=current_user.id).all()
+        return render_template('admin_edit_items.html', squad=squad, items=items, categories=categories, admin=True)
+    
+    # Process the JSON data from the form
+    items_data = request.form.get('itemsData')
+    if not items_data:
+        flash("No item data received", "warning")
+        return redirect(url_for('admin.admin_view_items', squad=squad, admin=True))
+    
+    try:
+        items_list = json.loads(items_data)
+    except json.JSONDecodeError:
+        flash("Invalid item data format", "warning")
+        return redirect(url_for('admin.admin_view_items', squad=squad, admin=True))
+    
+    # Keep track of existing items to detect deletions
+    existing_ids = set(item.id for item in Items.query.filter_by(user_id=current_user.id).all())
+    processed_ids = set()
     new_items = []
-
-    for i in range(count):
-        name = form.getlist('name')[i].strip()
-        category = form.getlist('category')[i].strip()
-        increments = form.getlist('increments')[i].strip()
-        image = form.getlist('image')[i].strip()
-        threshold = form.getlist('threshold')[i]
-
-        if not (name and category and increments and image and threshold):
-            continue  # skip incomplete rows
-
-        item = Item(
-            name=name,
-            category=category,
-            increments=increments,
-            image=image,
-            threshold=int(threshold)
-        )
-        db.session.add(item)
-        new_items.append(item)
-
-    db.session.commit()  # Assign IDs
-
-    # 3. Generate and assign new UPCs
-    for item in new_items:
-        item.upc = generate_upc_from_id(item.id)
-
+    error_items = []
+    
+    # Process each item
+    for item_data in items_list:
+        name = item_data.get('name', '').strip()
+        if not name:
+            continue
+            
+        # Get other fields
+        item_id = item_data.get('id')
+        category_id = item_data.get('category_id', '').strip()
+        increments = item_data.get('increments', '').strip()
+        min_quantity = item_data.get('min_quantity', '').strip()
+        max_quantity = item_data.get('max_quantity', '').strip()
+        quantity = item_data.get('quantity', '').strip()
+        image = item_data.get('image', '').strip()
+        
+        # Validate required fields
+        if not category_id or not min_quantity or not max_quantity:
+            error_items.append(name)
+            continue
+            
+        # Validate numeric fields
+        try:
+            min_qty = int(min_quantity)
+            max_qty = int(max_quantity)
+            qty = int(quantity) if quantity else None
+        except ValueError:
+            error_items.append(name)
+            continue
+            
+        # Check min < max
+        if min_qty > max_qty:
+            error_items.append(name)
+            continue
+            
+        # Validate image URL if provided
+        if image and not re.match(r'^(https?://)?[a-zA-Z0-9._-]+\.[a-zA-Z]{2,}(/.*)?$', image):
+            error_items.append(name)
+            continue
+            
+        # Process existing items vs new items
+        if item_id != 'new' and item_id is not None:
+            try:
+                item_id = int(item_id)
+                processed_ids.add(item_id)
+                
+                # Update existing item
+                item = Items.query.filter_by(id=item_id, user_id=current_user.id).first()
+                if not item:
+                    error_items.append(name)
+                    continue
+                    
+                item.name = name
+                item.category_id = category_id
+                item.increments = increments
+                item.min_quantity = min_qty
+                item.max_quantity = max_qty
+                item.quantity = qty
+                item.image = image if image else None
+            except (ValueError, TypeError):
+                error_items.append(name)
+                continue
+        else:
+            # Create new item
+            try:
+                item = Items(
+                    category_id=category_id,
+                    increments=increments,
+                    name=name,
+                    min_quantity=min_qty,
+                    max_quantity=max_qty,
+                    quantity=qty,
+                    image=image if image else None,
+                    user_id=current_user.id,
+                )
+                db.session.add(item)
+                new_items.append(item)
+            except Exception:
+                error_items.append(name)
+                continue
+    
+    # Delete items that were removed from the form
+    for item_id in existing_ids - processed_ids:
+        item_to_delete = Items.query.filter_by(id=item_id, user_id=current_user.id).first()
+        if item_to_delete:
+            db.session.delete(item_to_delete)
+    
+    # Commit all changes
     db.session.commit()
-
-    return redirect(url_for('inventory.admin_items', squad=squad))
+    
+    # Generate UPCs for new items
+    for item in new_items:
+        item.upc = Items.generate_upc_from_id(item.id)
+    
+    db.session.commit()
+    
+    if error_items:
+        flash(f"Some items were not saved due to invalid data: {', '.join(error_items)}", "warning")
+    else:
+        flash("All items saved successfully!", "success")
+    
+    return redirect(url_for('admin.admin_view_items', squad=squad), admin=True)

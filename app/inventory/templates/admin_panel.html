@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "macros.html" import header_button %}
+
+{% block title %}Admin Panel{% endblock %}
+
+{% block header_right %}{{ header_button(url_for('guest.index', squad=squad), 'Exit Admin')}}{% endblock %}
+
+{% block header_title %}{{squad}}{% endblock %}
+{% block sub_title %}Admin Panel{% endblock %}
+
+{% block content %}
+
+<a class="action-link" href="{{ url_for('admin.move_items', squad=squad) }}">➤ Move Items (Storage ↔ Shelf)</a>
+<a class="action-link" href="{{ url_for('admin.recount_items', squad=squad) }}">➤ Recount Items (e.g. Tourniquets)</a>
+<a class="action-link" href="{{ url_for('admin.admin_view_items', squad=squad) }}">➤ View All Items + Counts</a>
+<a class="action-link" href="{{ url_for('admin.save_items', squad=squad) }}">➤ Edit / Add / Remove Items</a>
+
+{% endblock %}

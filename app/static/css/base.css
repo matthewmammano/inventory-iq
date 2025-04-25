@@ -1,0 +1,211 @@
+/* CSS Reset and Base Styles */
+:root {
+    /* Define color variables for easy theming */
+    --primary-color: #F8CA68;
+    --primary-dark: #C99B38;
+    --background-color: #FFF8DC;
+    --shadow-color: rgba(0,0,0,0.3);
+
+    --admin-color1: red;
+    --admin-color2: #c74f4f;
+
+    --accept-color: #B0EDD4;
+    --decline-color: #FF8589;
+    --exit-color: #DD5656;
+
+    --most-black: #1B1B1B;
+    --near-black: #333;
+    --grey: #a3a3a3;
+    --near-grey: #dbdbdb;
+    --near-white: #ededed;
+    --most-white: #F5F5F5;
+    
+    /* Font sizes using rem for better scaling */
+    --font-size-sm: 0.875rem;   /* 14px at default browser size */
+    --font-size-base: 1rem;     /* 16px at default browser size */
+    --font-size-lg: 1.25rem;    /* 20px at default browser size */
+    --font-size-xl: 1.5rem;     /* 24px at default browser size */
+    --font-size-2xl: 2rem;      /* 32px at default browser size */
+    --font-size-3xl: 2.5rem;    /* 40px at default browser size */
+    --font-size-4xl: 3rem;      /* 48px at default browser size */
+    --font-size-5xl: 3.5rem;    /* 56px at default browser size */
+    --font-size-6xl: 4rem;      /* 64px at default browser size */
+    
+    /* Spacing using rem */
+    --spacing-xs: 0.5rem;       /* 8px */
+    --spacing-sm: 0.75rem;      /* 12px */
+    --spacing-md: 1rem;         /* 16px */
+    --spacing-lg: 1.5rem;       /* 24px */
+    --spacing-xl: 2rem;         /* 32px */
+    --spacing-2xl: 2.5rem;     /* 40px */
+    --spacing-3xl: 3rem;      /* 48px */
+    --spacing-4xl: 3.5rem;     /* 56px */
+  }
+
+/* Modern CSS Reset */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+/* Improved accessibility and readability */
+html {
+    font-size: 100%; /* Respects user's browser font-size settings */
+    line-height: 1.5;
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background-color: var(--background-color);
+    color:var(--most-black);    
+    min-height: 100vh;
+    scroll-behavior: smooth;
+}
+
+.admin-border {
+    border: 5px solid var(--admin-color1);
+}
+
+img, video, svg {
+    max-width: 100%;
+    height: auto;
+    display: block; /* Prevents inline gap below images */
+}
+
+/* Header styles with flexbox for responsiveness */
+.header {
+    padding: var(--spacing-md);
+    min-height: 10vh;
+    background-color: var(--primary-color);
+    border-bottom: 5px solid var(--primary-dark);
+    box-shadow: 0 1px 15px var(--shadow-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.main-title {
+    font-weight: bold;
+    font-size: var(--font-size-6xl);
+}
+
+.sub-title {
+    font-size: var(--font-size-6xl);
+    margin-right: auto;
+}
+
+.header-logo {
+    height: 6vw;
+    width: auto;
+    margin-right: 25px;
+}
+
+.header-button {
+    color: var(--most-black);
+    background-color: var(--admin-color2);
+    border: none;
+    outline: 3px solid var(--most-black);
+    font-weight: bold;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-radius: 5px;
+    font-size: var(--font-size-2xl);
+    box-shadow: 0 1px 15px var(--shadow-color);
+    text-decoration: none;
+}
+
+/* Main content container with padding and minimum height */
+.content {
+    width: 100%;
+    margin: 0 auto;
+    padding: var(--spacing-md);
+}
+
+/* Flash message styles */
+.flash-container {
+    position: fixed;
+    bottom: -5px;
+    left: 0;
+    width: 100%;
+    background-color: var(--most-white);
+    padding: var(--spacing-md) var(--spacing-xl);
+    box-shadow: 0 -1px 32px var(--shadow-color);
+    transition: transform 0.7s ease-in-out;
+    transform: translateY(101%); /* Start off-screen */
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 3rem 3rem 0 0;
+    outline: 5px solid var(--grey);
+    outline-offset: -2px; /* Negative value pulls the outline inward */
+}
+
+.flash-container.show {
+    transition: transform 0.7s ease-in-out;
+    transform: translateY(0);
+}
+
+.flash-image {
+    height: 6vh;
+    padding: var(--spacing-xs);
+}
+
+.flash-message {
+    flex-grow: 1;
+}
+
+/* Timer circle styles */
+.timer-container {
+    margin-left: var(--spacing-md);
+    width: 2.5rem; /* 40px */
+    height: 2.5rem; /* 40px */
+    position: relative;
+    flex-shrink: 0; /* Prevents the timer from shrinking */
+}
+
+.timer-circle {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: var(--most-white);
+    position: relative;
+    overflow: hidden;
+}
+
+.timer {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(
+        var(--most-white) var(--progress, 0%),
+        #C4C4C4 var(--progress, 0%)
+    );
+}
+
+.admin-tab {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(0%) rotate(90deg);
+    transform-origin: right center;
+    background-color: #ffcccb;
+    margin-right: 20px;
+    padding: 10px 20px;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 1px 15px var(--shadow-color);
+    font-weight: bold;
+    outline: 2px solid black;
+    text-decoration: none;
+    font-size: var(--font-size-lg)
+}
+.admin-tab span {
+    display: block;
+    transform: rotate(180deg);
+    color: black;
+}

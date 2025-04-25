@@ -1,0 +1,303 @@
+{% extends "base.html" %}
+{% from "macros.html" import header_button %}
+
+{% block title %}Admin Edit{% endblock %}
+
+{% block header_right %}{{ header_button(url_for('admin.admin_panel', squad=squad), 'Back')}}{% endblock %}
+
+{% block header_title %}{{squad}}{% endblock %}
+{% block sub_title %}Admin Edit{% endblock %}
+
+{% block extra_css %}
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/admin_edit_items.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<form method="POST" action="{{ url_for('admin.save_items', squad=squad) }}" id="itemForm">
+    <input type="hidden" id="itemsData" name="itemsData" value="">
+    <table id="itemTable">
+        <thead>
+            <tr>
+                <th class="required">Name</th>
+                <th class="required">Category</th>
+                <th>Increments</th>
+                <th class="required">Min Qty</th>
+                <th class="required">Max Qty</th>
+                <th>Current Qty</th>
+                <th>Image URL</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr data-id="{{ item.id }}">
+                <td>
+                    <input type="text" required
+                           class="name-field"
+                           value="{{ item.name }}"
+                           data-original="{{ item.name }}">
+                </td>
+                <td>
+                    <select required
+                            class="category-field"
+                            data-original="{{ item.category_id }}">
+                        {% for category in categories %}
+                            <option value="{{ category.id }}"
+                                    {% if category.id == item.category_id %}selected{% endif %}>
+                                {{ category.category_name }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td>
+                    <input type="text"
+                           class="increments-field"
+                           value="{{ item.increments }}"
+                           data-original="{{ item.increments }}">
+                </td>
+                <td>
+                    <input type="number" required min="0"
+                           class="min-qty-field"
+                           value="{{ item.min_quantity }}"
+                           data-original="{{ item.min_quantity }}">
+                </td>
+                <td>
+                    <input type="number" required min="0"
+                           class="max-qty-field"
+                           value="{{ item.max_quantity }}"
+                           data-original="{{ item.max_quantity }}">
+                </td>
+                <td>
+                    <input type="number" min="0"
+                           class="qty-field"
+                           value="{{ item.quantity }}"
+                           data-original="{{ item.quantity }}">
+                </td>
+                <td>
+                    <input type="url"
+                           class="image-field"
+                           value="{{ item.image }}"
+                           data-original="{{ item.image }}">
+                </td>
+                <td>
+                    <button type="button" class="delete-btn" onclick="deleteRow(this)">✕</button>
+                </td>
+            </tr>
+            {% endfor %}
+            <!-- Template row for new items -->
+            <tr class="new-item" data-id="new">
+                <td><input type="text" class="name-field"></td>
+                <td>
+                    <select class="category-field">
+                        <option value="">Select Category</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}">{{ category.category_name }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td><input type="text" class="increments-field"></td>
+                <td><input type="number" min="0" class="min-qty-field"></td>
+                <td><input type="number" min="0" class="max-qty-field"></td>
+                <td><input type="number" min="0" class="qty-field"></td>
+                <td><input type="url" class="image-field"></td>
+                <td></td>
+            </tr>
+        </tbody>
+    </table>
+    <button type="button" onclick="saveItems()">Save Changes</button>
+    <button type="button" onclick="window.location='{{ url_for('admin.admin_panel', squad=squad) }}'">Cancel</button>
+</form>
+
+{% endblock %}
+
+{% block extra_js %}
+    
+<script>
+    function trackChange(input) {
+        const original = input.dataset.original;
+        const current = input.value;
+        
+        if (original !== undefined && current !== original) {
+            input.classList.add('changed');
+        } else {
+            input.classList.remove('changed');
+        }
+        
+        // Check if this is the last row and has data, add a new row if needed
+        checkAndAddBlankRow();
+    }
+
+    // Add event listeners to all inputs
+    function addInputListeners() {
+        document.querySelectorAll('#itemTable tbody tr:last-child input, #itemTable tbody tr:last-child select').forEach(input => {
+            input.addEventListener('input', function() {
+                trackChange(this);
+                checkAndAddBlankRow();
+            });
+        });
+    }
+
+    function checkAndAddBlankRow() {
+        // Check if the last row has any data
+        const tbody = document.querySelector('#itemTable tbody');
+        const lastRow = tbody.lastElementChild;
+        const hasData = Array.from(lastRow.querySelectorAll('input, select')).some(input => input.value.trim() !== '');
+        
+        // If the last row has any data, add a new blank row
+        if (hasData) {
+            addBlankRow();
+        }
+    }
+
+    function addBlankRow() {
+        const tbody = document.querySelector('#itemTable tbody');
+        const lastRow = tbody.lastElementChild;
+        
+        // Only add a new row if the last row isn't already empty
+        const isEmpty = Array.from(lastRow.querySelectorAll('input, select')).every(input => input.value.trim() === '');
+        if (!isEmpty) {
+            const template = document.createElement('tr');
+            template.className = 'new-item';
+            template.dataset.id = 'new';
+            
+            template.innerHTML = `
+                <td><input type="text" class="name-field"></td>
+                <td>
+                    <select class="category-field">
+                        <option value="">Select Category</option>
+                        {% for category in categories %}
+                            <option value="{{ category.id }}">{{ category.category_name }}</option>
+                        {% endfor %}
+                    </select>
+                </td>
+                <td><input type="text" class="increments-field"></td>
+                <td><input type="number" min="0" class="min-qty-field"></td>
+                <td><input type="number" min="0" class="max-qty-field"></td>
+                <td><input type="number" min="0" class="qty-field"></td>
+                <td><input type="url" class="image-field"></td>
+                <td><button type="button" class="delete-btn" onclick="deleteRow(this)">✕</button></td>
+            `;
+            
+            tbody.appendChild(template);
+            
+            // Add listeners to the new row
+            addInputListeners();
+        }
+    }
+
+    function deleteRow(btn) {
+        if (confirm('Are you sure you want to delete this item?')) {
+            btn.closest('tr').remove();
+            
+            // Make sure we still have at least one empty row
+            const tbody = document.querySelector('#itemTable tbody');
+            if (tbody.childElementCount === 0) {
+                addBlankRow();
+            } else {
+                checkAndAddBlankRow();
+            }
+        }
+    }
+
+    function saveItems() {
+        // Validate form
+        if (!validateForm()) return;
+        
+        // Collect all item data as JSON
+        const items = [];
+        const rows = document.querySelectorAll('#itemTable tbody tr');
+        
+        rows.forEach(row => {
+            const name = row.querySelector('.name-field').value.trim();
+            // Skip empty rows
+            if (!name) return;
+            
+            const item = {
+                id: row.dataset.id,
+                name: name,
+                category_id: row.querySelector('.category-field').value,
+                increments: row.querySelector('.increments-field').value.trim(),
+                min_quantity: row.querySelector('.min-qty-field').value,
+                max_quantity: row.querySelector('.max-qty-field').value,
+                quantity: row.querySelector('.qty-field').value,
+                image: row.querySelector('.image-field').value.trim()
+            };
+            
+            items.push(item);
+        });
+        
+        // Set the JSON data in the hidden input
+        document.getElementById('itemsData').value = JSON.stringify(items);
+        
+        // Submit the form
+        document.getElementById('itemForm').submit();
+    }
+
+    function validateForm() {
+        const rows = document.querySelectorAll('#itemTable tbody tr');
+        let isValid = true;
+        
+        rows.forEach(row => {
+            const name = row.querySelector('.name-field').value.trim();
+            // Skip empty rows
+            if (!name) return;
+            
+            const category = row.querySelector('.category-field').value;
+            const min = parseInt(row.querySelector('.min-qty-field').value) || 0;
+            const max = parseInt(row.querySelector('.max-qty-field').value) || 0;
+            
+            if (!category) {
+                alert(`Item "${name}" is missing a category.`);
+                isValid = false;
+                return;
+            }
+            
+            if (min > max) {
+                alert(`For item "${name}", min quantity (${min}) cannot be greater than max quantity (${max}).`);
+                isValid = false;
+                return;
+            }
+        });
+        
+        return isValid && confirm('Are you sure you want to save all changes?');
+    }
+    
+    // Initialize: Add listeners to existing inputs and make sure we have a blank row
+    document.addEventListener('DOMContentLoaded', function() {
+        // Add listeners to all inputs in the table
+        document.querySelectorAll('#itemTable tbody tr input, #itemTable tbody tr select').forEach(input => {
+            input.addEventListener('input', function() {
+                trackChange(this);
+            });
+        });
+        
+        // Add specific listeners to the last row for auto-add functionality
+        addInputListeners();
+        
+        // Make sure we have at least one row
+        const tbody = document.querySelector('#itemTable tbody');
+        if (tbody.childElementCount === 0) {
+            addBlankRow();
+        } else {
+            // Check if we need to add a blank row at the end
+            checkAndAddBlankRow();
+            
+            // Make sure the current last row has a delete button
+            const lastRow = tbody.lastElementChild;
+            if (!lastRow.querySelector('.delete-btn')) {
+                const actionsCell = lastRow.querySelector('td:last-child');
+                if (actionsCell) {
+                    const deleteBtn = document.createElement('button');
+                    deleteBtn.type = 'button';
+                    deleteBtn.className = 'delete-btn';
+                    deleteBtn.onclick = function() { deleteRow(this); };
+                    deleteBtn.textContent = '✕';
+                    actionsCell.appendChild(deleteBtn);
+                }
+            }
+        }
+    });
+</script>
+
+{% endblock %}

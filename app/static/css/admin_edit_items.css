@@ -1,0 +1,19 @@
+table { 
+    width: 100%; border-collapse: collapse; margin-bottom: 20px; 
+}
+
+th, td { border: 1px solid #ccc; padding: 8px; }
+
+input.changed, select.changed { background-color: #d4ffd4; }
+
+input:invalid, select:invalid { background-color: #ffd3d3; }
+
+.delete-btn {
+    background-color: #ff6666;
+    color: white;
+    border: none;
+    padding: 5px 8px;
+    cursor: pointer;
+}
+
+.required::after { content: " *"; color: red; }

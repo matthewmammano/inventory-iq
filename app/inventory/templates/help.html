@@ -1,0 +1,16 @@
+{% extends "base.html" %}
+{% from "macros.html" import header_button %}
+
+{% block title %}Admin Help{% endblock %}
+
+{% block header_right %}{{ header_button(url_for('admin.admin_panel', squad=squad), 'Back')}}{% endblock %}
+
+{% block header_title %}{{squad}}{% endblock %}
+{% block sub_title %}Admin Help{% endblock %}
+
+{% block content %}
+
+<p>If you need help, call or text Matt Mammano (developer):</p>
+<h3>{{ contact_phone }}</h3>
+
+{% endblock %}

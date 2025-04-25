@@ -1,6 +1,6 @@
 # Inventory Management System - Setup Guide
 
-This README provides instructions on how to set up and use the Inventory Management System, specifically focusing on adding a new user using the `add_user.py` script.
+This README provides instructions on how to set up and use the Inventory Management System, including the new management scripts for editing user information, categories, locations, and alerts.
 
 ## Prerequisites
 
@@ -18,72 +18,96 @@ Before running the setup script, ensure you have the following:
     python -m venv venv
     source venv/bin/activate  # On Windows, use venv\Scripts\activate
     ```
-* **Flask App Initialized:**
-    Ensure the Flask app is configured properly with the necessary environment variables.
-    Make sure your app can connect to the database (`users.db` and `squads/<username>.db`).
 
-## Running the add_user.py Script
+## Running the Management Scripts
 
 ### Purpose
-This script allows you to add a new user and initialize a new squad's database. You will be prompted to enter the necessary information for the user (such as username, email, image URL, and notes). The script will then create a new user and a new squad database for inventory management.
+The following scripts allow you to manage various aspects of the inventory system, including user details, categories, locations, and alerts.
 
 ### Steps to Run
-1.  **Navigate to the Project Directory:**
-    First, make sure you're in the root directory of the project (where the `app/`, `scripts/`, and other directories reside).
+
+1. **Navigate to the Project Directory:**
+    Make sure you're in the root directory of the project (where the `app/`, `scripts/`, and other directories reside).
     ```bash
     cd /path/to/your/inventory-iq
     ```
-2.  **Run the add_user.py Script:**
-    Use the following command to add a new user and initialize their squad database:
-    ```bash
-    python -m scripts.add_user
-    ```
-3.  **Input the Required Information:**
-    The script will prompt you for the following details:
-    * `username`: The unique name for the squad.
-    * `email`: The email associated with the squad.
-    * `image URL`: The URL of the squad's image or logo.
-    * `notes`: Additional details (e.g., contact information, full name of the squad, etc.).
 
-    *Example input:*
-    ```yaml
-    username: WallEMS
-    email: wall@ems.com
-    image URL: [http://example.com/image.jpg](http://example.com/image.jpg)
-    notes: Contact number: (123) 456-7890
-    ```
-4.  **User Creation and Squad Database Setup:**
-    After entering the details, the script will:
-    * Add the user to the `users.db` database.
-    * Create a new SQLite database for the squad in the `instance/squads/` directory.
-    * Set up the database connection for the squad.
-    * Initialize necessary tables for the squad's inventory.
+2. **Run the Scripts:**
+    You can run the following scripts using the terminal, as described below.
 
-    *Example output:*
-    ```bash
-    WallEMS added to instance/users.db
-    Database created at instance/squads/WallEMS.db
-    Done!
-    ```
+    - **Manage Alerts:**
+        To manage user alerts, use:
+        ```bash
+        python -m scripts.edit_alerts
+        ```
 
-## Notes
-* **Squad Database:** Each squad gets its own SQLite database, stored under `instance/squads/`, allowing them to manage their own inventory independently.
-* **User Identification:** The script ensures that the squad's username is unique, and checks if the squad exists in the `users.db` before creating a new user entry.
-* **Default Timezone:** The script uses `datetime` to handle timestamps, and assumes UTC as the default timezone for squad activity unless specified.
-* **Ensure Database Integrity:** After running this script, you can access the new squad's data via Flask and continue configuring other aspects of the inventory management system.
+    - **Manage Categories:**
+        To manage user categories, use:
+        ```bash
+        python -m scripts.edit_categories
+        ```
+
+    - **Manage Locations:**
+        To manage user locations, use:
+        ```bash
+        python -m scripts.edit_locations
+        ```
+
+    - **Edit Users:**
+        To manage user information (add or delete users), use:
+        ```bash
+        python -m scripts.edit_users
+        ```
+
+3. **Follow the Prompts:**
+    Each script will prompt you to interact with the system. The prompts will vary based on the script, allowing you to:
+
+    - **Add** new entries (alerts, categories, locations, users).
+    - **Delete** existing entries.
+    - **View** current entries.
+
+    **Example commands for each script:**
+
+    - **Add a new alert for a user:**
+        ```bash
+        Enter user email to manage alerts: user@example.com
+        Enter the details for the new alert...
+        ```
+
+    - **Add a new category for a user:**
+        ```bash
+        Enter user email to manage categories: user@example.com
+        Enter the category name...
+        ```
+
+    - **Add a new location for a user:**
+        ```bash
+        Enter user email to manage locations: user@example.com
+        Enter the location name...
+        ```
+
+    - **Add a new user to the system:**
+        ```bash
+        Enter the user details (email, display name, PIN, etc.)...
+        ```
+
+### Notes
+
+- **Script Functions:** Each script is self-contained, and performs specific tasks related to managing user data, categories, locations, or alerts.
+- **App Context:** All scripts expect to be run within a Flask app context. If you encounter issues related to database connections, ensure your Flask app is properly configured with the required environment variables.
+- **Exit or Cancel:** You can always exit or cancel operations within the scripts by entering `q` when prompted.
 
 ## Troubleshooting
 * **ModuleNotFoundError:**
     If you encounter `ModuleNotFoundError`:
     * Make sure you’ve installed all required dependencies by running `pip install -r requirements.txt`.
     * Ensure you’re running the script from the correct directory.
+
 * **Database Issues:**
     If you encounter issues with the database, make sure the Flask app is configured to access the SQLite databases correctly (`users.db` and `squads/<username>.db`).
-* **Already Exists:**
-    If the script detects that the username already exists in the `users.db` database, it will print the message: `{username} already exists in user.db`.
 
 ## Conclusion
-Running this script will allow you to quickly add new squad users and initialize their database for managing medical inventory. This approach ensures each squad operates independently, with their own database and system access.
+Running these management scripts will allow you to manage user-related data, categories, locations, and alerts independently for each squad, providing flexible control over the inventory system's configuration.
 
 For additional help or customizations, please reach out to the development team.
 
