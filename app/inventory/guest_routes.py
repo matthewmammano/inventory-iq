@@ -65,7 +65,7 @@ def admin_login(squad):
             session['admin'] = True
             session['admin_last_active'] = datetime.now(timezone.utc).timestamp()
             flash('Admin access granted.', 'success')
-            return redirect(url_for('admin.admin_panel', squad=squad, admin=True))
+            return redirect(url_for('admin.admin_panel', squad=squad))
         else:
             flash('Invalid PIN entered. Please try again.', 'error')
             return render_template('admin_login.html', squad=squad, admin=True)

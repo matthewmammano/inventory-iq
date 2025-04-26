@@ -56,7 +56,7 @@ def check_admin_authorization():
         if not admin_last_active or now - admin_last_active > ADMIN_TIMEOUT_SECONDS:
             session.pop('admin', None)
             session.pop('admin_last_active', None)
-            flash('Admin session expired. Please log in with PIN and again.', 'warning')
+            flash('Admin session expired. Please log in with your PIN again.', 'warning')
             return redirect(url_for('guest.index', squad=squad))
             
         # Update last active timestamp
@@ -90,7 +90,7 @@ def admin_view_items(squad):
 @bp.route('/<squad>/help')
 def help_page(squad):
     developer_phone = os.getenv('CONTACT_PHONE', 'UNAVAILABLE')
-    return render_template('help.html', squad=squad, contact_phone=developer_phone, admin=True)
+    return render_template('admin_help.html', squad=squad, contact_phone=developer_phone, admin=True)
 
 
 # Admin move items page (protected)
@@ -117,13 +117,13 @@ def save_items(squad):
     items_data = request.form.get('itemsData')
     if not items_data:
         flash("No item data received", "warning")
-        return redirect(url_for('admin.admin_view_items', squad=squad, admin=True))
+        return redirect(url_for('admin.admin_view_items', squad=squad))
     
     try:
         items_list = json.loads(items_data)
     except json.JSONDecodeError:
         flash("Invalid item data format", "warning")
-        return redirect(url_for('admin.admin_view_items', squad=squad, admin=True))
+        return redirect(url_for('admin.admin_view_items', squad=squad))
     
     # Keep track of existing items to detect deletions
     existing_ids = set(item.id for item in Items.query.filter_by(user_id=current_user.id).all())
@@ -231,4 +231,4 @@ def save_items(squad):
     else:
         flash("All items saved successfully!", "success")
     
-    return redirect(url_for('admin.admin_view_items', squad=squad), admin=True)
+    return redirect(url_for('admin.admin_view_items', squad=squad))

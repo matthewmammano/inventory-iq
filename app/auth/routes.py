@@ -1,5 +1,5 @@
-from flask import request, render_template, redirect, url_for, flash
-from flask_login import login_manager, login_user, logout_user, login_required
+from flask import request, render_template, redirect, url_for, flash, session
+from flask_login import login_user, logout_user
 from app.auth import bp
 from app.auth.models import Users
 from app import db
@@ -68,8 +68,12 @@ def set_password():
 
 
 @bp.route('/logout')
-@login_required
 def logout():
+    # Clear session variables related to admin mode
+    session.pop('admin', None)
+    session.pop('admin_last_active', None)
+    
+    # Log the user out completely
     logout_user()
     flash('Logged out successfully!', 'success')
     return redirect(url_for('auth.login'))

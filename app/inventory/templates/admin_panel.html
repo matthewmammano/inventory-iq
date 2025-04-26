@@ -8,11 +8,60 @@
 {% block header_title %}{{squad}}{% endblock %}
 {% block sub_title %}Admin Panel{% endblock %}
 
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/admin_panel.css') }}">
+{% endblock %}
+
 {% block content %}
 
-<a class="action-link" href="{{ url_for('admin.move_items', squad=squad) }}">➤ Move Items (Storage ↔ Shelf)</a>
-<a class="action-link" href="{{ url_for('admin.recount_items', squad=squad) }}">➤ Recount Items (e.g. Tourniquets)</a>
-<a class="action-link" href="{{ url_for('admin.admin_view_items', squad=squad) }}">➤ View All Items + Counts</a>
-<a class="action-link" href="{{ url_for('admin.save_items', squad=squad) }}">➤ Edit / Add / Remove Items</a>
+<div class="admin-container">
+    <div class="admin-grid">
+        <div class="admin-card">
+            <h2>View Items</h2>
+            <p>Sort / filter inventory items and dashboards per item.</p>
+            <a class="card-link" href="{{ url_for('admin.admin_view_items', squad=squad) }}"></a>
+        </div>
+        
+        <div class="admin-card">
+            <h2>View History</h2>
+            <p>See the history of user and admin changes of inventory.</p>
+            <a class="card-link" href="#"></a>
+        </div>
+        
+        <div class="admin-card">
+            <h2>Help</h2>
+            <p>Find all necessary help information here.</p>
+            <a class="card-link" href="{{ url_for('admin.help_page', squad=squad) }}"></a>
+        </div>
+        
+        <div class="admin-card">
+            <h2>Move / Recount</h2>
+            <p>For shelf and cage, use for new arrivals and wrong counts.</p>
+            <a class="card-link" href="{{ url_for('admin.move_items', squad=squad) }}"></a>
+        </div>
+        
+        <div class="admin-card">
+            <h2>Restock</h2>
+            <p>Generate list of what equipment to reorder and how much.</p>
+            <a class="card-link" href="{{ url_for('admin.recount_items', squad=squad) }}"></a>
+        </div>
+        
+        <div class="admin-card">
+            <h2>Settings</h2>
+            <p>Everything customizable from notifications, colors, images, etc.</p>
+            <a class="card-link" href="#"></a>
+        </div>
+        
+        <div class="admin-card">
+            <h2>Edit Items</h2>
+            <p>Add / remove / modify the list of inventory items for your squad.</p>
+            <a class="card-link" href="{{ url_for('admin.save_items', squad=squad) }}"></a>
+        </div>
+    </div>
+    
+    <div class="logout-container">
+        <a href="{{ url_for('auth.logout') }}" class="logout-button">Logout of Entire Squad Account</a>
+    </div>
+</div>
 
 {% endblock %}
