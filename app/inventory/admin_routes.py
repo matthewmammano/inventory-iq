@@ -96,13 +96,13 @@ def help_page(squad):
 # Admin move items page (protected)
 @bp.route('/<squad>/admin-panel/move-items')
 def move_items(squad):
-    return render_template('move_items.html', squad=squad, admin=True)
+    return render_template('admin_move_items.html', squad=squad, admin=True)
 
 
 # Admin recount items page (protected)
 @bp.route('/<squad>/admin-panel/recount-items')
 def recount_items(squad):
-    return render_template('recount_items.html', squad=squad, admin=True)
+    return render_template('admin_recount_items.html', squad=squad, admin=True)
 
 
 # Admin edit items in table page (protected)

@@ -6,6 +6,6 @@
 input {
     width: 75vw;
     padding: 10px;
-    margin: var(--spacing-4xl) 0;
+    margin: 3.5rem 0;
     box-sizing: border-box;
 }
