@@ -178,7 +178,7 @@ def scan_item(squad):
             return redirect(url_for("guest.index", squad=squad, item_id=item_id))
 
         from_location_id = int(from_location_id) if from_location_id != "-1" else None
-        to_location_id = int(to_location_id)
+        to_location_id = int(to_location_id) if to_location_id != "-1" else None
         counter_value = int(counter_value)
 
         action_log = ActionLogs(
@@ -205,7 +205,9 @@ def scan_item(squad):
             if from_location_id == "-1"
             else UserLocations.query.get(from_location_id)
         )
-        to_location = UserLocations.query.get(to_location_id)
+        to_location = (
+            -1 if to_location_id == "-1" else UserLocations.query.get(to_location_id)
+        )
 
         if not item or not from_location or not to_location:
             flash(

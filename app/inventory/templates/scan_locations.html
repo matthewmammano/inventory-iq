@@ -45,6 +45,10 @@
            <div class="location-column">
                <h2 class="column-title">To</h2>
                <div class="location-options" id="to-location-options">
+                    <div class="location-option">
+                       <input type="radio" name="to_location_id" value="-1" id="to_recount" required>
+                       <label for="to_recount" class="location-label">TAKE OUT</label>
+                   </div>
                    {% for location in to_locations %}
                    <div class="location-option">
                        <input type="radio" name="to_location_id" value="{{ location.id }}" id="to_{{ location.id }}" required>
@@ -75,7 +79,7 @@ document.addEventListener('DOMContentLoaded', function() {
         let toVal = document.querySelector('input[name="to_location_id"]:checked');
         // Remove previous highlights
         toOptions.forEach(opt => opt.style.backgroundColor = '');
-        if (fromVal && toVal && fromVal.value === toVal.value && fromVal.value !== "-1") {
+        if (fromVal && toVal && fromVal.value === toVal.value) {
             // Highlight the selected "to" option
             let toRadio = document.querySelector('input[name="to_location_id"]:checked');
             if (toRadio) {
@@ -87,7 +91,7 @@ document.addEventListener('DOMContentLoaded', function() {
     function checkSameLocationError() {
         let fromVal = document.querySelector('input[name="from_location_id"]:checked');
         let toVal = document.querySelector('input[name="to_location_id"]:checked');
-        if (fromVal && toVal && fromVal.value === toVal.value && fromVal.value !== "-1") {
+        if (fromVal && toVal && fromVal.value === toVal.value) {
             sameLocationErrorInput.value = "1";
         } else {
             sameLocationErrorInput.value = "0";

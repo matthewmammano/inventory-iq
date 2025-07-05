@@ -110,10 +110,12 @@ class ActionLogs(db.Model):
     from_location_id = db.Column(
         db.Integer,
         db.ForeignKey("user_locations.id"),
-        nullable=True,  # if Null, then recount, else transfer
+        nullable=True,  # if Null, then RECOUNT, else transfer
     )
     to_location_id = db.Column(
-        db.Integer, db.ForeignKey("user_locations.id"), nullable=False
+        db.Integer,
+        db.ForeignKey("user_locations.id"),
+        nullable=True,  # if Null, then REMOVED, else normal transfer / RECOUNT
     )
     quantity_delta = db.Column(db.Integer, nullable=False)
     # if this action was performed by an admin (e.g., via the admin panel)
@@ -150,6 +152,17 @@ class ActionLogs(db.Model):
         """Validate quantity_delta is a positive integer."""
         if not isinstance(value, int) or value < 0:
             raise ValueError("Quantity delta must be a non-negative integer.")
+        return value
+
+    @validates("from_location_id", "to_location_id")
+    def validate_locations(self, key, value):
+        # Use the new value for the field being set, and the current value for the other
+        from_id = value if key == "from_location_id" else self.from_location_id
+        to_id = value if key == "to_location_id" else self.to_location_id
+        if from_id is None and to_id is None:
+            raise ValueError(
+                "Both from_location_id and to_location_id cannot be null at the same time."
+            )
         return value
 
     @property
