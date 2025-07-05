@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% from "macros.html" import header_button %}
+
+{% block title %}Scan Selection{% endblock %}
+
+{% block header_right %}{{ header_button(url_for('guest.index', squad=squad), 'Back')}}{% endblock %}
+
+{% block header_title %}{{squad}}{% endblock %}
+{% block sub_title %}Scan Selection{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/scan_locations.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<div class="scan-selection-container">
+   <form method="POST" action="{{ url_for('guest.scan_locations', squad=squad) }}">
+       <input type="hidden" name="item_id" value="{{ item.id }}">
+       
+       <div class="location-columns">
+           <!-- From Column -->
+           <div class="location-column">
+               <h2 class="column-title">From</h2>
+               <div class="location-options">
+                   <div class="location-option">
+                       <input type="radio" name="from_location_id" value="-1" id="from_recount" required>
+                       <label for="from_recount" class="location-label">RECOUNT</label>
+                   </div>
+                   {% for location in from_locations %}
+                   <div class="location-option">
+                       <input type="radio" name="from_location_id" value="{{ location.id }}" id="from_{{ location.id }}" required>
+                       <label for="from_{{ location.id }}" class="location-label">{{ location.location_name }}</label>
+                   </div>
+                   {% endfor %}
+               </div>
+           </div>
+
+           <!-- Arrow -->
+           <div class="arrow-container">
+               <div class="arrow">→</div>
+           </div>
+
+           <!-- To Column -->
+           <div class="location-column">
+               <h2 class="column-title">To</h2>
+               <div class="location-options">
+                   {% for location in to_locations %}
+                   <div class="location-option">
+                       <input type="radio" name="to_location_id" value="{{ location.id }}" id="to_{{ location.id }}" required>
+                       <label for="to_{{ location.id }}" class="location-label">{{ location.location_name }}</label>
+                   </div>
+                   {% endfor %}
+               </div>
+           </div>
+       </div>
+
+       <div class="form-actions">
+           <button type="submit" class="positive-button">Continue</button>
+       </div>
+   </form>
+</div>
+
+{% endblock %}

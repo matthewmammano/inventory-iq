@@ -9,7 +9,7 @@
 {% block sub_title %}Scan{% endblock %}
 
 {% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/scan.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/index.css') }}">
 {% endblock %}
 
 
@@ -39,13 +39,16 @@
 <script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"></script>
 
 <script>
+    const squad = "{{ squad }}";
+
     const allItems = [
         {% for item in items %}
         {
             name: "{{ item.name }}",
             category: "{{ item.category.category_name }}",
             upc: "{{ item.upc }}",
-            last_accessed: "{{ item.last_accessed.isoformat() if item.last_accessed else '' }}"
+            last_accessed: "{{ item.last_accessed.isoformat() if item.last_accessed else '' }}",
+            id: "{{ item.id }}",
         },
         {% endfor %}
     ];
@@ -83,7 +86,7 @@
         results.slice(0, 10).forEach(({ item }) => {
             const li = document.createElement('li');
             li.textContent = `${item.name} (${item.category})`;
-            li.onclick = () => alert(`Selected: ${item.name}`);
+            li.onclick = () => window.location.href = `/inventory/${squad}/scan?item_id=${item.id}`;
             list.appendChild(li);
         });
     }
