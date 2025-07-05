@@ -110,6 +110,17 @@ def scan_locations(squad):
         item_id = request.form.get("item_id")
         from_location_id = request.form.get("from_location_id")
         to_location_id = request.form.get("to_location_id")
+        same_location_error = request.form.get("same_location_error")
+
+        if same_location_error == "1":
+            flash("You cannot select the same location for both From and To.", "error")
+            return redirect(
+                url_for(
+                    "guest.scan_locations",
+                    squad=squad,
+                    item_id=item_id,
+                )
+            )
 
         return redirect(
             url_for(
@@ -148,11 +159,9 @@ def scan_item(squad):
     """Scan item with locations alerady selected (automatically if only one each)"""
     if request.method == "POST":
         item_id = request.form.get("item_id")
-        counter_value = request.form.get(
-            "counter_value",
-        )
         from_location_id = request.form.get("from_location_id")
         to_location_id = request.form.get("to_location_id")
+        counter_value = request.form.get("counter_value")
 
         item = Items.query.filter_by(id=item_id).first()
 
@@ -168,6 +177,8 @@ def scan_item(squad):
             flash("Invalid counter value. Please enter a valid number.", "error")
             return redirect(url_for("guest.index", squad=squad, item_id=item_id))
 
+        from_location_id = int(from_location_id) if from_location_id != "-1" else None
+        to_location_id = int(to_location_id)
         counter_value = int(counter_value)
 
         action_log = ActionLogs(
@@ -190,7 +201,9 @@ def scan_item(squad):
 
         item = Items.query.get(item_id)
         from_location = (
-            -1 if from_location_id == -1 else UserLocations.query.get(from_location_id)
+            -1
+            if from_location_id == "-1"
+            else UserLocations.query.get(from_location_id)
         )
         to_location = UserLocations.query.get(to_location_id)
 

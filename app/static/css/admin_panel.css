@@ -14,7 +14,7 @@
 .admin-container {
     width: 100%;
     margin: 0 auto;
-    padding: 50px;
+    padding: 25px;
 }
 
 /* Grid layout for cards */
@@ -33,7 +33,6 @@
     border-radius: 8px;
     padding: 15px;
     width: calc(33.333% - 20px);
-    min-height: 150px;
     box-shadow: 0 1px 7px var(--shadow-color);
     display: flex;
     flex-direction: column;

@@ -53,19 +53,7 @@ const plusBtn = document.querySelector('.plus-btn');
 const counterValue = document.querySelector('.counter-value');
 const counterInput = document.getElementById('counter_value');
 const submitBtn = document.querySelector('.submit-btn');
-const whereToFromDiv = document.querySelector('.where_to_from');
-const whereToInput = document.getElementById('where_to');
-const whereFromInput = document.getElementById('where_from');
 
-// Extract the "from" and "to" IDs from the where_to_from div text
-const whereToFromText = whereToFromDiv.textContent;
-const match = whereToFromText.match(/(\w+)\s*-\s*(\w+)/);
-if (match && match.length >= 3) {
-    const fromID = match[1]; // "RECOUNT"
-    const toID = match[2];   // "Shelf"
-    whereFromInput.value = fromID;
-    whereToInput.value = toID;
-}
 
 minusBtn.addEventListener('click', function() {
     let value = parseInt(counterValue.textContent);

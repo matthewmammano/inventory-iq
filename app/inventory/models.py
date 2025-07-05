@@ -151,3 +151,11 @@ class ActionLogs(db.Model):
         if not isinstance(value, int) or value < 0:
             raise ValueError("Quantity delta must be a non-negative integer.")
         return value
+
+    @property
+    def is_recount(self):
+        return self.from_location_id is None
+
+    @property
+    def is_transfer(self):
+        return self.from_location_id is not None
