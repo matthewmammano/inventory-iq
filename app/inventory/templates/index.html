@@ -45,7 +45,6 @@
         {% for item in items %}
         {
             name: "{{ item.name }}",
-            category: "{{ item.category.category_name }}",
             upc: "{{ item.upc }}",
             last_accessed: "{{ item.last_accessed.isoformat() if item.last_accessed else '' }}",
             id: "{{ item.id }}",
@@ -54,7 +53,7 @@
     ];
 
     const fuse = new Fuse(allItems, {
-        keys: ['name', 'category', 'upc'],
+        keys: ['name', 'upc'], // TODO RED: add tags
         threshold: 1, // Lower = stricter, 0.0 = exact match
         includeScore: true
     });
@@ -85,7 +84,7 @@
         list.innerHTML = '';
         results.slice(0, 10).forEach(({ item }) => {
             const li = document.createElement('li');
-            li.textContent = `${item.name} (${item.category})`;
+            li.textContent = `${item.name} ()`;  // TODO RED: make the parenthesis the tags
             li.onclick = () => window.location.href = `/inventory/${squad}/scan?item_id=${item.id}`;
             list.appendChild(li);
         });

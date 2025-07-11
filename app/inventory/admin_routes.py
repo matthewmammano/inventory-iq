@@ -8,7 +8,7 @@ from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user
 
 from app import db
-from app.auth.models import UserCategories, Users
+from app.auth.models import Users
 from app.inventory import admin_bp as bp
 from app.inventory.models import Items
 
@@ -120,12 +120,11 @@ def save_items(squad):
         items = (
             Items.query.filter_by(user_id=current_user.id).order_by(Items.name).all()
         )
-        categories = UserCategories.query.filter_by(user_id=current_user.id).all()
         return render_template(
             "admin_edit_items.html",
             squad=squad,
             items=items,
-            categories=categories,
+            categories=None,  # TODO: fix to tags instead
             admin=True,
         )
 
@@ -153,33 +152,18 @@ def save_items(squad):
     for item_data in items_list:
         name = item_data.get("name", "").strip()
         if not name:
+            error_items.append("Unnamed Item")
             continue
 
         # Get other fields
         item_id = item_data.get("id")
+        active = item_data.get("active", True)  # Default to True if not provided
         category_id = item_data.get("category_id", "").strip()
-        increments = item_data.get("increments", "").strip()
-        min_quantity = item_data.get("min_quantity", "").strip()
-        max_quantity = item_data.get("max_quantity", "").strip()
-        quantity = item_data.get("quantity", "").strip()
+        increments = item_data.get("increments")
         image = item_data.get("image", "").strip()
 
         # Validate required fields
-        if not category_id or not min_quantity or not max_quantity:
-            error_items.append(name)
-            continue
-
-        # Validate numeric fields
-        try:
-            min_qty = int(min_quantity)
-            max_qty = int(max_quantity)
-            qty = int(quantity) if quantity else None
-        except ValueError:
-            error_items.append(name)
-            continue
-
-        # Check min < max
-        if min_qty > max_qty:
+        if not category_id:
             error_items.append(name)
             continue
 
@@ -205,11 +189,9 @@ def save_items(squad):
                     continue
 
                 item.name = name
+                item.active = active
                 item.category_id = category_id
-                item.increments = increments
-                item.min_quantity = min_qty
-                item.max_quantity = max_qty
-                item.quantity = qty
+                item.increments = increments if increments else None
                 item.image = image if image else None
             except (ValueError, TypeError):
                 error_items.append(name)
@@ -218,12 +200,10 @@ def save_items(squad):
             # Create new item
             try:
                 item = Items(
+                    active=active,
                     category_id=category_id,
-                    increments=increments,
+                    increments=increments if increments else None,
                     name=name,
-                    min_quantity=min_qty,
-                    max_quantity=max_qty,
-                    quantity=qty,
                     image=image if image else None,
                     user_id=current_user.id,
                 )
@@ -243,13 +223,7 @@ def save_items(squad):
 
     # Commit all changes
     db.session.commit()
-    db.session.flush()
-
-    # Generate UPCs for new items
-    for item in new_items:
-        item.upc = Items.generate_upc(current_user.id, item.id)
-
-    db.session.commit()
+    db.session.flush()  # TODO GREEN: do i need this?
 
     if error_items:
         flash(

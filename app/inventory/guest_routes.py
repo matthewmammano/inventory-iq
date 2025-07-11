@@ -4,7 +4,7 @@ from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 
 from app import db
-from app.auth.models import UserLocations, Users
+from app.auth.models import UserItemLocations, Users
 from app.inventory import guest_bp as bp
 from app.inventory.models import ActionLogs, Items
 
@@ -74,7 +74,7 @@ def scan_start(squad):
         flash("Item not found.", "error")
         return redirect(url_for("guest.index", squad=squad))
 
-    locations = UserLocations.query.filter_by(user_id=current_user.id)
+    locations = UserItemLocations.query.filter_by(user_id=current_user.id)
     from_location = locations.filter_by(user_access_from=True).all()
     to_location = locations.filter_by(user_access_to=True).all()
 
@@ -139,7 +139,7 @@ def scan_locations(squad):
             flash("Item not found.", "error")
             return redirect(url_for("guest.index", squad=squad))
 
-        locations = UserLocations.query.filter_by(user_id=current_user.id)
+        locations = UserItemLocations.query.filter_by(user_id=current_user.id)
         from_locations = locations.filter_by(user_access_from=True).all()
         to_locations = locations.filter_by(user_access_to=True).all()
 
@@ -203,10 +203,12 @@ def scan_item(squad):
         from_location = (
             -1
             if from_location_id == "-1"
-            else UserLocations.query.get(from_location_id)
+            else UserItemLocations.query.get(from_location_id)
         )
         to_location = (
-            -1 if to_location_id == "-1" else UserLocations.query.get(to_location_id)
+            -1
+            if to_location_id == "-1"
+            else UserItemLocations.query.get(to_location_id)
         )
 
         if not item or not from_location or not to_location:

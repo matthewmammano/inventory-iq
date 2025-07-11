@@ -24,7 +24,7 @@ class Users(db.Model, UserMixin):
     items = db.relationship("Items", backref="user", lazy=True)
     logs = db.relationship("ActionLogs", backref="user", lazy=True)
     settings = db.relationship("UserSettings", backref="user", lazy=True)
-    locations = db.relationship("UserLocations", backref="user", lazy=True)
+    locations = db.relationship("UserItemLocations", backref="user", lazy=True)
 
     def set_password(self, password):
         """Set the password hash."""
@@ -66,7 +66,8 @@ class UserSettings(db.Model):
         return f"<UserSettings {self.user_id}>"
 
 
-class UserLocations(db.Model):
+# TODO YELLOW: add a UserLocations and UserStorages (as subclass of UserLocations) for Tom Alexander's hospital
+class UserItemLocations(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(
         db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
@@ -76,15 +77,34 @@ class UserLocations(db.Model):
     user_access_to = db.Column(db.Boolean, default=True, nullable=False)
 
     def __repr__(self):
-        return f"<UserLocations {self.location_name}>"
+        return f"<UserItemLocations {self.location_name}>"
 
 
-class UserCategories(db.Model):
+class UserItemTags(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(
         db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
     )
-    category_name = db.Column(db.String(50), nullable=False)
+    tag_name = db.Column(db.String(50), nullable=False)
 
     def __repr__(self):
-        return f"<UserCategories {self.category_name}>"
+        return f"<UserItemTags {self.tag_name}>"
+
+
+class UserItemPreferences(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(
+        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
+    )
+    item_id = db.Column(
+        db.Integer, db.ForeignKey("items.id"), nullable=False, index=True
+    )
+    min_quantity = db.Column(db.Integer, nullable=True)  # Alert when below this
+    max_quantity = db.Column(db.Integer, nullable=True)  # Desired/reorder amount
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "item_id", name="uq_user_item_pref"),
+    )
+
+    def __repr__(self):
+        return f"<UserItemPreferences user={self.user_id} item={self.item_id}>"

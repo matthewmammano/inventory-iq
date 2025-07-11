@@ -4,10 +4,6 @@ table {
 
 th, td { border: 1px solid #ccc; padding: 8px; }
 
-input.changed, select.changed { background-color: #d4ffd4; }
-
-input:invalid, select:invalid { background-color: #ffd3d3; }
-
 .delete-btn {
     background-color: #ff6666;
     color: white;
@@ -17,3 +13,12 @@ input:invalid, select:invalid { background-color: #ffd3d3; }
 }
 
 .required::after { content: " *"; color: red; }
+
+.validation-error {
+    border: 2px solid var(--admin-color1) !important;
+    background-color: var(----decline-color) !important;
+}
+
+.changed {
+    border-color: var(--primary-dark) !important;
+}

@@ -48,7 +48,7 @@ def create_app():
     # Import models to ensure they're registered with SQLAlchemy
     # Register blueprints
     from app.auth import bp as auth_bp
-    from app.auth.models import UserLocations, Users, UserSettings
+    from app.auth.models import UserItemLocations, Users, UserSettings
     from app.inventory import admin_bp, guest_bp
     from app.inventory.models import ActionLogs, Items
 

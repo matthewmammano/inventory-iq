@@ -5,26 +5,54 @@
 
 {% block header_right %}{{ header_button(url_for('admin.admin_panel', squad=squad), 'Back')}}{% endblock %}
 
-{% block header_title %}{{squad}}{% endblock %}
+{% block header_title %}
+  {{squad}}
+{% endblock %}
 {% block sub_title %}Admin View{% endblock %}
 
 {% block content %}
 
+<style>
+  table {
+    border-collapse: collapse;
+    width: 100%;
+  }
+  th, td {
+    border-left: 1px solid var(--near-black);
+    border-right: 1px solid var(--near-black);
+    padding: 5px 10px;
+    text-align: left;
+  }
+  th:first-child, td:first-child {
+    border-left: none;
+  }
+  th:last-child, td:last-child {
+    border-right: none;
+  }
+  th {
+    border-bottom: 1px solid var(--near-black);
+  }
+</style>
+
 <table>
   <tr>      
     <th>UPC</th>
-    <th>Name</th>
+    <th>Active?</th>
     <th>Category</th>
-    <th>Quantity</th>
-    <th>Threshold</th>
+    <th>Increments</th>
+    <th>Name</th>
+    <th>Image</th>
+    <th>Last Accessed</th>
   </tr>
   {% for item in items %}
   <tr>
     <td>{{ item.upc }}</td>
-    <td>{{ item.name }}</td>
+    <td>{{ item.active }}</td>
     <td>{{ item.category.category_name }}</td>
-    <td>{{ item.quantity }}</td>
-    <td>{{ item.min_quantity }}</td>
+    <td>{{ item.increments }}</td>
+    <td>{{ item.name }}</td>
+    <td>{{ item.image }}</td>
+    <td>{{ item.last_accessed }}</td>
   </tr>
   {% endfor %}
 </table>

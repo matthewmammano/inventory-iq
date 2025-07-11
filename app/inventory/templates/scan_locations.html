@@ -6,7 +6,7 @@
 {% block header_right %}{{ header_button(url_for('guest.index', squad=squad), 'Back')}}{% endblock %}
 
 {% block header_title %}{{squad}}{% endblock %}
-{% block sub_title %}Scan Selection{% endblock %}
+{% block sub_title %}Scan Location{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/scan_locations.css') }}">
