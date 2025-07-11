@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% from "macros.html" import header_button %}
+
+{% block title %}Scan Selection{% endblock %}
+
+{% block header_right %}{{ header_button(url_for('guest.index', squad=squad), 'Back')}}{% endblock %}
+
+{% block header_title %}{{squad}}{% endblock %}
+{% block sub_title %}Scan Location{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/scan_locations.css') }}">
+{% endblock %}
+
+{% block content %}
+
+<div class="scan-selection-container">
+   <form id="scan-form" method="POST" action="{{ url_for('guest.scan_locations', squad=squad) }}">
+       <input type="hidden" name="item_id" value="{{ item.id }}">
+       
+       <div class="location-columns">
+           <!-- From Column -->
+           <div class="location-column">
+               <h2 class="column-title">From</h2>
+               <div class="location-options">
+                   <div class="location-option">
+                       <input type="radio" name="from_location_id" value="-1" id="from_recount" required>
+                       <label for="from_recount" class="location-label">RECOUNT</label>
+                   </div>
+                   {% for location in from_locations %}
+                   <div class="location-option">
+                       <input type="radio" name="from_location_id" value="{{ location.id }}" id="from_{{ location.id }}" required>
+                       <label for="from_{{ location.id }}" class="location-label">{{ location.location_name }}</label>
+                   </div>
+                   {% endfor %}
+               </div>
+           </div>
+
+           <!-- Arrow -->
+           <div class="arrow-container">
+               <div class="arrow">→</div>
+           </div>
+
+           <!-- To Column -->
+           <div class="location-column">
+               <h2 class="column-title">To</h2>
+               <div class="location-options" id="to-location-options">
+                    <div class="location-option">
+                       <input type="radio" name="to_location_id" value="-1" id="to_recount" required>
+                       <label for="to_recount" class="location-label">TAKE OUT</label>
+                   </div>
+                   {% for location in to_locations %}
+                   <div class="location-option">
+                       <input type="radio" name="to_location_id" value="{{ location.id }}" id="to_{{ location.id }}" required>
+                       <label for="to_{{ location.id }}" class="location-label">{{ location.location_name }}</label>
+                   </div>
+                   {% endfor %}
+               </div>
+           </div>
+       </div>
+
+       <div class="form-actions">
+           <input type="hidden" name="same_location_error" id="same_location_error" value="0">
+           <button type="submit" class="positive-button">Continue</button>
+       </div>
+   </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const fromRadios = document.querySelectorAll('input[name="from_location_id"]');
+    const toRadios = document.querySelectorAll('input[name="to_location_id"]');
+    const toOptions = document.querySelectorAll('#to-location-options .location-option');
+    const form = document.getElementById('scan-form');
+    const sameLocationErrorInput = document.getElementById('same_location_error');
+
+    function highlightIfSame() {
+        let fromVal = document.querySelector('input[name="from_location_id"]:checked');
+        let toVal = document.querySelector('input[name="to_location_id"]:checked');
+        // Remove previous highlights
+        toOptions.forEach(opt => opt.style.backgroundColor = '');
+        if (fromVal && toVal && fromVal.value === toVal.value) {
+            // Highlight the selected "to" option
+            let toRadio = document.querySelector('input[name="to_location_id"]:checked');
+            if (toRadio) {
+                toRadio.closest('.location-option').style.backgroundColor = 'var(--decline-color)';
+            }
+        }
+    }
+
+    function checkSameLocationError() {
+        let fromVal = document.querySelector('input[name="from_location_id"]:checked');
+        let toVal = document.querySelector('input[name="to_location_id"]:checked');
+        if (fromVal && toVal && fromVal.value === toVal.value) {
+            sameLocationErrorInput.value = "1";
+        } else {
+            sameLocationErrorInput.value = "0";
+        }
+    }
+
+    fromRadios.forEach(radio => {
+        radio.addEventListener('change', highlightIfSame);
+        radio.addEventListener('change', checkSameLocationError);
+    });
+    toRadios.forEach(radio => {
+        radio.addEventListener('change', highlightIfSame);
+        radio.addEventListener('change', checkSameLocationError);
+    });
+
+    form.addEventListener('submit', function(e) {
+        checkSameLocationError();
+        // If error, allow form to submit so server can handle
+    });
+});
+</script>
+
+{% endblock %}

@@ -9,7 +9,7 @@
     --admin-color1: red;
     --admin-color2: #c74f4f;
 
-    --accept-color: #B0EDD4;
+    --accept-color: #7edfb6;
     --decline-color: #FF8589;
     --exit-color: #DD5656;
 
@@ -89,6 +89,19 @@ img, video, svg {
 .header-button {
     color: var(--most-black);
     background-color: var(--admin-color2);
+    border: none;
+    outline: 3px solid var(--most-black);
+    font-weight: bold;
+    padding: 1rem 1.5rem;
+    border-radius: 5px;
+    font-size: 2rem;
+    box-shadow: 0 1px 15px var(--shadow-color);
+    text-decoration: none;
+}
+
+.positive-button {
+    color: var(--most-black);
+    background-color: var(--accept-color);
     border: none;
     outline: 3px solid var(--most-black);
     font-weight: bold;
