@@ -18,44 +18,56 @@
     <div class="admin-grid">
         <div class="admin-card">
             <h2>View Items</h2>
-            <p>Sort / filter inventory items and dashboards per item.</p>
+            <p>Sort / filter inventory items (edit if needed).</p>
             <a class="card-link" href="{{ url_for('admin.admin_view_items', squad=squad) }}"></a>
         </div>
-        
+
         <div class="admin-card">
-            <h2>View History</h2>
-            <p>See the history of user and admin changes of inventory.</p>
-            <a class="card-link" href="#"></a>
+            <h2>View Locations</h2>
+            <p>Like sites (edit if needed).</p>
+            <a class="card-link" href="{{ url_for('admin.admin_view_locations', squad=squad) }}"></a>
         </div>
-        
+
         <div class="admin-card">
-            <h2>Help</h2>
-            <p>Find all necessary help information here.</p>
-            <a class="card-link" href="{{ url_for('admin.help_page', squad=squad) }}"></a>
+            <h2>View Sub-Locations</h2>
+            <p>Like shelves at all of the sites (edit if needed).</p>
+            <a class="card-link" href="{{ url_for('admin.admin_view_sublocations', squad=squad) }}"></a>
+        </div>
+
+        <div class="admin-card">
+            <h2>View Tags</h2>
+            <p>Like categories of items (edit if needed).</p>
+            <a class="card-link" href="{{ url_for('admin.admin_view_tags', squad=squad) }}"></a>
         </div>
         
         <div class="admin-card">
             <h2>Move / Recount</h2>
-            <p>For shelf and cage, use for new arrivals and wrong counts.</p>
+            <p>Use to move / recount items for new arrivals and wrong counts.</p>
             <a class="card-link" href="{{ url_for('admin.move_items', squad=squad) }}"></a>
         </div>
         
         <div class="admin-card">
             <h2>Restock</h2>
-            <p>Generate list of what equipment to reorder and how much.</p>
+            <p>Generate list of how much equipment to reorder.</p>
             <a class="card-link" href="{{ url_for('admin.recount_items', squad=squad) }}"></a>
         </div>
         
         <div class="admin-card">
-            <h2>Settings</h2>
-            <p>Everything customizable from notifications, colors, images, etc.</p>
+            <h2>View History</h2>
+            <p>See the history of all changes made to the inventory.</p>
             <a class="card-link" href="#"></a>
         </div>
         
         <div class="admin-card">
-            <h2>Edit Items</h2>
-            <p>Add / remove / modify the list of inventory items for your squad.</p>
-            <a class="card-link" href="{{ url_for('admin.save_items', squad=squad) }}"></a>
+            <h2>Settings</h2>
+            <p>Preferences from colors, images, etc.</p>
+            <a class="card-link" href="#"></a>
+        </div>
+        
+        <div class="admin-card">
+            <h2>Help</h2>
+            <p>Contact information listed for support.</p>
+            <a class="card-link" href="{{ url_for('admin.help_page', squad=squad) }}"></a>
         </div>
     </div>
     

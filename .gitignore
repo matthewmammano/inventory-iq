@@ -21,3 +21,6 @@ env/
 
 # Squad Logos
 static/images/logos/*
+
+# AI Assistance
+.claude/settings.local.json

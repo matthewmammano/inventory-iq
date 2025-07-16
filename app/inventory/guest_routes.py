@@ -9,6 +9,7 @@ from app.inventory import guest_bp as bp
 from app.inventory.models import ActionLogs, Items
 
 
+# TODO RED: make all html non selectable!
 @bp.before_request
 def check_authentication_and_squad():
     """
@@ -53,14 +54,8 @@ def index(squad):
     Display the inventory for the given squad to search or scan UPC.
     """
     # Get the list of items and order them by last_accessed
-    items = (
-        Items.query.filter_by(user_id=current_user.id)
-        .order_by(Items.last_accessed.desc().nullslast())
-        .all()
-    )
-    return render_template(
-        "index.html", items=items, squad=squad, logo_img=current_user.image
-    )
+    items = Items.query.filter_by(user_id=current_user.id).order_by(Items.last_accessed.desc().nullslast()).all()
+    return render_template("index.html", items=items, squad=squad, logo_img=current_user.image)
 
 
 @bp.route("/<squad>/scan")
@@ -84,8 +79,8 @@ def scan_start(squad):
                 "guest.scan_item",
                 squad=squad,
                 item_id=item.id,
-                from_location=from_location[0].id,
-                to_location=to_location[0].id,
+                from_location_id=from_location[0].id,
+                to_location_id=to_location[0].id,
             )
         )
     elif len(from_location) == 0 or len(to_location) == 0:
@@ -190,6 +185,11 @@ def scan_item(squad):
             user_id=current_user.id,
         )
         db.session.add(action_log)
+        db.session.flush()
+
+        # Process the action and handle quantity updates
+        action_log.process_action(db.session)
+
         db.session.commit()
 
         flash(f"Successfully moved {counter_value} {item.name}.", "success")
@@ -200,23 +200,11 @@ def scan_item(squad):
         to_location_id = request.args.get("to_location_id")
 
         item = Items.query.get(item_id)
-        from_location = (
-            -1
-            if from_location_id == "-1"
-            else UserItemLocations.query.get(from_location_id)
-        )
-        to_location = (
-            -1
-            if to_location_id == "-1"
-            else UserItemLocations.query.get(to_location_id)
-        )
+        from_location = -1 if from_location_id == "-1" else UserItemLocations.query.get(from_location_id)
+        to_location = -1 if to_location_id == "-1" else UserItemLocations.query.get(to_location_id)
 
         if not item or not from_location or not to_location:
-            flash(
-                f"Invalid item or locations. {item_id}, {from_location_id}, {to_location_id}",
-                "error",
-            )
-            # flash("Invalid item or locations.", "error")
+            flash("Invalid item or locations.", "error")
             return redirect(url_for("guest.index", squad=squad))
 
         return render_template(

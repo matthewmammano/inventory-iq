@@ -59,9 +59,7 @@ def parse_tag_ids(tag_ids_str):
         # Ensure all items are integers
         return [int(tag_id) for tag_id in parsed]
     except (json.JSONDecodeError, ValueError) as e:
-        print(
-            f"[WARNING] Invalid tag_ids format '{tag_ids_str}', using empty list. Error: {e}"
-        )
+        print(f"[WARNING] Invalid tag_ids format '{tag_ids_str}', using empty list. Error: {e}")
         return []
 
 
@@ -156,28 +154,62 @@ def create_items_from_data(items_data):
     """Create new items from parsed data."""
     created_count = 0
     failed_count = 0
+    used_upcs = set()  # Track UPCs generated in this session
 
     for item_data in items_data:
         try:
+            # Generate UPC manually if not provided
+            if 'upc' not in item_data or not item_data['upc']:
+                item_data['upc'] = generate_unique_upc(item_data['user_id'], used_upcs)
+                used_upcs.add(item_data['upc'])
+            
             item = Items(**item_data)
             db.session.add(item)
             created_count += 1
         except Exception as e:
-            print(
-                f"[ERROR] Error creating item '{item_data.get('name', 'Unknown')}': {e}"
-            )
+            print(f"[ERROR] Error creating item '{item_data.get('name', 'Unknown')}': {e}")
             failed_count += 1
             continue
 
     return created_count, failed_count
 
 
+def generate_unique_upc(user_id, used_upcs):
+    """Generate a unique UPC that doesn't conflict with existing or recently generated ones."""
+    from app.inventory.models import Items
+    
+    halfway_point = "500000000000"  # start auto-generation at halfway point
+    max_attempts = 1000
+    
+    # Get the largest existing UPC from database
+    largest_upc = (
+        Items.query.filter(Items.user_id == user_id, Items.upc >= halfway_point)
+        .order_by(Items.upc.desc()).first()
+    )
+
+    if largest_upc:
+        base_11 = largest_upc.upc[:11]  # Remove check digit
+        next_number = int(base_11) + 1
+    else:
+        next_number = int(halfway_point[:11])
+
+    for attempt in range(max_attempts):
+        next_base = str(next_number + attempt).zfill(11)
+        check_digit = Items.calculate_upc_check_digit(next_base)
+        new_upc = next_base + check_digit
+        
+        # Check if this UPC exists in database OR in our current session
+        if (not Items.query.filter_by(upc=new_upc).first() and 
+            new_upc not in used_upcs):
+            return new_upc
+    
+    raise ValueError(f"Could not generate unique UPC after {max_attempts} attempts")
+
+
 def import_items():
     """Import items from CSV file."""
     print_header("IMPORT ITEMS FROM CSV")
-    print(
-        "This utility will replace ALL items for a selected user with items from a CSV file."
-    )
+    print("This utility will replace ALL items for a selected user with items from a CSV file.")
     print("\nCSV Format:")
     print("Required columns: user_id, name")
     print("Optional columns: upc, active, tag_ids, increments, image")
@@ -220,9 +252,7 @@ def import_items():
         print(f"[INFO] User currently has {current_count} items")
 
         # Confirmation
-        print(
-            f"\n[WARNING] This will DELETE ALL {current_count} existing items for {user.display_name}"
-        )
+        print(f"\n[WARNING] This will DELETE ALL {current_count} existing items for {user.display_name}")
         print(f"[INFO] And replace them with {len(items_data)} items from the CSV")
 
         if not confirm_action("Continue with import?"):
@@ -250,20 +280,10 @@ def import_items():
             print(f"- Failed: {failed_count} items (see errors above)")
 
         # Show UPC generation results
-        items_without_upc = (
-            db.session.query(Items)
-            .filter(Items.user_id == user.id, Items.upc.is_(None))
-            .count()
-        )
-        items_with_upc = (
-            db.session.query(Items)
-            .filter(Items.user_id == user.id, Items.upc.isnot(None))
-            .count()
-        )
+        items_without_upc = db.session.query(Items).filter(Items.user_id == user.id, Items.upc.is_(None)).count()
+        items_with_upc = db.session.query(Items).filter(Items.user_id == user.id, Items.upc.isnot(None)).count()
         print(f"- Items with UPC: {items_with_upc}")
-        print(
-            f"- Items without UPC (duplicates or generation failed): {items_without_upc}"
-        )
+        print(f"- Items without UPC (duplicates or generation failed): {items_without_upc}")
 
         input("\nPress Enter to continue...")
 

@@ -1,6 +1,5 @@
 import json
 import os
-import re
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
@@ -8,7 +7,7 @@ from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user
 
 from app import db
-from app.auth.models import Users
+from app.auth.models import UserItemTags, Users
 from app.inventory import admin_bp as bp
 from app.inventory.models import Items
 
@@ -58,9 +57,7 @@ def check_admin_authorization():
         if not admin_last_active or now - admin_last_active > ADMIN_TIMEOUT_SECONDS:
             session.pop("admin", None)
             session.pop("admin_last_active", None)
-            flash(
-                "Admin session expired. Please log in with your PIN again.", "warning"
-            )
+            flash("Admin session expired. Please log in with your PIN again.", "warning")
             return redirect(url_for("guest.index", squad=squad))
 
         # Update last active timestamp
@@ -87,18 +84,15 @@ def admin_panel(squad):
 @bp.route("/<squad>/admin-panel/view-items")
 def admin_view_items(squad):
     items = Items.query.filter_by(user_id=current_user.id).order_by(Items.name).all()
-    return render_template(
-        "admin_view_items.html", squad=squad, items=items, admin=True
-    )
+    categories = UserItemTags.query.filter_by(user_id=current_user.id).all()
+    return render_template("admin_items_manager.html", squad=squad, items=items, categories=categories, admin=True)
 
 
 # Admin help page (protected)
 @bp.route("/<squad>/help")
 def help_page(squad):
     developer_phone = os.getenv("CONTACT_PHONE", "UNAVAILABLE")
-    return render_template(
-        "admin_help.html", squad=squad, contact_phone=developer_phone, admin=True
-    )
+    return render_template("admin_help.html", squad=squad, contact_phone=developer_phone, admin=True)
 
 
 # Admin move items page (protected)
@@ -117,14 +111,12 @@ def recount_items(squad):
 @bp.route("/<squad>/admin-panel/edit-items", methods=["GET", "POST"])
 def save_items(squad):
     if request.method == "GET":
-        items = (
-            Items.query.filter_by(user_id=current_user.id).order_by(Items.name).all()
-        )
+        items = Items.query.filter_by(user_id=current_user.id).order_by(Items.name).all()
         return render_template(
             "admin_edit_items.html",
             squad=squad,
             items=items,
-            categories=None,  # TODO: fix to tags instead
+            tags=UserItemTags.query.filter_by(user_id=current_user.id).all(),
             admin=True,
         )
 
@@ -141,9 +133,7 @@ def save_items(squad):
         return redirect(url_for("admin.admin_view_items", squad=squad))
 
     # Keep track of existing items to detect deletions
-    existing_ids = set(
-        item.id for item in Items.query.filter_by(user_id=current_user.id).all()
-    )
+    existing_ids = set(item.id for item in Items.query.filter_by(user_id=current_user.id).all())
     processed_ids = set()
     new_items = []
     error_items = []
@@ -158,21 +148,24 @@ def save_items(squad):
         # Get other fields
         item_id = item_data.get("id")
         active = item_data.get("active", True)  # Default to True if not provided
-        category_id = item_data.get("category_id", "").strip()
+        tag_ids = item_data.get("tag_ids", [])
+        if isinstance(tag_ids, str):
+            tag_ids = [int(x.strip()) for x in tag_ids.split(",") if x.strip().isdigit()]
         increments = item_data.get("increments")
         image = item_data.get("image", "").strip()
 
-        # Validate required fields
-        if not category_id:
-            error_items.append(name)
-            continue
-
-        # Validate image URL if provided
-        if image and not re.match(
-            r"^(https?://)?[a-zA-Z0-9._-]+\.[a-zA-Z]{2,}(/.*)?$", image
-        ):
-            error_items.append(name)
-            continue
+        # Validate tag_ids if provided
+        if tag_ids:
+            try:
+                valid_tags = UserItemTags.query.filter(
+                    UserItemTags.id.in_(tag_ids), UserItemTags.user_id == current_user.id
+                ).all()
+                if len(valid_tags) != len(tag_ids):
+                    error_items.append(name)
+                    continue
+            except (ValueError, TypeError):
+                error_items.append(name)
+                continue
 
         # Process existing items vs new items
         if item_id != "new" and item_id is not None:
@@ -181,16 +174,14 @@ def save_items(squad):
                 processed_ids.add(item_id)
 
                 # Update existing item
-                item = Items.query.filter_by(
-                    id=item_id, user_id=current_user.id
-                ).first()
+                item = Items.query.filter_by(id=item_id, user_id=current_user.id).first()
                 if not item:
                     error_items.append(name)
                     continue
 
                 item.name = name
                 item.active = active
-                item.category_id = category_id
+                item.tag_ids = tag_ids
                 item.increments = increments if increments else None
                 item.image = image if image else None
             except (ValueError, TypeError):
@@ -201,7 +192,7 @@ def save_items(squad):
             try:
                 item = Items(
                     active=active,
-                    category_id=category_id,
+                    tag_ids=tag_ids,
                     increments=increments if increments else None,
                     name=name,
                     image=image if image else None,
@@ -215,15 +206,12 @@ def save_items(squad):
 
     # Delete items that were removed from the form
     for item_id in existing_ids - processed_ids:
-        item_to_delete = Items.query.filter_by(
-            id=item_id, user_id=current_user.id
-        ).first()
+        item_to_delete = Items.query.filter_by(id=item_id, user_id=current_user.id).first()
         if item_to_delete:
             db.session.delete(item_to_delete)
 
     # Commit all changes
     db.session.commit()
-    db.session.flush()  # TODO GREEN: do i need this?
 
     if error_items:
         flash(
@@ -234,3 +222,18 @@ def save_items(squad):
         flash("All items saved successfully!", "success")
 
     return redirect(url_for("admin.admin_view_items", squad=squad))
+
+
+@bp.route("/<squad>/admin-panel/view-locations")
+def admin_view_locations(squad):
+    pass  # TODO RED
+
+
+@bp.route("/<squad>/admin-panel/view-sublocations")
+def admin_view_sublocations(squad):
+    pass  # TODO RED
+
+
+@bp.route("/<squad>/admin-panel/view-tags")
+def admin_view_tags(squad):
+    pass  # TODO RED

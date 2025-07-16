@@ -1,0 +1,109 @@
+/* Combined styles for admin items manager */
+
+/* Base table styles */
+.items-table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 20px;
+}
+
+.items-table th, .items-table td {
+    border-left: 1px solid var(--near-black);
+    border-right: 1px solid var(--near-black);
+    padding: 5px 10px;
+    text-align: left;
+}
+
+.items-table th:first-child, .items-table td:first-child {
+    border-left: none;
+}
+
+.items-table th:last-child, .items-table td:last-child {
+    border-right: none;
+}
+
+.items-table th {
+    border-bottom: 1px solid var(--near-black);
+}
+
+/* Toggle button styling */
+.toggle-btn {
+    background-color: var(--primary-color);
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    cursor: pointer;
+    margin-right: 10px;
+    border-radius: 4px;
+}
+
+.toggle-btn:hover {
+    background-color: var(--primary-dark);
+}
+
+/* Edit mode specific styles */
+.delete-btn {
+    background-color: #ff6666;
+    color: white;
+    border: none;
+    padding: 5px 8px;
+    cursor: pointer;
+    border-radius: 3px;
+}
+
+.delete-btn:hover {
+    background-color: #ff4444;
+}
+
+.required::after {
+    content: " *";
+    color: red;
+}
+
+.validation-error {
+    border: 2px solid var(--admin-color1) !important;
+    background-color: var(--decline-color) !important;
+}
+
+.changed {
+    border-color: var(--primary-dark) !important;
+}
+
+/* Form actions */
+.form-actions {
+    margin-top: 15px;
+}
+
+.form-actions button {
+    margin-right: 10px;
+    padding: 8px 16px;
+    border: none;
+    cursor: pointer;
+    border-radius: 4px;
+}
+
+.form-actions button[onclick*="saveItems"] {
+    background-color: #28a745;
+    color: white;
+}
+
+.form-actions button[onclick*="cancelChanges"] {
+    background-color: #6c757d;
+    color: white;
+}
+
+.form-actions button:hover {
+    opacity: 0.9;
+}
+
+/* Input field styling */
+#editMode input, #editMode select {
+    width: 100%;
+    padding: 4px 8px;
+    border: 1px solid #ccc;
+    border-radius: 3px;
+}
+
+#editMode input[type="checkbox"] {
+    width: auto;
+}

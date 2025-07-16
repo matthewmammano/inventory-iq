@@ -3,7 +3,7 @@
 
 {% block title %}Scan Item{% endblock %}
 
-{% block header_right %}{{ header_logo(url_for('static', filename='images/logos/'+logo_img))}}{% endblock %}
+{% block header_right %}{{ header_logo(logo_img)}}{% endblock %}
 
 {% block header_title %}{{ squad }}{% endblock %}
 {% block sub_title %}Scan{% endblock %}
@@ -84,7 +84,7 @@
         list.innerHTML = '';
         results.slice(0, 10).forEach(({ item }) => {
             const li = document.createElement('li');
-            li.textContent = `${item.name} ()`;  // TODO RED: make the parenthesis the tags
+            li.textContent = `${item.name} (...)`;  // TODO RED: make the parenthesis the tags
             li.onclick = () => window.location.href = `/inventory/${squad}/scan?item_id=${item.id}`;
             list.appendChild(li);
         });

@@ -38,7 +38,7 @@
   <tr>      
     <th>UPC</th>
     <th>Active?</th>
-    <th>Category</th>
+    <th>Tags</th>
     <th>Increments</th>
     <th>Name</th>
     <th>Image</th>
@@ -48,7 +48,7 @@
   <tr>
     <td>{{ item.upc }}</td>
     <td>{{ item.active }}</td>
-    <td>{{ item.category.category_name }}</td>
+    <td>{{ ', '.join(item.tags) }}</td>
     <td>{{ item.increments }}</td>
     <td>{{ item.name }}</td>
     <td>{{ item.image }}</td>

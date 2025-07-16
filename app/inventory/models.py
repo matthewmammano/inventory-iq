@@ -1,31 +1,40 @@
 from datetime import datetime, timezone
-from urllib.parse import urlparse
 
 from sqlalchemy import JSON, event
 from sqlalchemy.orm import validates
 
 from app import db
-from app.auth.models import UserItemPreferences, UserItemTags
+from app.auth.models import UserItemTags
+from app.helpers.model_helpers import check_quantity_alerts, get_or_create_qty_row
+from app.helpers.model_validate import (
+    validate_image_url,
+    validate_non_negative_integer,
+    validate_positive_integer,
+    validate_string_length,
+    validate_tag_id_type,
+)
 
 
 class Items(db.Model):
-    # true unique reference to the item
-    id = db.Column(db.Integer, primary_key=True)
-    # Universal Product Code, 12 digits (supposed to be unique)
-    upc = db.Column(db.String(12))
-    # active status of the item or soft deleted
+    id = db.Column(db.Integer, primary_key=True)  # true unique reference to the item
+    upc = db.Column(db.String(12))  # 12 digits (unique per user)
     active = db.Column(db.Boolean, default=True, nullable=False)
-    # first aid squad taking owndership of the item
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
-    # Store tag IDs as JSON array, defaulting to empty list
-    tag_ids = db.Column(JSON, default=list, nullable=False)
-    # 'individual', 'box', 'case', etc.
-    increments = db.Column(db.String(50))
-    # 'Bandage', 'Aspirin', 'Tourniquet', etc.
-    name = db.Column(db.String(100), nullable=False)
-    # image online URL to the item's image
-    image = db.Column(db.String(255))
-    last_accessed = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
+
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)  # squad
+    tag_ids = db.Column(JSON, default=list, nullable=False)  # Store tag IDs, default []
+
+    increments = db.Column(db.String(50))  # 'individual', 'box', 'case', etc.
+    name = db.Column(db.String(100), nullable=False)  # 'Bandage', 'Aspirin', etc.
+    image = db.Column(db.String(1024))  # image online URL to the item's image
+    last_accessed = db.Column(
+        db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
+    )
+
+    min_quantity = db.Column(db.Integer, nullable=True)  # alert when below this
+    max_quantity = db.Column(db.Integer, nullable=True)  # desired/reorder amount
+    batch_size = db.Column(db.Integer, nullable=True)  # batch amount for restocking
+    expiration_days = db.Column(db.Integer, nullable=True)  # approx. days until expiration for perishable items
+    restock_delivery_days = db.Column(db.Integer, nullable=True)  # days to expect delivery after restock order
 
     # Relationships
     action_logs = db.relationship("ActionLogs", backref="item", lazy=True)
@@ -35,9 +44,7 @@ class Items(db.Model):
         """Get actual tag objects for this item."""
         if not self.tag_ids:
             return []
-        return UserItemTags.query.filter(
-            UserItemTags.id.in_(self.tag_ids), UserItemTags.user_id == self.user_id
-        ).all()
+        return UserItemTags.query.filter(UserItemTags.id.in_(self.tag_ids), UserItemTags.user_id == self.user_id).all()
 
     # Create index on user_id and others
     __table_args__ = (
@@ -51,6 +58,7 @@ class Items(db.Model):
 
     def add_tag(self, tag_id):
         """Add a tag ID to the list if not already present."""
+        validate_tag_id_type(tag_id)
         if self.tag_ids is None:
             self.tag_ids = []
         if tag_id not in self.tag_ids:
@@ -58,6 +66,7 @@ class Items(db.Model):
 
     def remove_tag(self, tag_id):
         """Remove a tag ID from the list."""
+        validate_tag_id_type(tag_id)
         if self.tag_ids and tag_id in self.tag_ids:
             self.tag_ids.remove(tag_id)
 
@@ -72,7 +81,28 @@ class Items(db.Model):
         for item in value:
             if not isinstance(item, int):
                 raise ValueError("All tag IDs must be integers")
+            validate_tag_id_type(item)
         return value
+
+    @validates("name")
+    def validate_name(self, key, value):
+        """Validate name field."""
+        return validate_string_length(value, "name", 100, allow_none=False, allow_empty=False)
+
+    @validates("increments")
+    def validate_increments(self, key, value):
+        """Validate increments field."""
+        return validate_string_length(value, "increments", 50, allow_none=True, allow_empty=True)
+
+    @validates("min_quantity", "max_quantity", "batch_size", "expiration_days", "restock_delivery_days")
+    def validate_positive_integers(self, key, value):
+        """Validate positive integer fields."""
+        return validate_positive_integer(value, key, allow_none=True)
+
+    @validates("image")
+    def validate_image(self, key, value):
+        """Validate image URL format."""
+        return validate_image_url(value)
 
     @staticmethod
     def calculate_upc_check_digit(upc11: str) -> str:
@@ -83,16 +113,36 @@ class Items(db.Model):
         return str((10 - total % 10) % 10)
 
     @staticmethod
-    def generate_upc(user_id: int, item_id: int) -> str:
-        user_part = str(user_id)[-5:].zfill(5)  # Last 5 digits, pad if needed
-        item_part = str(item_id)[-6:].zfill(6)  # Last 6 digits, pad if needed
-        base = user_part + item_part  # Always 11 digits
-        return base + Items.calculate_upc_check_digit(base)
+    def generate_upc(user_id: int) -> str:
+        halfway_point = "500000000000"  # start auto-generation at halfway point
+
+        largest_upc = (
+            Items.query.filter(Items.user_id == user_id, Items.upc >= halfway_point).order_by(Items.upc.desc()).first()
+        )
+
+        if largest_upc:
+            base_11 = largest_upc.upc[:11]  # Remove check digit
+            next_number = int(base_11) + 1
+            next_base = str(next_number).zfill(11)
+        else:
+            next_base = halfway_point[:11]
+
+        new_upc = next_base + Items.calculate_upc_check_digit(next_base)
+
+        if Items.query.filter_by(upc=new_upc).first():
+            raise ValueError(f"Generated UPC {new_upc} already exists - UPC space may be exhausted")
+
+        return new_upc
 
     @validates("upc")
     def validate_upc(self, key, value):
+        # Allow None/empty values to pass through for auto-generation
         if not value:
-            return value
+            return None
+        if not isinstance(value, str):
+            raise ValueError("UPC must be a string.")
+        if not value or value.strip() == "":
+            return None
         if not value.isdigit() or len(value) != 12:
             raise ValueError("UPC must be a 12-digit number.")
         # Validate check digit
@@ -100,28 +150,15 @@ class Items(db.Model):
         if calculated_check != value[11]:
             raise ValueError("Invalid UPC check digit.")
         # Check if UPC already exists
-        existing = Items.query.filter_by(upc=value).first()
+        existing = Items.query.filter_by(upc=value, user_id=self.user_id).first()
         if existing and existing.id != getattr(self, "id", None):
-            return None  # Set to None if duplicate
-        return value
-
-    @validates("image")
-    def validate_image(self, key, value):
-        """Validate image URL format."""
-        if value:
-            parsed = urlparse(value)
-            if not (
-                parsed.scheme and parsed.scheme in ("http", "https") and parsed.netloc
-            ):
-                raise ValueError("Image URL must be a valid URL.")
+            raise ValueError("UPC already exists for another item in your account.")
         return value
 
 
 class ActionLogs(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    timestamp = db.Column(
-        db.DateTime, default=lambda: datetime.now(timezone.utc)
-    )  # TODO GREEN: make sure ALL timezones are in UTC
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey("items.id"))
     from_location_id = db.Column(
         db.Integer,
@@ -133,10 +170,10 @@ class ActionLogs(db.Model):
         db.ForeignKey("user_item_locations.id"),
         nullable=True,  # if Null, then REMOVED, else normal transfer / RECOUNT
     )
+
     quantity_delta = db.Column(db.Integer, nullable=False)
     # if this action was performed by an admin (e.g., via the admin panel)
     admin_action = db.Column(db.Boolean, default=False)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
 
     # Relationships
     from_location = db.relationship(
@@ -154,7 +191,6 @@ class ActionLogs(db.Model):
 
     # Create index on user_id and others
     __table_args__ = (
-        db.Index("idx_user_timestamp", "user_id", "timestamp"),
         db.Index("idx_user_item_id", "user_id", "item_id"),
         db.Index("idx_user_from_location", "user_id", "from_location_id"),
         db.Index("idx_user_to_location", "user_id", "to_location_id"),
@@ -165,21 +201,8 @@ class ActionLogs(db.Model):
 
     @validates("quantity_delta")
     def validate_quantity_delta(self, key, value):
-        """Validate quantity_delta is a positive integer."""
-        if not isinstance(value, int) or value < 0:
-            raise ValueError("Quantity delta must be a non-negative integer.")
-        return value
-
-    @validates("from_location_id", "to_location_id")
-    def validate_locations(self, key, value):
-        # Use the new value for the field being set, and the current value for the other
-        from_id = value if key == "from_location_id" else self.from_location_id
-        to_id = value if key == "to_location_id" else self.to_location_id
-        if from_id is None and to_id is None:
-            raise ValueError(
-                "Both from_location_id and to_location_id cannot be null at the same time."
-            )
-        return value
+        """Validate quantity_delta is a non-negative integer."""
+        return validate_non_negative_integer(value, "quantity_delta", allow_none=False)
 
     @property
     def is_recount(self):
@@ -190,149 +213,45 @@ class ActionLogs(db.Model):
         return self.from_location_id is not None
 
     def process_action(self, db_session):
-        """
-        Update ItemLocationQuantities for this action and check for alerts.
-        Returns: (updated_quantities, alerts)
-        alerts: list of dicts, each with keys: location_id, alert_type, quantity
-        """
+        """Update ItemLocationQuantities and check for alerts."""
         updated_quantities = {}
-        alerts = []
+        previous_quantities = {}
 
-        # Handle recount (from_location_id is None)
-        if self.from_location_id is None and self.to_location_id:
-            # Set quantity at TO location to quantity_delta
-            qty_row = ItemLocationQuantities.query.filter_by(
-                user_id=self.user_id,
-                item_id=self.item_id,
-                location_id=self.to_location_id,
-            ).first()
-            if not qty_row:
-                qty_row = ItemLocationQuantities(
-                    user_id=self.user_id,
-                    item_id=self.item_id,
-                    location_id=self.to_location_id,
-                    quantity=self.quantity_delta,
-                )
-                db_session.add(qty_row)
-            else:
-                qty_row.quantity = self.quantity_delta
-            updated_quantities[self.to_location_id] = qty_row.quantity
+        # Handle FROM location (subtract)
+        if self.from_location_id:
+            from_qty = get_or_create_qty_row(db_session, self.user_id, self.item_id, self.from_location_id)
+            previous_quantities[self.from_location_id] = from_qty.quantity
+            from_qty.quantity = max(0, from_qty.quantity - self.quantity_delta)
+            updated_quantities[self.from_location_id] = from_qty.quantity
 
-        # Handle transfer (from_location_id and to_location_id)
-        elif self.from_location_id and self.to_location_id:
-            # Decrement from FROM location
-            from_qty_row = ItemLocationQuantities.query.filter_by(
-                user_id=self.user_id,
-                item_id=self.item_id,
-                location_id=self.from_location_id,
-            ).first()
-            if not from_qty_row:
-                from_qty_row = ItemLocationQuantities(
-                    user_id=self.user_id,
-                    item_id=self.item_id,
-                    location_id=self.from_location_id,
-                    quantity=0,
-                )
-                db_session.add(from_qty_row)
-            from_qty_row.quantity = max(0, from_qty_row.quantity - self.quantity_delta)
-            updated_quantities[self.from_location_id] = from_qty_row.quantity
+        # Handle TO location (add/set)
+        if self.to_location_id:
+            to_qty = get_or_create_qty_row(db_session, self.user_id, self.item_id, self.to_location_id)
+            previous_quantities[self.to_location_id] = to_qty.quantity
+            to_qty.quantity = (
+                self.quantity_delta if not self.from_location_id else to_qty.quantity + self.quantity_delta
+            )
+            updated_quantities[self.to_location_id] = to_qty.quantity
 
-            # Increment at TO location
-            to_qty_row = ItemLocationQuantities.query.filter_by(
-                user_id=self.user_id,
-                item_id=self.item_id,
-                location_id=self.to_location_id,
-            ).first()
-            if not to_qty_row:
-                to_qty_row = ItemLocationQuantities(
-                    user_id=self.user_id,
-                    item_id=self.item_id,
-                    location_id=self.to_location_id,
-                    quantity=0,
-                )
-                db_session.add(to_qty_row)
-            to_qty_row.quantity += self.quantity_delta
-            updated_quantities[self.to_location_id] = to_qty_row.quantity
-
-        # Handle REMOVED (to_location_id is None)
-        elif self.from_location_id and self.to_location_id is None:
-            # Remove from FROM location
-            from_qty_row = ItemLocationQuantities.query.filter_by(
-                user_id=self.user_id,
-                item_id=self.item_id,
-                location_id=self.from_location_id,
-            ).first()
-            if not from_qty_row:
-                from_qty_row = ItemLocationQuantities(
-                    user_id=self.user_id,
-                    item_id=self.item_id,
-                    location_id=self.from_location_id,
-                    quantity=0,
-                )
-                db_session.add(from_qty_row)
-            from_qty_row.quantity = max(0, from_qty_row.quantity - self.quantity_delta)
-            updated_quantities[self.from_location_id] = from_qty_row.quantity
-
-        # Check for alerts (low stock or over max) at all affected locations
-        prefs = UserItemPreferences.query.filter_by(
-            user_id=self.user_id, item_id=self.item_id
-        ).first()
-        for loc_id, qty in updated_quantities.items():
-            if prefs:
-                if prefs.min_quantity is not None and qty < prefs.min_quantity:
-                    alerts.append(
-                        {
-                            "location_id": loc_id,
-                            "alert_type": "low_stock",
-                            "quantity": qty,
-                            "min_quantity": prefs.min_quantity,
-                        }
-                    )
-                if prefs.max_quantity is not None and qty > prefs.max_quantity:
-                    alerts.append(
-                        {
-                            "location_id": loc_id,
-                            "alert_type": "over_max",
-                            "quantity": qty,
-                            "max_quantity": prefs.max_quantity,
-                        }
-                    )
+        alerts = check_quantity_alerts(self.user_id, self.item_id, updated_quantities, previous_quantities)
         return updated_quantities, alerts
 
 
 class ItemLocationQuantities(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(
-        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
-    )
-    item_id = db.Column(
-        db.Integer, db.ForeignKey("items.id"), nullable=False, index=True
-    )
-    location_id = db.Column(
-        db.Integer, db.ForeignKey("user_item_locations.id"), nullable=False, index=True
-    )
-    quantity = db.Column(db.Integer, nullable=False, default=0)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    item_id = db.Column(db.Integer, db.ForeignKey("items.id"), nullable=False, index=True)
+    location_id = db.Column(db.Integer, db.ForeignKey("user_item_locations.id"), nullable=False, index=True)
+    quantity = db.Column(db.Integer, nullable=False, default=0)  # allows negative for calculations!
 
-    __table_args__ = (
-        db.UniqueConstraint(
-            "user_id", "item_id", "location_id", name="uq_user_item_location"
-        ),
-    )
+    __table_args__ = (db.UniqueConstraint("user_id", "item_id", "location_id", name="uq_user_item_location"),)
 
     def __repr__(self):
         return f"<ItemLocationQuantities user={self.user_id} item={self.item_id} location={self.location_id} qty={self.quantity}>"
 
 
-# TODO RED: does this auto go? idk if it should? maybe just listen for user specifying the upc? maybe only i do it? bc they need mailed / re-printed cards ANYWAYS!
-# Auto-generate UPC after item is inserted into database
-@event.listens_for(Items, "after_insert")
-def generate_upc_after_insert(mapper, connection, target):
+@event.listens_for(Items, "before_insert")
+def generate_upc_before_insert(mapper, connection, target):
     """Automatically generate UPC after item is inserted if no UPC was provided."""
-    if not target.upc and target.id and target.user_id:
-        upc = Items.generate_upc(target.user_id, target.id)
-        # Update the item with the generated UPC
-        connection.execute(
-            Items.__table__.update().where(Items.id == target.id).values(upc=upc)
-        )
-        # Update the target object so it reflects the new UPC
-        target.upc = upc
+    if not target.upc and target.user_id:
+        target.upc = Items.generate_upc(target.user_id)

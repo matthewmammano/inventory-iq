@@ -1,9 +1,16 @@
 from datetime import datetime, timezone
 
 from flask_login import UserMixin
+from sqlalchemy.orm import validates
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
+from app.helpers.model_validate import (
+    validate_email_format,
+    validate_image_url,
+    validate_string_length,
+    validate_timezone,
+)
 
 
 class Users(db.Model, UserMixin):
@@ -15,9 +22,7 @@ class Users(db.Model, UserMixin):
     image = db.Column(db.String(255))
     notes = db.Column(db.Text)
     timezone = db.Column(db.String(50), default="America/New_York", nullable=False)
-    created_at = db.Column(
-        db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
-    )
+    created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
     active = db.Column(db.Boolean, default=True, nullable=False)
 
     # Relationships
@@ -47,12 +52,40 @@ class Users(db.Model, UserMixin):
             "timezone": self.timezone,
         }
 
+    @validates("display_name")
+    def validate_display_name(self, key, value):
+        """Validate display name."""
+        return validate_string_length(value, "display_name", 50, allow_none=False, allow_empty=False)
+
+    @validates("email")
+    def validate_email(self, key, value):
+        """Validate email format and length."""
+        if value:
+            value = validate_email_format(value)
+            validate_string_length(value, "email", 128, allow_none=False, allow_empty=False)
+        return value
+
+    @validates("pin")
+    def validate_pin(self, key, value):
+        """Validate PIN format."""
+        if not value or not value.isdigit() or len(value) != 4:
+            raise ValueError("PIN must be exactly 4 digits")
+        return value
+
+    @validates("image")
+    def validate_image(self, key, value):
+        """Validate image URL format."""
+        return validate_image_url(value)
+
+    @validates("timezone")
+    def validate_timezone_field(self, key, value):
+        """Validate timezone."""
+        return validate_timezone(value)
+
 
 class UserSettings(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(
-        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     # Email for alerts
     contact_info = db.Column(db.String(255), nullable=False)
     # Alert Types
@@ -65,13 +98,19 @@ class UserSettings(db.Model):
     def __repr__(self):
         return f"<UserSettings {self.user_id}>"
 
+    @validates("contact_info")
+    def validate_contact_info(self, key, value):
+        """Validate contact info (email format)."""
+        if value:
+            value = validate_email_format(value)
+            validate_string_length(value, "contact_info", 255, allow_none=False, allow_empty=False)
+        return value
 
-# TODO YELLOW: add a UserLocations and UserStorages (as subclass of UserLocations) for Tom Alexander's hospital
+
+# TODO YELLOW: add a UserLocations and UserStorages (as subclass of UserLocations) for Tom's hospital
 class UserItemLocations(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(
-        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     location_name = db.Column(db.String(50), nullable=False)
     user_access_from = db.Column(db.Boolean, default=True, nullable=False)
     user_access_to = db.Column(db.Boolean, default=True, nullable=False)
@@ -79,32 +118,32 @@ class UserItemLocations(db.Model):
     def __repr__(self):
         return f"<UserItemLocations {self.location_name}>"
 
+    @validates("location_name")
+    def validate_location_name(self, key, value):
+        """Validate location name."""
+        return validate_string_length(value, "location_name", 50, allow_none=False, allow_empty=False)
+
 
 class UserItemTags(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(
-        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
-    )
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     tag_name = db.Column(db.String(50), nullable=False)
 
     def __repr__(self):
         return f"<UserItemTags {self.tag_name}>"
 
+    @validates("tag_name")
+    def validate_tag_name(self, key, value):
+        """Validate tag name."""
+        return validate_string_length(value, "tag_name", 50, allow_none=False, allow_empty=False)
+
 
 class UserItemPreferences(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(
-        db.Integer, db.ForeignKey("users.id"), nullable=False, index=True
-    )
-    item_id = db.Column(
-        db.Integer, db.ForeignKey("items.id"), nullable=False, index=True
-    )
-    min_quantity = db.Column(db.Integer, nullable=True)  # Alert when below this
-    max_quantity = db.Column(db.Integer, nullable=True)  # Desired/reorder amount
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
+    item_id = db.Column(db.Integer, db.ForeignKey("items.id"), nullable=False, index=True)
 
-    __table_args__ = (
-        db.UniqueConstraint("user_id", "item_id", name="uq_user_item_pref"),
-    )
+    __table_args__ = (db.UniqueConstraint("user_id", "item_id", name="uq_user_item_pref"),)
 
     def __repr__(self):
         return f"<UserItemPreferences user={self.user_id} item={self.item_id}>"
