@@ -83,11 +83,23 @@ class Users(db.Model, UserMixin):
         return validate_timezone(value)
 
 
-class UserSettings(db.Model):
+class UserEmails(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    email = db.Column(db.String(128), unique=True, nullable=False)
+
+    @validates("email")
+    def validate_contact_info(self, key, value):
+        """Validate email."""
+        if value:
+            value = validate_email_format(value)
+            validate_string_length(value, "email", 255, allow_none=False, allow_empty=False)
+        return value
+
+
+class UserAlerts(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    # Email for alerts
-    contact_info = db.Column(db.String(255), nullable=False)
+    email_id = db.Column(db.Integer, db.ForeignKey("user_emails.id"), nullable=False)
     # Alert Types
     alert_on_low_stock = db.Column(db.Boolean, default=True, nullable=False)
     alert_on_scan = db.Column(db.Boolean, default=False, nullable=False)
@@ -97,14 +109,6 @@ class UserSettings(db.Model):
 
     def __repr__(self):
         return f"<UserSettings {self.user_id}>"
-
-    @validates("contact_info")
-    def validate_contact_info(self, key, value):
-        """Validate contact info (email format)."""
-        if value:
-            value = validate_email_format(value)
-            validate_string_length(value, "contact_info", 255, allow_none=False, allow_empty=False)
-        return value
 
 
 # TODO YELLOW: add a UserLocations and UserStorages (as subclass of UserLocations) for Tom's hospital
@@ -138,7 +142,7 @@ class UserItemTags(db.Model):
         return validate_string_length(value, "tag_name", 50, allow_none=False, allow_empty=False)
 
 
-class UserItemPreferences(db.Model):
+class UserItemAlerts(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     item_id = db.Column(db.Integer, db.ForeignKey("items.id"), nullable=False, index=True)

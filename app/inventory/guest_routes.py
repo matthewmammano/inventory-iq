@@ -188,7 +188,9 @@ def scan_item(squad):
         db.session.flush()
 
         # Process the action and handle quantity updates
-        action_log.process_action(db.session)
+        updated_quantities, alerts = action_log.process_action(db.session)
+        
+        # TODO RED: handle alerts - send emails for low/high stock notifications
 
         db.session.commit()
 
