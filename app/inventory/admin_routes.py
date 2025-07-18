@@ -84,8 +84,8 @@ def admin_panel(squad):
 @bp.route("/<squad>/admin-panel/view-items")
 def admin_view_items(squad):
     items = Items.query.filter_by(user_id=current_user.id).order_by(Items.name).all()
-    categories = UserItemTags.query.filter_by(user_id=current_user.id).all()
-    return render_template("admin_items_manager.html", squad=squad, items=items, categories=categories, admin=True)
+    tags = UserItemTags.query.filter_by(user_id=current_user.id).all()
+    return render_template("admin_view_items.html", squad=squad, items=items, tags=tags, admin=True)
 
 
 # Admin help page (protected)

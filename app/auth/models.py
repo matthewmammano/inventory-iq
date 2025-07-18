@@ -28,7 +28,9 @@ class Users(db.Model, UserMixin):
     # Relationships
     items = db.relationship("Items", backref="user", lazy=True)
     logs = db.relationship("ActionLogs", backref="user", lazy=True)
-    settings = db.relationship("UserSettings", backref="user", lazy=True)
+    emails = db.relationship("UserEmails", backref="user", lazy=True)
+    alerts = db.relationship("UserAlerts", backref="user", lazy=True)
+    item_tags = db.relationship("UserItemTags", backref="user", lazy=True)
     locations = db.relationship("UserItemLocations", backref="user", lazy=True)
 
     def set_password(self, password):
@@ -85,6 +87,7 @@ class Users(db.Model, UserMixin):
 
 class UserEmails(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     email = db.Column(db.String(128), unique=True, nullable=False)
 
     @validates("email")
@@ -108,7 +111,7 @@ class UserAlerts(db.Model):
     weekly_report = db.Column(db.Boolean, default=True, nullable=False)
 
     def __repr__(self):
-        return f"<UserSettings {self.user_id}>"
+        return f"<UserAlerts {self.user_id}>"
 
 
 # TODO YELLOW: add a UserLocations and UserStorages (as subclass of UserLocations) for Tom's hospital
@@ -150,4 +153,4 @@ class UserItemAlerts(db.Model):
     __table_args__ = (db.UniqueConstraint("user_id", "item_id", name="uq_user_item_pref"),)
 
     def __repr__(self):
-        return f"<UserItemPreferences user={self.user_id} item={self.item_id}>"
+        return f"<UserItemAlerts user={self.user_id} item={self.item_id}>"

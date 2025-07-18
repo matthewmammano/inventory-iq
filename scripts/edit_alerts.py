@@ -6,7 +6,7 @@ edit_alerts.py - Script to manage user alerts in the InventoryIQ system
 import re
 
 from app import db
-from app.auth.models import UserSettings
+from app.auth.models import UserAlerts
 from scripts.utils import (
     clear_screen,
     confirm_action,
@@ -30,7 +30,7 @@ def validate_email(email):
 
 def display_alerts(user):
     """Display all alerts for a user with pagination."""
-    alerts = UserSettings.query.filter_by(user_id=user.id).all()
+    alerts = UserAlerts.query.filter_by(user_id=user.id).all()
 
     def display_alert(alert, index):
         print(f"{index}. Contact: {alert.contact_info}")
@@ -70,7 +70,7 @@ def add_alert(user):
         return
 
     # Check if alert with this contact info already exists for this user
-    existing = UserSettings.query.filter_by(
+    existing = UserAlerts.query.filter_by(
         user_id=user.id, contact_info=contact_info
     ).first()
 
@@ -103,7 +103,7 @@ def add_alert(user):
 
     # Create alert
     try:
-        alert = UserSettings(
+        alert = UserAlerts(
             user_id=user.id,
             contact_info=contact_info,
             alert_on_low_stock=alert_on_low_stock,
@@ -124,7 +124,7 @@ def add_alert(user):
 
 def delete_alert(user):
     """Delete an alert configuration for a user."""
-    alerts = UserSettings.query.filter_by(user_id=user.id).all()
+    alerts = UserAlerts.query.filter_by(user_id=user.id).all()
 
     def display_alert(alert, index):
         print(f"{index}. Contact: {alert.contact_info}")

@@ -42,16 +42,26 @@
     <th>Increments</th>
     <th>Name</th>
     <th>Image</th>
+    <th>Min Quantity</th>
+    <th>Max Quantity</th>
+    <th>Order Size</th>
+    <th>Expiration Days</th>
+    <th>Restock Delivery Days</th>
     <th>Last Accessed</th>
   </tr>
   {% for item in items %}
   <tr>
     <td>{{ item.upc }}</td>
     <td>{{ item.active }}</td>
-    <td>{{ ', '.join(item.tags) }}</td>
+    <td>{{ item.tags | map(attribute='tag_name') | join(', ') }}</td>
     <td>{{ item.increments }}</td>
     <td>{{ item.name }}</td>
     <td>{{ item.image }}</td>
+    <td>{{ item.min_quantity }}</td>
+    <td>{{ item.max_quantity }}</td>
+    <td>{{ item.batch_size }}</td>
+    <td>{{ item.expiration_days }}</td>
+    <td>{{ item.restock_delivery_days }}</td>
     <td>{{ item.last_accessed }}</td>
   </tr>
   {% endfor %}
