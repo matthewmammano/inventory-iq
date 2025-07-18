@@ -1,0 +1,61 @@
+/* Flash Message Components */
+.flash-container {
+    position: fixed;
+    bottom: -5px;
+    left: 0;
+    width: 100%;
+    background-color: var(--most-white);
+    padding: 1rem 1.5rem;
+    box-shadow: 0 -1px 32px var(--shadow-color);
+    transition: transform 0.7s ease-in-out;
+    transform: translateY(101%); /* Start off-screen */
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-radius: 3rem 3rem 0 0;
+    outline: 5px solid var(--grey);
+    outline-offset: -2px; /* Negative value pulls the outline inward */
+}
+
+.flash-container.show {
+    transition: transform 0.7s ease-in-out;
+    transform: translateY(0);
+}
+
+.flash-image {
+    height: 6vh;
+    padding: .5rem;
+}
+
+.flash-message {
+    flex-grow: 1;
+}
+
+/* Timer circle styles */
+.timer-container {
+    margin-left: 1rem;
+    width: 2.5rem; /* 40px */
+    height: 2.5rem; /* 40px */
+    position: relative;
+    flex-shrink: 0; /* Prevents the timer from shrinking */
+}
+
+.timer-circle {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background-color: var(--most-white);
+    position: relative;
+    overflow: hidden;
+}
+
+.timer {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: conic-gradient(
+        var(--most-white) var(--progress, 0%),
+        #C4C4C4 var(--progress, 0%)
+    );
+}

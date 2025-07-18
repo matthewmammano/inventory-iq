@@ -8,14 +8,12 @@
 {% block header_title %}{{ squad }}{% endblock %}
 {% block sub_title %}Scan Amount{% endblock %}
 
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/scan_item.css') }}">
-{% endblock %}
+{% block extra_css %}{% endblock %}
 
 {% block content %}
 
 <div class="grid-container">
-    <div class="where_to_from">{{ "RECOUNT" if from_location == -1 else from_location.location_name }} → {{ to_location.location_name }}</div>
+    <div class="where_to_from">{{ "RECOUNT" if from_location == -1 else from_location.name }} → {{ to_location.name }}</div>
     
     <div class="image-cell">
         <img src="{{item.image}}" alt="{{item.name}}">
@@ -34,7 +32,7 @@
     <div class="submit-btn" type="button">SUBMIT</div>
 
     <!-- Hidden form with all required POST variables -->
-    <form id="hidden-form" method="POST" style="display: none;">
+    <form id="hidden-form" method="POST" class="hidden">
         <input type="hidden" name="item_id" id="item_id" value="{{item.id}}">
         <input type="hidden" name="counter_value" id="counter_value" value="1">
         <input type="hidden" name="from_location_id" id="from_location_id" value="{{ "-1" if from_location == -1 else from_location.id }}">

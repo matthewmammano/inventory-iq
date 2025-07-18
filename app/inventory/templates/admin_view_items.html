@@ -3,7 +3,7 @@
 
 {% block title %}Admin View{% endblock %}
 
-{% block header_right %}{{ header_button(url_for('admin.admin_panel', squad=squad), 'Back')}}{% endblock %}
+{% block header_right %}{{ header_button(url_for('admin.admin_panel_views', squad=squad), 'Back')}}{% endblock %}
 
 {% block header_title %}
   {{squad}}
@@ -12,29 +12,7 @@
 
 {% block content %}
 
-<style>
-  table {
-    border-collapse: collapse;
-    width: 100%;
-  }
-  th, td {
-    border-left: 1px solid var(--near-black);
-    border-right: 1px solid var(--near-black);
-    padding: 5px 10px;
-    text-align: left;
-  }
-  th:first-child, td:first-child {
-    border-left: none;
-  }
-  th:last-child, td:last-child {
-    border-right: none;
-  }
-  th {
-    border-bottom: 1px solid var(--near-black);
-  }
-</style>
-
-<table>
+<table class="table-view">
   <tr>      
     <th>UPC</th>
     <th>Active?</th>

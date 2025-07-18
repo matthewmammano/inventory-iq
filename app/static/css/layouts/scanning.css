@@ -1,3 +1,4 @@
+/* Scanning Interface Layout */
 .grid-container {
     display: grid;
     grid-template-columns: 5fr 2fr 4fr 2fr;
@@ -5,12 +6,11 @@
     margin: 20px auto;
     flex-direction: column;
     width: 90%;
-    max-height: 90vh;
+    height: 70vh;
     border: 3px solid black;
     border-radius: 4px;
     box-shadow: 0 1px 15px var(--shadow-color);
     background-color: var(--near-grey);
-    height: 70vh;
 }
 
 .where_to_from {
@@ -24,7 +24,6 @@
     align-content: center;
 }
 
-/* This class can be toggled to make the header appear/disappear */
 .where_to_from-hidden {
     display: none;
 }
@@ -59,7 +58,6 @@
     text-align: center;
     padding: 10px;
     justify-content: center;
-    
 }
 
 .info-unit {
@@ -127,5 +125,5 @@
 .submit-btn span {
     font-size: 1rem;
     font-weight: normal;
-    padding-top: 10px
+    padding-top: 10px;
 }

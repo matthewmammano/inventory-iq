@@ -9,7 +9,7 @@ from flask_login import current_user
 from app import db
 from app.auth.models import UserItemTags, Users
 from app.inventory import admin_bp as bp
-from app.inventory.models import Items
+from app.inventory.models import ActionLogs, Items
 
 load_dotenv()
 
@@ -78,6 +78,11 @@ def check_admin_authorization():
 @bp.route("/<squad>/admin-panel")
 def admin_panel(squad):
     return render_template("admin_panel.html", squad=squad, admin=True)
+
+
+@bp.route("/<squad>/admin-panel/views")
+def admin_panel_views(squad):
+    return render_template("admin_panel_views.html", squad=squad, admin=True)
 
 
 # Admin item viewing page (protected)
@@ -237,3 +242,9 @@ def admin_view_sublocations(squad):
 @bp.route("/<squad>/admin-panel/view-tags")
 def admin_view_tags(squad):
     pass  # TODO RED
+
+
+@bp.route("/<squad>/admin-panel/history")
+def admin_history(squad):
+    action_logs = ActionLogs.query.filter_by(user_id=current_user.id).order_by(ActionLogs.id.desc()).all()
+    return render_template("admin_history.html", squad=squad, action_logs=action_logs, admin=True)

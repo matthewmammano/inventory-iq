@@ -1,0 +1,49 @@
+/* Button Components */
+.header-button {
+    color: var(--most-black);
+    background-color: var(--admin-color2);
+    border: none;
+    outline: 3px solid var(--most-black);
+    font-weight: bold;
+    padding: 1rem 1.5rem;
+    border-radius: 5px;
+    font-size: 2rem;
+    box-shadow: 0 1px 15px var(--shadow-color);
+    text-decoration: none;
+}
+
+.positive-button {
+    color: var(--most-black);
+    background-color: var(--accept-color);
+    border: none;
+    outline: 3px solid var(--most-black);
+    font-weight: bold;
+    padding: 1rem 1.5rem;
+    border-radius: 5px;
+    font-size: 2rem;
+    box-shadow: 0 1px 15px var(--shadow-color);
+    text-decoration: none;
+}
+
+.admin-tab {
+    position: fixed;
+    right: 0;
+    top: 50%;
+    transform: translateY(0%) rotate(90deg);
+    transform-origin: right center;
+    background-color: #ffcccb;
+    margin-right: 20px;
+    padding: 10px 20px;
+    border-radius: 0 0 10px 10px;
+    box-shadow: 0 1px 15px var(--shadow-color);
+    font-weight: bold;
+    outline: 2px solid black;
+    text-decoration: none;
+    font-size: 1.25rem;
+}
+
+.admin-tab span {
+    display: block;
+    transform: rotate(180deg);
+    color: black;
+}

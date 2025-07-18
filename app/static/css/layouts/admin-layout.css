@@ -1,16 +1,4 @@
-/* Admin Panel Styles */
-:root {
-    --admin-bg-color: #ffd578;
-    --admin-border-color: #ff0000;
-    --admin-button-color: #ff2222;
-    --admin-button-hover: #e60000;
-    --card-text-color: #333;
-    --card-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
-    --exit-button-bg: #e97474;
-    --exit-button-text: #000;
-}
-
-/* Overall container */
+/* Admin Layout Components */
 .admin-container {
     width: 100%;
     margin: 0 auto;

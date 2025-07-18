@@ -1,0 +1,19 @@
+/* Main CSS Import File */
+
+/* Core Styles */
+@import 'core/variables.css';
+@import 'core/reset.css';
+
+/* Components */
+@import 'components/buttons.css';
+@import 'components/tables.css';
+@import 'components/navigation.css';
+@import 'components/flash-messages.css';
+
+/* Layouts */
+@import 'layouts/admin-layout.css';
+@import 'layouts/scanning.css';
+
+/* Pages */
+@import 'pages/scan-locations.css';
+@import 'pages/index.css';

@@ -14,11 +14,11 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
 
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/base.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
 
     {% block extra_css %}{% endblock %}
 </head>
-<body class="{% if admin %}class: admin-border{% endif %}">
+<body class="{% if admin %}admin-border{% endif %}">
     {% block header %}{% endblock %}
     <!-- Header section -->
     <div class="header">

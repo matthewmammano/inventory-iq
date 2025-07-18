@@ -1,0 +1,49 @@
+/* Navigation and Header Components */
+.header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+    padding: 1rem;
+    min-height: 15vh;
+    background-color: var(--primary-color);
+    border-bottom: 5px solid var(--primary-dark);
+    box-shadow: 0 1px 15px var(--shadow-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+}
+
+.main-title {
+    font-weight: bold;
+    font-size: 5vw;
+}
+
+.sub-title {
+    font-size: 5vw;
+    margin-right: auto;
+}
+
+.header-logo {
+    height: 6vw;
+    width: auto;
+    margin-right: 25px;
+}
+
+.admin-border {
+    position: relative;
+}
+
+.admin-border::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    border: 5px solid var(--admin-color1);
+    pointer-events: none;
+    z-index: 9999;
+}

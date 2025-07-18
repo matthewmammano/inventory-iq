@@ -19,14 +19,10 @@ from scripts.utils import (
 
 def display_locations(user):
     """Display all locations for a user with pagination."""
-    locations = (
-        UserItemLocations.query.filter_by(user_id=user.id)
-        .order_by(UserItemLocations.location_name)
-        .all()
-    )
+    locations = UserItemLocations.query.filter_by(user_id=user.id).order_by(UserItemLocations.name).all()
 
     def display_location(location, index):
-        print(f"{index}. {location.location_name}")
+        print(f"{index}. {location.name}")
 
     print_header(f"LOCATIONS FOR {user.display_name.upper()}")
 
@@ -50,9 +46,7 @@ def add_location(user):
         return
 
     # Check if location already exists for this user
-    existing = UserItemLocations.query.filter_by(
-        user_id=user.id, location_name=location_name
-    ).first()
+    existing = UserItemLocations.query.filter_by(user_id=user.id, location_name=location_name).first()
 
     if existing:
         print(f"[ERROR] Location '{location_name}' already exists for this user!")
@@ -60,9 +54,7 @@ def add_location(user):
         return
 
     # Confirm action
-    if not confirm_action(
-        f"Add location '{location_name}' for user '{user.display_name}'?"
-    ):
+    if not confirm_action(f"Add location '{location_name}' for user '{user.display_name}'?"):
         print("Operation cancelled.")
         return
 
@@ -81,14 +73,10 @@ def add_location(user):
 
 def delete_location(user):
     """Delete a location for a user."""
-    locations = (
-        UserItemLocations.query.filter_by(user_id=user.id)
-        .order_by(UserLocaUserItemLocationstions.location_name)
-        .all()
-    )
+    locations = UserItemLocations.query.filter_by(user_id=user.id).order_by(UserItemLocations.name).all()
 
     def display_location(location, index):
-        print(f"{index}. {location.location_name}")
+        print(f"{index}. {location.name}")
 
     print_header(f"DELETE LOCATION FOR {user.display_name.upper()}")
 
@@ -118,16 +106,14 @@ def delete_location(user):
         if not confirm_action("Are you SURE you want to delete this location?"):
             print("Operation cancelled.")
             return
-    elif not confirm_action(f"Delete location '{location.location_name}'?"):
+    elif not confirm_action(f"Delete location '{location.name}'?"):
         print("Operation cancelled.")
         return
 
     try:
         db.session.delete(location)
         db.session.commit()
-        print(
-            f"\n[SUCCESS] ✅ Location '{location.location_name}' deleted successfully!"
-        )
+        print(f"\n[SUCCESS] ✅ Location '{location.name}' deleted successfully!")
         input("\nPress Enter to continue...")
     except Exception as e:
         print(f"\n[ERROR] Failed to delete location: {e}")

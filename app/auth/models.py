@@ -118,12 +118,12 @@ class UserAlerts(db.Model):
 class UserItemLocations(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    location_name = db.Column(db.String(50), nullable=False)
+    name = db.Column(db.String(50), nullable=False)
     user_access_from = db.Column(db.Boolean, default=True, nullable=False)
     user_access_to = db.Column(db.Boolean, default=True, nullable=False)
 
     def __repr__(self):
-        return f"<UserItemLocations {self.location_name}>"
+        return f"<UserItemLocations {self.name}>"
 
     @validates("location_name")
     def validate_location_name(self, key, value):

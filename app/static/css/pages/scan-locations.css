@@ -1,3 +1,4 @@
+/* Scan Locations Page */
 .scan-selection-container {
    padding: 20px;
    width: 70%;
@@ -77,4 +78,8 @@
 .form-actions {
    text-align: center;
    margin-top: 5vh;
+}
+
+.location-error {
+   background-color: var(--decline-color) !important;
 }

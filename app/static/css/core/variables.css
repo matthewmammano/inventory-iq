@@ -1,0 +1,26 @@
+/* CSS Variables and Design Tokens */
+:root {
+    /* Primary Colors */
+    --primary-color: #F8CA68;
+    --primary-dark: #C99B38;
+    --background-color: #FFF8DC;
+    --shadow-color: rgba(0,0,0,0.3);
+
+    /* Admin Colors */
+    --admin-color1: red;
+    --admin-color2: #c74f4f;
+
+    /* Action Colors */
+    --accept-color: #7edfb6;
+    --decline-color: #FF8589;
+    --exit-color: #DD5656;
+
+    /* Neutral Colors */
+    --most-black: #1B1B1B;
+    --near-black: #333;
+    --grey: #a3a3a3;
+    --most-grey: #a3a3a3;
+    --near-grey: #dbdbdb;
+    --near-white: #ededed;
+    --most-white: #F5F5F5;
+}
