@@ -7,9 +7,16 @@ from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user
 
 from app import db
-from app.auth.models import UserItemTags, Users
+from app.auth.models import UserItemLocations, UserItemTags, Users
 from app.inventory import admin_bp as bp
-from app.inventory.models import ActionLogs, Items
+from app.inventory.models import ActionLogs, ItemLocationQuantities, Items
+from app.inventory.scan_helpers import (
+    handle_scan_item_get,
+    handle_scan_item_post,
+    handle_scan_locations_get,
+    handle_scan_locations_post,
+    handle_scan_start,
+)
 
 load_dotenv()
 
@@ -98,18 +105,6 @@ def admin_view_items(squad):
 def help_page(squad):
     developer_phone = os.getenv("CONTACT_PHONE", "UNAVAILABLE")
     return render_template("admin_help.html", squad=squad, contact_phone=developer_phone, admin=True)
-
-
-# Admin move items page (protected)
-@bp.route("/<squad>/admin-panel/move-items")
-def move_items(squad):
-    return render_template("admin_move_items.html", squad=squad, admin=True)
-
-
-# Admin recount items page (protected)
-@bp.route("/<squad>/admin-panel/recount-items")
-def recount_items(squad):
-    return render_template("admin_recount_items.html", squad=squad, admin=True)
 
 
 # Admin edit items in table page (protected)
@@ -229,9 +224,132 @@ def save_items(squad):
     return redirect(url_for("admin.admin_view_items", squad=squad))
 
 
+@bp.route("/<squad>/admin-panel/inventory-count-levels")
+def inventory_counts(squad):
+    """Display items and their counts across all locations"""
+    # Get all items for this user
+    items = Items.query.filter_by(user_id=current_user.id, active=True).order_by(Items.name).all()
+
+    # Get all locations for this user
+    locations = UserItemLocations.query.filter_by(user_id=current_user.id).order_by(UserItemLocations.name).all()
+
+    # Get all quantity data for this user
+    quantities = ItemLocationQuantities.query.filter_by(user_id=current_user.id).all()
+
+    # Create a lookup dictionary for quantities
+    qty_lookup = {}
+    for qty in quantities:
+        key = (qty.item_id, qty.location_id)
+        qty_lookup[key] = qty.quantity
+
+    # Build the data structure for the template
+    inventory_data = []
+    for item in items:
+        row_data = {"item": item, "location_counts": {}, "total": 0}
+
+        for location in locations:
+            count = qty_lookup.get((item.id, location.id), 0)
+            row_data["location_counts"][location.id] = count
+            row_data["total"] += count
+
+        inventory_data.append(row_data)
+
+    return render_template(
+        "admin_inventory_counts.html", squad=squad, inventory_data=inventory_data, locations=locations, admin=True
+    )
+
+
+@bp.route("/<squad>/admin-panel/restock")
+def restock(squad):
+    """Display items that need restocking with calculated order amounts"""
+    # Get all items for this user with min/max quantities
+    items = Items.query.filter_by(user_id=current_user.id, active=True).all()
+    
+    # Get all quantity data for this user
+    quantities = ItemLocationQuantities.query.filter_by(user_id=current_user.id).all()
+    
+    # Create a lookup dictionary for total quantities per item
+    item_totals = {}
+    for qty in quantities:
+        if qty.item_id not in item_totals:
+            item_totals[qty.item_id] = 0
+        item_totals[qty.item_id] += qty.quantity
+    
+    # Calculate restock recommendations
+    restock_data = []
+    for item in items:
+        current_total = item_totals.get(item.id, 0)
+        min_qty = item.min_quantity or 0
+        max_qty = item.max_quantity or 0
+        batch_size = item.batch_size or 0
+        delivery_days = item.restock_delivery_days or 7  # Default to 7 days if not set
+        
+        # Calculate order amount and priority
+        order_amount = 0
+        priority = "Not needed"
+        
+        # Time-based restock logic: consider delivery time and current stock percentage
+        should_reorder = False
+        reorder_reason = ""
+        
+        if min_qty > 0:
+            stock_percentage = (current_total / min_qty) * 100
+            
+            # Always reorder if below minimum
+            if current_total < min_qty:
+                should_reorder = True
+                reorder_reason = "Below minimum"
+                priority = "High" if current_total == 0 else "Medium"
+            
+            # Time-based reordering: if stock is low and we need time for delivery
+            elif stock_percentage <= 50 and delivery_days >= 3:
+                should_reorder = True
+                reorder_reason = "Time-based (low stock + delivery time)"
+                priority = "Medium"
+            
+            # Very low stock percentage should trigger reorder regardless
+            elif stock_percentage <= 25:
+                should_reorder = True
+                reorder_reason = "Very low stock (≤25%)"
+                priority = "Medium"
+        
+        # If we should reorder, calculate the amount
+        if should_reorder:
+            if max_qty > 0:
+                # Order up to max quantity
+                needed = max_qty - current_total
+                if batch_size > 0:
+                    # Round up to nearest batch size
+                    order_amount = ((needed + batch_size - 1) // batch_size) * batch_size
+                else:
+                    order_amount = needed
+            elif batch_size > 0:
+                # Use batch size as default order amount
+                order_amount = batch_size
+            else:
+                # Default to bringing up to min quantity (or at least 1 if min is 0)
+                order_amount = max(min_qty - current_total, 1)
+        
+        restock_data.append({
+            'item': item,
+            'current_total': current_total,
+            'min_quantity': min_qty,
+            'max_quantity': max_qty,
+            'batch_size': batch_size,
+            'order_amount': order_amount,
+            'priority': priority,
+            'reorder_reason': reorder_reason if should_reorder else "Stock sufficient"
+        })
+    
+    # Sort by priority (High first, then Medium, then Not needed) and then by item name
+    priority_order = {"High": 0, "Medium": 1, "Not needed": 2}
+    restock_data.sort(key=lambda x: (priority_order[x['priority']], x['item'].name))
+    
+    return render_template("admin_restock.html", squad=squad, restock_data=restock_data, admin=True)
+
+
 @bp.route("/<squad>/admin-panel/view-locations")
 def admin_view_locations(squad):
-    from app.auth.models import UserItemLocations
     locations = UserItemLocations.query.filter_by(user_id=current_user.id).order_by(UserItemLocations.name).all()
     return render_template("admin_view_locations.html", squad=squad, locations=locations, admin=True)
 
@@ -246,3 +364,45 @@ def admin_view_tags(squad):
 def admin_history(squad):
     action_logs = ActionLogs.query.filter_by(user_id=current_user.id).order_by(ActionLogs.id.desc()).all()
     return render_template("admin_history.html", squad=squad, action_logs=action_logs, admin=True)
+
+
+@bp.route("/<squad>/admin-panel/scan-items")
+def admin_scan_items(squad):
+    """Admin item selection screen for scanning"""
+    items = Items.query.filter_by(user_id=current_user.id).order_by(Items.last_accessed.desc().nullslast()).all()
+    return render_template("index.html", items=items, squad=squad, logo_img=current_user.image, admin=True)
+
+
+@bp.route("/<squad>/admin-panel/scan")
+def admin_scan_start(squad):
+    """Admin entry point for scanning - decides scan_selection vs scan"""
+    item_id = request.args.get("item_id")
+    return handle_scan_start(squad, item_id, is_admin=True)
+
+
+@bp.route("/<squad>/admin-panel/scan/locations", methods=["GET", "POST"])
+def scan_locations(squad):
+    """Admin select to and from locations for scanning"""
+    if request.method == "POST":
+        return handle_scan_locations_post(squad, request.form, is_admin=True)
+    else:
+        item_id = request.args.get("item_id")
+        user_recount_allow = request.args.get("user_recount_allow", "True") == "True"
+        user_take_allow = request.args.get("user_take_allow", "True") == "True"
+        return handle_scan_locations_get(squad, item_id, user_recount_allow, user_take_allow, is_admin=True)
+
+
+@bp.route("/<squad>/admin-panel/scan/item", methods=["GET", "POST"])
+def scan_item(squad):
+    """Admin scan item with locations already selected"""
+    if request.method == "POST":
+        return handle_scan_item_post(squad, request.form, is_admin=True)
+    else:
+        item_id = request.args.get("item_id")
+        from_location_id = request.args.get("from_location_id")
+        to_location_id = request.args.get("to_location_id")
+        user_recount_allow = request.args.get("user_recount_allow", "True") == "True"
+        user_take_allow = request.args.get("user_take_allow", "True") == "True"
+        return handle_scan_item_get(
+            squad, item_id, from_location_id, to_location_id, user_recount_allow, user_take_allow, is_admin=True
+        )

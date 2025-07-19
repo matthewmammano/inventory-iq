@@ -23,25 +23,25 @@
         <div class="admin-card">
             <h2>Move / Recount</h2>
             <p>Use to move / recount items for new arrivals and wrong counts.</p>
-            <a class="card-link" href="{{ url_for('admin.move_items', squad=squad) }}"></a>
+            <a class="card-link" href="{{ url_for('admin.admin_scan_items', squad=squad) }}"></a>
         </div>
         
         <div class="admin-card">
             <h2>Restock</h2>
             <p>Generate list of how much equipment to reorder.</p>
-            <a class="card-link" href="{{ url_for('admin.recount_items', squad=squad) }}"></a>
+            <a class="card-link" href="{{ url_for('admin.restock', squad=squad) }}"></a>
+        </div>
+        
+        <div class="admin-card">
+            <h2>Inventory Levels</h2>
+            <p>View item counts across all locations with totals.</p>
+            <a class="card-link" href="{{ url_for('admin.inventory_counts', squad=squad) }}"></a>
         </div>
         
         <div class="admin-card">
             <h2>View History</h2>
             <p>See the history of all changes made to the inventory.</p>
             <a class="card-link" href="{{ url_for('admin.admin_history', squad=squad) }}"></a>
-        </div>
-        
-        <div class="admin-card">
-            <h2>Settings</h2>
-            <p>Preferences from colors, images, etc.</p>
-            <a class="card-link" href="#"></a>
         </div>
         
         <div class="admin-card">

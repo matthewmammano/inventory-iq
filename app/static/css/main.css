@@ -13,7 +13,7 @@
 /* Layouts */
 @import 'layouts/admin-layout.css';
 @import 'layouts/scanning.css';
+@import 'layouts/scan-locations.css';
 
 /* Pages */
-@import 'pages/scan-locations.css';
 @import 'pages/index.css';

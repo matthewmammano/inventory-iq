@@ -13,7 +13,7 @@
 {% block content %}
 
 <div class="grid-container">
-    <div class="where_to_from">{{ "RECOUNT" if from_location == -1 else from_location.name }} → {{ to_location.name }}</div>
+    <div class="where_to_from">{{ "RECOUNT" if from_location == -1 else (from_location.name if from_location else "Unknown") }} → {{ "TAKE" if to_location == -1 else (to_location.name if to_location else "Unknown") }}</div>
     
     <div class="image-cell">
         <img src="{{item.image}}" alt="{{item.name}}">
@@ -28,7 +28,7 @@
     <div class="counter-value">1</div>
     <div class="plus-btn">+</div>
     
-    <div class="cancel-btn" onclick="window.location.href='{{ url_for('guest.index', squad=squad) }}'">CANCEL</div>
+    <div class="cancel-btn" onclick="window.location.href='{{ url_for('admin.admin_panel' if admin else 'guest.index', squad=squad) }}'">CANCEL</div>
     <div class="submit-btn" type="button">SUBMIT</div>
 
     <!-- Hidden form with all required POST variables -->
@@ -36,7 +36,7 @@
         <input type="hidden" name="item_id" id="item_id" value="{{item.id}}">
         <input type="hidden" name="counter_value" id="counter_value" value="1">
         <input type="hidden" name="from_location_id" id="from_location_id" value="{{ "-1" if from_location == -1 else from_location.id }}">
-        <input type="hidden" name="to_location_id" id="to_location_id" value="{{ to_location.id }}">
+        <input type="hidden" name="to_location_id" id="to_location_id" value="{{ "-1" if to_location == -1 else to_location.id }}">
     </form>
 </div>
 
@@ -44,39 +44,6 @@
 
 {% block extra_js %}
 
-<script>
-
-const minusBtn = document.querySelector('.minus-btn');
-const plusBtn = document.querySelector('.plus-btn');
-const counterValue = document.querySelector('.counter-value');
-const counterInput = document.getElementById('counter_value');
-const submitBtn = document.querySelector('.submit-btn');
-
-
-minusBtn.addEventListener('click', function() {
-    let value = parseInt(counterValue.textContent);
-    if (value > 0) {
-        value = value - 1;
-        counterValue.textContent = value;
-        counterInput.value = value;
-    }
-});
-
-plusBtn.addEventListener('click', function() {
-    let value = parseInt(counterValue.textContent);
-    value = value + 1;
-    counterValue.textContent = value;
-    counterInput.value = value;
-});
-
-submitBtn.addEventListener('click', function() {
-    // Update the counter_value before submitting
-    counterInput.value = counterValue.textContent;
-    
-    // Submit the form
-    document.getElementById('hidden-form').submit();
-});
-
-</script>
+<script src="{{ url_for('static', filename='js/counter.js') }}"></script>
 
 {% endblock %}

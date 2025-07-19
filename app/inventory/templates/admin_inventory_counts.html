@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% from "macros.html" import header_button %}
+
+{% block title %}Inventory Count Levels{% endblock %}
+
+{% block header_right %}{{ header_button(url_for('admin.admin_panel', squad=squad), 'Back')}}{% endblock %}
+
+{% block header_title %}{{squad}}{% endblock %}
+{% block sub_title %}Inventory Count Levels{% endblock %}
+
+{% block extra_css %}{% endblock %}
+
+{% block content %}
+
+{% if inventory_data|length == 0 %}
+  <p>No items found.</p>
+{% else %}
+<p><b>{{ inventory_data|length }}</b> items across <b>{{ locations|length }}</b> locations</p>
+<table class="table-view">
+  <tr>      
+    <th>Item Name</th>
+    {% for location in locations %}
+    <th>{{ location.name }}</th>
+    {% endfor %}
+    <th>Total</th>
+  </tr>
+  {% for row in inventory_data %}
+  <tr>
+    <td>{{ row.item.name }}</td>
+    {% for location in locations %}
+    <td>{{ row.location_counts[location.id] }}</td>
+    {% endfor %}
+    <td><b>{{ row.total }}</b></td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+{% endblock %}

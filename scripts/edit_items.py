@@ -23,7 +23,11 @@ from scripts.utils import (
 def validate_csv_headers(headers):
     """Validate that required headers are present."""
     required_headers = {"user_id", "name"}
-    optional_headers = {"upc", "active", "tag_ids", "increments", "image"}
+    optional_headers = {
+        "upc", "active", "tag_ids", "increments", "image", 
+        "min_quantity", "max_quantity", "batch_size", 
+        "expiration_days", "restock_delivery_days"
+    }
 
     headers_set = set(headers)
 
@@ -78,6 +82,22 @@ def parse_boolean(value):
         return True
 
 
+def parse_integer(value, field_name):
+    """Parse positive integer value from CSV string."""
+    if not value or value.strip() == "":
+        return None  # Return None for empty values
+    
+    try:
+        parsed_value = int(value.strip())
+        if parsed_value < 0:
+            print(f"[WARNING] Negative value '{value}' for {field_name}, using None")
+            return None
+        return parsed_value
+    except ValueError:
+        print(f"[WARNING] Invalid integer value '{value}' for {field_name}, using None")
+        return None
+
+
 def load_items_from_csv(csv_file_path, target_user_id):
     """Load items from CSV file and return list of item dictionaries for the target user."""
     items = []
@@ -126,6 +146,22 @@ def load_items_from_csv(csv_file_path, target_user_id):
 
                 if "image" in row and row["image"].strip():
                     item_data["image"] = row["image"].strip()
+
+                # Parse integer fields
+                if "min_quantity" in row:
+                    item_data["min_quantity"] = parse_integer(row["min_quantity"], "min_quantity")
+
+                if "max_quantity" in row:
+                    item_data["max_quantity"] = parse_integer(row["max_quantity"], "max_quantity")
+
+                if "batch_size" in row:
+                    item_data["batch_size"] = parse_integer(row["batch_size"], "batch_size")
+
+                if "expiration_days" in row:
+                    item_data["expiration_days"] = parse_integer(row["expiration_days"], "expiration_days")
+
+                if "restock_delivery_days" in row:
+                    item_data["restock_delivery_days"] = parse_integer(row["restock_delivery_days"], "restock_delivery_days")
 
                 items.append(item_data)
 
@@ -212,11 +248,13 @@ def import_items():
     print("This utility will replace ALL items for a selected user with items from a CSV file.")
     print("\nCSV Format:")
     print("Required columns: user_id, name")
-    print("Optional columns: upc, active, tag_ids, increments, image")
+    print("Optional columns: upc, active, tag_ids, increments, image,")
+    print("                 min_quantity, max_quantity, batch_size,")
+    print("                 expiration_days, restock_delivery_days")
     print("\nExample CSV:")
-    print("user_id,name,increments,tag_ids,active")
-    print('1,Bandage,individual,"[1,2]",true')
-    print('1,Aspirin,bottle,"[3]",true\n')
+    print("user_id,name,increments,tag_ids,active,min_quantity,max_quantity,batch_size")
+    print('1,Bandage,individual,"[1,2]",true,10,50,20')
+    print('1,Aspirin,bottle,"[3]",true,5,100,25\n')
 
     # Select user
     user = select_user()

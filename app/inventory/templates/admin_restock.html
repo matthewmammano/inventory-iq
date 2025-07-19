@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% from "macros.html" import header_button %}
+
+{% block title %}Restock Report{% endblock %}
+
+{% block header_right %}{{ header_button(url_for('admin.admin_panel', squad=squad), 'Back')}}{% endblock %}
+
+{% block header_title %}{{squad}}{% endblock %}
+{% block sub_title %}Restock Report{% endblock %}
+
+{% block extra_css %}{% endblock %}
+
+{% block content %}
+
+{% if restock_data|length == 0 %}
+  <p>No items found.</p>
+{% else %}
+<p><b>{{ restock_data|length }}</b> items reviewed for restocking</p>
+<table class="table-view">
+  <tr>      
+    <th>Priority</th>
+    <th>Item Name</th>
+    <th>Current Total</th>
+    <th>Min Quantity</th>
+    <th>Max Quantity</th>
+    <th>Batch Size</th>
+    <th>Order Amount</th>
+    <th>Reason</th>
+  </tr>
+  {% for row in restock_data %}
+  <tr>
+    <td>{{ row.priority }}</td>
+    <td>{{ row.item.name }}</td>
+    <td>{{ row.current_total }}</td>
+    <td>{{ row.min_quantity if row.min_quantity > 0 else '-' }}</td>
+    <td>{{ row.max_quantity if row.max_quantity > 0 else '-' }}</td>
+    <td>{{ row.batch_size if row.batch_size > 0 else '-' }}</td>
+    <td><b>{{ row.order_amount if row.order_amount > 0 else '0' }}</b></td>
+    <td>{{ row.reorder_reason }}</td>
+  </tr>
+  {% endfor %}
+</table>
+{% endif %}
+
+{% endblock %}

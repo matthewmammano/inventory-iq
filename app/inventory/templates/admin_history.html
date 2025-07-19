@@ -13,7 +13,6 @@
 
 <table class="table-view">
   <tr>      
-    <th>ID</th>
     <th>Item</th>
     <th>From Location</th>
     <th>To Location</th>
@@ -22,7 +21,6 @@
   </tr>
   {% for log in action_logs %}
   <tr>
-    <td>{{ log.id }}</td>
     <td>{{ log.item.name if log.item else 'None' }}</td>
     <td>{{ log.from_location.name if log.from_location else 'RECOUNT' }}</td>
     <td>{{ log.to_location.name if log.to_location else 'TAKE' }}</td>
