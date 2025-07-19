@@ -231,17 +231,15 @@ def save_items(squad):
 
 @bp.route("/<squad>/admin-panel/view-locations")
 def admin_view_locations(squad):
-    pass  # TODO RED
-
-
-@bp.route("/<squad>/admin-panel/view-sublocations")
-def admin_view_sublocations(squad):
-    pass  # TODO RED
+    from app.auth.models import UserItemLocations
+    locations = UserItemLocations.query.filter_by(user_id=current_user.id).order_by(UserItemLocations.name).all()
+    return render_template("admin_view_locations.html", squad=squad, locations=locations, admin=True)
 
 
 @bp.route("/<squad>/admin-panel/view-tags")
 def admin_view_tags(squad):
-    pass  # TODO RED
+    tags = UserItemTags.query.filter_by(user_id=current_user.id).order_by(UserItemTags.tag_name).all()
+    return render_template("admin_view_tags.html", squad=squad, tags=tags, admin=True)
 
 
 @bp.route("/<squad>/admin-panel/history")

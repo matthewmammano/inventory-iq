@@ -69,22 +69,32 @@ def scan_start(squad):
         flash("Item not found.", "error")
         return redirect(url_for("guest.index", squad=squad))
 
+    user_recount_allow, user_take_allow = (
+        Users.query.filter_by(display_name=squad).with_entities(Users.user_recount_allow, Users.user_take_allow).first()
+    )
+
     locations = UserItemLocations.query.filter_by(user_id=current_user.id)
     from_location = locations.filter_by(user_access_from=True).all()
     to_location = locations.filter_by(user_access_to=True).all()
 
-    if len(from_location) == len(to_location) == 1:
+    # Adjust counts based on permissions
+    from_count = len(from_location) + (1 if user_recount_allow else 0)
+    to_count = len(to_location) + (1 if user_take_allow else 0)
+
+    if from_count == to_count == 1:
         return redirect(
             url_for(
                 "guest.scan_item",
                 squad=squad,
                 item_id=item.id,
-                from_location_id=from_location[0].id,
-                to_location_id=to_location[0].id,
+                from_location_id=from_location[0].id if from_location else None,
+                to_location_id=to_location[0].id if to_location else None,
+                user_recount_allow=user_recount_allow,
+                user_take_allow=user_take_allow,
             )
         )
-    elif len(from_location) == 0 or len(to_location) == 0:
-        flash("No valid locations found. Please add more in the admin panel.", "error")
+    elif len(from_location) == 0:
+        flash("No valid locations found to access items. Please add more in the admin panel.", "error")
         return redirect(url_for("guest.index", squad=squad))
 
     else:
@@ -93,6 +103,8 @@ def scan_start(squad):
                 "guest.scan_locations",
                 squad=squad,
                 item_id=item.id,
+                user_recount_allow=user_recount_allow,
+                user_take_allow=user_take_allow,
             )
         )
 
@@ -128,6 +140,9 @@ def scan_locations(squad):
         )
     else:
         item_id = request.args.get("item_id")
+        user_recount_allow = request.args.get("user_recount_allow", "False") == "True"
+        user_take_allow = request.args.get("user_take_allow", "True") == "True"
+
         item = Items.query.filter_by(id=item_id).first() if item_id else None
 
         if not item:
@@ -144,6 +159,8 @@ def scan_locations(squad):
             item=item,
             from_locations=from_locations,
             to_locations=to_locations,
+            user_recount_allow=user_recount_allow,
+            user_take_allow=user_take_allow,
             logo_img=current_user.image,
         )
 
@@ -189,7 +206,7 @@ def scan_item(squad):
 
         # Process the action and handle quantity updates
         updated_quantities, alerts = action_log.process_action(db.session)
-        
+
         # TODO RED: handle alerts - send emails for low/high stock notifications
 
         db.session.commit()
@@ -200,12 +217,14 @@ def scan_item(squad):
         item_id = request.args.get("item_id")
         from_location_id = request.args.get("from_location_id")
         to_location_id = request.args.get("to_location_id")
+        user_recount_allow = request.args.get("user_recount_allow", "False") == "True"
+        user_take_allow = request.args.get("user_take_allow", "True") == "True"
 
         item = Items.query.get(item_id)
         from_location = -1 if from_location_id == "-1" else UserItemLocations.query.get(from_location_id)
         to_location = -1 if to_location_id == "-1" else UserItemLocations.query.get(to_location_id)
 
-        if not item or not from_location or not to_location:
+        if not item or not from_location:
             flash("Invalid item or locations.", "error")
             return redirect(url_for("guest.index", squad=squad))
 
@@ -215,6 +234,8 @@ def scan_item(squad):
             item=item,
             from_location=from_location,
             to_location=to_location,
+            user_recount_allow=user_recount_allow,
+            user_take_allow=user_take_allow,
             logo_img=current_user.image,
         )
 

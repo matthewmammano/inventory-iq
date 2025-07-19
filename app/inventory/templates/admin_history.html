@@ -25,7 +25,7 @@
     <td>{{ log.id }}</td>
     <td>{{ log.item.name if log.item else 'None' }}</td>
     <td>{{ log.from_location.name if log.from_location else 'RECOUNT' }}</td>
-    <td>{{ log.to_location.name if log.to_location else 'TAKEAWAY' }}</td>
+    <td>{{ log.to_location.name if log.to_location else 'TAKE' }}</td>
     <td>{{ log.quantity_delta }}</td>
     <td>{{ 'Yes' if log.admin_action else 'No' }}</td>
   </tr>

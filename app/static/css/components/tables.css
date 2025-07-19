@@ -16,6 +16,9 @@
     background-color: var(--near-grey);
     font-weight: bold;
     color: var(--near-black);
+    position: sticky;
+    top: 15vh;
+    z-index: 100;
 }
 
 .table-view tr:hover {
@@ -40,6 +43,9 @@
     background-color: var(--near-grey);
     font-weight: bold;
     color: var(--near-black);
+    position: sticky;
+    top: 15vh;
+    z-index: 100;
 }
 
 .table-edit input {

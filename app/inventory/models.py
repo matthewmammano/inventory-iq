@@ -168,7 +168,7 @@ class ActionLogs(db.Model):
     to_location_id = db.Column(
         db.Integer,
         db.ForeignKey("user_item_locations.id"),
-        nullable=True,  # if Null, then REMOVED, else normal transfer / RECOUNT
+        nullable=True,  # if Null, then TAKE, else other
     )
 
     quantity_delta = db.Column(db.Integer, nullable=False)

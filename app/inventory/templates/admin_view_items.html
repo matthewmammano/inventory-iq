@@ -12,6 +12,9 @@
 
 {% block content %}
 
+{% if items|length == 0 %}
+  <p>No items found.</p>
+{% else %}
 <table class="table-view">
   <tr>      
     <th>UPC</th>
@@ -44,9 +47,6 @@
   </tr>
   {% endfor %}
 </table>
-  
-{% if items|length == 0 %}
-  <p>No items found.</p>
 {% endif %}
 
 {% endblock %}

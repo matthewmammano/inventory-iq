@@ -20,6 +20,8 @@ class Users(db.Model, UserMixin):
     password = db.Column(db.String(128))
     pin = db.Column(db.String(4), nullable=False, default="1234")
     image = db.Column(db.String(255))
+    user_recount_allow = db.Column(db.Boolean, default=False)
+    user_take_allow = db.Column(db.Boolean, default=True)
     notes = db.Column(db.Text)
     timezone = db.Column(db.String(50), default="America/New_York", nullable=False)
     created_at = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
