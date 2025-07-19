@@ -69,6 +69,7 @@
             results = allItems.map(item => ({ item, score: 0 }));
         }
 
+        // TODO YELLOW: make date sorting work! problem in models.py needs to auto-set.
         results.sort((a, b) => {
             if (a.score !== b.score) return a.score - b.score;
             
