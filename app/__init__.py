@@ -1,13 +1,14 @@
 import os
 import sys
-from datetime import timedelta
 
 from dotenv import load_dotenv
 from flask import Flask
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 
-load_dotenv()
+# Only load dotenv in dev
+if os.environ.get("FLASK_ENV") in (None, "", "dev", "development"):
+    load_dotenv()
 
 db = SQLAlchemy()
 login_manager = LoginManager()
@@ -15,20 +16,21 @@ login_manager = LoginManager()
 
 def create_app():
     """Create and configure the Flask application."""
+    from config import config_by_name
 
     app = Flask(__name__)
 
-    # Ensure instance folder exists
-    os.makedirs(app.instance_path, exist_ok=True)
+    # Get environment configuration
+    env = os.environ.get("FLASK_ENV", "dev")
+    config_class = config_by_name.get(env, config_by_name["dev"])
+    app.config.from_object(config_class)
 
-    # Set up SQLAlchemy with a single database for users, items, and logs
-    app.config["SECRET_KEY"] = os.getenv("SECRET_KEY")
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(app.instance_path, 'inventory_iq.db')}"
-    app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+    # Initialize production validation if needed
+    config_class.init_app(app)
 
-    # Session settings: Handle session lifetime
-    app.config["PERMANENT_SESSION_LIFETIME"] = timedelta(days=2)  # Session expires after 2 days of inactivity
-    app.config["SESSION_PROTECTION"] = "strong"  # Strong protection against session hijacking
+    # Create instance folder (needed for SQLite in dev)
+    if app.config.get("SQLALCHEMY_DATABASE_URI", "").startswith("sqlite"):
+        os.makedirs(app.instance_path, exist_ok=True)
 
     # Initialize database
     db.init_app(app)
@@ -53,18 +55,25 @@ def create_app():
     @login_manager.user_loader
     def load_user(user_id):
         """Load a user from the database by ID."""
-        return Users.query.get(int(user_id))
+        return db.session.get(Users, int(user_id))
 
     with app.app_context():
         print("[INFO] Initializing database tables...")
         try:
             db.create_all()
-            print("[INFO] ✅ Database tables created successfully!")
+            print("[INFO] Database tables created successfully!")
         except Exception as e:
             print(f"[CRITICAL] Failed to create database tables: {e}")
             sys.exit(1)
 
     # Print startup information
-    print(f"[INFO] Application initialized with database: {app.config['SQLALCHEMY_DATABASE_URI']}")
+    db_uri = app.config["SQLALCHEMY_DATABASE_URI"]
+    # Mask sensitive database URL for production
+    if env == "prod" and db_uri:
+        # Show only the database type for security
+        db_type = db_uri.split("://")[0] if "://" in db_uri else "unknown"
+        print(f"[INFO] Application initialized with {db_type} database")
+    else:
+        print(f"[INFO] Application initialized with database: {db_uri}")
 
     return app

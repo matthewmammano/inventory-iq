@@ -151,7 +151,7 @@ class Items(db.Model):
             raise ValueError("Invalid UPC check digit.")
         # Check if UPC already exists
         existing = Items.query.filter_by(upc=value, user_id=self.user_id).first()
-        if existing and existing.id != getattr(self, "id", None):
+        if existing and existing.id != self.id:
             raise ValueError("UPC already exists for another item in your account.")
         return value
 

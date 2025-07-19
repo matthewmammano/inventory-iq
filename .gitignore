@@ -3,24 +3,51 @@ __pycache__/
 *.py[cod]
 *$py.class
 .Python
+*.pyc
+*.pyo
+*.pyd
+.coverage
+.pytest_cache/
 
 # Flask
 instance/
 .env
+.env.local
+.env.development
+.env.test
+.env.production
 
 # DB
 *.sqlite
 *.db
+*.sqlite3
 
-# VS Code
+# IDEs
 .vscode/
+.idea/
+*.swp
+*.swo
 
 # Python Environment
 venv/
 env/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+logs/
+*.log
 
 # Squad Logos
 static/images/logos/*
 
 # AI Assistance
 .claude/settings.local.json
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
