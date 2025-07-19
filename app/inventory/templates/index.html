@@ -71,12 +71,16 @@
 
         results.sort((a, b) => {
             if (a.score !== b.score) return a.score - b.score;
-            return new Date(b.item.last_accessed || 0) - new Date(a.item.last_accessed || 0);
+            
+            const aDate = a.item.last_accessed ? new Date(a.item.last_accessed) : new Date(0);
+            const bDate = b.item.last_accessed ? new Date(b.item.last_accessed) : new Date(0);
+            
+            return bDate - aDate;
         });
 
         const list = document.getElementById('results');
         list.innerHTML = '';
-        results.slice(0, 10).forEach(({ item }) => {
+        results.slice(0, 5).forEach(({ item }) => {
             const li = document.createElement('li');
             li.textContent = `${item.name} (${item.tags.join(', ')})`;
             li.onclick = () => window.location.href = `{% if admin %}/inventory/${squad}/admin-panel/scan?item_id=${item.id}{% else %}/inventory/${squad}/scan?item_id=${item.id}{% endif %}`;

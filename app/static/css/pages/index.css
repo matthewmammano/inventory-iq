@@ -10,3 +10,25 @@ input {
     margin: 3.5rem 0;
     box-sizing: border-box;
 }
+
+/* Results list styling */
+#results {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    width: 75vw;
+}
+
+#results li {
+    padding: 12px 16px;
+    margin-bottom: 8px;
+    background: #f8f9fa;
+    border: 1px solid #e9ecef;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s;
+}
+
+#results li:hover {
+    background: #e9ecef;
+}
