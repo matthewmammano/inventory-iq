@@ -1,9 +1,15 @@
 {% extends "base.html" %}
-{% from "macros.html" import header_logo %}
+{% from "macros.html" import header_logo, header_button %}
 
 {% block title %}Scan Item{% endblock %}
 
-{% block header_right %}{{ header_logo(logo_img)}}{% endblock %}
+{% block header_right %}
+{% if admin %}
+    {{ header_button(url_for('admin.admin_panel', squad=squad), 'Back') }}
+{% else %}
+    {{ header_logo(logo_img) }}
+{% endif %}
+{% endblock %}
 
 {% block header_title %}{{ squad }}{% endblock %}
 {% block sub_title %}Scan{% endblock %}

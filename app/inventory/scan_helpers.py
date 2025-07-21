@@ -44,7 +44,7 @@ def handle_scan_start(squad, item_id, is_admin=False):
 
     if not item:
         flash("Item not found.", "error")
-        endpoint = "admin.admin_panel" if is_admin else "guest.index"
+        endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad))
 
     user_recount_allow, user_take_allow = get_scan_permissions(squad, is_admin)
@@ -72,7 +72,7 @@ def handle_scan_start(squad, item_id, is_admin=False):
         )
     elif len(from_location) == 0:
         flash("No valid locations found to access items. Please add more in the admin panel.", "error")
-        endpoint = "admin.admin_panel" if is_admin else "guest.index"
+        endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad))
     else:
         route_prefix = "admin" if is_admin else "guest"
@@ -105,7 +105,7 @@ def handle_scan_locations_get(squad, item_id, user_recount_allow, user_take_allo
 
     if not item:
         flash("Item not found.", "error")
-        endpoint = "admin.admin_panel" if is_admin else "guest.index"
+        endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad))
 
     locations = UserItemLocations.query.filter_by(user_id=current_user.id)
@@ -194,7 +194,7 @@ def handle_scan_item_get(squad, item_id, from_location_id, to_location_id, user_
 
     if not item or not from_location:
         flash("Invalid item or locations.", "error")
-        endpoint = "admin.admin_panel" if is_admin else "guest.index"
+        endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad))
 
     return render_template(
@@ -231,17 +231,17 @@ def handle_scan_item_post(squad, form_data, is_admin=False):
 
     if not item:
         flash("Item not found. Please check the UPC code.", "error")
-        endpoint = "admin.admin_panel" if is_admin else "guest.index"
+        endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad))
 
     if not from_location_id or not to_location_id:
         flash("Both from and to locations must be selected.", "error")
-        endpoint = "admin.admin_panel" if is_admin else "guest.index"
+        endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad, item_id=item_id))
 
     if not counter_value or not counter_value.isdigit():
         flash("Invalid counter value. Please enter a valid number.", "error")
-        endpoint = "admin.admin_panel" if is_admin else "guest.index"
+        endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad, item_id=item_id))
 
     from_location_id = int(from_location_id) if from_location_id != "-1" else None

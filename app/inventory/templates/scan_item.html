@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import header_button %}
+{% from "macros.html" import header_button, header_logo %}
 
 {% block title %}Scanning{% endblock %}
 
@@ -28,8 +28,8 @@
     <div class="counter-value">1</div>
     <div class="plus-btn">+</div>
     
-    <div class="cancel-btn" onclick="window.location.href='{{ url_for('admin.admin_panel' if admin else 'guest.index', squad=squad) }}'">CANCEL</div>
-    <div class="submit-btn" type="button">SUBMIT</div>
+    <div class="cancel-btn" onclick="window.location.href='{{ url_for('admin.admin_scan_items' if admin else 'guest.index', squad=squad) }}'">Cancel</div>
+    <div class="submit-btn" type="button">Submit</div>
 
     <!-- Hidden form with all required POST variables -->
     <form id="hidden-form" method="POST" class="hidden">
