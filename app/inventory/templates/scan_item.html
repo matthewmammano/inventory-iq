@@ -23,10 +23,12 @@
         <div class="info-unit">{{item.increments}}</div>
         <div class="info-item">{{item.name}}</div>
     </div>
+
+    {# TODO RED: add 3 buttons for admin #}
     
-    <div class="minus-btn">-</div>
+    <div class="minus-btn" data-value="-1">-</div>
     <div class="counter-value">1</div>
-    <div class="plus-btn">+</div>
+    <div class="plus-btn" data-value="1">+</div>
     
     <div class="cancel-btn" onclick="window.location.href='{{ url_for('admin.admin_scan_items' if admin else 'guest.index', squad=squad) }}'">Cancel</div>
     <div class="submit-btn" type="button">Submit</div>
