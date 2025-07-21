@@ -42,6 +42,9 @@ def create_app():
     login_manager.login_message = "Please log in to access this page."
     login_manager.login_message_category = "warning"
 
+    # Set session to expire when browser closes (security improvement)
+    app.config['SESSION_PERMANENT'] = False
+
     # Import models to ensure they're registered with SQLAlchemy
     # Register blueprints
     from app.auth import bp as auth_bp
