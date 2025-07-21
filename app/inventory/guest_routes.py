@@ -3,14 +3,18 @@ from datetime import datetime, timezone
 from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 
-from app import db
-from app.auth.models import UserItemLocations, Users
+from app.auth.models import Users
 from app.inventory import guest_bp as bp
-from app.inventory.models import ActionLogs, Items
-from app.inventory.scan_helpers import handle_scan_start, handle_scan_locations_get, handle_scan_locations_post, handle_scan_item_get, handle_scan_item_post
+from app.inventory.models import Items
+from app.inventory.scan_helpers import (
+    handle_scan_item_get,
+    handle_scan_item_post,
+    handle_scan_locations_get,
+    handle_scan_locations_post,
+    handle_scan_start,
+)
 
 
-# TODO RED: make all html non selectable!
 @bp.before_request
 def check_authentication_and_squad():
     """
@@ -92,7 +96,9 @@ def scan_item(squad):
         to_location_id = request.args.get("to_location_id")
         user_recount_allow = request.args.get("user_recount_allow", "False") == "True"
         user_take_allow = request.args.get("user_take_allow", "True") == "True"
-        return handle_scan_item_get(squad, item_id, from_location_id, to_location_id, user_recount_allow, user_take_allow, is_admin=False)
+        return handle_scan_item_get(
+            squad, item_id, from_location_id, to_location_id, user_recount_allow, user_take_allow, is_admin=False
+        )
 
 
 # Admin login page using PIN from Users DB
