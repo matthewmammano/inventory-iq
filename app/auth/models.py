@@ -127,10 +127,10 @@ class UserItemLocations(db.Model):
     def __repr__(self):
         return f"<UserItemLocations {self.name}>"
 
-    @validates("location_name")
+    @validates("name")
     def validate_location_name(self, key, value):
         """Validate location name."""
-        return validate_string_length(value, "location_name", 50, allow_none=False, allow_empty=False)
+        return validate_string_length(value, "name", 50, allow_none=False, allow_empty=False)
 
 
 class UserItemTags(db.Model):
