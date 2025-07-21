@@ -9,6 +9,7 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = timedelta(days=2)
     SESSION_PROTECTION = "strong"
+    SEND_FILE_MAX_AGE_DEFAULT = timedelta(days=30).total_seconds()  # 30 days for static files
 
     # Default security options (overridden in prod)
     SESSION_COOKIE_SECURE = False

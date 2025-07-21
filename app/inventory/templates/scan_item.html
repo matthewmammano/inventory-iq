@@ -3,7 +3,7 @@
 
 {% block title %}Scanning{% endblock %}
 
-{% block header_right %}{{ header_logo(url_for('static', filename='images/logos/'+logo_img))}}{% endblock %}
+{% block header_right %}{{ header_logo(logo_img)}}{% endblock %}
 
 {% block header_title %}{{ squad }}{% endblock %}
 {% block sub_title %}Scan Amount{% endblock %}
@@ -16,7 +16,7 @@
     <div class="where_to_from">{{ "RECOUNT" if from_location == -1 else (from_location.name if from_location else "Unknown") }} → {{ "TAKE" if to_location == -1 else (to_location.name if to_location else "Unknown") }}</div>
     
     <div class="image-cell">
-        <img src="{{item.image}}" alt="{{item.name}}">
+        <img src="{{item.image|default_image}}" alt="{{item.name}}">
     </div>
     
     <div class="info-section">

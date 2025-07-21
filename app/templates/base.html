@@ -7,11 +7,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Inventory IQ{% endblock %}</title>
     
-    <!-- Security Headers -->
-    <!-- TODO GREEN: Next iteration: Gradually migrate inline styles/scripts to external files, then remove 'unsafe-inline' for maximum security. -->
+    <!-- TODO GREEN: Next iteration: 
+         1. Gradually migrate inline styles/scripts to external files, then remove 'unsafe-inline' for maximum security
+         2. Re-enable X-Frame-Options header (currently handled by Flask)
+         3. Re-enable CSP with proper font-src directive: "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https:; img-src 'self' data: https: http:; connect-src 'self';"
+    -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    <meta http-equiv="X-Frame-Options" content="DENY">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self';">
     
     <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
@@ -55,7 +56,7 @@
     
     <!-- Flash message container (hidden by default) -->
     <div id="flash-container" class="flash-container">
-        <img id="flash-image" class="flash-image" src="{{ url_for('static', filename='images/flash/info.svg') }}" />
+        <img id="flash-image" class="flash-image" src="" />
         <div id="flash-message" class="flash-message"></div>
         <div class="timer-container">
             <div class="timer-circle">

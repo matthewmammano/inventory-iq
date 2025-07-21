@@ -3,7 +3,7 @@ import os
 import sys
 
 from dotenv import load_dotenv
-from flask import Flask
+from flask import Flask, request
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 
@@ -44,6 +44,13 @@ def create_app():
 
     # Set session to expire when browser closes (security improvement)
     app.config['SESSION_PERMANENT'] = False
+
+    # Custom template filter for handling missing images
+    @app.template_filter('default_image')
+    def default_image(image_url):
+        from flask import url_for
+        return image_url if image_url else url_for('static', filename='images/not-found.jpg')
+
 
     # Import models to ensure they're registered with SQLAlchemy
     # Register blueprints
