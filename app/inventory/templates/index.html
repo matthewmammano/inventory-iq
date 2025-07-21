@@ -94,7 +94,6 @@ document.addEventListener('DOMContentLoaded', function() {
             results = allItems.map(item => ({ item, score: 0 }));
         }
 
-        // TODO YELLOW: make date sorting work! problem in models.py needs to auto-set.
         results.sort((a, b) => {
             if (a.score !== b.score) return a.score - b.score;
             
@@ -117,6 +116,58 @@ document.addEventListener('DOMContentLoaded', function() {
 
 
     showResults('');
+
+    // UPC Barcode Scanner Support
+    let upcBuffer = '';
+    let upcTimeout;
+    const UPC_LENGTH = 12;
+    const SCAN_TIMEOUT = 100; // ms between keystrokes to detect scan vs typing
+    
+    document.addEventListener('keydown', function(e) {
+        // Clear buffer if too much time passed (user typing vs scanner)
+        clearTimeout(upcTimeout);
+        
+        // If Enter key and we have a 12-digit UPC
+        if (e.key === 'Enter' && upcBuffer.length === UPC_LENGTH) {
+            e.preventDefault();
+            handleUpcScan(upcBuffer);
+            upcBuffer = '';
+            return;
+        }
+        
+        // If it's a digit, add to buffer
+        if (/^\d$/.test(e.key)) {
+            upcBuffer += e.key;
+            
+            // Auto-clear buffer if it gets too long (invalid UPC)
+            if (upcBuffer.length > UPC_LENGTH) {
+                upcBuffer = e.key; // Start fresh with this digit
+            }
+            
+            // Set timeout to clear buffer if scanning stops
+            upcTimeout = setTimeout(() => {
+                upcBuffer = '';
+            }, SCAN_TIMEOUT);
+        } else if (e.key !== 'Enter') {
+            // Non-digit, non-enter key pressed - clear buffer (user typing)
+            upcBuffer = '';
+        }
+    });
+    
+    function handleUpcScan(upc) {
+        console.log('UPC scanned:', upc);
+        
+        // Find item by UPC in our items array
+        const foundItem = allItems.find(item => item.upc === upc);
+        
+        if (foundItem) {
+            // Navigate to scan page for this item
+            window.location.href = `{% if admin %}/inventory/${squad}/admin-panel/scan?item_id=${foundItem.id}{% else %}/inventory/${squad}/scan?item_id=${foundItem.id}{% endif %}`;
+        } else {
+            // UPC not found - show error message
+            alert(`UPC ${upc} not found in inventory. Please add this item first.`);
+        }
+    }
 });
 </script>
     

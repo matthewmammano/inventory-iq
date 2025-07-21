@@ -133,6 +133,7 @@ class UserItemLocations(db.Model):
         return validate_string_length(value, "name", 50, allow_none=False, allow_empty=False)
 
 
+# TODO Green: add colors
 class UserItemTags(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)

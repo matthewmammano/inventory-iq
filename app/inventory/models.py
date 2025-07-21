@@ -1,5 +1,11 @@
 from datetime import datetime, timezone
 
+# TODO YELLOW: Add expiration date tracking for items
+# - Add expiry_date field to Items model
+# - Create expiration alerts in admin dashboard  
+# - Filter expired items in inventory views
+# - Add expiration-based reorder suggestions
+
 from sqlalchemy import JSON, event
 from sqlalchemy.orm import validates
 

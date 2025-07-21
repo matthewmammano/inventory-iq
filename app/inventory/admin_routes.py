@@ -412,3 +412,10 @@ def scan_item(squad):
         return handle_scan_item_get(
             squad, item_id, from_location_id, to_location_id, user_recount_allow, user_take_allow, is_admin=True
         )
+
+
+# TODO RED: Add reports and analytics dashboard
+# - Usage statistics (most/least accessed items)
+# - Inventory trends over time (charts/graphs)
+# - Low stock alerts and notifications
+# - Restock recommendations based on usage patterns

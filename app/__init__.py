@@ -51,6 +51,12 @@ def create_app():
         from flask import url_for
         return image_url if image_url else url_for('static', filename='images/not-found.jpg')
 
+    # TODO YELLOW: Add proper error handling and logging system for production
+    # - Configure structured logging (JSON format)
+    # - Add custom error pages (404, 500, etc.)
+    # - Log user actions and system events
+    # - Set up log rotation and monitoring alerts
+
 
     # Import models to ensure they're registered with SQLAlchemy
     # Register blueprints
