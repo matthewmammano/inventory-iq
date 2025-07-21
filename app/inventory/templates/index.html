@@ -34,9 +34,28 @@
 
 {% block extra_js %}
 
-<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2" 
+        integrity="sha384-uU0BthCa6mNm5QWpb7YYUDo5p+rTYP4X9LhHBBpKUJjZvL2P6WyBNE7E2M8YdOQG" 
+        crossorigin="anonymous" 
+        defer
+        onerror="console.error('Fuse.js failed to load - search functionality disabled')"></script>
 
 <script>
+    // Graceful degradation if Fuse.js fails to load
+    if (typeof Fuse === 'undefined') {
+        console.warn('Fuse.js not available - using simple search fallback');
+        window.Fuse = function() {
+            return {
+                search: function(query) {
+                    return allItems.filter(item => 
+                        item.name.toLowerCase().includes(query.toLowerCase()) ||
+                        item.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase()))
+                    ).map(item => ({ item }));
+                }
+            };
+        };
+    }
+    
     const squad = "{{ squad }}";
 
     const allItems = [
