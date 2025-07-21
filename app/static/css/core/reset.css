@@ -50,6 +50,11 @@ img, video, svg {
     display: block; /* Prevents inline gap below images */
 }
 
+/* Non-blocking image loading */
+img {
+    loading: lazy;
+}
+
 /* Main content container */
 .content {
     width: 100%;
