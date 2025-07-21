@@ -248,6 +248,10 @@ def handle_scan_item_post(squad, form_data, is_admin=False):
     to_location_id = int(to_location_id) if to_location_id != "-1" else None
     counter_value = int(counter_value)
 
+    # Update last_accessed timestamp when item is scanned
+    from datetime import datetime, timezone
+    item.last_accessed = datetime.now(timezone.utc)
+
     action_log = ActionLogs(
         item_id=item.id,
         from_location_id=from_location_id,
