@@ -268,7 +268,11 @@ def handle_scan_item_post(squad, form_data, is_admin=False):
 
     # TODO RED: handle alerts - send emails for low/high stock notifications
 
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        raise Exception("Database error during scan operation")
 
     flash(f"Successfully moved {counter_value} {item.name}.", "success")
     endpoint = "admin.admin_panel" if is_admin else "guest.index"

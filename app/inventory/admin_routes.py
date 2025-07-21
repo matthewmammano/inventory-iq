@@ -211,7 +211,11 @@ def save_items(squad):
             db.session.delete(item_to_delete)
 
     # Commit all changes
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        flash("Database error occurred. Please try again.", "error")
 
     if error_items:
         flash(

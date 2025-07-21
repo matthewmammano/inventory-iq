@@ -59,9 +59,13 @@ def set_password():
             flash("Password already set. Please log in.", "info")
             return redirect(url_for("auth.login"))
 
-        user.set_password(new_password)
-        db.session.commit()
-        flash("Password set successfully. Please log in now.", "success")
+        try:
+            user.set_password(new_password)
+            db.session.commit()
+            flash("Password set successfully. Please log in now.", "success")
+        except Exception as e:
+            db.session.rollback()
+            flash("An error occurred setting your password. Please try again.", "error")
         return redirect(url_for("auth.login"))
 
     return render_template("set_password.html")
