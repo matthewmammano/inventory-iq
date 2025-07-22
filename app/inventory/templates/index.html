@@ -7,7 +7,7 @@
 {% if admin %}
     {{ header_button(url_for('admin.admin_panel', squad=squad), 'Back') }}
 {% else %}
-    {{ header_logo(logo_img) }}
+    {{ header_logo(logo_img|image_src) }}
 {% endif %}
 {% endblock %}
 

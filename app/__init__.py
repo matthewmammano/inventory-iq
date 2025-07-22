@@ -1,9 +1,10 @@
-import logging
 import os
+import re
 import sys
+from pathlib import Path
 
 from dotenv import load_dotenv
-from flask import Flask, request
+from flask import Flask, url_for
 from flask_login import LoginManager
 from flask_sqlalchemy import SQLAlchemy
 
@@ -43,20 +44,36 @@ def create_app():
     login_manager.login_message_category = "warning"
 
     # Set session to expire when browser closes (security improvement)
-    app.config['SESSION_PERMANENT'] = False
+    app.config["SESSION_PERMANENT"] = False
 
-    # Custom template filter for handling missing images
-    @app.template_filter('default_image')
-    def default_image(image_url):
-        from flask import url_for
-        return image_url if image_url else url_for('static', filename='images/not-found.jpg')
+    # Custom template filter for general image handling with error fallback
+    @app.template_filter("image_src")
+    def image_src(image_path):
+        # Handle None or empty values
+        if not image_path:
+            return url_for("static", filename="images/not-found.jpg")
+
+        # Check if it's already a full URL (http/https)
+        if re.match(r"^https?://", str(image_path)):
+            return image_path
+
+        # Normalize path separators and remove static prefix if present
+        filename = str(image_path).replace("\\", "/").lstrip("/")
+        if filename.startswith("static/"):
+            filename = filename[7:]
+
+        # Check if static file exists
+        static_path = Path(app.static_folder) / filename.replace("/", os.sep)
+        if static_path.exists():
+            return url_for("static", filename=filename)
+        else:
+            return url_for("static", filename="images/not-found.jpg")
 
     # TODO YELLOW: Add proper error handling and logging system for production
     # - Configure structured logging (JSON format)
     # - Add custom error pages (404, 500, etc.)
     # - Log user actions and system events
     # - Set up log rotation and monitoring alerts
-
 
     # Import models to ensure they're registered with SQLAlchemy
     # Register blueprints

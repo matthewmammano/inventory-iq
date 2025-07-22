@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Inventory IQ{% endblock %}</title>
     
-    <!-- TODO YELLOW: Implement PWA features for wall-mounted touchscreen kiosk
+    <!-- TODO GREY: Implement PWA features for wall-mounted touchscreen kiosk
          - Add service worker for offline functionality and asset caching
          - Create web app manifest for fullscreen/kiosk mode experience
          - Add IndexedDB for offline data storage and sync queuing
@@ -52,7 +52,7 @@
         </div>
         <div class="header-right">
             {% block header_right %}
-                {{ header_logo(logo_url|default(url_for('static', filename='images/logos/me.svg'))) }}
+                {{ header_logo( logo_img|image_src ) }}
             {% endblock %}
         </div>
     </div>
