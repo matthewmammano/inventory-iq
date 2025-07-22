@@ -9,6 +9,7 @@
 @import 'components/tables.css';
 @import 'components/navigation.css';
 @import 'components/flash-messages.css';
+@import 'components/tags.css';
 
 /* Layouts */
 @import 'layouts/admin-layout.css';

@@ -9,6 +9,13 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = timedelta(days=2)
     SESSION_PROTECTION = "strong"
+    SEND_FILE_MAX_AGE_DEFAULT = timedelta(days=30).total_seconds()  # 30 days for static files
+
+    # TODO RED: Add data backup and restore functionality for production safety
+    # - Automated daily database backups to cloud storage
+    # - Backup retention policy (keep 30 days, monthly for 1 year)
+    # - One-click restore functionality in admin panel
+    # - Export/import entire squad data as JSON/SQL
 
     # Default security options (overridden in prod)
     SESSION_COOKIE_SECURE = False

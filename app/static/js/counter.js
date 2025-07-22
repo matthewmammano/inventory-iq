@@ -1,23 +1,20 @@
-const minusBtn = document.querySelector('.minus-btn');
-const plusBtn = document.querySelector('.plus-btn');
 const counterValue = document.querySelector('.counter-value');
 const counterInput = document.getElementById('counter_value');
 const submitBtn = document.querySelector('.submit-btn');
 
-minusBtn.addEventListener('click', function() {
-    let value = parseInt(counterValue.textContent);
-    if (value > 0) {
-        value = value - 1;
-        counterValue.textContent = value;
-        counterInput.value = value;
-    }
-});
-
-plusBtn.addEventListener('click', function() {
-    let value = parseInt(counterValue.textContent);
-    value = value + 1;
-    counterValue.textContent = value;
-    counterInput.value = value;
+// Handle all buttons with data-value (works for both guest and admin)
+document.querySelectorAll('[data-value]').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const changeValue = parseInt(this.dataset.value);
+        let currentValue = parseInt(counterValue.textContent);
+        let newValue = currentValue + changeValue;
+        
+        // Don't allow negative values
+        if (newValue < 0) newValue = 0;
+        
+        counterValue.textContent = newValue;
+        counterInput.value = newValue;
+    });
 });
 
 submitBtn.addEventListener('click', function() {

@@ -211,7 +211,11 @@ def save_items(squad):
             db.session.delete(item_to_delete)
 
     # Commit all changes
-    db.session.commit()
+    try:
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+        flash("Database error occurred. Please try again.", "error")
 
     if error_items:
         flash(
@@ -264,17 +268,17 @@ def restock(squad):
     """Display items that need restocking with calculated order amounts"""
     # Get all items for this user with min/max quantities
     items = Items.query.filter_by(user_id=current_user.id, active=True).all()
-    
+
     # Get all quantity data for this user
     quantities = ItemLocationQuantities.query.filter_by(user_id=current_user.id).all()
-    
+
     # Create a lookup dictionary for total quantities per item
     item_totals = {}
     for qty in quantities:
         if qty.item_id not in item_totals:
             item_totals[qty.item_id] = 0
         item_totals[qty.item_id] += qty.quantity
-    
+
     # Calculate restock recommendations
     restock_data = []
     for item in items:
@@ -283,36 +287,36 @@ def restock(squad):
         max_qty = item.max_quantity or 0
         batch_size = item.batch_size or 0
         delivery_days = item.restock_delivery_days or 7  # Default to 7 days if not set
-        
+
         # Calculate order amount and priority
         order_amount = 0
         priority = "Not needed"
-        
+
         # Time-based restock logic: consider delivery time and current stock percentage
         should_reorder = False
         reorder_reason = ""
-        
+
         if min_qty > 0:
             stock_percentage = (current_total / min_qty) * 100
-            
+
             # Always reorder if below minimum
             if current_total < min_qty:
                 should_reorder = True
                 reorder_reason = "Below minimum"
                 priority = "High" if current_total == 0 else "Medium"
-            
+
             # Time-based reordering: if stock is low and we need time for delivery
             elif stock_percentage <= 50 and delivery_days >= 3:
                 should_reorder = True
                 reorder_reason = "Time-based (low stock + delivery time)"
                 priority = "Medium"
-            
+
             # Very low stock percentage should trigger reorder regardless
             elif stock_percentage <= 25:
                 should_reorder = True
                 reorder_reason = "Very low stock (≤25%)"
                 priority = "Medium"
-        
+
         # If we should reorder, calculate the amount
         if should_reorder:
             if max_qty > 0:
@@ -329,22 +333,24 @@ def restock(squad):
             else:
                 # Default to bringing up to min quantity (or at least 1 if min is 0)
                 order_amount = max(min_qty - current_total, 1)
-        
-        restock_data.append({
-            'item': item,
-            'current_total': current_total,
-            'min_quantity': min_qty,
-            'max_quantity': max_qty,
-            'batch_size': batch_size,
-            'order_amount': order_amount,
-            'priority': priority,
-            'reorder_reason': reorder_reason if should_reorder else "Stock sufficient"
-        })
-    
+
+        restock_data.append(
+            {
+                "item": item,
+                "current_total": current_total,
+                "min_quantity": min_qty,
+                "max_quantity": max_qty,
+                "batch_size": batch_size,
+                "order_amount": order_amount,
+                "priority": priority,
+                "reorder_reason": reorder_reason if should_reorder else "Stock sufficient",
+            }
+        )
+
     # Sort by priority (High first, then Medium, then Not needed) and then by item name
     priority_order = {"High": 0, "Medium": 1, "Not needed": 2}
-    restock_data.sort(key=lambda x: (priority_order[x['priority']], x['item'].name))
-    
+    restock_data.sort(key=lambda x: (priority_order[x["priority"]], x["item"].name))
+
     return render_template("admin_restock.html", squad=squad, restock_data=restock_data, admin=True)
 
 
@@ -406,3 +412,10 @@ def scan_item(squad):
         return handle_scan_item_get(
             squad, item_id, from_location_id, to_location_id, user_recount_allow, user_take_allow, is_admin=True
         )
+
+
+# TODO RED: Add reports and analytics dashboard
+# - Usage statistics (most/least accessed items)
+# - Inventory trends over time (charts/graphs)
+# - Low stock alerts and notifications
+# - Restock recommendations based on usage patterns

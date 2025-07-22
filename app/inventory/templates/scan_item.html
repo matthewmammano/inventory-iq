@@ -1,9 +1,9 @@
 {% extends "base.html" %}
-{% from "macros.html" import header_button %}
+{% from "macros.html" import header_button, header_logo %}
 
 {% block title %}Scanning{% endblock %}
 
-{% block header_right %}{{ header_logo(url_for('static', filename='images/logos/'+logo_img))}}{% endblock %}
+{% block header_right %}{{ header_logo(logo_img|image_src)}}{% endblock %}
 
 {% block header_title %}{{ squad }}{% endblock %}
 {% block sub_title %}Scan Amount{% endblock %}
@@ -16,20 +16,22 @@
     <div class="where_to_from">{{ "RECOUNT" if from_location == -1 else (from_location.name if from_location else "Unknown") }} → {{ "TAKE" if to_location == -1 else (to_location.name if to_location else "Unknown") }}</div>
     
     <div class="image-cell">
-        <img src="{{item.image}}" alt="{{item.name}}">
+        <img src="{{item.image|image_src}}" alt="{{item.name}}">
     </div>
     
     <div class="info-section">
         <div class="info-unit">{{item.increments}}</div>
         <div class="info-item">{{item.name}}</div>
     </div>
+
+    {# TODO RED: add 3 buttons for admin #}
     
-    <div class="minus-btn">-</div>
+    <div class="minus-btn" data-value="-1">-</div>
     <div class="counter-value">1</div>
-    <div class="plus-btn">+</div>
+    <div class="plus-btn" data-value="1">+</div>
     
-    <div class="cancel-btn" onclick="window.location.href='{{ url_for('admin.admin_panel' if admin else 'guest.index', squad=squad) }}'">CANCEL</div>
-    <div class="submit-btn" type="button">SUBMIT</div>
+    <div class="cancel-btn" onclick="window.location.href='{{ url_for('admin.admin_scan_items' if admin else 'guest.index', squad=squad) }}'">Cancel</div>
+    <div class="submit-btn" type="button">Submit</div>
 
     <!-- Hidden form with all required POST variables -->
     <form id="hidden-form" method="POST" class="hidden">

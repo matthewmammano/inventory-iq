@@ -1,5 +1,11 @@
 from datetime import datetime, timezone
 
+# TODO YELLOW: Add expiration date tracking for items
+# - Add expiry_date field to Items model
+# - Create expiration alerts in admin dashboard  
+# - Filter expired items in inventory views
+# - Add expiration-based reorder suggestions
+
 from sqlalchemy import JSON, event
 from sqlalchemy.orm import validates
 
@@ -26,9 +32,7 @@ class Items(db.Model):
     increments = db.Column(db.String(50))  # 'individual', 'box', 'case', etc.
     name = db.Column(db.String(100), nullable=False)  # 'Bandage', 'Aspirin', etc.
     image = db.Column(db.String(1024))  # image online URL to the item's image
-    last_accessed = db.Column(
-        db.DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc)
-    )
+    last_accessed = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc))
 
     min_quantity = db.Column(db.Integer, nullable=True)  # alert when below this
     max_quantity = db.Column(db.Integer, nullable=True)  # desired/reorder amount

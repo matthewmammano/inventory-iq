@@ -18,10 +18,16 @@
 <table class="table-view">
   <tr>      
     <th>Tag Name</th>
+    <th>Color</th>
   </tr>
   {% for tag in tags %}
   <tr>
-    <td>{{ tag.tag_name }}</td>
+    <td>
+      <span class="tag-box" style="background-color: {{ tag.color }}; color: {{ tag.text_color }};">
+        {{ tag.tag_name }}
+      </span>
+    </td>
+    <td>{{ tag.color }}</td>
   </tr>
   {% endfor %}
 </table>

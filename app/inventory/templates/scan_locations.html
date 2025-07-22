@@ -3,7 +3,7 @@
 
 {% block title %}Scan Selection{% endblock %}
 
-{% block header_right %}{{ header_button(url_for('admin.admin_panel' if admin else 'guest.index', squad=squad), 'Back')}}{% endblock %}
+{% block header_right %}{{ header_button(url_for('admin.admin_scan_items' if admin else 'guest.index', squad=squad), 'Back')}}{% endblock %}
 
 {% block header_title %}{{squad}}{% endblock %}
 {% block sub_title %}Scan Location{% endblock %}

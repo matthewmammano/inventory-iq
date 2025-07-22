@@ -46,7 +46,7 @@ def add_location(user):
         return
 
     # Check if location already exists for this user
-    existing = UserItemLocations.query.filter_by(user_id=user.id, location_name=location_name).first()
+    existing = UserItemLocations.query.filter_by(user_id=user.id, name=location_name).first()
 
     if existing:
         print(f"[ERROR] Location '{location_name}' already exists for this user!")
@@ -60,7 +60,7 @@ def add_location(user):
 
     # Create location
     try:
-        location = UserItemLocations(user_id=user.id, location_name=location_name)
+        location = UserItemLocations(user_id=user.id, name=location_name)
         db.session.add(location)
         db.session.commit()
         print(f"\n[SUCCESS] ✅ Location '{location_name}' added successfully!")

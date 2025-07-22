@@ -24,10 +24,43 @@ body {
     padding-top: 20vh; /* Account for fixed header */
 }
 
+/* Touch optimization and text selection controls */
+* {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+}
+
+/* Re-enable selection for form elements where needed */
+input, textarea, [contenteditable] {
+    -webkit-user-select: auto;
+    -moz-user-select: auto;
+    -ms-user-select: auto;
+    user-select: auto;
+    -webkit-touch-callout: default;
+}
+
 img, video, svg {
     max-width: 100%;
     height: auto;
     display: block; /* Prevents inline gap below images */
+}
+
+/* Non-blocking image loading with error handling */
+img {
+    loading: lazy;
+}
+
+img:not([src]) {
+    display: none;
+}
+
+img[src=""], img:not([src]) {
+    opacity: 0;
 }
 
 /* Main content container */
