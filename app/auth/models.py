@@ -133,11 +133,35 @@ class UserItemLocations(db.Model):
         return validate_string_length(value, "name", 50, allow_none=False, allow_empty=False)
 
 
-# TODO Green: add colors
 class UserItemTags(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     tag_name = db.Column(db.String(50), nullable=False)
+    color = db.Column(db.String(7), default="#3b82f6")  # Default blue color
+
+    @property
+    def text_color(self):
+        """Calculate contrasting text color (black or white) based on background color brightness."""
+        if not self.color:
+            return "#000000"
+        
+        # Remove # if present and convert to RGB
+        hex_color = self.color.lstrip('#')
+        if len(hex_color) != 6:
+            return "#000000"
+        
+        try:
+            r = int(hex_color[0:2], 16)
+            g = int(hex_color[2:4], 16)
+            b = int(hex_color[4:6], 16)
+            
+            # Calculate perceived brightness using standard formula
+            brightness = (r * 0.299 + g * 0.587 + b * 0.114)
+            
+            # Return white text for dark backgrounds, black for light
+            return "#ffffff" if brightness < 128 else "#000000"
+        except (ValueError, IndexError):
+            return "#000000"
 
     def __repr__(self):
         return f"<UserItemTags {self.tag_name}>"
@@ -146,6 +170,26 @@ class UserItemTags(db.Model):
     def validate_tag_name(self, key, value):
         """Validate tag name."""
         return validate_string_length(value, "tag_name", 50, allow_none=False, allow_empty=False)
+
+    @validates("color")
+    def validate_color(self, key, value):
+        """Validate color is a valid hex color code."""
+        import re
+        
+        if value is None:
+            return "#3b82f6"  # Default blue if None
+            
+        if not isinstance(value, str):
+            raise ValueError("Color must be a string")
+            
+        # Remove whitespace
+        value = value.strip()
+        
+        # Check hex color format (#rrggbb)
+        if not re.match(r'^#[0-9A-Fa-f]{6}$', value):
+            raise ValueError("Color must be a valid hex color format (#rrggbb, e.g., #3b82f6)")
+            
+        return value.upper()  # Store in uppercase for consistency
 
 
 class UserItemAlerts(db.Model):

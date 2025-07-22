@@ -72,6 +72,7 @@ document.addEventListener('DOMContentLoaded', function() {
             last_accessed: "{{ item.last_accessed.isoformat() if item.last_accessed else '' }}",
             id: "{{ item.id }}",
             tags: [{% for tag in item.tags %}"{{ tag.tag_name }}"{% if not loop.last %}, {% endif %}{% endfor %}],
+            tag_data: [{% for tag in item.tags %}{"name": "{{ tag.tag_name }}", "color": "{{ tag.color }}", "text_color": "{{ tag.text_color }}"}{% if not loop.last %}, {% endif %}{% endfor %}],
         },
         {% endfor %}
     ];
@@ -107,7 +108,16 @@ document.addEventListener('DOMContentLoaded', function() {
         list.innerHTML = '';
         results.slice(0, 5).forEach(({ item }) => {
             const li = document.createElement('li');
-            li.textContent = `${item.name} (${item.tags.join(', ')})`;
+            li.innerHTML = `
+                <div class="item-name-tags">
+                    <span class="item-name">${item.name}</span>
+                    <div class="tag-container">
+                        ${item.tag_data.map(tag => 
+                            `<span class="tag-box" style="background-color: ${tag.color}; color: ${tag.text_color};">${tag.name}</span>`
+                        ).join('')}
+                    </div>
+                </div>
+            `;
             li.onclick = () => window.location.href = `{% if admin %}/inventory/${squad}/admin-panel/scan?item_id=${item.id}{% else %}/inventory/${squad}/scan?item_id=${item.id}{% endif %}`;
             list.appendChild(li);
         });
