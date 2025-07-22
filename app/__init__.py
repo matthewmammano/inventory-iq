@@ -53,8 +53,8 @@ def create_app():
         if not image_path:
             return url_for("static", filename="images/not-found.jpg")
 
-        # Check if it's already a full URL (http/https)
-        if re.match(r"^https?://", str(image_path)):
+        # Check if it's already a full URL (http/https) or local file path
+        if re.match(r"^(https?://|file://|[a-zA-Z]:|\.\.?/)", str(image_path)):
             return image_path
 
         # Normalize path separators and remove static prefix if present

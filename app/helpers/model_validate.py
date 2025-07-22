@@ -69,13 +69,22 @@ def validate_string_length(value, field_name, max_length, allow_none=True, allow
 
 
 def validate_image_url(value):
-    """Validate image URL format and length."""
+    """Validate image URL format and length. Allows HTTP/HTTPS URLs and local file paths."""
     if value:
         from urllib.parse import urlparse
+        import os
 
         parsed = urlparse(value)
-        if not (parsed.scheme and parsed.scheme in ("http", "https") and parsed.netloc):
-            raise ValueError("Image URL must be a valid URL")
+        
+        # Check if it's a valid HTTP/HTTPS URL
+        is_url = parsed.scheme and parsed.scheme in ("http", "https") and parsed.netloc
+        
+        # Check if it's a local file path (no scheme or file scheme)
+        is_local_path = not parsed.scheme or parsed.scheme == "file"
+        
+        if not (is_url or is_local_path):
+            raise ValueError("Image must be a valid URL or local file path")
+            
         validate_string_length(value, "image", 1020)
     return value
 
