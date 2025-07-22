@@ -5,11 +5,26 @@ from datetime import timedelta
 class Config:
     """Base configuration."""
 
-    SECRET_KEY = os.environ.get("SECRET_KEY") or "dev-secret-key-change-in-production"
+    SECRET_KEY = os.environ.get("SECRET_KEY")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     PERMANENT_SESSION_LIFETIME = timedelta(days=2)
     SESSION_PROTECTION = "strong"
     SEND_FILE_MAX_AGE_DEFAULT = timedelta(days=30).total_seconds()  # 30 days for static files
+
+    # Email Configuration - All from environment for security
+    # Required .env variables:
+    # MAIL_SERVER=smtp-relay.brevo.com
+    # MAIL_USERNAME=92bba2001@smtp-brevo.com
+    # MAIL_PASSWORD=<your_brevo_master_password>
+    # MAIL_DEFAULT_SENDER=<your_squad_email@domain.com>
+    MAIL_SERVER = os.environ.get("MAIL_SERVER")
+    MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))  # Port can have safe default
+    MAIL_USE_TLS = True
+    MAIL_USE_SSL = False
+    MAIL_USERNAME = os.environ.get("MAIL_USERNAME")
+    MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
+    MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER")
+    MAIL_SUPPRESS_SEND = False  # Can be overridden in testing
 
     # TODO RED: Add data backup and restore functionality for production safety
     # - Automated daily database backups to cloud storage
@@ -52,6 +67,16 @@ class ProductionConfig(Config):
 
         if not os.environ.get("DATABASE_URL"):
             raise ValueError("No DATABASE_URL set for production environment")
+            
+        # Validate email configuration for production
+        if not os.environ.get("MAIL_SERVER"):
+            raise ValueError("No MAIL_SERVER set for production environment")
+        if not os.environ.get("MAIL_USERNAME"):
+            raise ValueError("No MAIL_USERNAME set for production environment")
+        if not os.environ.get("MAIL_PASSWORD"):
+            raise ValueError("No MAIL_PASSWORD set for production environment")
+        if not os.environ.get("MAIL_DEFAULT_SENDER"):
+            raise ValueError("No MAIL_DEFAULT_SENDER set for production environment")
 
 
 # Configuration dictionary

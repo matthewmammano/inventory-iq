@@ -6,6 +6,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 from flask import Flask, url_for
 from flask_login import LoginManager
+from flask_mail import Mail
 from flask_sqlalchemy import SQLAlchemy
 
 # Only load dotenv in dev
@@ -14,6 +15,7 @@ if os.environ.get("FLASK_ENV") in (None, "", "dev", "development"):
 
 db = SQLAlchemy()
 login_manager = LoginManager()
+mail = Mail()
 
 
 def create_app():
@@ -34,9 +36,10 @@ def create_app():
     if app.config.get("SQLALCHEMY_DATABASE_URI", "").startswith("sqlite"):
         os.makedirs(app.instance_path, exist_ok=True)
 
-    # Initialize database
+    # Initialize database and extensions
     db.init_app(app)
     login_manager.init_app(app)
+    mail.init_app(app)
 
     # Set the login view for unauthorized users
     login_manager.login_view = "auth.login"
@@ -77,6 +80,7 @@ def create_app():
 
     # Import models to ensure they're registered with SQLAlchemy
     # Register blueprints
+    from app.alerts import bp as alerts_bp
     from app.auth import bp as auth_bp
     from app.auth.models import Users
     from app.inventory import admin_bp, guest_bp
@@ -84,6 +88,7 @@ def create_app():
     app.register_blueprint(auth_bp, url_prefix="/")
     app.register_blueprint(guest_bp, url_prefix="/inventory")
     app.register_blueprint(admin_bp, url_prefix="/inventory")
+    app.register_blueprint(alerts_bp, url_prefix="/alerts")
 
     # Create all database tables
     @login_manager.user_loader

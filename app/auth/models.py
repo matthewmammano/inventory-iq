@@ -129,6 +129,10 @@ class UserAlerts(db.Model):
         db.Integer, default=24, nullable=False
     )  # Batch alerts every X hours (24, 48, 72, etc)
     alert_delivery_hour = db.Column(db.Integer, default=8, nullable=False)  # Preferred delivery hour (0-23, 8=8AM)
+    
+    # Alert Queue Storage
+    pending_alerts = db.Column(db.JSON, default=list, nullable=False)  # List of alert dicts awaiting delivery
+    last_sent = db.Column(db.DateTime, nullable=True)  # When last batch email was sent
 
     # TODO GREEN: Add critical level classification system for inventory items (RED/YELLOW/GREEN priority)
     # This would allow different alert thresholds based on item criticality:
