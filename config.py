@@ -46,6 +46,7 @@ class DevelopmentConfig(Config):
     """Development configuration."""
 
     DEBUG = True
+    MAIL_DEBUG = True  # Enable verbose SMTP logging in development
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or "sqlite:///inventory_iq.db"
 
 
@@ -53,6 +54,7 @@ class ProductionConfig(Config):
     """Production configuration."""
 
     DEBUG = False
+    MAIL_DEBUG = False  # Disable verbose SMTP logging in production
     SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL")
 
     # Force secure session cookies in production

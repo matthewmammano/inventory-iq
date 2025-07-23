@@ -1,4 +1,4 @@
-from flask import flash, redirect, url_for, render_template
+from flask import flash, redirect, render_template, url_for
 from flask_login import current_user
 
 from app import db
@@ -9,21 +9,19 @@ from app.inventory.models import ActionLogs, Items
 def get_scan_permissions(squad, is_admin=False):
     """
     Get user permissions for scanning operations.
-    
+
     Args:
         squad: Squad name
         is_admin: If True, always return True for both permissions
-        
+
     Returns:
         tuple: (user_recount_allow, user_take_allow)
     """
     if is_admin:
         return True, True
-    
+
     user_recount_allow, user_take_allow = (
-        Users.query.filter_by(display_name=squad)
-        .with_entities(Users.user_recount_allow, Users.user_take_allow)
-        .first()
+        Users.query.filter_by(display_name=squad).with_entities(Users.user_recount_allow, Users.user_take_allow).first()
     )
     return user_recount_allow, user_take_allow
 
@@ -31,12 +29,12 @@ def get_scan_permissions(squad, is_admin=False):
 def handle_scan_start(squad, item_id, is_admin=False):
     """
     Handle the scan start logic - decides between direct scan or location selection.
-    
+
     Args:
         squad: Squad name
         item_id: Item ID to scan
         is_admin: If True, use admin routes and permissions
-        
+
     Returns:
         Flask response (redirect)
     """
@@ -90,14 +88,14 @@ def handle_scan_start(squad, item_id, is_admin=False):
 def handle_scan_locations_get(squad, item_id, user_recount_allow, user_take_allow, is_admin=False):
     """
     Handle GET request for scan locations page.
-    
+
     Args:
         squad: Squad name
         item_id: Item ID
         user_recount_allow: Whether user can recount
         user_take_allow: Whether user can take
         is_admin: If True, pass admin flag to template
-        
+
     Returns:
         Flask response (render_template)
     """
@@ -109,7 +107,7 @@ def handle_scan_locations_get(squad, item_id, user_recount_allow, user_take_allo
         return redirect(url_for(endpoint, squad=squad))
 
     locations = UserItemLocations.query.filter_by(user_id=current_user.id)
-    
+
     if is_admin:
         # Admin sees all locations for both from and to
         from_locations = locations.all()
@@ -135,12 +133,12 @@ def handle_scan_locations_get(squad, item_id, user_recount_allow, user_take_allo
 def handle_scan_locations_post(squad, form_data, is_admin=False):
     """
     Handle POST request for scan locations page.
-    
+
     Args:
         squad: Squad name
         form_data: Request form data
         is_admin: If True, use admin routes
-        
+
     Returns:
         Flask response (redirect)
     """
@@ -172,10 +170,12 @@ def handle_scan_locations_post(squad, form_data, is_admin=False):
     )
 
 
-def handle_scan_item_get(squad, item_id, from_location_id, to_location_id, user_recount_allow, user_take_allow, is_admin=False):
+def handle_scan_item_get(
+    squad, item_id, from_location_id, to_location_id, user_recount_allow, user_take_allow, is_admin=False
+):
     """
     Handle GET request for scan item page.
-    
+
     Args:
         squad: Squad name
         item_id: Item ID
@@ -184,7 +184,7 @@ def handle_scan_item_get(squad, item_id, from_location_id, to_location_id, user_
         user_recount_allow: Whether user can recount
         user_take_allow: Whether user can take
         is_admin: If True, pass admin flag to template
-        
+
     Returns:
         Flask response (render_template or redirect)
     """
@@ -213,12 +213,12 @@ def handle_scan_item_get(squad, item_id, from_location_id, to_location_id, user_
 def handle_scan_item_post(squad, form_data, is_admin=False):
     """
     Handle POST request for scan item page.
-    
+
     Args:
         squad: Squad name
         form_data: Request form data
         is_admin: If True, use admin routes and mark as admin action
-        
+
     Returns:
         Flask response (redirect)
     """
@@ -250,6 +250,7 @@ def handle_scan_item_post(squad, form_data, is_admin=False):
 
     # Update last_accessed timestamp when item is scanned
     from datetime import datetime, timezone
+
     item.last_accessed = datetime.now(timezone.utc)
 
     action_log = ActionLogs(
@@ -266,11 +267,45 @@ def handle_scan_item_post(squad, form_data, is_admin=False):
     # Process the action and handle quantity updates
     updated_quantities, alerts = action_log.process_action(db.session)
 
-    # TODO RED: handle alerts - send emails for low/high stock notifications
+    print(f"[EMAIL DEBUG] Received {len(alerts)} alerts from process_action: {alerts}")
+
+    # Handle alerts - send emails for low/high stock notifications
+    if alerts:
+        from app.alerts.alert_service import AlertQueueService
+        print(f"[EMAIL DEBUG] Processing {len(alerts)} alerts for emailing...")
+        
+        for alert in alerts:
+            print(f"[EMAIL DEBUG] Processing alert: {alert}")
+            
+            # Extract data for AlertService.add_alert()
+            alert_type = alert.get("alert_type")
+            urgent = alert.get("urgent", False)
+            
+            # Get item name
+            alert_item_name = alert.get("item_name", item.name)
+            
+            # Remove keys that aren't part of **data
+            alert_data = {k: v for k, v in alert.items() 
+                         if k not in ["alert_type", "urgent", "item_name", "location_id"]}
+            
+            success = AlertQueueService.add_alert(
+                user_id=current_user.id,
+                alert_type=alert_type,
+                item_name=alert_item_name,
+                urgent=urgent,
+                **alert_data
+            )
+            
+            if success:
+                print(f"[EMAIL DEBUG] Successfully added {alert_type} alert for {alert_item_name}")
+            else:
+                print(f"[EMAIL DEBUG] Failed to add {alert_type} alert for {alert_item_name}")
+    else:
+        print("[EMAIL DEBUG] No alerts generated")
 
     try:
         db.session.commit()
-    except Exception as e:
+    except Exception:
         db.session.rollback()
         raise Exception("Database error during scan operation")
 

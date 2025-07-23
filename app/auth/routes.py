@@ -1,17 +1,13 @@
-from flask import request, render_template, redirect, url_for, flash, session
+from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import login_user, logout_user
+
+from app import db
 from app.auth import bp
 from app.auth.models import Users
-from app import db
 
 
-# TODO GREEN: update placeholder landing page
+# Root route serves login page directly
 @bp.route("/")
-def landing_page():
-    return "Welcome to the LANDING PAGE"
-
-
-# Login route
 @bp.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -63,7 +59,7 @@ def set_password():
             user.set_password(new_password)
             db.session.commit()
             flash("Password set successfully. Please log in now.", "success")
-        except Exception as e:
+        except Exception:
             db.session.rollback()
             flash("An error occurred setting your password. Please try again.", "error")
         return redirect(url_for("auth.login"))

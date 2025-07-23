@@ -116,6 +116,7 @@ class UserAlerts(db.Model):
     recount_admin_days = db.Column(
         db.Integer, default=90, nullable=True
     )  # Alert when it has been more than X days since the last recount for item(s), None for disabled
+    # TODO YELLOW: implement this elsewhere in cronjob checking
 
     # Scheduled Reporting Alerts
     daily_summary = db.Column(db.Boolean, default=False, nullable=False)
@@ -129,7 +130,7 @@ class UserAlerts(db.Model):
         db.Integer, default=24, nullable=False
     )  # Batch alerts every X hours (24, 48, 72, etc)
     alert_delivery_hour = db.Column(db.Integer, default=8, nullable=False)  # Preferred delivery hour (0-23, 8=8AM)
-    
+
     # Alert Queue Storage
     pending_alerts = db.Column(db.JSON, default=list, nullable=False)  # List of alert dicts awaiting delivery
     last_sent = db.Column(db.DateTime, nullable=True)  # When last batch email was sent

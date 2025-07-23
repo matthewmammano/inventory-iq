@@ -1,17 +1,11 @@
 from datetime import datetime, timezone
 
-# TODO YELLOW: Add expiration date tracking for items
-# - Add expiry_date field to Items model
-# - Create expiration alerts in admin dashboard  
-# - Filter expired items in inventory views
-# - Add expiration-based reorder suggestions
-
 from sqlalchemy import JSON, event
 from sqlalchemy.orm import validates
 
 from app import db
 from app.auth.models import UserItemTags
-from app.helpers.model_helpers import check_quantity_alerts, get_or_create_qty_row
+from app.alerts.detection_service import AlertDetectionService
 from app.helpers.model_validate import (
     validate_image_url,
     validate_non_negative_integer,
@@ -19,6 +13,19 @@ from app.helpers.model_validate import (
     validate_string_length,
     validate_tag_id_type,
 )
+
+# TODO RED: update:
+# - use UV instead of pip way better
+# - to NEW version of SQLAlchemy
+
+
+def get_or_create_item_location_quantity(db_session, user_id, item_id, location_id):
+    """Get or create ItemLocationQuantities database row for tracking inventory at specific location."""
+    qty_row = ItemLocationQuantities.query.filter_by(user_id=user_id, item_id=item_id, location_id=location_id).first()
+    if not qty_row:
+        qty_row = ItemLocationQuantities(user_id=user_id, item_id=item_id, location_id=location_id, quantity=0)
+        db_session.add(qty_row)
+    return qty_row
 
 
 class Items(db.Model):
@@ -39,6 +46,12 @@ class Items(db.Model):
     batch_size = db.Column(db.Integer, nullable=True)  # batch amount for restocking
     expiration_days = db.Column(db.Integer, nullable=True)  # approx. days until expiration for perishable items
     restock_delivery_days = db.Column(db.Integer, nullable=True)  # days to expect delivery after restock order
+
+    # TODO YELLOW: Add expiration date tracking for items
+    # - Add expiry_date field to Items model
+    # - Create expiration alerts in admin dashboard
+    # - Filter expired items in inventory views
+    # - Add expiration-based reorder suggestions
 
     # Relationships
     action_logs = db.relationship("ActionLogs", backref="item", lazy=True)
@@ -178,6 +191,9 @@ class ActionLogs(db.Model):
     quantity_delta = db.Column(db.Integer, nullable=False)
     # if this action was performed by an admin (e.g., via the admin panel)
     admin_action = db.Column(db.Boolean, default=False)
+    time_scanned = db.Column(
+        db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
+    )  # TODO YELLOW: make sure all times utc until client end
 
     # Relationships
     from_location = db.relationship(
@@ -223,21 +239,21 @@ class ActionLogs(db.Model):
 
         # Handle FROM location (subtract)
         if self.from_location_id:
-            from_qty = get_or_create_qty_row(db_session, self.user_id, self.item_id, self.from_location_id)
+            from_qty = get_or_create_item_location_quantity(db_session, self.user_id, self.item_id, self.from_location_id)
             previous_quantities[self.from_location_id] = from_qty.quantity
-            from_qty.quantity = max(0, from_qty.quantity - self.quantity_delta)
+            from_qty.quantity = from_qty.quantity - self.quantity_delta
             updated_quantities[self.from_location_id] = from_qty.quantity
 
         # Handle TO location (add/set)
         if self.to_location_id:
-            to_qty = get_or_create_qty_row(db_session, self.user_id, self.item_id, self.to_location_id)
+            to_qty = get_or_create_item_location_quantity(db_session, self.user_id, self.item_id, self.to_location_id)
             previous_quantities[self.to_location_id] = to_qty.quantity
             to_qty.quantity = (
                 self.quantity_delta if not self.from_location_id else to_qty.quantity + self.quantity_delta
             )
             updated_quantities[self.to_location_id] = to_qty.quantity
 
-        alerts = check_quantity_alerts(self.user_id, self.item_id, updated_quantities, previous_quantities)
+        alerts = AlertDetectionService.check_quantity_alerts(self.user_id, self.item_id, updated_quantities, previous_quantities, self.admin_action)
         return updated_quantities, alerts
 
 
