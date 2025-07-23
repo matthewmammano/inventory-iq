@@ -26,6 +26,14 @@ class Config:
     MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER")
     MAIL_SUPPRESS_SEND = False  # Can be overridden in testing
 
+    # TODO RED: Implement usage limits and billing protection for email system
+    # - Rate limiting: max emails per user per day/hour to prevent abuse
+    # - Alert quota system: limit total alerts per squad per month
+    # - Cost monitoring: track Brevo API usage and spending
+    # - Emergency shutoff: disable email sending if usage exceeds thresholds
+    # - Admin notifications: alert when approaching usage limits
+    # - User education: display current usage in admin panel
+
     # TODO RED: Add data backup and restore functionality for production safety
     # - Automated daily database backups to cloud storage
     # - Backup retention policy (keep 30 days, monthly for 1 year)

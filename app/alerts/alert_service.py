@@ -1,4 +1,5 @@
 from datetime import datetime
+
 from flask import current_app
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -43,7 +44,6 @@ class AlertQueueService:
 
         # Initialize pending_alerts if None
         if user_alerts.pending_alerts is None:
-            print("[EMAIL DEBUG] Initializing empty pending_alerts list")
             user_alerts.pending_alerts = []
 
         print(f"[EMAIL DEBUG] Adding alert to pending list. Current count: {len(user_alerts.pending_alerts)}")

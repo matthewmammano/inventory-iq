@@ -1,1 +1,1 @@
-web: gunicorn run:app
+web: gunicorn run:app -b 0.0.0.0:$PORT --workers=2 --threads=2 --timeout=30 --log-level=info

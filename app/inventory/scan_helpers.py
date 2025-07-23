@@ -272,36 +272,32 @@ def handle_scan_item_post(squad, form_data, is_admin=False):
     # Handle alerts - send emails for low/high stock notifications
     if alerts:
         from app.alerts.alert_service import AlertQueueService
+
         print(f"[EMAIL DEBUG] Processing {len(alerts)} alerts for emailing...")
-        
+
         for alert in alerts:
             print(f"[EMAIL DEBUG] Processing alert: {alert}")
-            
+
             # Extract data for AlertService.add_alert()
             alert_type = alert.get("alert_type")
             urgent = alert.get("urgent", False)
-            
+
             # Get item name
             alert_item_name = alert.get("item_name", item.name)
-            
+
             # Remove keys that aren't part of **data
-            alert_data = {k: v for k, v in alert.items() 
-                         if k not in ["alert_type", "urgent", "item_name", "location_id"]}
-            
+            alert_data = {
+                k: v for k, v in alert.items() if k not in ["alert_type", "urgent", "item_name", "location_id"]
+            }
+
             success = AlertQueueService.add_alert(
-                user_id=current_user.id,
-                alert_type=alert_type,
-                item_name=alert_item_name,
-                urgent=urgent,
-                **alert_data
+                user_id=current_user.id, alert_type=alert_type, item_name=alert_item_name, urgent=urgent, **alert_data
             )
-            
+
             if success:
                 print(f"[EMAIL DEBUG] Successfully added {alert_type} alert for {alert_item_name}")
             else:
                 print(f"[EMAIL DEBUG] Failed to add {alert_type} alert for {alert_item_name}")
-    else:
-        print("[EMAIL DEBUG] No alerts generated")
 
     try:
         db.session.commit()

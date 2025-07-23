@@ -20,10 +20,8 @@ class EmailBatchService:
             f"[EMAIL DEBUG] Pending alerts count: {len(user_alerts.pending_alerts) if user_alerts.pending_alerts else 0}"
         )
         if not user_alerts.pending_alerts:
-            print("[EMAIL DEBUG] No pending alerts, returning False")
             return False
         if not user_alerts.last_sent:
-            print("[EMAIL DEBUG] No last_sent timestamp, returning True")
             return True
         hours_since = (datetime.now() - user_alerts.last_sent).total_seconds() / 3600
         should_send = hours_since >= user_alerts.alert_grouping_hours
@@ -57,7 +55,6 @@ class EmailBatchService:
             user_alerts = UserAlerts.query.filter_by(user_id=user_id).first()
             print(f"[EMAIL DEBUG] UserAlerts found: {user_alerts is not None}")
             if not user_alerts or not EmailBatchService.should_send_email(user_alerts):
-                print("[EMAIL DEBUG] Conditions not met for sending email, returning False")
                 return False
 
             # Create email batch
@@ -90,15 +87,13 @@ class EmailBatchService:
 
             # Send email
             print("[EMAIL DEBUG] Attempting to send email via Flask-Mail...")
-            mail.send(msg)
+            mail.send(msg)  # TODO PINK: suppress output from here of send / replies from SMTP server
             print("[EMAIL DEBUG] Email sent successfully!")
 
             # Clear pending alerts and mark sent
-            print("[EMAIL DEBUG] Clearing pending alerts and updating last_sent timestamp...")
             user_alerts.pending_alerts = []
             user_alerts.last_sent = datetime.now()
             db.session.commit()
-            print("[EMAIL DEBUG] Database updated successfully")
 
             current_app.logger.info(
                 f"Sent batch email with {len(email_batch.alerts)} alerts to {email_batch.user_email}"
