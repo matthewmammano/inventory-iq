@@ -7,7 +7,7 @@ class Config:
 
     SECRET_KEY = os.environ.get("SECRET_KEY")
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    PERMANENT_SESSION_LIFETIME = timedelta(days=2)
+    PERMANENT_SESSION_LIFETIME = timedelta(days=30)
     SESSION_PROTECTION = "strong"
     SEND_FILE_MAX_AGE_DEFAULT = timedelta(days=30).total_seconds()  # 30 days for static files
 
@@ -20,6 +20,8 @@ class Config:
     MAIL_PASSWORD = os.environ.get("MAIL_PASSWORD")
     MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER")
     MAIL_SUPPRESS_SEND = False  # Can be overridden in testing
+
+    CONTACT_PHONE = "(908) 910-5439"
 
     # TODO YELLOW: Add data backup for production safety
     # - Automated daily database backups to cloud storage

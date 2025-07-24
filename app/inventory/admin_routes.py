@@ -1,9 +1,8 @@
 import json
-import os
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user
 
 from app import db
@@ -99,14 +98,21 @@ def admin_view_items(squad):
     items = Items.query.filter_by(user_id=current_user.id).order_by(Items.name).all()
     tags = UserItemTags.query.filter_by(user_id=current_user.id).all()
     timezone_hint = get_timezone_display_hint(current_user.timezone)
-    return render_template("admin_view_items.html", squad=squad, items=items, tags=tags, admin=True,
-                         user_timezone=current_user.timezone, timezone_hint=timezone_hint)
+    return render_template(
+        "admin_view_items.html",
+        squad=squad,
+        items=items,
+        tags=tags,
+        admin=True,
+        user_timezone=current_user.timezone,
+        timezone_hint=timezone_hint,
+    )
 
 
 # Admin help page (protected)
 @bp.route("/<squad>/help")
 def help_page(squad):
-    developer_phone = os.getenv("CONTACT_PHONE", "UNAVAILABLE")
+    developer_phone = current_app.config["CONTACT_PHONE"]
     return render_template("admin_help.html", squad=squad, contact_phone=developer_phone, admin=True)
 
 
@@ -373,8 +379,14 @@ def admin_view_tags(squad):
 def admin_history(squad):
     action_logs = ActionLogs.query.filter_by(user_id=current_user.id).order_by(ActionLogs.id.desc()).all()
     timezone_hint = get_timezone_display_hint(current_user.timezone)
-    return render_template("admin_history.html", squad=squad, action_logs=action_logs, admin=True,
-                         user_timezone=current_user.timezone, timezone_hint=timezone_hint)
+    return render_template(
+        "admin_history.html",
+        squad=squad,
+        action_logs=action_logs,
+        admin=True,
+        user_timezone=current_user.timezone,
+        timezone_hint=timezone_hint,
+    )
 
 
 @bp.route("/<squad>/admin-panel/scan-items")
