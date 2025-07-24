@@ -7,7 +7,7 @@ from typing import Optional
 from dotenv import load_dotenv
 from flask import Flask, url_for
 from flask_login import LoginManager
-from flask_mail import Mail
+from flask_mailman import Mail
 from flask_sqlalchemy import SQLAlchemy
 
 # Only load dotenv in dev

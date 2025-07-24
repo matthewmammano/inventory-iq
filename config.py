@@ -12,11 +12,6 @@ class Config:
     SEND_FILE_MAX_AGE_DEFAULT = timedelta(days=30).total_seconds()  # 30 days for static files
 
     # Email Configuration - All from environment for security
-    # Required .env variables:
-    # MAIL_SERVER=smtp-relay.brevo.com
-    # MAIL_USERNAME=92bba2001@smtp-brevo.com
-    # MAIL_PASSWORD=<your_brevo_master_password>
-    # MAIL_DEFAULT_SENDER=<your_squad_email@domain.com>
     MAIL_SERVER = os.environ.get("MAIL_SERVER")
     MAIL_PORT = int(os.environ.get("MAIL_PORT", 587))  # Port can have safe default
     MAIL_USE_TLS = True
@@ -26,18 +21,9 @@ class Config:
     MAIL_DEFAULT_SENDER = os.environ.get("MAIL_DEFAULT_SENDER")
     MAIL_SUPPRESS_SEND = False  # Can be overridden in testing
 
-    # TODO RED: Implement usage limits and billing protection for email system
-    # - Rate limiting: max emails per user per day/hour to prevent abuse
-    # - Alert quota system: limit total alerts per squad per month
-    # - Cost monitoring: track Brevo API usage and spending
-    # - Emergency shutoff: disable email sending if usage exceeds thresholds
-    # - Admin notifications: alert when approaching usage limits
-    # - User education: display current usage in admin panel
-
-    # TODO RED: Add data backup and restore functionality for production safety
+    # TODO YELLOW: Add data backup for production safety
     # - Automated daily database backups to cloud storage
     # - Backup retention policy (keep 30 days, monthly for 1 year)
-    # - One-click restore functionality in admin panel
     # - Export/import entire squad data as JSON/SQL
 
     # Default security options (overridden in prod)
@@ -77,7 +63,7 @@ class ProductionConfig(Config):
 
         if not os.environ.get("DATABASE_URL"):
             raise ValueError("No DATABASE_URL set for production environment")
-            
+
         # Validate email configuration for production
         if not os.environ.get("MAIL_SERVER"):
             raise ValueError("No MAIL_SERVER set for production environment")

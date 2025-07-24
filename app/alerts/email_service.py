@@ -2,7 +2,7 @@ from datetime import datetime
 from typing import Dict
 
 from flask import current_app, render_template
-from flask_mail import Message
+from flask_mailman import EmailMessage, EmailMultiAlternatives
 
 from app import db, mail
 from app.alerts.models import Alert, EmailBatch
@@ -61,33 +61,43 @@ class EmailBatchService:
             print("[EMAIL DEBUG] Creating email batch...")
             email_batch = EmailBatchService.create_email_batch(user_alerts)
 
-            # Create Flask-Mail message
-            print("[EMAIL DEBUG] Creating Flask-Mail message...")
+            # Create Flask-Mailman message with best practices
+            print("[EMAIL DEBUG] Creating Flask-Mailman EmailMultiAlternatives message...")
             print(f"[EMAIL DEBUG] Subject: {email_batch.subject}")
             print(f"[EMAIL DEBUG] Sender: {current_app.config.get('MAIL_DEFAULT_SENDER', 'NOT_SET')}")
             print(f"[EMAIL DEBUG] Recipients: {[email_batch.user_email]}")
-            msg = Message(
-                subject=email_batch.subject,
-                sender=current_app.config["MAIL_DEFAULT_SENDER"],
-                recipients=[email_batch.user_email],
-            )
-
+            
             # Render email templates from alerts/templates folder
             print("[EMAIL DEBUG] Rendering email templates...")
             try:
                 # Use the template names directly since blueprint has template_folder='templates'
-                msg.html = render_template("batch_email.html", batch=email_batch)
-                msg.body = render_template("batch_email.txt", batch=email_batch)
-                print("[EMAIL DEBUG] Templates rendered successfully")
+                text_content = render_template("batch_email.txt", batch=email_batch)
+                html_content = render_template("batch_email.html", batch=email_batch)
+                
+                # Use EmailMultiAlternatives for best practice HTML + text emails
+                msg = EmailMultiAlternatives(
+                    subject=email_batch.subject,
+                    body=text_content,  # Plain text version
+                    from_email=current_app.config["MAIL_DEFAULT_SENDER"],
+                    to=[email_batch.user_email],
+                )
+                # Attach HTML alternative
+                msg.attach_alternative(html_content, "text/html")
+                print("[EMAIL DEBUG] Templates rendered successfully with HTML alternative")
             except Exception as template_error:
                 print(f"[EMAIL DEBUG] Template error: {template_error}")
-                # Fallback to simple text email
-                msg.body = f"Subject: {email_batch.subject}\\n\\nYou have {len(email_batch.alerts)} inventory alerts."
+                # Fallback to simple text email using EmailMessage
+                msg = EmailMessage(
+                    subject=email_batch.subject,
+                    body=f"Subject: {email_batch.subject}\\n\\nYou have {len(email_batch.alerts)} inventory alerts.",
+                    from_email=current_app.config["MAIL_DEFAULT_SENDER"],
+                    to=[email_batch.user_email],
+                )
                 print("[EMAIL DEBUG] Using fallback text email")
 
             # Send email
-            print("[EMAIL DEBUG] Attempting to send email via Flask-Mail...")
-            mail.send(msg)  # TODO PINK: suppress output from here of send / replies from SMTP server
+            print("[EMAIL DEBUG] Attempting to send email via Flask-Mailman...")
+            mail.send(msg)
             print("[EMAIL DEBUG] Email sent successfully!")
 
             # Clear pending alerts and mark sent

@@ -13,8 +13,7 @@ from app.auth.models import Users
 
 
 # Root route serves login page directly
-@bp.route("/")
-@bp.route("/login", methods=["GET", "POST"])
+@bp.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
         email = request.form["email"]
@@ -42,7 +41,7 @@ def login():
         flash("Invalid email or password.", "error")
         return redirect(url_for("auth.login"))
 
-    return render_template("login.html")
+    return render_template("login.html", logo_img="images/logos/me.svg")
 
 
 # Set password route (for first-time users AND reset password)

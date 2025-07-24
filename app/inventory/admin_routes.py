@@ -8,6 +8,7 @@ from flask_login import current_user
 
 from app import db
 from app.auth.models import UserItemLocations, UserItemTags, Users
+from app.helpers.timezone_utils import get_timezone_display_hint
 from app.inventory import admin_bp as bp
 from app.inventory.models import ActionLogs, ItemLocationQuantities, Items
 from app.inventory.scan_helpers import (
@@ -97,7 +98,9 @@ def admin_panel_views(squad):
 def admin_view_items(squad):
     items = Items.query.filter_by(user_id=current_user.id).order_by(Items.name).all()
     tags = UserItemTags.query.filter_by(user_id=current_user.id).all()
-    return render_template("admin_view_items.html", squad=squad, items=items, tags=tags, admin=True)
+    timezone_hint = get_timezone_display_hint(current_user.timezone)
+    return render_template("admin_view_items.html", squad=squad, items=items, tags=tags, admin=True,
+                         user_timezone=current_user.timezone, timezone_hint=timezone_hint)
 
 
 # Admin help page (protected)
@@ -369,7 +372,9 @@ def admin_view_tags(squad):
 @bp.route("/<squad>/admin-panel/history")
 def admin_history(squad):
     action_logs = ActionLogs.query.filter_by(user_id=current_user.id).order_by(ActionLogs.id.desc()).all()
-    return render_template("admin_history.html", squad=squad, action_logs=action_logs, admin=True)
+    timezone_hint = get_timezone_display_hint(current_user.timezone)
+    return render_template("admin_history.html", squad=squad, action_logs=action_logs, admin=True,
+                         user_timezone=current_user.timezone, timezone_hint=timezone_hint)
 
 
 @bp.route("/<squad>/admin-panel/scan-items")

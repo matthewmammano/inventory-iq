@@ -13,6 +13,7 @@ from app.helpers.model_validate import (
     validate_string_length,
     validate_tag_id_type,
 )
+from app.helpers.timezone_utils import convert_utc_to_local
 
 # TODO RED: update:
 # - use UV instead of pip way better
@@ -86,6 +87,10 @@ class Items(db.Model):
         validate_tag_id_type(tag_id)
         if self.tag_ids and tag_id in self.tag_ids:
             self.tag_ids.remove(tag_id)
+
+    def get_last_accessed_local(self, user_timezone: str):
+        """Get last_accessed converted to user's local timezone."""
+        return convert_utc_to_local(self.last_accessed, user_timezone)
 
     @validates("tag_ids")
     def validate_tag_ids(self, key, value):
@@ -193,7 +198,7 @@ class ActionLogs(db.Model):
     admin_action = db.Column(db.Boolean, default=False)
     time_scanned = db.Column(
         db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
-    )  # TODO YELLOW: make sure all times utc until client end
+    )
 
     # Relationships
     from_location = db.relationship(
@@ -231,6 +236,10 @@ class ActionLogs(db.Model):
     @property
     def is_transfer(self):
         return self.from_location_id is not None
+
+    def get_time_scanned_local(self, user_timezone: str):
+        """Get time_scanned converted to user's local timezone."""
+        return convert_utc_to_local(self.time_scanned, user_timezone)
 
     def process_action(self, db_session):
         """Update ItemLocationQuantities and check for alerts."""
