@@ -5,6 +5,12 @@ from app import db
 from app.auth import bp
 from app.auth.models import Users
 
+# TODO GREEN 1: batch scan out
+
+# TODO GREEN 2: add a rig-chick feature
+# - store info about # of items in each place of ambulance (bag, shelf, back of stretcher, etc)
+# - doing the form AUTOMATICALLY tells you how much of each item to take out... then you correct that number in end
+
 
 # Root route serves login page directly
 @bp.route("/")

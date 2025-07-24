@@ -4,8 +4,8 @@ from sqlalchemy import JSON, event
 from sqlalchemy.orm import validates
 
 from app import db
-from app.auth.models import UserItemTags
 from app.alerts.detection_service import AlertDetectionService
+from app.auth.models import UserItemTags
 from app.helpers.model_validate import (
     validate_image_url,
     validate_non_negative_integer,
@@ -47,7 +47,7 @@ class Items(db.Model):
     expiration_days = db.Column(db.Integer, nullable=True)  # approx. days until expiration for perishable items
     restock_delivery_days = db.Column(db.Integer, nullable=True)  # days to expect delivery after restock order
 
-    # TODO YELLOW: Add expiration date tracking for items
+    # TODO RED: Add expiration date tracking for items -> MESSAGE ANDY WELSH PURCHASE
     # - Add expiry_date field to Items model
     # - Create expiration alerts in admin dashboard
     # - Filter expired items in inventory views
@@ -239,7 +239,9 @@ class ActionLogs(db.Model):
 
         # Handle FROM location (subtract)
         if self.from_location_id:
-            from_qty = get_or_create_item_location_quantity(db_session, self.user_id, self.item_id, self.from_location_id)
+            from_qty = get_or_create_item_location_quantity(
+                db_session, self.user_id, self.item_id, self.from_location_id
+            )
             previous_quantities[self.from_location_id] = from_qty.quantity
             from_qty.quantity = from_qty.quantity - self.quantity_delta
             updated_quantities[self.from_location_id] = from_qty.quantity
@@ -253,7 +255,9 @@ class ActionLogs(db.Model):
             )
             updated_quantities[self.to_location_id] = to_qty.quantity
 
-        alerts = AlertDetectionService.check_quantity_alerts(self.user_id, self.item_id, updated_quantities, previous_quantities, self.admin_action)
+        alerts = AlertDetectionService.check_quantity_alerts(
+            self.user_id, self.item_id, updated_quantities, previous_quantities, self.admin_action
+        )
         return updated_quantities, alerts
 
 
