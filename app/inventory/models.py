@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from sqlalchemy import JSON, event
@@ -98,33 +99,55 @@ class Items(db.Model):
         if value is None:
             return []
         if not isinstance(value, list):
+            logging.error(f"Tag validation error for item {getattr(self, 'id', 'new')}: tag_ids must be a list, got {type(value)}")
             raise ValueError("tag_ids must be a list")
         # Validate all items are integers
         for item in value:
             if not isinstance(item, int):
+                logging.error(f"Tag validation error for item {getattr(self, 'id', 'new')}: tag ID must be integer, got {type(item)}")
                 raise ValueError("All tag IDs must be integers")
-            validate_tag_id_type(item)
+            try:
+                validate_tag_id_type(item)
+            except ValueError as e:
+                logging.error(f"Tag validation error for item {getattr(self, 'id', 'new')}: {e}")
+                raise
         return value
 
     @validates("name")
     def validate_name(self, key, value):
         """Validate name field."""
-        return validate_string_length(value, "name", 100, allow_none=False, allow_empty=False)
+        try:
+            return validate_string_length(value, "name", 100, allow_none=False, allow_empty=False)
+        except ValueError as e:
+            logging.error(f"Name validation error for item {getattr(self, 'id', 'new')}: {e}")
+            raise
 
     @validates("increments")
     def validate_increments(self, key, value):
         """Validate increments field."""
-        return validate_string_length(value, "increments", 50, allow_none=True, allow_empty=True)
+        try:
+            return validate_string_length(value, "increments", 50, allow_none=True, allow_empty=True)
+        except ValueError as e:
+            logging.error(f"Increments validation error for item {getattr(self, 'id', 'new')}: {e}")
+            raise
 
     @validates("min_quantity", "max_quantity", "batch_size", "expiration_days", "restock_delivery_days")
     def validate_positive_integers(self, key, value):
         """Validate positive integer fields."""
-        return validate_positive_integer(value, key, allow_none=True)
+        try:
+            return validate_positive_integer(value, key, allow_none=True)
+        except ValueError as e:
+            logging.error(f"Integer validation error for item {getattr(self, 'id', 'new')} field '{key}': {e}")
+            raise
 
     @validates("image")
     def validate_image(self, key, value):
         """Validate image URL format."""
-        return validate_image_url(value)
+        try:
+            return validate_image_url(value)
+        except ValueError as e:
+            logging.error(f"Image URL validation error for item {getattr(self, 'id', 'new')}: {e}")
+            raise
 
     @staticmethod
     def calculate_upc_check_digit(upc11: str) -> str:
@@ -152,6 +175,7 @@ class Items(db.Model):
         new_upc = next_base + Items.calculate_upc_check_digit(next_base)
 
         if Items.query.filter_by(upc=new_upc).first():
+            logging.error(f"UPC generation failure: Generated UPC {new_upc} already exists for user {user_id} - UPC space may be exhausted")
             raise ValueError(f"Generated UPC {new_upc} already exists - UPC space may be exhausted")
 
         return new_upc
@@ -162,19 +186,29 @@ class Items(db.Model):
         if not value:
             return None
         if not isinstance(value, str):
+            logging.error(f"UPC validation error for item {getattr(self, 'id', 'new')}: UPC must be a string, got {type(value)}")
             raise ValueError("UPC must be a string.")
         if not value or value.strip() == "":
             return None
         if not value.isdigit() or len(value) != 12:
+            logging.error(f"UPC validation error for item {getattr(self, 'id', 'new')}: Invalid UPC format '{value}' - must be 12 digits")
             raise ValueError("UPC must be a 12-digit number.")
         # Validate check digit
         calculated_check = self.calculate_upc_check_digit(value[:11])
         if calculated_check != value[11]:
+            logging.error(f"UPC validation error for item {getattr(self, 'id', 'new')}: Invalid check digit for UPC '{value}'")
             raise ValueError("Invalid UPC check digit.")
         # Check if UPC already exists
-        existing = Items.query.filter_by(upc=value, user_id=self.user_id).first()
-        if existing and existing.id != self.id:
-            raise ValueError("UPC already exists for another item in your account.")
+        try:
+            existing = Items.query.filter_by(upc=value, user_id=self.user_id).first()
+            if existing and existing.id != self.id:
+                logging.error(f"UPC validation error: UPC '{value}' already exists for user {self.user_id} on item {existing.id}")
+                raise ValueError("UPC already exists for another item in your account.")
+        except Exception as e:
+            if "already exists" in str(e):
+                raise
+            logging.error(f"Database error during UPC uniqueness check for item {getattr(self, 'id', 'new')}: {e}")
+            raise ValueError("Database error during UPC validation")
         return value
 
 
@@ -225,7 +259,11 @@ class ActionLogs(db.Model):
     @validates("quantity_delta")
     def validate_quantity_delta(self, key, value):
         """Validate quantity_delta is a non-negative integer."""
-        return validate_non_negative_integer(value, "quantity_delta", allow_none=False)
+        try:
+            return validate_non_negative_integer(value, "quantity_delta", allow_none=False)
+        except ValueError as e:
+            logging.error(f"Quantity delta validation error for action log {getattr(self, 'id', 'new')}: {e}")
+            raise
 
     @property
     def is_recount(self):
@@ -285,4 +323,8 @@ class ItemLocationQuantities(db.Model):
 def generate_upc_before_insert(mapper, connection, target):
     """Automatically generate UPC after item is inserted if no UPC was provided."""
     if not target.upc and target.user_id:
-        target.upc = Items.generate_upc(target.user_id)
+        try:
+            target.upc = Items.generate_upc(target.user_id)
+        except Exception as e:
+            logging.error(f"UPC generation failure during item insert for user {target.user_id}: {e}")
+            raise

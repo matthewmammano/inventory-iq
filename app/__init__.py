@@ -1,3 +1,4 @@
+import logging
 import os
 import re
 import sys
@@ -39,6 +40,13 @@ def create_app() -> Flask:
 
     # Call optional init_app method on config class
     config_class.init_app(app)
+
+    # Configure logging for production
+    logging.basicConfig(
+        level=logging.INFO,
+        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
+        datefmt='%Y-%m-%d %H:%M:%S'
+    )
 
     # Ensure instance folder exists for SQLite in dev mode
     if app.config.get("SQLALCHEMY_DATABASE_URI", "").startswith("sqlite"):
@@ -128,20 +136,20 @@ def create_app() -> Flask:
         return db.session.get(Users, int(user_id))
 
     with app.app_context():
-        print("[INFO] Initializing database tables...")
+        app.logger.info("Initializing database tables...")
         try:
             db.create_all()
-            print("[INFO] Database tables created successfully!")
+            app.logger.info("Database tables created successfully!")
         except Exception as e:
-            print(f"[CRITICAL] Failed to create database tables: {e}")
+            app.logger.critical(f"Failed to create database tables: {e}")
             sys.exit(1)
 
     # Log DB URI (mask sensitive info in prod)
     db_uri: str = app.config["SQLALCHEMY_DATABASE_URI"]
     if env == "prod" and db_uri:
         db_type = db_uri.split("://")[0] if "://" in db_uri else "unknown"
-        print(f"[INFO] Application initialized with {db_type} database")
+        app.logger.info(f"Application initialized with {db_type} database")
     else:
-        print(f"[INFO] Application initialized with database: {db_uri}")
+        app.logger.info(f"Application initialized with database: {db_uri}")
 
     return app

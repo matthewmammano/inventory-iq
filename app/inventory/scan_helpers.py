@@ -1,9 +1,12 @@
+import logging
 from flask import flash, redirect, render_template, url_for
 from flask_login import current_user
 
 from app import db
 from app.auth.models import UserItemLocations, Users
 from app.inventory.models import ActionLogs, Items
+
+logger = logging.getLogger(__name__)
 
 
 def get_scan_permissions(squad, is_admin=False):
@@ -267,16 +270,16 @@ def handle_scan_item_post(squad, form_data, is_admin=False):
     # Process the action and handle quantity updates
     updated_quantities, alerts = action_log.process_action(db.session)
 
-    print(f"[EMAIL DEBUG] Received {len(alerts)} alerts from process_action: {alerts}")
+    logger.info(f"Received {len(alerts)} alerts from process_action: {alerts}")
 
     # Handle alerts - send emails for low/high stock notifications
     if alerts:
         from app.alerts.alert_service import AlertQueueService
 
-        print(f"[EMAIL DEBUG] Processing {len(alerts)} alerts for emailing...")
+        logger.info(f"Processing {len(alerts)} alerts for emailing...")
 
         for alert in alerts:
-            print(f"[EMAIL DEBUG] Processing alert: {alert}")
+            logger.info(f"Processing alert: {alert}")
 
             # Extract data for AlertService.add_alert()
             alert_type = alert.get("alert_type")
@@ -295,9 +298,9 @@ def handle_scan_item_post(squad, form_data, is_admin=False):
             )
 
             if success:
-                print(f"[EMAIL DEBUG] Successfully added {alert_type} alert for {alert_item_name}")
+                logger.info(f"Successfully added {alert_type} alert for {alert_item_name}")
             else:
-                print(f"[EMAIL DEBUG] Failed to add {alert_type} alert for {alert_item_name}")
+                logger.error(f"Failed to add {alert_type} alert for {alert_item_name}")
 
     try:
         db.session.commit()

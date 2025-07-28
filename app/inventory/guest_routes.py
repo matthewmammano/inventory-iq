@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime, timezone
 
 from flask import flash, redirect, render_template, request, session, url_for
@@ -42,7 +43,13 @@ def check_authentication_and_squad():
         return redirect(url_for("auth.login"))
 
     # Verify the squad exists in the database
-    user = Users.query.filter_by(display_name=squad).first()
+    try:
+        user = Users.query.filter_by(display_name=squad).first()
+    except Exception as e:
+        logging.error(f"Database error querying user by squad '{squad}': {e}")
+        flash("Database error. Please try again.", "error")
+        return redirect(url_for("auth.login"))
+    
     if user is None:
         flash("Invalid squad name. Please try again.", "error")
         return redirect(url_for("auth.login"))
@@ -59,7 +66,12 @@ def index(squad):
     Display the inventory for the given squad to search or scan UPC.
     """
     # Get the list of items and order them by last_accessed
-    items = Items.query.filter_by(user_id=current_user.id).order_by(Items.last_accessed.desc().nullslast()).all()
+    try:
+        items = Items.query.filter_by(user_id=current_user.id).order_by(Items.last_accessed.desc().nullslast()).all()
+    except Exception as e:
+        logging.error(f"Database error fetching items for user {current_user.id}: {e}")
+        flash("Error loading inventory. Please try again.", "error")
+        items = []
     return render_template("index.html", items=items, squad=squad, logo_img=current_user.image)
 
 
@@ -106,8 +118,18 @@ def scan_item(squad):
 def admin_login(squad):
     if request.method == "POST":
         password = request.form["password"]
-        user = Users.query.filter_by(display_name=squad).first()
-        correct_password = user.pin
+        try:
+            user = Users.query.filter_by(display_name=squad).first()
+            if not user:
+                logging.warning(f"Admin login attempt for non-existent squad: {squad}")
+                flash("Invalid squad name. Please try again.", "error")
+                return render_template("admin_login.html", squad=squad, admin=True)
+            
+            correct_password = user.pin
+        except Exception as e:
+            logging.error(f"Database error during admin login for squad '{squad}': {e}")
+            flash("Database error. Please try again.", "error")
+            return render_template("admin_login.html", squad=squad, admin=True)
 
         if user.pin and password == correct_password:
             session["admin"] = True
@@ -115,6 +137,7 @@ def admin_login(squad):
             flash("Admin access granted.", "success")
             return redirect(url_for("admin.admin_panel", squad=squad))
         else:
+            logging.warning(f"Failed admin login attempt for squad '{squad}' - invalid PIN")
             flash("Invalid PIN entered. Please try again.", "error")
             return render_template("admin_login.html", squad=squad, admin=True)
 

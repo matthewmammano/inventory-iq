@@ -1,3 +1,4 @@
+import logging
 from datetime import datetime
 from typing import Dict
 
@@ -8,6 +9,8 @@ from app import db, mail
 from app.alerts.models import Alert, EmailBatch
 from app.auth.models import UserAlerts, Users
 
+logger = logging.getLogger(__name__)
+
 
 class EmailBatchService:
     """Handles email batching and sending"""
@@ -15,9 +18,9 @@ class EmailBatchService:
     @staticmethod
     def should_send_email(user_alerts: UserAlerts) -> bool:
         """Check if it's time to send based on grouping hours"""
-        print(f"[EMAIL DEBUG] should_send_email called for user_id={user_alerts.user_id}")
-        print(
-            f"[EMAIL DEBUG] Pending alerts count: {len(user_alerts.pending_alerts) if user_alerts.pending_alerts else 0}"
+        logger.info(f"should_send_email called for user_id={user_alerts.user_id}")
+        logger.info(
+            f"Pending alerts count: {len(user_alerts.pending_alerts) if user_alerts.pending_alerts else 0}"
         )
         if not user_alerts.pending_alerts:
             return False
@@ -25,22 +28,22 @@ class EmailBatchService:
             return True
         hours_since = (datetime.now() - user_alerts.last_sent).total_seconds() / 3600
         should_send = hours_since >= user_alerts.alert_grouping_hours
-        print(
-            f"[EMAIL DEBUG] Hours since last sent: {hours_since:.2f}, grouping hours: {user_alerts.alert_grouping_hours}, should send: {should_send}"
+        logger.info(
+            f"Hours since last sent: {hours_since:.2f}, grouping hours: {user_alerts.alert_grouping_hours}, should send: {should_send}"
         )
         return should_send
 
     @staticmethod
     def create_email_batch(user_alerts: UserAlerts) -> EmailBatch:
         """Convert pending alerts to EmailBatch for sending"""
-        print(f"[EMAIL DEBUG] create_email_batch called for user_id={user_alerts.user_id}")
+        logger.info(f"create_email_batch called for user_id={user_alerts.user_id}")
         user = db.session.get(Users, user_alerts.user_id)
-        print(f"[EMAIL DEBUG] User found: {user.email if user else 'None'}")
+        logger.info(f"User found: {user.email if user else 'None'}")
         alerts = [Alert(**alert_dict) for alert_dict in user_alerts.pending_alerts]
-        print(f"[EMAIL DEBUG] Created {len(alerts)} Alert objects from pending alerts")
+        logger.info(f"Created {len(alerts)} Alert objects from pending alerts")
 
         email_batch = EmailBatch(alerts=alerts, user_email=user.email, user_name=user.display_name)
-        print(f"[EMAIL DEBUG] EmailBatch created with subject: {email_batch.subject}")
+        logger.info(f"EmailBatch created with subject: {email_batch.subject}")
         return email_batch
 
     @staticmethod
@@ -50,25 +53,25 @@ class EmailBatchService:
         Returns:
             bool: True if email was sent successfully
         """
-        print(f"[EMAIL DEBUG] send_batch_email called for user_id={user_id}")
+        logger.info(f"send_batch_email called for user_id={user_id}")
         try:
             user_alerts = UserAlerts.query.filter_by(user_id=user_id).first()
-            print(f"[EMAIL DEBUG] UserAlerts found: {user_alerts is not None}")
+            logger.info(f"UserAlerts found: {user_alerts is not None}")
             if not user_alerts or not EmailBatchService.should_send_email(user_alerts):
                 return False
 
             # Create email batch
-            print("[EMAIL DEBUG] Creating email batch...")
+            logger.info("Creating email batch...")
             email_batch = EmailBatchService.create_email_batch(user_alerts)
 
             # Create Flask-Mailman message with best practices
-            print("[EMAIL DEBUG] Creating Flask-Mailman EmailMultiAlternatives message...")
-            print(f"[EMAIL DEBUG] Subject: {email_batch.subject}")
-            print(f"[EMAIL DEBUG] Sender: {current_app.config.get('MAIL_DEFAULT_SENDER', 'NOT_SET')}")
-            print(f"[EMAIL DEBUG] Recipients: {[email_batch.user_email]}")
+            logger.info("Creating Flask-Mailman EmailMultiAlternatives message...")
+            logger.info(f"Subject: {email_batch.subject}")
+            logger.info(f"Sender: {current_app.config.get('MAIL_DEFAULT_SENDER', 'NOT_SET')}")
+            logger.info(f"Recipients: {[email_batch.user_email]}")
             
             # Render email templates from alerts/templates folder
-            print("[EMAIL DEBUG] Rendering email templates...")
+            logger.info("Rendering email templates...")
             try:
                 # Use the template names directly since blueprint has template_folder='templates'
                 text_content = render_template("batch_email.txt", batch=email_batch)
@@ -83,9 +86,9 @@ class EmailBatchService:
                 )
                 # Attach HTML alternative
                 msg.attach_alternative(html_content, "text/html")
-                print("[EMAIL DEBUG] Templates rendered successfully with HTML alternative")
+                logger.info("Templates rendered successfully with HTML alternative")
             except Exception as template_error:
-                print(f"[EMAIL DEBUG] Template error: {template_error}")
+                logger.error(f"Template error: {template_error}")
                 # Fallback to simple text email using EmailMessage
                 msg = EmailMessage(
                     subject=email_batch.subject,
@@ -93,12 +96,12 @@ class EmailBatchService:
                     from_email=current_app.config["MAIL_DEFAULT_SENDER"],
                     to=[email_batch.user_email],
                 )
-                print("[EMAIL DEBUG] Using fallback text email")
+                logger.warning("Using fallback text email")
 
             # Send email
-            print("[EMAIL DEBUG] Attempting to send email via Flask-Mailman...")
+            logger.info("Attempting to send email via Flask-Mailman...")
             mail.send(msg)
-            print("[EMAIL DEBUG] Email sent successfully!")
+            logger.info("Email sent successfully!")
 
             # Clear pending alerts and mark sent
             user_alerts.pending_alerts = []
@@ -108,12 +111,12 @@ class EmailBatchService:
             current_app.logger.info(
                 f"Sent batch email with {len(email_batch.alerts)} alerts to {email_batch.user_email}"
             )
-            print("[EMAIL DEBUG] send_batch_email completed successfully")
+            logger.info("send_batch_email completed successfully")
             return True
 
         except Exception as e:
-            print(f"[EMAIL DEBUG] ERROR in send_batch_email: {e}")
-            print(f"[EMAIL DEBUG] Exception type: {type(e).__name__}")
+            logger.error(f"ERROR in send_batch_email: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
             current_app.logger.error(f"Failed to send batch email for user {user_id}: {e}")
             return False
 
@@ -124,34 +127,34 @@ class EmailBatchService:
         Returns:
             Dict with processing stats: {"processed": int, "sent": int, "errors": int}
         """
-        print("[EMAIL DEBUG] process_all_alerts called")
+        logger.info("process_all_alerts called")
         stats = {"processed": 0, "sent": 0, "errors": 0}
 
         try:
             users_with_alerts = UserAlerts.query.filter(UserAlerts.pending_alerts != []).all()
             stats["processed"] = len(users_with_alerts)
-            print(f"[EMAIL DEBUG] Found {len(users_with_alerts)} users with pending alerts")
+            logger.info(f"Found {len(users_with_alerts)} users with pending alerts")
 
             for user_alerts in users_with_alerts:
-                print(f"[EMAIL DEBUG] Processing user_id={user_alerts.user_id}")
+                logger.info(f"Processing user_id={user_alerts.user_id}")
                 if EmailBatchService.should_send_email(user_alerts):
-                    print(f"[EMAIL DEBUG] Sending email for user_id={user_alerts.user_id}")
+                    logger.info(f"Sending email for user_id={user_alerts.user_id}")
                     if EmailBatchService.send_batch_email(user_alerts.user_id):
                         stats["sent"] += 1
-                        print(f"[EMAIL DEBUG] Email sent successfully for user_id={user_alerts.user_id}")
+                        logger.info(f"Email sent successfully for user_id={user_alerts.user_id}")
                     else:
                         stats["errors"] += 1
-                        print(f"[EMAIL DEBUG] Email failed for user_id={user_alerts.user_id}")
+                        logger.error(f"Email failed for user_id={user_alerts.user_id}")
                 else:
-                    print(f"[EMAIL DEBUG] Skipping email for user_id={user_alerts.user_id} (conditions not met)")
+                    logger.info(f"Skipping email for user_id={user_alerts.user_id} (conditions not met)")
 
             current_app.logger.info(f"Alert processing complete: {stats}")
-            print(f"[EMAIL DEBUG] process_all_alerts completed: {stats}")
+            logger.info(f"process_all_alerts completed: {stats}")
             return stats
 
         except Exception as e:
-            print(f"[EMAIL DEBUG] ERROR in process_all_alerts: {e}")
-            print(f"[EMAIL DEBUG] Exception type: {type(e).__name__}")
+            logger.error(f"ERROR in process_all_alerts: {e}")
+            logger.error(f"Exception type: {type(e).__name__}")
             current_app.logger.error(f"Error in process_all_alerts: {e}")
             stats["errors"] += 1
             return stats

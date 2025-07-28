@@ -1,9 +1,12 @@
 import json
+import logging
 from datetime import datetime, timezone
 
 from dotenv import load_dotenv
 from flask import current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user
+
+logger = logging.getLogger(__name__)
 
 from app import db
 from app.auth.models import UserItemLocations, UserItemTags, Users
@@ -137,7 +140,8 @@ def save_items(squad):
 
     try:
         items_list = json.loads(items_data)
-    except json.JSONDecodeError:
+    except json.JSONDecodeError as e:
+        logger.error(f"JSON decode error for admin {current_user.email}: {e}")
         flash("Invalid item data format", "warning")
         return redirect(url_for("admin.admin_view_items", squad=squad))
 
@@ -209,7 +213,8 @@ def save_items(squad):
                 )
                 db.session.add(item)
                 new_items.append(item)
-            except Exception:
+            except Exception as e:
+                logger.error(f"Error creating item {name} for admin {current_user.email}: {e}")
                 error_items.append(name)
                 continue
 
@@ -222,8 +227,9 @@ def save_items(squad):
     # Commit all changes
     try:
         db.session.commit()
-    except Exception:
+    except Exception as e:
         db.session.rollback()
+        logger.error(f"Database error saving items for admin {current_user.email}: {e}")
         flash("Database error occurred. Please try again.", "error")
 
     if error_items:
