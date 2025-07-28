@@ -135,7 +135,7 @@ class UserAlerts(db.Model):
     pending_alerts = db.Column(db.JSON, default=list, nullable=False)  # List of alert dicts awaiting delivery
     last_sent = db.Column(db.DateTime, nullable=True)  # When last batch email was sent
 
-    # TODO GREEN: Add critical level classification system for inventory items (RED/YELLOW/GREEN priority)
+    # TODO GREY: Add critical level classification system for inventory items (RED/YELLOW/GREEN priority)
     # This would allow different alert thresholds based on item criticality:
     # - RED: Life-saving (Narcan, O2, AED pads) - immediate alerts
     # - YELLOW: Important (bandages, splints) - standard alerts

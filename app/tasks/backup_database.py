@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TODO YELLOW UNLESS DONE AUTOMATICALLY!: Implement database backup system
+TODO RED UNLESS DONE AUTOMATICALLY!: Implement database backup system
 
 Automated daily database backups to cloud storage with retention policy.
 Requirements listed in config.py:24-27

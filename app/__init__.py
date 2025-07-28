@@ -90,7 +90,7 @@ def create_app() -> Flask:
 
         return url_for("static", filename="images/not-found.jpg")
 
-    # TODO YELLOW: Add proper error handling and logging system for production
+    # TODO PINK: Add proper error handling and logging system for production
     # - Configure structured logging (JSON format)
     # - Add custom error pages (404, 500, etc.)
     # - Log user actions and system events

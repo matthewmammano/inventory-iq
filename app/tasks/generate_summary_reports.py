@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-TODO ORANGE GREEN: Implement scheduled summary report generation
+TODO RED: Implement scheduled summary report generation
 
 Daily, weekly, monthly, quarterly, yearly summaries based on user preferences.
 User preferences exist in app/auth/models.py:122-126

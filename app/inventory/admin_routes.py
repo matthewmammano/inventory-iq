@@ -431,7 +431,7 @@ def scan_item(squad):
         )
 
 
-# TODO RED: Add reports and analytics dashboard
+# TODO PINK: Add reports and analytics dashboard
 # - Usage statistics (most/least accessed items)
 # - Inventory trends over time (charts/graphs)
 # - Low stock alerts and notifications

@@ -15,7 +15,7 @@ from app.helpers.model_validate import (
 )
 from app.helpers.timezone_utils import convert_utc_to_local
 
-# TODO RED: update:
+# TODO GREEN: update:
 # - use UV instead of pip way better
 # - to NEW version of SQLAlchemy
 
@@ -48,7 +48,7 @@ class Items(db.Model):
     expiration_days = db.Column(db.Integer, nullable=True)  # approx. days until expiration for perishable items
     restock_delivery_days = db.Column(db.Integer, nullable=True)  # days to expect delivery after restock order
 
-    # TODO RED: Add expiration date tracking for items -> MESSAGE ANDY WELSH PURCHASE
+    # TODO ORANGE: Add expiration date tracking for items -> MESSAGE ANDY WELSH PURCHASE
     # - Add expiry_date field to Items model
     # - Create expiration alerts in admin dashboard
     # - Filter expired items in inventory views
@@ -196,9 +196,7 @@ class ActionLogs(db.Model):
     quantity_delta = db.Column(db.Integer, nullable=False)
     # if this action was performed by an admin (e.g., via the admin panel)
     admin_action = db.Column(db.Boolean, default=False)
-    time_scanned = db.Column(
-        db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False
-    )
+    time_scanned = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     from_location = db.relationship(
