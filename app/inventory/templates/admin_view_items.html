@@ -34,7 +34,15 @@
   <tr>
     <td>{{ item.upc }}</td>
     <td>{{ item.active }}</td>
-    <td>{{ item.tags | map(attribute='tag_name') | join(', ') }}</td>
+    <td>
+      <div class="tag-container">
+        {% for tag in item.tags %}
+          <span class="tag-box" style="background-color: {{ tag.color }}; color: {{ tag.text_color }};">
+            {{ tag.tag_name }}
+          </span>
+        {% endfor %}
+      </div>
+    </td>
     <td>{{ item.increments }}</td>
     <td>{{ item.name }}</td>
     <td>{{ item.image }}</td>

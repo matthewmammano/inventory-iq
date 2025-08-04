@@ -21,9 +21,6 @@
     z-index: 100;
 }
 
-.table-view tr:hover {
-    background-color: var(--near-white);
-}
 
 /* Editable table styles */
 .table-edit {

@@ -16,8 +16,10 @@ from app.helpers.model_validate import (
 )
 from app.helpers.timezone_utils import convert_utc_to_local
 
-# TODO GREEN: update:
+# TODO YELLOW: update...
 # - use UV instead of pip way better
+
+# TODO GREEN: update...
 # - to NEW version of SQLAlchemy
 
 
@@ -99,12 +101,16 @@ class Items(db.Model):
         if value is None:
             return []
         if not isinstance(value, list):
-            logging.error(f"Tag validation error for item {getattr(self, 'id', 'new')}: tag_ids must be a list, got {type(value)}")
+            logging.error(
+                f"Tag validation error for item {getattr(self, 'id', 'new')}: tag_ids must be a list, got {type(value)}"
+            )
             raise ValueError("tag_ids must be a list")
         # Validate all items are integers
         for item in value:
             if not isinstance(item, int):
-                logging.error(f"Tag validation error for item {getattr(self, 'id', 'new')}: tag ID must be integer, got {type(item)}")
+                logging.error(
+                    f"Tag validation error for item {getattr(self, 'id', 'new')}: tag ID must be integer, got {type(item)}"
+                )
                 raise ValueError("All tag IDs must be integers")
             try:
                 validate_tag_id_type(item)
@@ -175,7 +181,9 @@ class Items(db.Model):
         new_upc = next_base + Items.calculate_upc_check_digit(next_base)
 
         if Items.query.filter_by(upc=new_upc).first():
-            logging.error(f"UPC generation failure: Generated UPC {new_upc} already exists for user {user_id} - UPC space may be exhausted")
+            logging.error(
+                f"UPC generation failure: Generated UPC {new_upc} already exists for user {user_id} - UPC space may be exhausted"
+            )
             raise ValueError(f"Generated UPC {new_upc} already exists - UPC space may be exhausted")
 
         return new_upc
@@ -186,23 +194,31 @@ class Items(db.Model):
         if not value:
             return None
         if not isinstance(value, str):
-            logging.error(f"UPC validation error for item {getattr(self, 'id', 'new')}: UPC must be a string, got {type(value)}")
+            logging.error(
+                f"UPC validation error for item {getattr(self, 'id', 'new')}: UPC must be a string, got {type(value)}"
+            )
             raise ValueError("UPC must be a string.")
         if not value or value.strip() == "":
             return None
         if not value.isdigit() or len(value) != 12:
-            logging.error(f"UPC validation error for item {getattr(self, 'id', 'new')}: Invalid UPC format '{value}' - must be 12 digits")
+            logging.error(
+                f"UPC validation error for item {getattr(self, 'id', 'new')}: Invalid UPC format '{value}' - must be 12 digits"
+            )
             raise ValueError("UPC must be a 12-digit number.")
         # Validate check digit
         calculated_check = self.calculate_upc_check_digit(value[:11])
         if calculated_check != value[11]:
-            logging.error(f"UPC validation error for item {getattr(self, 'id', 'new')}: Invalid check digit for UPC '{value}'")
+            logging.error(
+                f"UPC validation error for item {getattr(self, 'id', 'new')}: Invalid check digit for UPC '{value}'"
+            )
             raise ValueError("Invalid UPC check digit.")
         # Check if UPC already exists
         try:
             existing = Items.query.filter_by(upc=value, user_id=self.user_id).first()
             if existing and existing.id != self.id:
-                logging.error(f"UPC validation error: UPC '{value}' already exists for user {self.user_id} on item {existing.id}")
+                logging.error(
+                    f"UPC validation error: UPC '{value}' already exists for user {self.user_id} on item {existing.id}"
+                )
                 raise ValueError("UPC already exists for another item in your account.")
         except Exception as e:
             if "already exists" in str(e):

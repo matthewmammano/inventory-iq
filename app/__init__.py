@@ -43,9 +43,7 @@ def create_app() -> Flask:
 
     # Configure logging for production
     logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s [%(levelname)s] %(name)s: %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S'
+        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
     )
 
     # Ensure instance folder exists for SQLite in dev mode
@@ -153,3 +151,6 @@ def create_app() -> Flask:
         app.logger.info(f"Application initialized with database: {db_uri}")
 
     return app
+
+
+# TODO YELLOW: error pages (for internet connection, bad url, etc)
