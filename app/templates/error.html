@@ -1,0 +1,34 @@
+{% extends "base.html" %}
+
+{% block title %}{{ error_title | default("Error") }}{% endblock %}
+{% block header_title %}{{ error_title | default("Error") }}{% endblock %}
+{% block sub_title %}{{ error_subtitle | default("Something went wrong") }}{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/errors.css') }}">
+{% endblock %}
+
+{% block content %}
+<div class="error-container">
+    <h1>{{ error_message | default("An error occurred") }}</h1>
+    
+    <div class="error-details">
+        <p>{{ error_description | default("Please try again or contact support.") }}</p>
+    </div>
+    
+    <div class="error-actions">
+        <a href="#" onclick="history.back(); return false;">Go Back</a>
+        {% if current_user.is_authenticated %}
+        <a href="{{ url_for('guest.index', squad=current_user.display_name) }}">Go Home</a>
+        {% else %}
+        <a href="{{ url_for('auth.login') }}">Go Home</a>
+        {% endif %}
+    </div>
+    
+    {% if error_help %}
+    <div class="error-help">
+        <p>{{ error_help }}</p>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

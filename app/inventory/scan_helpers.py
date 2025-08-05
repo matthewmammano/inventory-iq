@@ -5,6 +5,7 @@ from flask_login import current_user
 from app import db
 from app.auth.models import UserItemLocations, Users
 from app.inventory.models import ActionLogs, Items
+from app.inventory.inventory_ops import inventory_operation, InventoryError
 
 logger = logging.getLogger(__name__)
 
@@ -233,17 +234,19 @@ def handle_scan_item_post(squad, form_data, is_admin=False):
     item = Items.query.filter_by(id=item_id).first()
 
     if not item:
-        flash("Item not found. Please check the UPC code.", "error")
+        flash("Item not found. Please verify the UPC code and try again.", "error")
         endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad))
 
-    if not from_location_id or not to_location_id:
-        flash("Both from and to locations must be selected.", "error")
+    # Basic validation - detailed validation happens in inventory_operation
+    if not counter_value or not counter_value.isdigit():
+        flash("Invalid quantity. Please enter a valid number.", "error")
         endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad, item_id=item_id))
-
-    if not counter_value or not counter_value.isdigit():
-        flash("Invalid counter value. Please enter a valid number.", "error")
+        
+    # Check that at least one location is specified
+    if (not from_location_id or from_location_id == "-1") and (not to_location_id or to_location_id == "-1"):
+        flash("Please select a location for this operation.", "error")
         endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad, item_id=item_id))
 
@@ -251,63 +254,34 @@ def handle_scan_item_post(squad, form_data, is_admin=False):
     to_location_id = int(to_location_id) if to_location_id != "-1" else None
     counter_value = int(counter_value)
 
-    # Update last_accessed timestamp when item is scanned
-    from datetime import datetime, timezone
-
-    item.last_accessed = datetime.now(timezone.utc)
-
-    action_log = ActionLogs(
-        item_id=item.id,
-        from_location_id=from_location_id,
-        to_location_id=to_location_id,
-        quantity_delta=counter_value,
-        admin_action=is_admin,  # Mark as admin action if called from admin
-        user_id=current_user.id,
-    )
-    db.session.add(action_log)
-    db.session.flush()
-
-    # Process the action and handle quantity updates
-    updated_quantities, alerts = action_log.process_action(db.session)
-
-    logger.info(f"Received {len(alerts)} alerts from process_action: {alerts}")
-
-    # Handle alerts - send emails for low/high stock notifications
-    if alerts:
-        from app.alerts.alert_service import AlertQueueService
-
-        logger.info(f"Processing {len(alerts)} alerts for emailing...")
-
-        for alert in alerts:
-            logger.info(f"Processing alert: {alert}")
-
-            # Extract data for AlertService.add_alert()
-            alert_type = alert.get("alert_type")
-            urgent = alert.get("urgent", False)
-
-            # Get item name
-            alert_item_name = alert.get("item_name", item.name)
-
-            # Remove keys that aren't part of **data
-            alert_data = {
-                k: v for k, v in alert.items() if k not in ["alert_type", "urgent", "item_name", "location_id"]
-            }
-
-            success = AlertQueueService.add_alert(
-                user_id=current_user.id, alert_type=alert_type, item_name=alert_item_name, urgent=urgent, **alert_data
-            )
-
-            if success:
-                logger.info(f"Successfully added {alert_type} alert for {alert_item_name}")
-            else:
-                logger.error(f"Failed to add {alert_type} alert for {alert_item_name}")
-
+    # Use new inventory_operation function
     try:
-        db.session.commit()
-    except Exception:
-        db.session.rollback()
-        raise Exception("Database error during scan operation")
+        updated_quantities, alerts = inventory_operation(
+            user_id=current_user.id,
+            item_id=item.id,
+            quantity=counter_value,
+            from_location=from_location_id,
+            to_location=to_location_id,
+            admin_action=is_admin
+        )
+        logger.info(f"Inventory operation completed with {len(alerts)} alerts")
+    except InventoryError as e:
+        flash(str(e), "error")
+        endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
+        return redirect(url_for(endpoint, squad=squad, item_id=item_id))
+    except Exception as e:
+        logger.error(f"Unexpected error during inventory operation: {e}")
+        flash("System error - please try again", "error")
+        endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
+        return redirect(url_for(endpoint, squad=squad, item_id=item_id))
 
-    flash(f"Successfully moved {counter_value} {item.name}.", "success")
+    # Create operation-specific success message
+    if from_location_id is None:
+        flash(f"Successfully set {item.name} quantity to {counter_value}.", "success")
+    elif to_location_id is None:
+        flash(f"Successfully removed {counter_value} {item.name} from inventory.", "success")
+    else:
+        flash(f"Successfully transferred {counter_value} {item.name}.", "success")
+    
     endpoint = "admin.admin_panel" if is_admin else "guest.index"
     return redirect(url_for(endpoint, squad=squad))

@@ -98,7 +98,6 @@ def create_app() -> Flask:
 
     # TODO PINK: Add proper error handling and logging system for production
     # - Configure structured logging (JSON format)
-    # - Add custom error pages (404, 500, etc.)
     # - Log user actions and system events
     # - Set up log rotation and monitoring alerts
 
@@ -114,6 +113,11 @@ def create_app() -> Flask:
     app.register_blueprint(guest_bp, url_prefix="/inventory")
     app.register_blueprint(admin_bp, url_prefix="/inventory")
     app.register_blueprint(alerts_bp, url_prefix="/alerts")
+
+    # Register error handlers
+    from app.errors import register_error_handlers
+
+    register_error_handlers(app)
 
     # Create all database tables
     @login_manager.user_loader
@@ -151,6 +155,3 @@ def create_app() -> Flask:
         app.logger.info(f"Application initialized with database: {db_uri}")
 
     return app
-
-
-# TODO YELLOW: error pages (for internet connection, bad url, etc)

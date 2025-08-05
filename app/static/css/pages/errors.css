@@ -1,0 +1,43 @@
+/* Error Pages Styling */
+.error-container {
+    max-width: 500px;
+    margin: 20px auto;
+    padding: 20px;
+    text-align: center;
+}
+
+.error-container h1 {
+    color: var(--most-black);
+    margin-bottom: 20px;
+}
+
+.error-details {
+    color: var(--most-black);
+    margin-bottom: 20px;
+}
+
+.error-actions {
+    margin-bottom: 20px;
+}
+
+.error-actions button,
+.error-actions a {
+    color: var(--most-black);
+    background-color: var(--grey);
+    border: none;
+    outline: 3px solid var(--most-black);
+    font-weight: bold;
+    padding: 1rem 1.5rem;
+    border-radius: 5px;
+    font-size: 1.5rem;
+    box-shadow: 0 1px 15px var(--shadow-color);
+    text-decoration: none;
+    display: inline-block;
+    cursor: pointer;
+    margin: 5px;
+}
+
+.error-help {
+    color: var(--most-black);
+    font-size: 14px;
+}

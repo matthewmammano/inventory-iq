@@ -1,4 +1,5 @@
 import logging
+
 from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import login_user, logout_user
 
@@ -91,6 +92,7 @@ def logout():
 
     # Log the user out completely
     from flask_login import current_user
+
     user_email = current_user.email if current_user.is_authenticated else "unknown"
     logout_user()
     logger.info(f"User logged out: {user_email}")
