@@ -35,8 +35,29 @@ class AlertDetectionService:
             old_qty = previous_quantities.get(loc_id, 0)
             logger.info(f"Checking location {loc_id}: old_qty={old_qty}, new_qty={new_qty}")
 
-            # TODO RED: make this one predictive with linear regression INSTEAD!
-            # HERE using user_alerts.low_stock_days
+            # Predictive low stock alert using linear regression
+            if user_alerts.low_stock_days and user_alerts.low_stock_days > 0:
+                from app.inventory.prediction_service import InventoryPredictor
+                
+                will_be_low = InventoryPredictor.will_be_low_in_days(
+                    user_id, item_id, loc_id, item.min_quantity or 1, user_alerts.low_stock_days
+                )
+                
+                if will_be_low:
+                    timeline = InventoryPredictor.get_usage_timeline(user_id, item_id, loc_id)
+                    prediction = InventoryPredictor.predict_low_stock(timeline, item.min_quantity or 1)
+                    
+                    logger.warning(
+                        f"PREDICTIVE LOW STOCK: {item.name} at location {loc_id} will be low in {prediction.get('days_until_low_stock', 'unknown')} days"
+                    )
+                    alerts.append({
+                        "location_id": loc_id,
+                        "alert_type": "predictive_low_stock", 
+                        "quantity": new_qty,
+                        "predicted_days": prediction.get('days_until_low_stock'),
+                        "confidence": prediction.get('confidence', 0),
+                        "urgent": prediction.get('days_until_low_stock', 999) <= 3
+                    })
 
             # 1. Zero stock alert - immediate when hitting 0 if enabled
             if user_alerts.zero_stock and new_qty == 0 and old_qty > 0:

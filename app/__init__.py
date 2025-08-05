@@ -41,10 +41,6 @@ def create_app() -> Flask:
     # Call optional init_app method on config class
     config_class.init_app(app)
 
-    # Configure logging for production
-    logging.basicConfig(
-        level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
-    )
 
     # Ensure instance folder exists for SQLite in dev mode
     if app.config.get("SQLALCHEMY_DATABASE_URI", "").startswith("sqlite"):
@@ -101,7 +97,9 @@ def create_app() -> Flask:
     # - Log user actions and system events
     # - Set up log rotation and monitoring alerts
 
-    # Import models to ensure they're registered with SQLAlchemy
+    # Configure logging
+    logging.basicConfig(level=logging.INFO)
+    logging.getLogger("werkzeug").setLevel(logging.INFO)
 
     # Import and register Blueprints and models
     from app.alerts import bp as alerts_bp

@@ -14,7 +14,7 @@ import sys
 
 from app import create_app, db
 
-# TODO RED: make this work now to generate dummy data!
+# TODO ORANGE: make this work now to generate dummy data!
 
 # from app.auth.models import Users, UserEmails, UserAlerts, UserItemLocations, UserItemTags
 # from app.inventory.models import Items, ActionLogs, ItemLocationQuantities

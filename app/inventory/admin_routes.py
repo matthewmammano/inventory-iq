@@ -297,57 +297,87 @@ def restock(squad):
     # Calculate restock recommendations
     restock_data = []
     for item in items:
-        current_total = item_totals.get(item.id, 0)
+        # Calculate current total from LATEST ADMIN RECOUNTS, not stale quantities table
+        from collections import defaultdict
+
+        from app.inventory.models import ActionLogs
+
+        # Get all admin recounts for this item
+        admin_recounts = ActionLogs.query.filter(
+            ActionLogs.user_id == current_user.id,
+            ActionLogs.item_id == item.id,
+            ActionLogs.admin_action == True,
+            ActionLogs.from_location_id.is_(None),
+        ).all()
+
+        if admin_recounts:
+            # Group by date and sum quantities for each date
+            daily_totals = defaultdict(int)
+            for recount in admin_recounts:
+                date_key = recount.time_scanned.date()
+                daily_totals[date_key] += recount.quantity_delta
+
+            # Use the most recent date's total
+            current_total = daily_totals[max(daily_totals.keys())] if daily_totals else 0
+
+            # DEBUG: Print what we calculated for tourniquets
+            if item.name == "Tourniquets":
+                print(f"DEBUG TOURNIQUETS: Found {len(admin_recounts)} admin recounts")
+                print(f"DEBUG TOURNIQUETS: Daily totals = {dict(daily_totals)}")
+                print(f"DEBUG TOURNIQUETS: Current total = {current_total}")
+        else:
+            # NO admin recounts exist - try quantities table
+            quantities_total = item_totals.get(item.id, 0)
+            current_total = quantities_total
+
+            # DEBUG: Print what we calculated for tourniquets
+            if item.name == "Tourniquets":
+                print(f"DEBUG TOURNIQUETS: No admin recounts, using quantities table = {current_total}")
         min_qty = item.min_quantity or 0
         max_qty = item.max_quantity or 0
         batch_size = item.batch_size or 0
         delivery_days = item.restock_delivery_days or 7  # Default to 7 days if not set
 
-        # Calculate order amount and priority
+        # Total inventory predictive restock logic
+        from app.inventory.prediction_service import InventoryPredictor
+
+        days_until_low = None
         order_amount = 0
-        priority = "Not needed"
 
-        # Time-based restock logic: consider delivery time and current stock percentage
-        should_reorder = False
-        reorder_reason = ""
-
+        # Calculate days until low stock using TOTAL inventory
         if min_qty > 0:
-            stock_percentage = (current_total / min_qty) * 100
+            prediction = InventoryPredictor.predict_total_low_stock(current_user.id, item.id, min_qty)
 
-            # Always reorder if below minimum
-            if current_total < min_qty:
-                should_reorder = True
-                reorder_reason = "Below minimum"
-                priority = "High" if current_total == 0 else "Medium"
-
-            # Time-based reordering: if stock is low and we need time for delivery
-            elif stock_percentage <= 50 and delivery_days >= 3:
-                should_reorder = True
-                reorder_reason = "Time-based (low stock + delivery time)"
-                priority = "Medium"
-
-            # Very low stock percentage should trigger reorder regardless
-            elif stock_percentage <= 25:
-                should_reorder = True
-                reorder_reason = "Very low stock (≤25%)"
-                priority = "Medium"
-
-        # If we should reorder, calculate the amount
-        if should_reorder:
-            if max_qty > 0:
-                # Order up to max quantity
-                needed = max_qty - current_total
-                if batch_size > 0:
-                    # Round up to nearest batch size
-                    order_amount = ((needed + batch_size - 1) // batch_size) * batch_size
+            if prediction:
+                if prediction.get("already_low"):
+                    days_until_low = 0
                 else:
-                    order_amount = needed
-            elif batch_size > 0:
-                # Use batch size as default order amount
-                order_amount = batch_size
+                    days_until_low = prediction.get("days_until_low_stock")
             else:
-                # Default to bringing up to min quantity (or at least 1 if min is 0)
-                order_amount = max(min_qty - current_total, 1)
+                days_until_low = None
+
+            # DEBUG: Print prediction for tourniquets
+            if item.name == "Tourniquets":
+                print(f"DEBUG TOURNIQUETS: Prediction = {prediction}")
+                print(f"DEBUG TOURNIQUETS: Days until low = {days_until_low}")
+        else:
+            days_until_low = None
+
+        # Calculate order amount to reach max by delivery time
+        if max_qty > 0 and days_until_low is not None and days_until_low <= delivery_days * 2:
+            # Calculate expected usage during delivery period
+            expected_usage_during_delivery = 0
+            if days_until_low > 0:
+                daily_usage_rate = (current_total - min_qty) / days_until_low
+                expected_usage_during_delivery = daily_usage_rate * delivery_days
+
+            # Order to reach max_qty accounting for usage during delivery
+            needed = max_qty - current_total + expected_usage_during_delivery
+
+            if batch_size > 0:
+                order_amount = int(((needed + batch_size - 1) // batch_size) * batch_size)
+            else:
+                order_amount = max(0, int(needed))
 
         restock_data.append(
             {
@@ -355,16 +385,13 @@ def restock(squad):
                 "current_total": current_total,
                 "min_quantity": min_qty,
                 "max_quantity": max_qty,
-                "batch_size": batch_size,
+                "days_until_low": days_until_low,
                 "order_amount": order_amount,
-                "priority": priority,
-                "reorder_reason": reorder_reason if should_reorder else "Stock sufficient",
             }
         )
 
-    # Sort by priority (High first, then Medium, then Not needed) and then by item name
-    priority_order = {"High": 0, "Medium": 1, "Not needed": 2}
-    restock_data.sort(key=lambda x: (priority_order[x["priority"]], x["item"].name))
+    # Sort by days until low (most urgent first), then by item name
+    restock_data.sort(key=lambda x: (x["days_until_low"] if x["days_until_low"] is not None else 999, x["item"].name))
 
     return render_template("admin_restock.html", squad=squad, restock_data=restock_data, admin=True)
 
@@ -437,8 +464,16 @@ def scan_item(squad):
         )
 
 
-# TODO PINK: Add reports and analytics dashboard
-# - Usage statistics (most/least accessed items)
-# - Inventory trends over time (charts/graphs)
-# - Low stock alerts and notifications
-# - Restock recommendations based on usage patterns
+# TODO RAINBOW: Add comprehensive testing suite for restock report logic
+# - Test admin recount aggregation by date
+# - Test linear regression predictions with mock data
+# - Test edge cases (no data, single data point, negative trends)
+# - Test batch size rounding calculations
+# - Validate order amount calculations with different scenarios
+
+# TODO YELLOW: Add color coding to restock table cells
+# - Red: Days until low <= 3 (urgent)
+# - Orange: Days until low <= 7 (soon)
+# - Yellow: Days until low <= 14 (watch) 
+# - Green: Days until low > 14 (good)
+# - Gray: No prediction available (insufficient data)
