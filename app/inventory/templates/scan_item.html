@@ -5,15 +5,15 @@
 
 {% block header_right %}{{ header_logo(logo_img|image_src)}}{% endblock %}
 
-{% block header_title %}{{ squad }}{% endblock %}
-{% block sub_title %}Scan Amount{% endblock %}
+{% block header_title %}Amount{% endblock %}
+{% block sub_title %}{{item.name}}{% endblock %}
 
 {% block extra_css %}{% endblock %}
 
 {% block content %}
 
 <div class="grid-container">
-    <div class="where_to_from">{{ "RECOUNT" if from_location == -1 else (from_location.name if from_location else "Unknown") }} → {{ "TAKE" if to_location == -1 else (to_location.name if to_location else "Unknown") }}</div>
+    <div class="where_to_from">{{ "RESTOCK" if from_location == -1 else ("COUNT" if from_location == -2 else (from_location.name if from_location else "Unknown")) }} → {{ "TAKE" if to_location == -1 else (to_location.name if to_location else "Unknown") }}</div>
     
     <div class="image-cell">
         <img src="{{item.image|image_src}}" alt="{{item.name}}">
@@ -53,7 +53,7 @@
     <form id="hidden-form" method="POST" class="hidden">
         <input type="hidden" name="item_id" id="item_id" value="{{item.id}}">
         <input type="hidden" name="counter_value" id="counter_value" value="1">
-        <input type="hidden" name="from_location_id" id="from_location_id" value="{{ "-1" if from_location == -1 else from_location.id }}">
+        <input type="hidden" name="from_location_id" id="from_location_id" value="{{ from_location if from_location in [-1, -2] else from_location.id }}">
         <input type="hidden" name="to_location_id" id="to_location_id" value="{{ "-1" if to_location == -1 else to_location.id }}">
     </form>
 </div>

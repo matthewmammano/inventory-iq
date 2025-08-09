@@ -65,6 +65,11 @@ def index(squad):
     """
     Display the inventory for the given squad to search or scan UPC.
     """
+    # Check for UPC error parameter
+    upc_error = request.args.get("upc_error")
+    if upc_error:
+        flash(f"UPC {upc_error} not found in inventory. Please make sure you are scanning the appropriate item card on shelf.", "error")
+    
     # Get the list of items and order them by last_accessed
     try:
         items = Items.query.filter_by(user_id=current_user.id).order_by(Items.last_accessed.desc().nullslast()).all()
@@ -91,9 +96,10 @@ def scan_locations(squad):
         return handle_scan_locations_post(squad, request.form, is_admin=False)
     else:
         item_id = request.args.get("item_id")
-        user_recount_allow = request.args.get("user_recount_allow", "False") == "True"
+        user_count_allow = request.args.get("user_count_allow", "False") == "True"
+        user_restock_allow = request.args.get("user_restock_allow", "False") == "True"
         user_take_allow = request.args.get("user_take_allow", "True") == "True"
-        return handle_scan_locations_get(squad, item_id, user_recount_allow, user_take_allow, is_admin=False)
+        return handle_scan_locations_get(squad, item_id, user_count_allow, user_restock_allow, user_take_allow, is_admin=False)
 
 
 @bp.route("/<squad>/scan/item", methods=["GET", "POST"])
@@ -106,10 +112,11 @@ def scan_item(squad):
         item_id = request.args.get("item_id")
         from_location_id = request.args.get("from_location_id")
         to_location_id = request.args.get("to_location_id")
-        user_recount_allow = request.args.get("user_recount_allow", "False") == "True"
+        user_count_allow = request.args.get("user_count_allow", "False") == "True"
+        user_restock_allow = request.args.get("user_restock_allow", "False") == "True"
         user_take_allow = request.args.get("user_take_allow", "True") == "True"
         return handle_scan_item_get(
-            squad, item_id, from_location_id, to_location_id, user_recount_allow, user_take_allow, is_admin=False
+            squad, item_id, from_location_id, to_location_id, user_count_allow, user_restock_allow, user_take_allow, is_admin=False
         )
 
 

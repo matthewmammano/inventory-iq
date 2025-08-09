@@ -5,8 +5,8 @@
 
 {% block header_right %}{{ header_button(url_for('admin.admin_scan_items' if admin else 'guest.index', squad=squad), 'Back')}}{% endblock %}
 
-{% block header_title %}{{squad}}{% endblock %}
-{% block sub_title %}Scan Location{% endblock %}
+{% block header_title %}Locations{% endblock %}
+{% block sub_title %}{{item.name}}{% endblock %}
 
 {% block extra_css %}{% endblock %}
 
@@ -21,10 +21,16 @@
            <div class="location-column">
                <h2 class="column-title">From</h2>
                <div class="location-options">
-                   {% if user_recount_allow and to_locations|length > 0 %}
+                   {% if user_restock_allow and to_locations|length > 0 %}
                    <div class="location-option">
-                       <input type="radio" name="from_location_id" value="-1" id="from_recount" required>
-                       <label for="from_recount" class="location-label">RECOUNT</label>
+                       <input type="radio" name="from_location_id" value="-1" id="from_restock" required>
+                       <label for="from_restock" class="location-label">RESTOCK</label>
+                   </div>
+                   {% endif %}
+                   {% if user_count_allow and to_locations|length > 0 %}
+                   <div class="location-option">
+                       <input type="radio" name="from_location_id" value="-2" id="from_count" required>
+                       <label for="from_count" class="location-label">COUNT</label>
                    </div>
                    {% endif %}
                    {% for location in from_locations %}
@@ -47,8 +53,8 @@
                <div class="location-options" id="to-location-options">
                    {% if user_take_allow %}
                     <div class="location-option">
-                       <input type="radio" name="to_location_id" value="-1" id="to_recount" required>
-                       <label for="to_recount" class="location-label">TAKE</label>
+                       <input type="radio" name="to_location_id" value="-1" id="to_take" required>
+                       <label for="to_take" class="location-label">TAKE</label>
                    </div>
                    {% endif %}
                    {% for location in to_locations %}

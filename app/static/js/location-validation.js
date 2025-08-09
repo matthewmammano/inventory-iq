@@ -5,41 +5,74 @@ document.addEventListener('DOMContentLoaded', function() {
     const form = document.getElementById('scan-form');
     const sameLocationErrorInput = document.getElementById('same_location_error');
 
-    function highlightIfSame() {
+    function highlightIfInvalid() {
         let fromVal = document.querySelector('input[name="from_location_id"]:checked');
         let toVal = document.querySelector('input[name="to_location_id"]:checked');
         // Remove previous highlights
         toOptions.forEach(opt => opt.classList.remove('location-error'));
-        if (fromVal && toVal && fromVal.value === toVal.value) {
-            // Highlight the selected "to" option
-            let toRadio = document.querySelector('input[name="to_location_id"]:checked');
-            if (toRadio) {
-                toRadio.closest('.location-option').classList.add('location-error');
+        
+        if (fromVal && toVal) {
+            // Check for invalid combinations
+            let isInvalid = false;
+            
+            // Same location error
+            if (fromVal.value === toVal.value) {
+                isInvalid = true;
+            }
+            // COUNT (-2) -> TAKE (-1) is invalid
+            else if (fromVal.value === "-2" && toVal.value === "-1") {
+                isInvalid = true;
+            }
+            // RESTOCK (-1) -> TAKE (-1) is invalid  
+            else if (fromVal.value === "-1" && toVal.value === "-1") {
+                isInvalid = true;
+            }
+            
+            if (isInvalid) {
+                // Highlight the selected "to" option
+                let toRadio = document.querySelector('input[name="to_location_id"]:checked');
+                if (toRadio) {
+                    toRadio.closest('.location-option').classList.add('location-error');
+                }
             }
         }
     }
 
-    function checkSameLocationError() {
+    function checkInvalidCombination() {
         let fromVal = document.querySelector('input[name="from_location_id"]:checked');
         let toVal = document.querySelector('input[name="to_location_id"]:checked');
-        if (fromVal && toVal && fromVal.value === toVal.value) {
-            sameLocationErrorInput.value = "1";
-        } else {
-            sameLocationErrorInput.value = "0";
+        
+        let hasError = false;
+        
+        if (fromVal && toVal) {
+            // Same location error
+            if (fromVal.value === toVal.value) {
+                hasError = true;
+            }
+            // COUNT (-2) -> TAKE (-1) is invalid
+            else if (fromVal.value === "-2" && toVal.value === "-1") {
+                hasError = true;
+            }
+            // RESTOCK (-1) -> TAKE (-1) is invalid
+            else if (fromVal.value === "-1" && toVal.value === "-1") {
+                hasError = true;
+            }
         }
+        
+        sameLocationErrorInput.value = hasError ? "1" : "0";
     }
 
     fromRadios.forEach(radio => {
-        radio.addEventListener('change', highlightIfSame);
-        radio.addEventListener('change', checkSameLocationError);
+        radio.addEventListener('change', highlightIfInvalid);
+        radio.addEventListener('change', checkInvalidCombination);
     });
     toRadios.forEach(radio => {
-        radio.addEventListener('change', highlightIfSame);
-        radio.addEventListener('change', checkSameLocationError);
+        radio.addEventListener('change', highlightIfInvalid);
+        radio.addEventListener('change', checkInvalidCombination);
     });
 
     form.addEventListener('submit', function(e) {
-        checkSameLocationError();
-        // If error, allow form to submit so server can handle
+        checkInvalidCombination();
+        // If error, allow form to submit so server can handle the error message
     });
 });

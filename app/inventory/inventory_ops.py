@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from typing import Optional, Tuple, Dict, List
 
 from app import db
-from app.inventory.models import ActionLogs, Items
+from app.inventory.models import ActionLogs, Items, OperationType
 from app.auth.models import UserItemLocations
 
 logger = logging.getLogger(__name__)
@@ -23,6 +23,7 @@ def inventory_operation(
     user_id: int,
     item_id: int,
     quantity: int,
+    operation_type: OperationType,
     from_location: Optional[int] = None,
     to_location: Optional[int] = None,
     admin_action: bool = False
@@ -30,8 +31,9 @@ def inventory_operation(
     """
     Single function for ALL inventory operations with bulletproof error handling.
     
-    Operation Types (auto-detected):
-    - RECOUNT: from_location=None, to_location=X (sets absolute quantity)
+    Operation Types:
+    - COUNT: from_location=None, to_location=X (sets absolute quantity)
+    - RESTOCK: from_location=None, to_location=X (adds from external supplier)
     - TRANSFER: from_location=X, to_location=Y (moves quantity between locations)  
     - TAKEOUT: from_location=X, to_location=None (removes quantity from inventory)
     
@@ -39,7 +41,8 @@ def inventory_operation(
         user_id: User performing operation
         item_id: Item being operated on
         quantity: Amount (positive integer)
-        from_location: Source location ID (None for RECOUNT)
+        operation_type: Type of operation to perform
+        from_location: Source location ID (None for COUNT/RESTOCK)
         to_location: Destination location ID (None for TAKEOUT)
         admin_action: Whether this is an admin operation
         
@@ -50,26 +53,23 @@ def inventory_operation(
         InventoryError: User-friendly error messages for first aid squads
     """
     try:
-        # Validate operation type
-        op_type = _detect_operation_type(from_location, to_location)
-        
         # Validate inputs
-        _validate_inputs(user_id, item_id, quantity, from_location, to_location, op_type)
+        _validate_inputs(user_id, item_id, quantity, operation_type, from_location, to_location)
         
         # Update item last_accessed timestamp
         item = Items.query.filter_by(id=item_id, user_id=user_id).first()
         item.last_accessed = datetime.now(timezone.utc)
         
         # Create and process action
-        action_log = _create_action_log(user_id, item_id, quantity, from_location, to_location, admin_action)
+        action_log = _create_action_log(user_id, item_id, quantity, operation_type, from_location, to_location, admin_action)
         updated_quantities, alerts = _process_action_safely(action_log)
         
         # Handle alerts (non-blocking)
-        _handle_alerts_safely(alerts, user_id, op_type)
+        _handle_alerts_safely(alerts, user_id, operation_type.value)
         
         # Commit transaction
         db.session.commit()
-        logger.info(f"{op_type} completed: item {item_id}, quantity {quantity}")
+        logger.info(f"{operation_type.value} completed: item {item_id}, quantity {quantity}")
         
         return updated_quantities, alerts
         
@@ -82,28 +82,32 @@ def inventory_operation(
         raise InventoryError("System error - please try again or contact support")
 
 
-def _detect_operation_type(from_location: Optional[int], to_location: Optional[int]) -> str:
-    """Detect operation type from location parameters."""
-    if from_location is None and to_location is not None:
-        return "RECOUNT"
-    elif from_location is not None and to_location is not None:
-        return "TRANSFER"
-    elif from_location is not None and to_location is None:
-        return "TAKEOUT"
-    else:
-        raise InventoryError("Invalid operation - must specify either from_location, to_location, or both")
-
-
 def _validate_inputs(user_id: int, item_id: int, quantity: int, 
-                    from_location: Optional[int], to_location: Optional[int], op_type: str):
+                    operation_type: OperationType, from_location: Optional[int], to_location: Optional[int]):
     """Validate all inputs with first-aid-squad-friendly error messages."""
     
     # Validate quantity
     if not isinstance(quantity, int) or quantity < 0:
         raise InventoryError("Quantity must be a positive number")
     
-    if op_type in ["TRANSFER", "TAKEOUT"] and quantity == 0:
+    if operation_type in [OperationType.transfer, OperationType.takeout] and quantity == 0:
         raise InventoryError("Cannot transfer or remove zero items")
+        
+    # Validate operation type matches location parameters
+    if operation_type == OperationType.count:
+        if from_location is not None or to_location is None:
+            raise InventoryError("COUNT requires no from_location and a to_location")
+    elif operation_type == OperationType.restock:
+        if from_location is not None or to_location is None:
+            raise InventoryError("RESTOCK requires no from_location and a to_location")
+    elif operation_type == OperationType.transfer:
+        if from_location is None or to_location is None:
+            raise InventoryError("TRANSFER requires both from_location and to_location")
+        if from_location == to_location:
+            raise InventoryError("Cannot transfer items to the same location")
+    elif operation_type == OperationType.takeout:
+        if from_location is None or to_location is not None:
+            raise InventoryError("TAKEOUT requires from_location and no to_location")
         
     # Validate item exists
     item = Items.query.filter_by(id=item_id, user_id=user_id).first()
@@ -120,19 +124,16 @@ def _validate_inputs(user_id: int, item_id: int, quantity: int,
         to_loc = UserItemLocations.query.filter_by(id=to_location, user_id=user_id).first()
         if not to_loc:
             raise InventoryError("Destination location not found")
-            
-    # Validate transfer logic
-    if op_type == "TRANSFER" and from_location == to_location:
-        raise InventoryError("Cannot transfer items to the same location")
 
 
 def _create_action_log(user_id: int, item_id: int, quantity: int,
-                      from_location: Optional[int], to_location: Optional[int], 
-                      admin_action: bool) -> ActionLogs:
+                      operation_type: OperationType, from_location: Optional[int], 
+                      to_location: Optional[int], admin_action: bool) -> ActionLogs:
     """Create ActionLog entry."""
     action_log = ActionLogs(
         user_id=user_id,
         item_id=item_id,
+        operation_type=operation_type,
         from_location_id=from_location,
         to_location_id=to_location,
         quantity_delta=quantity,

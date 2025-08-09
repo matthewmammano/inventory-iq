@@ -20,7 +20,8 @@ class Users(db.Model, UserMixin):
     password = db.Column(db.String(128))
     pin = db.Column(db.String(4), nullable=False, default="1234")
     image = db.Column(db.String(255))
-    user_recount_allow = db.Column(db.Boolean, default=False)
+    user_count_allow = db.Column(db.Boolean, default=False)
+    user_restock_allow = db.Column(db.Boolean, default=False)
     user_take_allow = db.Column(db.Boolean, default=True)
     notes = db.Column(db.Text)
     timezone = db.Column(db.String(50), default="America/New_York", nullable=False)
@@ -113,9 +114,9 @@ class UserAlerts(db.Model):
         db.Integer, default=30, nullable=False
     )  # Alert if item not scanned in X days (0=disabled)
     zero_stock = db.Column(db.Boolean, default=True, nullable=False)  # Alert immediately when completely out of stock
-    recount_admin_days = db.Column(
+    count_last_days = db.Column(
         db.Integer, default=90, nullable=True
-    )  # Alert when it has been more than X days since the last recount for item(s), None for disabled
+    )  # Alert when it has been more than X days since the last count for item(s), None for disabled
     # TODO YELLOW: implement this elsewhere in cronjob checking
 
     # Scheduled Reporting Alerts

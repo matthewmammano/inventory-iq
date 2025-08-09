@@ -6,7 +6,7 @@ from pydantic import BaseModel
 class Alert(BaseModel):
     """Single alert for batching"""
 
-    type: str  # "low_stock", "expired_soon", "rare_scan", "zero_stock", "recount_admin"
+    type: str  # "low_stock", "expired_soon", "rare_scan", "zero_stock", "count_admin"
     item: str  # "Bandages"
     data: Dict[str, Any] = {}  # Values to insert into message template
     urgent: bool = False
@@ -19,7 +19,7 @@ class Alert(BaseModel):
             "zero_stock": "OUT OF STOCK - needs immediate restocking",
             "expired_soon": "Expires in {days} days on {expiry_date}",
             "rare_scan": "Not scanned in {days} days - check if still in stock",
-            "recount_admin": "Last recount was {days} days ago - admin review needed",
+            "count_admin": "Last count was {days} days ago - admin review needed",
         }
 
         template = templates.get(self.type, "Alert: {item}")
@@ -31,7 +31,7 @@ class Alert(BaseModel):
     @property
     def icon(self) -> str:
         """Get emoji icon for alert type"""
-        icons = {"low_stock": "⚠️", "zero_stock": "🚨", "expired_soon": "📅", "rare_scan": "👁️", "recount_admin": "📊"}
+        icons = {"low_stock": "⚠️", "zero_stock": "🚨", "expired_soon": "📅", "rare_scan": "👁️", "count_admin": "📊"}
         return icons.get(self.type, "📋")
 
 

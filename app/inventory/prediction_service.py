@@ -1,4 +1,4 @@
-"""Inventory prediction service using admin recounts as ground truth."""
+"""Inventory prediction service using admin counts as ground truth."""
 
 import logging
 import warnings
@@ -14,15 +14,15 @@ logger = logging.getLogger(__name__)
 
 
 class InventoryPredictor:
-    """Predicts stockouts and low stock using linear regression on admin recounts."""
+    """Predicts stockouts and low stock using linear regression on admin counts."""
 
     @staticmethod
     def get_usage_timeline(user_id: int, item_id: int, location_id: int) -> Dict:
-        """Get usage data between admin recounts."""
+        """Get usage data between admin counts."""
         from app.inventory.models import ActionLogs
 
-        # Get admin recounts chronologically
-        recounts = (
+        # Get admin counts chronologically
+        counts = (
             ActionLogs.query.filter(
                 ActionLogs.user_id == user_id,
                 ActionLogs.item_id == item_id,
@@ -34,13 +34,13 @@ class InventoryPredictor:
             .all()
         )
 
-        if len(recounts) < 2:
-            return {"error": "Need 2+ admin recounts for prediction"}
+        if len(counts) < 2:
+            return {"error": "Need 2+ admin counts for prediction"}
 
-        # Calculate actual usage between recounts
+        # Calculate actual usage between counts
         periods = []
-        for i in range(len(recounts) - 1):
-            start, end = recounts[i], recounts[i + 1]
+        for i in range(len(counts) - 1):
+            start, end = counts[i], counts[i + 1]
 
             # User scans leaving this location
             scans = ActionLogs.query.filter(
@@ -67,8 +67,8 @@ class InventoryPredictor:
 
         return {
             "periods": periods,
-            "current_qty": recounts[-1].quantity_delta,
-            "last_update": recounts[-1].time_scanned,
+            "current_qty": counts[-1].quantity_delta,
+            "last_update": counts[-1].time_scanned,
         }
 
     @staticmethod
@@ -146,8 +146,8 @@ class InventoryPredictor:
         """Get usage data aggregated across ALL locations for an item."""
         from app.inventory.models import ActionLogs
 
-        # Get all admin recounts across all locations, grouped by date
-        recounts = (
+        # Get all admin counts with full datetime precision - time matters!
+        counts = (
             ActionLogs.query.filter(
                 ActionLogs.user_id == user_id,
                 ActionLogs.item_id == item_id,
@@ -158,32 +158,53 @@ class InventoryPredictor:
             .all()
         )
 
-        if len(recounts) < 2:
-            return {"error": "Need 2+ admin recounts for prediction"}
+        if len(counts) < 2:
+            return {"error": "Need 2+ admin counts for prediction"}
 
-        # Group recounts by date to get total inventory snapshots
+        # Group by date but only keep LATEST count per location per date
         from collections import defaultdict
 
-        recount_dates = defaultdict(int)
-        for recount in recounts:
-            date_key = recount.time_scanned.date()
-            recount_dates[date_key] += recount.quantity_delta
+        count_dates = defaultdict(int)
+        count_datetimes = defaultdict(list)
+        latest_per_location_per_date = {}  # (date, location) -> count
 
-        if len(recount_dates) < 2:
-            return {"error": "Need recounts on 2+ different dates"}
+        # First pass: find latest count per location per date
+        for count in counts:
+            date_key = count.time_scanned.date()
+            location_id = count.to_location_id
+            key = (date_key, location_id)
+
+            if (
+                key not in latest_per_location_per_date
+                or count.time_scanned > latest_per_location_per_date[key].time_scanned
+            ):
+                latest_per_location_per_date[key] = count
+
+        # Second pass: aggregate using only latest counts per location per date
+        for count in latest_per_location_per_date.values():
+            date_key = count.time_scanned.date()
+            count_dates[date_key] += count.quantity_delta
+            count_datetimes[date_key].append(count)
+
+        if len(count_dates) < 2:
+            return {"error": "Need counts on 2+ different dates"}
 
         # Sort dates and create periods
-        sorted_dates = sorted(recount_dates.keys())
+        sorted_dates = sorted(count_dates.keys())
         periods = []
 
         for i in range(len(sorted_dates) - 1):
             start_date, end_date = sorted_dates[i], sorted_dates[i + 1]
-            start_total = recount_dates[start_date]
-            end_total = recount_dates[end_date]
+            start_total = count_dates[start_date]
+            end_total = count_dates[end_date]
 
-            # Get all usage scans between these dates across all locations
-            start_datetime = datetime.combine(start_date, datetime.min.time()).replace(tzinfo=timezone.utc)
-            end_datetime = datetime.combine(end_date, datetime.min.time()).replace(tzinfo=timezone.utc)
+            # Use actual datetime precision for period calculations
+            start_counts = count_datetimes[start_date]
+            end_counts = count_datetimes[end_date]
+
+            # Use latest count time from start date and earliest from end date
+            start_datetime = max(r.time_scanned for r in start_counts)
+            end_datetime = min(r.time_scanned for r in end_counts)
 
             total_scanned_usage = (
                 ActionLogs.query.filter(
@@ -200,7 +221,9 @@ class InventoryPredictor:
 
             actual_usage = start_total - end_total
             scanned_usage = sum(scan.quantity_delta for scan in total_scanned_usage)
-            days = (end_date - start_date).days
+            # Use precise datetime difference for accurate daily rates
+            time_diff = end_datetime - start_datetime
+            days = time_diff.total_seconds() / 86400  # Convert to fractional days
 
             if days > 0 and actual_usage >= 0:
                 periods.append(
@@ -212,10 +235,10 @@ class InventoryPredictor:
                     }
                 )
 
-        current_total = recount_dates[sorted_dates[-1]]
-        last_recount_date = sorted_dates[-1]
+        current_total = count_dates[sorted_dates[-1]]
+        last_count_date = sorted_dates[-1]
 
-        return {"periods": periods, "current_qty": current_total, "last_update": last_recount_date}
+        return {"periods": periods, "current_qty": current_total, "last_update": last_count_date}
 
     @staticmethod
     def predict_total_low_stock(user_id: int, item_id: int, min_quantity: int) -> Optional[Dict]:
@@ -249,3 +272,160 @@ class InventoryPredictor:
             "confidence": model.score(X, y),
             "current_total": current_total,
         }
+
+    @staticmethod
+    def get_current_total_for_item(user_id: int, item_id: int) -> int:
+        """Get current total by starting with latest counts and applying subsequent transfers."""
+        from app.inventory.models import ActionLogs
+
+        # Get most recent admin count for each location
+        latest_counts = {}  # location_id -> (datetime, quantity)
+
+        counts = ActionLogs.query.filter(
+            ActionLogs.user_id == user_id,
+            ActionLogs.item_id == item_id,
+            ActionLogs.admin_action == True,
+            ActionLogs.from_location_id.is_(None),
+        ).all()
+
+        if not counts:
+            return 0
+
+        # Find most recent count per location
+        for count in counts:
+            location_id = count.to_location_id
+            if location_id not in latest_counts or count.time_scanned > latest_counts[location_id][0]:
+                latest_counts[location_id] = (count.time_scanned, count.quantity_delta)
+
+        # Start with quantities from latest counts
+        current_quantities = {}  # location_id -> current_quantity
+        earliest_count_time = None
+
+        for location_id, (count_time, quantity) in latest_counts.items():
+            current_quantities[location_id] = quantity
+            if earliest_count_time is None or count_time < earliest_count_time:
+                earliest_count_time = count_time
+
+        # Apply ALL transfers/takes that happened AFTER the earliest of the latest counts
+        if earliest_count_time:
+            subsequent_actions = (
+                ActionLogs.query.filter(
+                    ActionLogs.user_id == user_id,
+                    ActionLogs.item_id == item_id,
+                    ActionLogs.time_scanned > earliest_count_time,
+                    ActionLogs.admin_action == False,  # Only guest/user actions
+                )
+                .order_by(ActionLogs.time_scanned.asc())
+                .all()
+            )
+
+            # Apply each action chronologically
+            for action in subsequent_actions:
+                # Taking from location (reduce quantity)
+                if action.from_location_id and action.to_location_id is None:
+                    if action.from_location_id not in current_quantities:
+                        current_quantities[action.from_location_id] = 0
+                    current_quantities[action.from_location_id] -= action.quantity_delta
+
+                # Transfer between locations
+                elif action.from_location_id and action.to_location_id:
+                    if action.from_location_id not in current_quantities:
+                        current_quantities[action.from_location_id] = 0
+                    if action.to_location_id not in current_quantities:
+                        current_quantities[action.to_location_id] = 0
+
+                    current_quantities[action.from_location_id] -= action.quantity_delta
+                    current_quantities[action.to_location_id] += action.quantity_delta
+
+        # Return total across all locations
+        return sum(current_quantities.values())
+
+    @staticmethod
+    def get_estimated_total_for_item(user_id: int, item_id: int) -> int:
+        """Get estimated current total accounting for underreporting."""
+        current_total = InventoryPredictor.get_current_total_for_item(user_id, item_id)
+
+        if current_total == 0:
+            return 0
+
+        # Calculate underreporting ratio from timeline data
+        timeline = InventoryPredictor.get_total_usage_timeline(user_id, item_id)
+
+        if timeline.get("error") or not timeline.get("periods"):
+            return current_total  # No adjustment possible
+
+        # Get average underreporting ratio from periods
+        periods = timeline["periods"]
+        underreporting_ratios = [p.get("underreporting", 1.0) for p in periods if p.get("underreporting")]
+
+        if underreporting_ratios:
+            avg_underreporting = sum(underreporting_ratios) / len(underreporting_ratios)
+            # Estimate unaccounted usage since last count
+            from app.inventory.models import ActionLogs
+
+            # Get most recent admin count date
+            latest_count = (
+                ActionLogs.query.filter(
+                    ActionLogs.user_id == user_id,
+                    ActionLogs.item_id == item_id,
+                    ActionLogs.admin_action == True,
+                    ActionLogs.from_location_id.is_(None),
+                )
+                .order_by(ActionLogs.time_scanned.desc())
+                .first()
+            )
+
+            if latest_count:
+                # Get guest usage since last count
+                guest_usage = ActionLogs.query.filter(
+                    ActionLogs.user_id == user_id,
+                    ActionLogs.item_id == item_id,
+                    ActionLogs.admin_action == False,
+                    ActionLogs.from_location_id.is_not(None),
+                    ActionLogs.to_location_id.is_(None),
+                    ActionLogs.time_scanned > latest_count.time_scanned,
+                ).all()
+
+                reported_usage = sum(log.quantity_delta for log in guest_usage)
+                estimated_actual_usage = reported_usage * avg_underreporting
+
+                return int(current_total - estimated_actual_usage)
+
+        return current_total
+
+    @staticmethod
+    def recalculate_all_quantities(user_id: int):
+        """Recalculate item_location_quantities from admin counts."""
+        from app import db
+        from app.inventory.models import ActionLogs, ItemLocationQuantities
+
+        # Clear existing quantities for this user
+        ItemLocationQuantities.query.filter_by(user_id=user_id).delete()
+
+        # Get all admin counts
+        admin_counts = ActionLogs.query.filter(
+            ActionLogs.user_id == user_id,
+            ActionLogs.admin_action == True,
+            ActionLogs.from_location_id.is_(None),
+        ).all()
+
+        # Group by item and location, keep most recent
+        latest_quantities = {}  # (item_id, location_id) -> quantity
+
+        for count in admin_counts:
+            key = (count.item_id, count.to_location_id)
+            if key not in latest_quantities:
+                latest_quantities[key] = (count.time_scanned, count.quantity_delta)
+            else:
+                existing_time, existing_qty = latest_quantities[key]
+                if count.time_scanned > existing_time:
+                    latest_quantities[key] = (count.time_scanned, count.quantity_delta)
+
+        # Create new ItemLocationQuantities records
+        for (item_id, location_id), (_, quantity) in latest_quantities.items():
+            new_qty = ItemLocationQuantities(
+                user_id=user_id, item_id=item_id, location_id=location_id, quantity=quantity
+            )
+            db.session.add(new_qty)
+
+        db.session.commit()

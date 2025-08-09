@@ -1,5 +1,6 @@
 import logging
 from datetime import datetime, timezone
+from enum import Enum
 
 from sqlalchemy import JSON, event
 from sqlalchemy.orm import validates
@@ -21,6 +22,13 @@ from app.helpers.timezone_utils import convert_utc_to_local
 
 # TODO GREEN: update...
 # - to NEW version of SQLAlchemy
+
+
+class OperationType(Enum):
+    count = "COUNT"
+    restock = "RESTOCK"
+    takeout = "TAKEOUT"
+    transfer = "TRANSFER"
 
 
 def get_or_create_item_location_quantity(db_session, user_id, item_id, location_id):
@@ -232,15 +240,16 @@ class ActionLogs(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey("items.id"))
+    operation_type = db.Column(db.Enum(OperationType), nullable=False)
     from_location_id = db.Column(
         db.Integer,
         db.ForeignKey("user_item_locations.id"),
-        nullable=True,  # if Null, then RECOUNT, else transfer
+        nullable=True,  # null for COUNT/RESTOCK operations
     )
     to_location_id = db.Column(
         db.Integer,
         db.ForeignKey("user_item_locations.id"),
-        nullable=True,  # if Null, then TAKE, else other
+        nullable=True,  # null for TAKEOUT operations
     )
 
     quantity_delta = db.Column(db.Integer, nullable=False)
@@ -282,12 +291,20 @@ class ActionLogs(db.Model):
             raise
 
     @property
-    def is_recount(self):
-        return self.from_location_id is None
+    def is_count(self):
+        return self.operation_type == OperationType.count
+
+    @property
+    def is_restock(self):
+        return self.operation_type == OperationType.restock
 
     @property
     def is_transfer(self):
-        return self.from_location_id is not None
+        return self.operation_type == OperationType.transfer
+
+    @property
+    def is_takeout(self):
+        return self.operation_type == OperationType.takeout
 
     def get_time_scanned_local(self, user_timezone: str):
         """Get time_scanned converted to user's local timezone."""
@@ -311,9 +328,11 @@ class ActionLogs(db.Model):
         if self.to_location_id:
             to_qty = get_or_create_item_location_quantity(db_session, self.user_id, self.item_id, self.to_location_id)
             previous_quantities[self.to_location_id] = to_qty.quantity
-            to_qty.quantity = (
-                self.quantity_delta if not self.from_location_id else to_qty.quantity + self.quantity_delta
-            )
+            # Set absolute quantity for COUNT, add for all others
+            if self.operation_type == OperationType.count:
+                to_qty.quantity = self.quantity_delta
+            else:
+                to_qty.quantity = to_qty.quantity + self.quantity_delta
             updated_quantities[self.to_location_id] = to_qty.quantity
 
         alerts = AlertDetectionService.check_quantity_alerts(

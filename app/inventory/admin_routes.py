@@ -25,6 +25,60 @@ load_dotenv()
 
 ADMIN_TIMEOUT_SECONDS = 21600  # 6 hours
 
+"""
+TODO RAINBOW: CRITICAL RESTOCK PREDICTION FIX NEEDED IMMEDIATELY
+
+PROBLEM: Admin reorders entered as counts break prediction math because:
+- prediction_service.py:54-55 calculates actual_usage = start.quantity_delta - end.quantity_delta  
+- When restock increases quantity, this becomes NEGATIVE usage
+- Negative usage destroys linear regression models for stockout predictions
+- Days until low stock and estimated totals become completely wrong
+
+SOLUTION: Implement Admin Transfer System for Restocks
+
+1. DATABASE CHANGES:
+   - Add new special location: "REORDER_SUPPLIER" (location_id = null for REORDERS and -1 for RECOUNTS)
+   - This represents external supplier as inventory source
+   - Admin transfers FROM this location represent restocks from suppliers
+
+2. RESTOCK WORKFLOW:
+   - When admin generates restock report and enters actual supplier order quantities
+   - Create ADMIN TRANSFER: from_location_id=REORDER_SUPPLIER, to_location_id=target, quantity=+amount
+   - This shows as trusted admin transfer, NOT as count that breaks math
+
+   
+DEAD SIMPLE ML SOLUTION: WEEKLY RETRAIN SCRIPT
+The Approach: Random Forest on All Historical Data
+Just dump ALL ActionLog rows into a Random Forest, let it figure out consumption rates. No sequences, no complexity.
+
+Training Script (Run Weekly) Cron Job
+
+Prediction Function (Runtime)
+
+Integration with Stockout Prediction
+
+Random Forest handles non-linear patterns: Automatically finds "if day=Sunday AND location=5, consumption is lower"
+No sequence complexity: Each row is independent, no LSTM needed
+Handles all your edge cases: Restocks, transfers, counts - all just features
+Self-improving: Gets better every week as more data comes in
+Fast predictions: Random Forest inference is microseconds
+
+Manual Override for Low Data
+python# In config file or DB settings table
+MANUAL_OVERRIDES = {
+    (item_id=42, location_id=3): 5.0,  # Force 5/day consumption rate
+    (item_id=99, location_id=1): 2.0,  # Force 2/day
+}
+
+# In prediction function
+if (item_id, location_id) in MANUAL_OVERRIDES:
+    return MANUAL_OVERRIDES[(item_id, location_id)], 'manual'
+
+
+
+
+"""
+
 
 @bp.before_request
 def check_admin_authorization():
@@ -284,67 +338,28 @@ def restock(squad):
     # Get all items for this user with min/max quantities
     items = Items.query.filter_by(user_id=current_user.id, active=True).all()
 
-    # Get all quantity data for this user
-    quantities = ItemLocationQuantities.query.filter_by(user_id=current_user.id).all()
+    # RECALCULATE item_location_quantities from admin counts
+    from app.inventory.prediction_service import InventoryPredictor
 
-    # Create a lookup dictionary for total quantities per item
-    item_totals = {}
-    for qty in quantities:
-        if qty.item_id not in item_totals:
-            item_totals[qty.item_id] = 0
-        item_totals[qty.item_id] += qty.quantity
+    InventoryPredictor.recalculate_all_quantities(current_user.id)
 
-    # Calculate restock recommendations
+    # Calculate restock recommendations with current and estimated totals
+
     restock_data = []
     for item in items:
-        # Calculate current total from LATEST ADMIN RECOUNTS, not stale quantities table
-        from collections import defaultdict
-
-        from app.inventory.models import ActionLogs
-
-        # Get all admin recounts for this item
-        admin_recounts = ActionLogs.query.filter(
-            ActionLogs.user_id == current_user.id,
-            ActionLogs.item_id == item.id,
-            ActionLogs.admin_action == True,
-            ActionLogs.from_location_id.is_(None),
-        ).all()
-
-        if admin_recounts:
-            # Group by date and sum quantities for each date
-            daily_totals = defaultdict(int)
-            for recount in admin_recounts:
-                date_key = recount.time_scanned.date()
-                daily_totals[date_key] += recount.quantity_delta
-
-            # Use the most recent date's total
-            current_total = daily_totals[max(daily_totals.keys())] if daily_totals else 0
-
-            # DEBUG: Print what we calculated for tourniquets
-            if item.name == "Tourniquets":
-                print(f"DEBUG TOURNIQUETS: Found {len(admin_recounts)} admin recounts")
-                print(f"DEBUG TOURNIQUETS: Daily totals = {dict(daily_totals)}")
-                print(f"DEBUG TOURNIQUETS: Current total = {current_total}")
-        else:
-            # NO admin recounts exist - try quantities table
-            quantities_total = item_totals.get(item.id, 0)
-            current_total = quantities_total
-
-            # DEBUG: Print what we calculated for tourniquets
-            if item.name == "Tourniquets":
-                print(f"DEBUG TOURNIQUETS: No admin recounts, using quantities table = {current_total}")
         min_qty = item.min_quantity or 0
         max_qty = item.max_quantity or 0
         batch_size = item.batch_size or 0
-        delivery_days = item.restock_delivery_days or 7  # Default to 7 days if not set
-
-        # Total inventory predictive restock logic
-        from app.inventory.prediction_service import InventoryPredictor
+        delivery_days = item.restock_delivery_days or 7
 
         days_until_low = None
         order_amount = 0
 
-        # Calculate days until low stock using TOTAL inventory
+        # Get both current and estimated totals
+        current_total = InventoryPredictor.get_current_total_for_item(current_user.id, item.id)
+        estimated_total = InventoryPredictor.get_estimated_total_for_item(current_user.id, item.id)
+
+        # Calculate days until low stock using estimated total
         if min_qty > 0:
             prediction = InventoryPredictor.predict_total_low_stock(current_user.id, item.id, min_qty)
 
@@ -353,36 +368,42 @@ def restock(squad):
                     days_until_low = 0
                 else:
                     days_until_low = prediction.get("days_until_low_stock")
+
+                # DEBUG: Print prediction for tourniquets
+                if item.name == "Tourniquets":
+                    print(f"DEBUG TOURNIQUETS: Prediction = {prediction}")
+                    print(f"DEBUG TOURNIQUETS: Days until low = {days_until_low}")
+                    print(f"DEBUG TOURNIQUETS: Current total = {current_total}")
+                    print(f"DEBUG TOURNIQUETS: Estimated total = {estimated_total}")
             else:
                 days_until_low = None
 
-            # DEBUG: Print prediction for tourniquets
-            if item.name == "Tourniquets":
-                print(f"DEBUG TOURNIQUETS: Prediction = {prediction}")
-                print(f"DEBUG TOURNIQUETS: Days until low = {days_until_low}")
-        else:
-            days_until_low = None
+                if item.name == "Tourniquets":
+                    print("DEBUG TOURNIQUETS: No prediction available")
+                    print(f"DEBUG TOURNIQUETS: Current total = {current_total}")
+                    print(f"DEBUG TOURNIQUETS: Estimated total = {estimated_total}")
 
         # Calculate order amount to reach max by delivery time
         if max_qty > 0 and days_until_low is not None and days_until_low <= delivery_days * 2:
             # Calculate expected usage during delivery period
             expected_usage_during_delivery = 0
-            if days_until_low > 0:
-                daily_usage_rate = (current_total - min_qty) / days_until_low
+            if days_until_low > 0 and prediction and prediction.get("daily_usage_rate"):
+                daily_usage_rate = prediction["daily_usage_rate"]
                 expected_usage_during_delivery = daily_usage_rate * delivery_days
 
-            # Order to reach max_qty accounting for usage during delivery
-            needed = max_qty - current_total + expected_usage_during_delivery
+            # Order to reach max_qty accounting for usage during delivery (use estimated total)
+            needed = max_qty - estimated_total + expected_usage_during_delivery
 
             if batch_size > 0:
                 order_amount = int(((needed + batch_size - 1) // batch_size) * batch_size)
             else:
-                order_amount = max(0, int(needed))
+                order_amount = int(needed) if needed > 0 else 0
 
         restock_data.append(
             {
                 "item": item,
                 "current_total": current_total,
+                "estimated_total": estimated_total,
                 "min_quantity": min_qty,
                 "max_quantity": max_qty,
                 "days_until_low": days_until_low,
@@ -425,6 +446,14 @@ def admin_history(squad):
 @bp.route("/<squad>/admin-panel/scan-items")
 def admin_scan_items(squad):
     """Admin item selection screen for scanning"""
+    # Check for UPC error parameter
+    upc_error = request.args.get("upc_error")
+    if upc_error:
+        flash(
+            f"UPC {upc_error} not found in inventory. Please make sure you are scanning the appropriate item card on shelf.",
+            "error",
+        )
+
     items = Items.query.filter_by(user_id=current_user.id).order_by(Items.last_accessed.desc().nullslast()).all()
     return render_template("index.html", items=items, squad=squad, logo_img=current_user.image, admin=True)
 
@@ -443,9 +472,12 @@ def scan_locations(squad):
         return handle_scan_locations_post(squad, request.form, is_admin=True)
     else:
         item_id = request.args.get("item_id")
-        user_recount_allow = request.args.get("user_recount_allow", "True") == "True"
+        user_count_allow = request.args.get("user_count_allow", "True") == "True"
+        user_restock_allow = request.args.get("user_restock_allow", "True") == "True"
         user_take_allow = request.args.get("user_take_allow", "True") == "True"
-        return handle_scan_locations_get(squad, item_id, user_recount_allow, user_take_allow, is_admin=True)
+        return handle_scan_locations_get(
+            squad, item_id, user_count_allow, user_restock_allow, user_take_allow, is_admin=True
+        )
 
 
 @bp.route("/<squad>/admin-panel/scan/item", methods=["GET", "POST"])
@@ -457,23 +489,28 @@ def scan_item(squad):
         item_id = request.args.get("item_id")
         from_location_id = request.args.get("from_location_id")
         to_location_id = request.args.get("to_location_id")
-        user_recount_allow = request.args.get("user_recount_allow", "True") == "True"
+        user_count_allow = request.args.get("user_count_allow", "True") == "True"
+        user_restock_allow = request.args.get("user_restock_allow", "True") == "True"
         user_take_allow = request.args.get("user_take_allow", "True") == "True"
         return handle_scan_item_get(
-            squad, item_id, from_location_id, to_location_id, user_recount_allow, user_take_allow, is_admin=True
+            squad,
+            item_id,
+            from_location_id,
+            to_location_id,
+            user_count_allow,
+            user_restock_allow,
+            user_take_allow,
+            is_admin=True,
         )
 
-
-# TODO RAINBOW: Add comprehensive testing suite for restock report logic
-# - Test admin recount aggregation by date
-# - Test linear regression predictions with mock data
-# - Test edge cases (no data, single data point, negative trends)
-# - Test batch size rounding calculations
-# - Validate order amount calculations with different scenarios
 
 # TODO YELLOW: Add color coding to restock table cells
 # - Red: Days until low <= 3 (urgent)
 # - Orange: Days until low <= 7 (soon)
-# - Yellow: Days until low <= 14 (watch) 
+# - Yellow: Days until low <= 14 (watch)
 # - Green: Days until low > 14 (good)
 # - Gray: No prediction available (insufficient data)
+
+# TODO YELLOW: When in ADMIN mode could scan location be chosen BEFORE the search is made
+# - This way don't have to select each time when doing repetitive things and changes
+# - Add location pre-selection on admin scan items page for workflow efficiency

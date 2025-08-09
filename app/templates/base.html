@@ -45,11 +45,9 @@
         <div class="main-title">
             {% block header_title %}Inventory IQ{% endblock %}:
         </div>
-        <div class="sub-title">
-            {% if self.sub_title()|trim %}
-                <div class="sub-title">&nbsp;{% block sub_title %} {% endblock %}</div>
-            {% endif %}
-        </div>
+        {% if self.sub_title()|trim %}
+            <div class="sub-title">&nbsp;{% block sub_title %} {% endblock %}</div>
+        {% endif %}
         <div class="header-right">
             {% block header_right %}
                 {{ header_logo( logo_img|image_src ) }}

@@ -19,7 +19,7 @@ class AlertQueueService:
 
         Args:
             user_id: User to alert
-            alert_type: One of: low_stock, zero_stock, expired_soon, rare_scan, recount_admin
+            alert_type: One of: low_stock, zero_stock, expired_soon, rare_scan, count_admin
             item_name: Name of the item
             urgent: Whether this needs immediate attention
             **data: Values for message template (quantity, min_quantity, days, etc)
