@@ -6,8 +6,6 @@ from dotenv import load_dotenv
 from flask import current_app, flash, redirect, render_template, request, session, url_for
 from flask_login import current_user
 
-logger = logging.getLogger(__name__)
-
 from app import db
 from app.auth.models import UserItemLocations, UserItemTags, Users
 from app.helpers.timezone_utils import get_timezone_display_hint
@@ -20,6 +18,8 @@ from app.inventory.scan_helpers import (
     handle_scan_locations_post,
     handle_scan_start,
 )
+
+logger = logging.getLogger(__name__)
 
 load_dotenv()
 
@@ -359,29 +359,23 @@ def restock(squad):
         current_total = InventoryPredictor.get_current_total_for_item(current_user.id, item.id)
         estimated_total = InventoryPredictor.get_estimated_total_for_item(current_user.id, item.id)
 
-        # Calculate days until low stock using estimated total
+        # Calculate days until low stock using Bayesian prediction
+        prediction_confidence = None
         if min_qty > 0:
-            prediction = InventoryPredictor.predict_total_low_stock(current_user.id, item.id, min_qty)
+            # Get total usage timeline for Bayesian prediction
+            timeline = InventoryPredictor.get_total_usage_timeline(current_user.id, item.id)
+            prediction = InventoryPredictor.predict_low_stock(timeline, min_qty, item.prior_daily_usage)
 
             if prediction:
                 if prediction.get("already_low"):
                     days_until_low = 0
                 else:
                     days_until_low = prediction.get("days_until_low_stock")
-
-                # DEBUG: Print prediction for tourniquets
-                if item.name == "Tourniquets":
-                    print(f"DEBUG TOURNIQUETS: Prediction = {prediction}")
-                    print(f"DEBUG TOURNIQUETS: Days until low = {days_until_low}")
-                    print(f"DEBUG TOURNIQUETS: Current total = {current_total}")
-                    print(f"DEBUG TOURNIQUETS: Estimated total = {estimated_total}")
+                
+                # Extract confidence breakdown for display
+                prediction_confidence = prediction.get("confidence_breakdown", {})
             else:
                 days_until_low = None
-
-                if item.name == "Tourniquets":
-                    print("DEBUG TOURNIQUETS: No prediction available")
-                    print(f"DEBUG TOURNIQUETS: Current total = {current_total}")
-                    print(f"DEBUG TOURNIQUETS: Estimated total = {estimated_total}")
 
         # Calculate order amount to reach max by delivery time
         if max_qty > 0 and days_until_low is not None and days_until_low <= delivery_days * 2:
@@ -408,6 +402,7 @@ def restock(squad):
                 "max_quantity": max_qty,
                 "days_until_low": days_until_low,
                 "order_amount": order_amount,
+                "prediction_confidence": prediction_confidence,
             }
         )
 

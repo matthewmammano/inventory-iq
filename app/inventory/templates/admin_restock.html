@@ -77,6 +77,7 @@
     <th>Min Quantity</th>
     <th>Max Quantity</th>
     <th>Days Until Low</th>
+    <th>Prediction Confidence</th>
     <th>Order Amount</th>
   </tr>
   {% for row in restock_data %}
@@ -87,6 +88,16 @@
     <td>{{ row.min_quantity if row.min_quantity > 0 else '-' }}</td>
     <td>{{ row.max_quantity if row.max_quantity > 0 else '-' }}</td>
     <td>{{ row.days_until_low if row.days_until_low is not none else '-' }}</td>
+    <td>
+      {% if row.prediction_confidence %}
+        <span class="confidence-badge">
+          {{ "%.0f"|format((row.prediction_confidence.ml_weight + row.prediction_confidence.prior_weight) * 100) }}%
+        </span>
+        <!-- TODO YELLOW: Remove ML vs prior confidence breakdown from frontend - not needed for users -->
+      {% else %}
+        <span style="color: #999;">No prediction</span>
+      {% endif %}
+    </td>
     <td><b>{{ row.order_amount if row.order_amount > 0 else '0' }}</b></td>
   </tr>
   {% endfor %}

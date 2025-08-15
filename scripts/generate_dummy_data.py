@@ -34,7 +34,7 @@ def generate_dummy_data(num_users: int = 5, items_per_user: int = 20) -> None:
     print(f"[INFO] Would generate dummy data with {num_users} users and ~{items_per_user} items each")
     print("[INFO] Implementation TODO: pass for now")
 
-    # TODO: Pass for now - implement full dummy data generation
+    # TODO GREY: Pass for now - implement full dummy data generation
     pass
 
     # Future implementation will include:

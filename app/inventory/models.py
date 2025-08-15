@@ -58,6 +58,7 @@ class Items(db.Model):
     batch_size = db.Column(db.Integer, nullable=True)  # batch amount for restocking
     expiration_days = db.Column(db.Integer, nullable=True)  # approx. days until expiration for perishable items
     restock_delivery_days = db.Column(db.Integer, nullable=True)  # days to expect delivery after restock order
+    prior_daily_usage = db.Column(db.Float, nullable=True)  # manual prior knowledge of daily usage rate
 
     # TODO ORANGE: Add expiration date tracking for items -> MESSAGE ANDY WELSH PURCHASE
     # - Add expiry_date field to Items model
@@ -153,6 +154,20 @@ class Items(db.Model):
         except ValueError as e:
             logging.error(f"Integer validation error for item {getattr(self, 'id', 'new')} field '{key}': {e}")
             raise
+
+    @validates("prior_daily_usage")
+    def validate_prior_daily_usage(self, key, value):
+        """Validate prior daily usage is a non-negative float."""
+        if value is None:
+            return None
+        try:
+            value = float(value)
+            if value < 0:
+                raise ValueError("Prior daily usage must be non-negative")
+            return value
+        except (ValueError, TypeError) as e:
+            logging.error(f"Prior daily usage validation error for item {getattr(self, 'id', 'new')}: {e}")
+            raise ValueError("Prior daily usage must be a non-negative number")
 
     @validates("image")
     def validate_image(self, key, value):
@@ -255,6 +270,8 @@ class ActionLogs(db.Model):
     quantity_delta = db.Column(db.Integer, nullable=False)
     # if this action was performed by an admin (e.g., via the admin panel)
     admin_action = db.Column(db.Boolean, default=False)
+    # if this operation is estimated to be a restock (47% increase OR NULL->location pattern)
+    estimated_restock = db.Column(db.Boolean, default=False)
     time_scanned = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships

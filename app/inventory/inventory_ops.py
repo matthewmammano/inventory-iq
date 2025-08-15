@@ -129,7 +129,7 @@ def _validate_inputs(user_id: int, item_id: int, quantity: int,
 def _create_action_log(user_id: int, item_id: int, quantity: int,
                       operation_type: OperationType, from_location: Optional[int], 
                       to_location: Optional[int], admin_action: bool) -> ActionLogs:
-    """Create ActionLog entry."""
+    """Create ActionLog entry with automatic restock detection."""
     action_log = ActionLogs(
         user_id=user_id,
         item_id=item_id,
@@ -143,6 +143,13 @@ def _create_action_log(user_id: int, item_id: int, quantity: int,
     
     db.session.add(action_log)
     db.session.flush()  # Get ID but don't commit yet
+    
+    # Apply restock detection for admin operations
+    if admin_action:
+        from app.inventory.restock_detection import RestockDetectionService
+        RestockDetectionService.classify_action_log(action_log)
+        logger.info(f"ActionLog {action_log.id} classified as restock: {action_log.estimated_restock}")
+    
     return action_log
 
 
