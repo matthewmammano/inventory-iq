@@ -19,9 +19,7 @@ class EmailBatchService:
     def should_send_email(user_alerts: UserAlerts) -> bool:
         """Check if it's time to send based on grouping hours"""
         logger.info(f"should_send_email called for user_id={user_alerts.user_id}")
-        logger.info(
-            f"Pending alerts count: {len(user_alerts.pending_alerts) if user_alerts.pending_alerts else 0}"
-        )
+        logger.info(f"Pending alerts count: {len(user_alerts.pending_alerts) if user_alerts.pending_alerts else 0}")
         if not user_alerts.pending_alerts:
             return False
         if not user_alerts.last_sent:
@@ -69,14 +67,14 @@ class EmailBatchService:
             logger.info(f"Subject: {email_batch.subject}")
             logger.info(f"Sender: {current_app.config.get('MAIL_DEFAULT_SENDER', 'NOT_SET')}")
             logger.info(f"Recipients: {[email_batch.user_email]}")
-            
+
             # Render email templates from alerts/templates folder
             logger.info("Rendering email templates...")
             try:
                 # Use the template names directly since blueprint has template_folder='templates'
                 text_content = render_template("batch_email.txt", batch=email_batch)
                 html_content = render_template("batch_email.html", batch=email_batch)
-                
+
                 # Use EmailMultiAlternatives for best practice HTML + text emails
                 msg = EmailMultiAlternatives(
                     subject=email_batch.subject,

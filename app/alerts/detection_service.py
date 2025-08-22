@@ -12,6 +12,7 @@ class AlertDetectionService:
         """Check for all types of inventory alerts based on user preferences."""
 
         # Import here to avoid circular imports
+        from app import db
         from app.auth.models import UserAlerts
         from app.inventory.models import ActionLogs, Items
 
@@ -35,29 +36,39 @@ class AlertDetectionService:
             old_qty = previous_quantities.get(loc_id, 0)
             logger.info(f"Checking location {loc_id}: old_qty={old_qty}, new_qty={new_qty}")
 
-            # Predictive low stock alert using linear regression
+            # Predictive low stock alert using new prediction system
             if user_alerts.low_stock_days and user_alerts.low_stock_days > 0:
-                from app.inventory.prediction_service import InventoryPredictor
-                
-                will_be_low = InventoryPredictor.will_be_low_in_days(
-                    user_id, item_id, loc_id, item.min_quantity or 1, user_alerts.low_stock_days
-                )
-                
-                if will_be_low:
-                    timeline = InventoryPredictor.get_usage_timeline(user_id, item_id, loc_id)
-                    prediction = InventoryPredictor.predict_low_stock(timeline, item.min_quantity or 1)
-                    
-                    logger.warning(
-                        f"PREDICTIVE LOW STOCK: {item.name} at location {loc_id} will be low in {prediction.get('days_until_low_stock', 'unknown')} days"
-                    )
-                    alerts.append({
-                        "location_id": loc_id,
-                        "alert_type": "predictive_low_stock", 
-                        "quantity": new_qty,
-                        "predicted_days": prediction.get('days_until_low_stock'),
-                        "confidence": prediction.get('confidence', 0),
-                        "urgent": prediction.get('days_until_low_stock', 999) <= 3
-                    })
+                try:
+                    from app.prediction.prediction_engine import PredictionEngine
+
+                    # Get prediction for this location
+                    prediction_result = PredictionEngine.predict_usage(db.session, user_id, item_id, loc_id)
+
+                    if prediction_result and prediction_result.daily_usage_rate < 0:  # Consumption
+                        daily_consumption = abs(prediction_result.daily_usage_rate)
+                        min_threshold = item.min_quantity or 1
+
+                        # Calculate days until low
+                        if daily_consumption > 0 and new_qty > min_threshold:
+                            days_until_low = (new_qty - min_threshold) / daily_consumption
+
+                            if days_until_low <= user_alerts.low_stock_days:
+                                logger.warning(
+                                    f"PREDICTIVE LOW STOCK: {item.name} at location {loc_id} will be low in {days_until_low:.1f} days"
+                                )
+                                alerts.append(
+                                    {
+                                        "location_id": loc_id,
+                                        "alert_type": "predictive_low_stock",
+                                        "quantity": new_qty,
+                                        "predicted_days": round(days_until_low, 1),
+                                        "confidence": prediction_result.confidence_score,
+                                        "urgent": days_until_low <= 3,
+                                    }
+                                )
+                except Exception as e:
+                    logger.error(f"Predictive alert calculation failed: {e}")
+                    # Continue without predictive alerts if calculation fails
 
             # 1. Zero stock alert - immediate when hitting 0 if enabled
             if user_alerts.zero_stock and new_qty == 0 and old_qty > 0:

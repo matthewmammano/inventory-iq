@@ -74,6 +74,7 @@
     <th>Item Name</th>
     <th>Current Total</th>
     <th>Estimated Total</th>
+    <th>Monthly Usage</th>
     <th>Min Quantity</th>
     <th>Max Quantity</th>
     <th>Days Until Low</th>
@@ -85,20 +86,21 @@
     <td>{{ row.item.name }}</td>
     <td>{{ row.current_total }}</td>
     <td>{{ row.estimated_total }}</td>
+    <td>{{ "%.1f"|format(row.monthly_usage_rate) if row.monthly_usage_rate >= 0 else 'N/A' }}</td>
     <td>{{ row.min_quantity if row.min_quantity > 0 else '-' }}</td>
     <td>{{ row.max_quantity if row.max_quantity > 0 else '-' }}</td>
-    <td>{{ row.days_until_low if row.days_until_low is not none else '-' }}</td>
+    <td>{{ "%.1f"|format(row.days_until_low if row.days_until_low <= 365 else 365) if row.days_until_low is not none else 'N/A' }}</td>
     <td>
       {% if row.prediction_confidence %}
         <span class="confidence-badge">
-          {{ "%.0f"|format((row.prediction_confidence.ml_weight + row.prediction_confidence.prior_weight) * 100) }}%
+          {{ "%.0f"|format(row.prediction_confidence.confidence * 100) }}%
         </span>
         <!-- TODO YELLOW: Remove ML vs prior confidence breakdown from frontend - not needed for users -->
       {% else %}
         <span style="color: #999;">No prediction</span>
       {% endif %}
     </td>
-    <td><b>{{ row.order_amount if row.order_amount > 0 else '0' }}</b></td>
+    <td><b>{{ row.order_amount if (row.order_amount is not none and row.order_amount > 0) else ('N/A' if row.order_amount is none else '0') }}</b></td>
   </tr>
   {% endfor %}
 </table>

@@ -10,6 +10,7 @@ def register_error_handlers(app):
 
     @app.errorhandler(404)
     def not_found_error(error):
+        app.logger.warning(f"404 error: {error}")
         return render_template(
             "error.html",
             error_title="Error",
@@ -21,6 +22,7 @@ def register_error_handlers(app):
 
     @app.errorhandler(500)
     def internal_error(error):
+        app.logger.error(f"500 error: {error}")
         return render_template(
             "error.html",
             error_title="Error",
@@ -32,6 +34,7 @@ def register_error_handlers(app):
 
     @app.errorhandler(403)
     def forbidden_error(error):
+        app.logger.warning(f"403 error: {error}")
         return render_template(
             "error.html",
             error_title="Error",

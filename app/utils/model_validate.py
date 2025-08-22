@@ -3,6 +3,7 @@
 Validation helper functions for models.
 Import this into models.py to keep validation logic organized.
 """
+
 import logging
 
 
@@ -42,7 +43,9 @@ def validate_positive_integer(value, field_name, allow_none=True):
         logging.error(f"Validation failed: {field_name} cannot be None")
         raise ValueError(f"{field_name} cannot be None")
     if not isinstance(value, int) or value <= 0:
-        logging.error(f"Validation failed: {field_name} must be a positive integer, got {type(value)} with value {value}")
+        logging.error(
+            f"Validation failed: {field_name} must be a positive integer, got {type(value)} with value {value}"
+        )
         raise ValueError(f"{field_name} must be a positive integer")
     return value
 
@@ -55,7 +58,9 @@ def validate_non_negative_integer(value, field_name, allow_none=True):
         logging.error(f"Validation failed: {field_name} cannot be None")
         raise ValueError(f"{field_name} cannot be None")
     if not isinstance(value, int) or value < 0:
-        logging.error(f"Validation failed: {field_name} must be a non-negative integer, got {type(value)} with value {value}")
+        logging.error(
+            f"Validation failed: {field_name} must be a non-negative integer, got {type(value)} with value {value}"
+        )
         raise ValueError(f"{field_name} must be a non-negative integer")
     return value
 

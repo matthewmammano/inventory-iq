@@ -5,7 +5,7 @@ from sqlalchemy.orm import validates
 from werkzeug.security import check_password_hash, generate_password_hash
 
 from app import db
-from app.helpers.model_validate import (
+from app.utils.model_validate import (
     validate_email_format,
     validate_image_url,
     validate_string_length,

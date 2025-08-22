@@ -8,14 +8,14 @@ from sqlalchemy.orm import validates
 from app import db
 from app.alerts.detection_service import AlertDetectionService
 from app.auth.models import UserItemTags
-from app.helpers.model_validate import (
+from app.utils.model_validate import (
     validate_image_url,
     validate_non_negative_integer,
     validate_positive_integer,
     validate_string_length,
     validate_tag_id_type,
 )
-from app.helpers.timezone_utils import convert_utc_to_local
+from app.utils.timezone_utils import convert_utc_to_local
 
 # TODO YELLOW: update...
 # - use UV instead of pip way better
@@ -270,8 +270,6 @@ class ActionLogs(db.Model):
     quantity_delta = db.Column(db.Integer, nullable=False)
     # if this action was performed by an admin (e.g., via the admin panel)
     admin_action = db.Column(db.Boolean, default=False)
-    # if this operation is estimated to be a restock (47% increase OR NULL->location pattern)
-    estimated_restock = db.Column(db.Boolean, default=False)
     time_scanned = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
@@ -328,11 +326,19 @@ class ActionLogs(db.Model):
         return convert_utc_to_local(self.time_scanned, user_timezone)
 
     def process_action(self, db_session):
-        """Update ItemLocationQuantities and check for alerts."""
+        """
+        Update ItemLocationQuantities and check for alerts.
+
+        Negative quantities are allowed and indicate data quality issues
+        that require admin attention via COUNT operations.
+
+        Returns:
+            tuple: (updated_quantities_dict, alerts_list)
+        """
         updated_quantities = {}
         previous_quantities = {}
 
-        # Handle FROM location (subtract)
+        # Handle FROM location (subtract quantity)
         if self.from_location_id:
             from_qty = get_or_create_item_location_quantity(
                 db_session, self.user_id, self.item_id, self.from_location_id
@@ -341,20 +347,29 @@ class ActionLogs(db.Model):
             from_qty.quantity = from_qty.quantity - self.quantity_delta
             updated_quantities[self.from_location_id] = from_qty.quantity
 
-        # Handle TO location (add/set)
+        # Handle TO location (add/set quantity)
         if self.to_location_id:
             to_qty = get_or_create_item_location_quantity(db_session, self.user_id, self.item_id, self.to_location_id)
             previous_quantities[self.to_location_id] = to_qty.quantity
-            # Set absolute quantity for COUNT, add for all others
+
             if self.operation_type == OperationType.count:
+                # COUNT operations set absolute quantity (ground truth)
                 to_qty.quantity = self.quantity_delta
             else:
+                # RESTOCK, TRANSFER operations add to existing quantity
                 to_qty.quantity = to_qty.quantity + self.quantity_delta
+
             updated_quantities[self.to_location_id] = to_qty.quantity
 
-        alerts = AlertDetectionService.check_quantity_alerts(
-            self.user_id, self.item_id, updated_quantities, previous_quantities, self.admin_action
-        )
+        # Check for alerts (non-blocking to avoid failing inventory operations)
+        try:
+            alerts = AlertDetectionService.check_quantity_alerts(
+                self.user_id, self.item_id, updated_quantities, previous_quantities, self.admin_action
+            )
+        except Exception as e:
+            logging.error(f"Alert detection failed for ActionLog {self.id}: {e}")
+            alerts = []  # Don't fail the operation if alerts fail
+
         return updated_quantities, alerts
 
 

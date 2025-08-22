@@ -19,6 +19,32 @@ db: SQLAlchemy = SQLAlchemy()
 login_manager: LoginManager = LoginManager()
 mail: Mail = Mail()
 
+"""
+# TODO BLUE: Strategic DRY Implementation
+
+## Database Query Optimization Analysis Needed
+
+### Repeated Patterns Found:
+1. `Users.query.filter_by(display_name=squad).first()` - Used in 4+ places
+2. `Items.query.filter_by(id=item_id, user_id=user_id).first()` - Used in 8+ places  
+3. Error handling patterns for database failures
+4. Squad validation logic
+
+### Implementation Strategy:
+- Analyze each pattern for:
+  - Performance impact of abstraction
+  - Module-specific context requirements
+  - SQL optimization opportunities
+- Keep complex, performance-critical queries in original modules
+- Abstract only high-value, truly repeated patterns
+- Consider caching for frequently accessed data
+
+### Priority:
+- Low priority - current code is functional
+- Consider during next major refactoring cycle
+- Focus on performance-critical areas first
+"""
+
 
 def create_app() -> Flask:
     """
@@ -40,7 +66,6 @@ def create_app() -> Flask:
 
     # Call optional init_app method on config class
     config_class.init_app(app)
-
 
     # Ensure instance folder exists for SQLite in dev mode
     if app.config.get("SQLALCHEMY_DATABASE_URI", "").startswith("sqlite"):
@@ -92,14 +117,10 @@ def create_app() -> Flask:
 
         return url_for("static", filename="images/not-found.jpg")
 
-    # TODO PINK: Add proper error handling and logging system for production
-    # - Configure structured logging (JSON format)
-    # - Log user actions and system events
-    # - Set up log rotation and monitoring alerts
+    # Setup production logging
+    from app.logging_config import setup_logging
 
-    # Configure logging
-    logging.basicConfig(level=logging.INFO)
-    logging.getLogger("werkzeug").setLevel(logging.INFO)
+    setup_logging()
 
     # Import and register Blueprints and models
     from app.alerts import bp as alerts_bp

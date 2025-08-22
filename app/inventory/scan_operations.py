@@ -47,6 +47,7 @@ def handle_scan_start(squad, item_id, is_admin=False):
     item = Items.query.filter_by(id=item_id).first() if item_id else None
 
     if not item:
+        logger.warning(f"Scan attempted with invalid item_id: {item_id}")
         flash("Item not found.", "error")
         endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad))
@@ -212,10 +213,17 @@ def handle_scan_item_get(
     item = Items.query.get(item_id)
     if from_location_id in ["-1", "-2"]:
         from_location = int(from_location_id)  # -1 for RESTOCK, -2 for COUNT
-    else:
+    elif from_location_id is not None:
         from_location = UserItemLocations.query.get(from_location_id)
+    else:
+        from_location = None
 
-    to_location = -1 if to_location_id == "-1" else UserItemLocations.query.get(to_location_id)
+    if to_location_id == "-1":
+        to_location = -1
+    elif to_location_id is not None:
+        to_location = UserItemLocations.query.get(to_location_id)
+    else:
+        to_location = None
 
     if not item or not from_location:
         flash("Invalid item or locations.", "error")
@@ -262,6 +270,7 @@ def handle_scan_item_post(squad, form_data, is_admin=False):
 
     # Basic validation - detailed validation happens in inventory_operation
     if not counter_value or not counter_value.isdigit():
+        logger.warning(f"Invalid quantity entered by user {current_user.email}: '{counter_value}'")
         flash("Invalid quantity. Please enter a valid number.", "error")
         endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad, item_id=item_id))

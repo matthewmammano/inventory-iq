@@ -5,11 +5,11 @@ from zoneinfo import ZoneInfo
 
 def convert_utc_to_local(utc_datetime: datetime, user_timezone: str) -> datetime:
     """Convert UTC datetime to user's local timezone.
-    
+
     Args:
         utc_datetime: DateTime object in UTC
         user_timezone: IANA timezone string (e.g., 'America/New_York')
-        
+
     Returns:
         DateTime object converted to user's timezone, or original if conversion fails
     """
@@ -17,7 +17,7 @@ def convert_utc_to_local(utc_datetime: datetime, user_timezone: str) -> datetime
         return None
     if not user_timezone:
         return utc_datetime
-        
+
     try:
         # Ensure UTC timezone is set if not already
         utc_time = utc_datetime.replace(tzinfo=timezone.utc) if utc_datetime.tzinfo is None else utc_datetime
@@ -32,20 +32,20 @@ def convert_utc_to_local(utc_datetime: datetime, user_timezone: str) -> datetime
 
 def get_timezone_display_hint(user_timezone: str) -> str:
     """Get a display hint for the user's timezone.
-    
+
     Args:
         user_timezone: IANA timezone string
-        
+
     Returns:
         Human-readable timezone hint (e.g., 'EST', 'PDT')
     """
     if not user_timezone:
         return "UTC"
-        
+
     try:
         # Get current timezone abbreviation
         now = datetime.now(ZoneInfo(user_timezone))
-        return now.strftime('%Z')
+        return now.strftime("%Z")
     except Exception as e:
         logging.error(f"Timezone display hint generation failed for '{user_timezone}': {e}")
-        return user_timezone.split('/')[-1]  # Fallback to city name
+        return user_timezone.split("/")[-1]  # Fallback to city name
