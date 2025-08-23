@@ -16,7 +16,11 @@
     <div class="where_to_from">{{ "RESTOCK" if from_location == -1 else ("COUNT" if from_location == -2 else (from_location.name if from_location else "Unknown")) }} → {{ "TAKE" if to_location == -1 else (to_location.name if to_location else "Unknown") }}</div>
     
     <div class="image-cell">
-        <img src="{{item.image|image_src}}" alt="{{item.name}}">
+        <img src="{{item.image|image_src}}" 
+             alt="{{item.name}}" 
+             loading="lazy" 
+             decoding="async"
+             onerror="this.src='{{ url_for('static', filename='images/not-found.jpg') }}'">
     </div>
     
     <div class="info-section">

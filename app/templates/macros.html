@@ -1,5 +1,9 @@
 {% macro header_logo(src) %}
-    <img src="{{ src }}" class="header-logo">
+    <img src="{{ src }}" 
+         class="header-logo" 
+         loading="lazy" 
+         decoding="async"
+         onerror="this.src='{{ url_for('static', filename='images/not-found.jpg') }}'">
 {% endmacro %}
 
 {% macro header_button(url, text) %}
