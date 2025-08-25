@@ -79,7 +79,7 @@ def import_items():
                 print(f"[ERROR] Failed to create '{item_data.get('name')}': {error}")
                 failed += 1
 
-        print("\n[SUCCESS] ✅ Import complete!")
+        print("\n[SUCCESS] Import complete!")
         print(f"- Created: {created} items")
         print(f"- Failed: {failed} items")
 
@@ -330,7 +330,7 @@ def import_items_for_user(user):
                 print(f"[ERROR] Failed to create '{item_data.get('name')}': {error}")
                 failed += 1
 
-        print("\n[SUCCESS] ✅ Import complete!")
+        print("\n[SUCCESS] Import complete!")
         print(f"- Created: {created} items")
         print(f"- Failed: {failed} items")
 

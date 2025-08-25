@@ -90,7 +90,7 @@ def delete_user():
         user.active = False
         from app import db
         db.session.commit()
-        print(f"\n[SUCCESS] ✅ User '{user.display_name}' deactivated.")
+        print(f"\n[SUCCESS] User '{user.display_name}' deactivated.")
     except Exception as e:
         from app import db
         db.session.rollback()

@@ -31,8 +31,8 @@ class Alert(BaseModel):
     @property
     def icon(self) -> str:
         """Get emoji icon for alert type"""
-        icons = {"low_stock": "⚠️", "zero_stock": "🚨", "expired_soon": "📅", "rare_scan": "👁️", "count_admin": "📊"}
-        return icons.get(self.type, "📋")
+        icons = {"low_stock": "WARNING", "zero_stock": "ALERT", "expired_soon": "EXPIRY", "rare_scan": "SCAN", "count_admin": "COUNT"}
+        return icons.get(self.type, "INFO")
 
 
 class EmailBatch(BaseModel):
@@ -46,8 +46,8 @@ class EmailBatch(BaseModel):
     def subject(self) -> str:
         urgent_count = sum(1 for a in self.alerts if a.urgent)
         if urgent_count > 0:
-            return f"🚨 {urgent_count} URGENT inventory alerts"
-        return f"📋 {len(self.alerts)} inventory updates"
+            return f"ALERT: {urgent_count} URGENT inventory alerts"
+        return f"INFO: {len(self.alerts)} inventory updates"
 
     def group_by_type(self) -> Dict[str, List[Alert]]:
         """Group alerts by type for organized display"""

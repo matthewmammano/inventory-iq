@@ -109,7 +109,7 @@ def create_with_validation(model_class: Type, **data) -> tuple[Optional[Any], Op
         instance = model_class(**data)
         db.session.add(instance)
         db.session.commit()
-        print(f"\n[SUCCESS] ✅ {model_class.__name__} created!")
+        print(f"\n[SUCCESS] {model_class.__name__} created!")
         return instance, None
     except ValueError as e:
         db.session.rollback()
@@ -133,7 +133,7 @@ def delete_with_confirmation(instance: Any, additional_check: Callable = None) -
     try:
         db.session.delete(instance)
         db.session.commit()
-        print(f"\n[SUCCESS] ✅ '{name}' deleted!")
+        print(f"\n[SUCCESS] '{name}' deleted!")
         return True
     except Exception as e:
         db.session.rollback()

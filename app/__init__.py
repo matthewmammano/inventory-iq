@@ -34,7 +34,7 @@ def create_app() -> Flask:
     app = Flask(__name__)
 
     # Load environment-specific configuration
-    env: str = os.getenv("FLASK_ENV", "dev")
+    env: str = os.getenv("FLASK_ENV", "prod")
     config_class = config_by_name.get(env, config_by_name["dev"])
     app.config.from_object(config_class)
 

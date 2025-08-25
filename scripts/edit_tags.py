@@ -69,7 +69,7 @@ def edit_tag_color(user):
         selected.color = new_color  # Triggers @validates decorator
         from app import db
         db.session.commit()
-        print(f"\n[SUCCESS] ✅ Tag color updated!")
+        print(f"\n[SUCCESS] Tag color updated!")
     except ValueError as e:
         from app import db
         db.session.rollback()

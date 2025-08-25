@@ -1,0 +1,10 @@
+{
+  "language": "python",
+  "version": "3.13.7",
+  "install": [
+    "pip install --no-cache-dir -r requirements.txt"
+  ],
+  "deploy": {
+    "start": "gunicorn run:app -b 0.0.0.0:$PORT --workers=2 --threads=2 --timeout=30 --log-level=info"
+  }
+}

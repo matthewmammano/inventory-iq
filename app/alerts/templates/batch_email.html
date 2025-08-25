@@ -70,9 +70,9 @@
         
         <div class="content">
             <div class="summary">
-                <strong>📊 Summary:</strong> {{ batch.alerts|length }} items need your attention
+                <strong>SUMMARY:</strong> {{ batch.alerts|length }} items need your attention
                 {% if batch.alerts|selectattr("urgent")|list|length > 0 %}
-                <br><strong>🚨 Urgent:</strong> {{ batch.alerts|selectattr("urgent")|list|length }} items require immediate action
+                <br><strong>URGENT:</strong> {{ batch.alerts|selectattr("urgent")|list|length }} items require immediate action
                 {% endif %}
             </div>
             
@@ -81,7 +81,7 @@
                 <div class="alert-type">{{ alert.icon }} {{ alert.type.replace('_', ' ') }}</div>
                 <strong>{{ alert.item }}</strong>
                 <br>{{ alert.message }}
-                {% if alert.urgent %}<br><em style="color: #dc3545;">⚡ Urgent attention required</em>{% endif %}
+                {% if alert.urgent %}<br><em style="color: #dc3545;">URGENT: Attention required</em>{% endif %}
             </div>
             {% endfor %}
             
