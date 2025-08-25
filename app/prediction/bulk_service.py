@@ -2,8 +2,6 @@
 Bulk service for restock analysis and batch predictions.
 
 Provides single-call API for admin restock page with recalculation and predictions.
-
-TODO RAINBOW: Test prediction system accuracy on TRUE POINT BORO DATA
 """
 
 import logging
@@ -12,8 +10,8 @@ from typing import Dict, List, Optional, Union
 
 from sqlalchemy.orm import Session
 
-from app.core.quantity_service import QuantityService
 from app.core.data_access import DataAccessService
+from app.core.quantity_service import QuantityService
 from app.inventory.models import ActionLogs, Items, OperationType
 
 from .prediction_engine import PredictionEngine

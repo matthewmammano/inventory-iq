@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Cron job script to process batched email alerts.
 Run hourly: 0 * * * * cd /path/to/inventory-iq && python -m app.tasks.process_email_alerts

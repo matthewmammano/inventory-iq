@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 TODO YELLOW UNLESS DONE AUTOMATICALLY!: Implement database backup system
 

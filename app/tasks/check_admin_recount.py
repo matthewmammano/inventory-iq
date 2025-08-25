@@ -1,5 +1,3 @@
-#!/usr/bin/env python3
-# TODO RAINBOW NOW why is above here?
 """
 TODO RED: Implement admin count monitoring
 

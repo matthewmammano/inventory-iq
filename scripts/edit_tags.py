@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 edit_tags.py - Script to manage user tags in the InventoryIQ system
 """
@@ -19,11 +18,7 @@ from scripts.utils import (
 
 def display_tags(user):
     """Display all tags for a user with pagination."""
-    tags = (
-        UserItemTags.query.filter_by(user_id=user.id)
-        .order_by(UserItemTags.tag_name)
-        .all()
-    )
+    tags = UserItemTags.query.filter_by(user_id=user.id).order_by(UserItemTags.tag_name).all()
 
     def display_tag(tag, index):
         print(f"{index}. {tag.tag_name} (Color: {tag.color})")
@@ -56,20 +51,20 @@ def add_tag(user):
         return
 
     # Get tag color (optional)
-    color = prompt_for_string("Tag color (hex format like #3b82f6, or press Enter for default blue): ", allow_empty=True)
+    color = prompt_for_string(
+        "Tag color (hex format like #3b82f6, or press Enter for default blue): ", allow_empty=True
+    )
     if color == "q":
         return
-    
+
     # Validate color format if provided
-    if color and not (color.startswith('#') and len(color) == 7):
+    if color and not (color.startswith("#") and len(color) == 7):
         print("[ERROR] Color must be in hex format like #3b82f6")
         input("\nPress Enter to continue...")
         return
 
     # Check if tag already exists for this user
-    existing = UserItemTags.query.filter_by(
-        user_id=user.id, tag_name=tag_name
-    ).first()
+    existing = UserItemTags.query.filter_by(user_id=user.id, tag_name=tag_name).first()
 
     if existing:
         print(f"[ERROR] Tag '{tag_name}' already exists for this user!")
@@ -78,9 +73,7 @@ def add_tag(user):
 
     # Confirm action
     color_text = f" with color {color}" if color else ""
-    if not confirm_action(
-        f"Add tag '{tag_name}'{color_text} for user '{user.display_name}'?"
-    ):
+    if not confirm_action(f"Add tag '{tag_name}'{color_text} for user '{user.display_name}'?"):
         print("Operation cancelled.")
         return
 
@@ -102,11 +95,7 @@ def add_tag(user):
 
 def edit_tag(user):
     """Edit a tag's color for a user."""
-    tags = (
-        UserItemTags.query.filter_by(user_id=user.id)
-        .order_by(UserItemTags.tag_name)
-        .all()
-    )
+    tags = UserItemTags.query.filter_by(user_id=user.id).order_by(UserItemTags.tag_name).all()
 
     def display_tag(tag, index):
         print(f"{index}. {tag.tag_name} (Color: {tag.color})")
@@ -125,17 +114,17 @@ def edit_tag(user):
         return
 
     tag = tags[tag_index]
-    
+
     print(f"\nEditing tag: {tag.tag_name}")
     print(f"Current color: {tag.color}")
-    
+
     # Get new color
     new_color = prompt_for_string("New color (hex format like #3b82f6): ")
     if new_color == "q":
         return
-    
+
     # Validate color format
-    if not (new_color.startswith('#') and len(new_color) == 7):
+    if not (new_color.startswith("#") and len(new_color) == 7):
         print("[ERROR] Color must be in hex format like #3b82f6")
         input("\nPress Enter to continue...")
         return
@@ -158,11 +147,7 @@ def edit_tag(user):
 
 def delete_tag(user):
     """Delete a tag for a user."""
-    tags = (
-        UserItemTags.query.filter_by(user_id=user.id)
-        .order_by(UserItemTags.tag_name)
-        .all()
-    )
+    tags = UserItemTags.query.filter_by(user_id=user.id).order_by(UserItemTags.tag_name).all()
 
     def display_tag(tag, index):
         print(f"{index}. {tag.tag_name}")
@@ -185,10 +170,7 @@ def delete_tag(user):
     # Check if tag is used in items
     from app.inventory.models import Items
 
-    items_with_tag = Items.query.filter(
-        Items.user_id == user.id,
-        Items.tag_ids.contains([tag.id])
-    ).first()
+    items_with_tag = Items.query.filter(Items.user_id == user.id, Items.tag_ids.contains([tag.id])).first()
 
     if items_with_tag:
         print("\n[WARNING] This tag is used by existing inventory items.")
@@ -203,21 +185,16 @@ def delete_tag(user):
 
     try:
         # Remove tag from all items that use it
-        items_using_tag = Items.query.filter(
-            Items.user_id == user.id,
-            Items.tag_ids.contains([tag.id])
-        ).all()
-        
+        items_using_tag = Items.query.filter(Items.user_id == user.id, Items.tag_ids.contains([tag.id])).all()
+
         for item in items_using_tag:
             if tag.id in item.tag_ids:
                 item.tag_ids.remove(tag.id)
-        
+
         # Delete the tag
         db.session.delete(tag)
         db.session.commit()
-        print(
-            f"\n[SUCCESS] ✅ Tag '{tag.tag_name}' deleted successfully!"
-        )
+        print(f"\n[SUCCESS] ✅ Tag '{tag.tag_name}' deleted successfully!")
         if items_using_tag:
             print(f"Removed tag from {len(items_using_tag)} item(s).")
         input("\nPress Enter to continue...")

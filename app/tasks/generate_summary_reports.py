@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 TODO RED: Implement scheduled summary report generation
 

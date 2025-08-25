@@ -1,15 +1,15 @@
-#!/usr/bin/env python3
 """
 Load test data from log.sql using verified UPC mapping.
 Only loads data for the 72 items with near-identical matches (85%+ similarity).
 """
 
-import re
 import logging
+import re
 from datetime import datetime
+
 from app import create_app, db
+from app.auth.models import UserItemLocations, Users
 from app.inventory.models import ActionLogs, Items, OperationType
-from app.auth.models import Users, UserItemLocations
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -94,21 +94,21 @@ OLD_UPC_TO_NEW_UPC = {
 def parse_sql_file(filepath: str) -> list:
     """Parse log.sql file and extract INSERT statements."""
     logger.info(f"Parsing SQL file: {filepath}")
-    
-    with open(filepath, 'r', encoding='utf-8') as f:
+
+    with open(filepath, "r", encoding="utf-8") as f:
         content = f.read()
-    
+
     # Extract all INSERT statements with VALUES
     pattern = r"INSERT INTO `log`.*?VALUES\s*\n(.*?)(?=INSERT INTO|$)"
     matches = re.findall(pattern, content, re.DOTALL)
-    
+
     all_rows = []
     for match in matches:
         # Parse individual value rows
         row_pattern = r"\((\d+),\s*'([^']+)',\s*'([^']+)',\s*'([^']+)',\s*(\d+)\)"
         rows = re.findall(row_pattern, match)
         all_rows.extend(rows)
-    
+
     logger.info(f"Extracted {len(all_rows)} data rows from SQL file")
     return all_rows
 
@@ -116,7 +116,7 @@ def parse_sql_file(filepath: str) -> list:
 def map_transfer_type_to_operation(transfer_type: str, location_name: str) -> tuple:
     """Map legacy transfer types to new operation types."""
     transfer_type = transfer_type.strip().upper()
-    
+
     if "RECOUNT" in transfer_type:
         return OperationType.count, None, location_name
     elif "RESTOCK" in transfer_type:
@@ -132,10 +132,10 @@ def map_transfer_type_to_operation(transfer_type: str, location_name: str) -> tu
 def parse_datetime(date_str: str) -> datetime:
     """Parse datetime from log format."""
     try:
-        return datetime.strptime(date_str, '%m/%d/%Y %H:%M:%S')
+        return datetime.strptime(date_str, "%m/%d/%Y %H:%M:%S")
     except ValueError:
         try:
-            return datetime.strptime(date_str, '%Y-%m-%d %H:%M:%S')
+            return datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
         except ValueError:
             logger.error(f"Unable to parse datetime: {date_str}")
             return datetime.now()
@@ -145,19 +145,14 @@ def get_or_create_location(location_name: str, user_id: int) -> int:
     """Get or create location for user."""
     if not location_name:
         return None
-        
+
     location = UserItemLocations.query.filter_by(name=location_name, user_id=user_id).first()
     if not location:
-        location = UserItemLocations(
-            name=location_name,
-            user_id=user_id,
-            user_access_from=True,
-            user_access_to=True
-        )
+        location = UserItemLocations(name=location_name, user_id=user_id, user_access_from=True, user_access_to=True)
         db.session.add(location)
         db.session.flush()
         logger.info(f"Created new location: {location_name}")
-    
+
     return location.id
 
 
@@ -174,83 +169,82 @@ def get_item_id_by_upc(upc: str, user_id: int) -> int:
 def load_test_data():
     """Main function to load test data with verified mapping."""
     app = create_app()
-    
+
     with app.app_context():
         logger.info("Starting final test data loading...")
-        
+
         # Get the user
         user = Users.query.first()
         if not user:
             logger.error("No users found!")
             return
-        
+
         logger.info(f"Using user: {user.display_name} (ID: {user.id})")
-        
+
         # Clear existing ActionLogs
         logger.info("Clearing existing ActionLogs...")
         ActionLogs.query.delete()
         db.session.commit()
         logger.info("ActionLogs table cleared")
-        
+
         # Build new UPC to item ID mapping
         logger.info("Building UPC to item ID mapping...")
         upc_to_item_id = {}
         missing_items = []
-        
+
         for old_upc, new_upc in OLD_UPC_TO_NEW_UPC.items():
             item_id = get_item_id_by_upc(new_upc, user.id)
             if item_id:
                 upc_to_item_id[old_upc] = item_id
             else:
                 missing_items.append((old_upc, new_upc))
-        
+
         logger.info(f"Successfully mapped {len(upc_to_item_id)} UPC codes to item IDs")
         if missing_items:
             logger.warning(f"Missing {len(missing_items)} items in database:")
             for old_upc, new_upc in missing_items:
                 logger.warning(f"  {old_upc} -> {new_upc}")
-        
+
         # Parse SQL file
-        sql_rows = parse_sql_file('log.sql')
-        
+        sql_rows = parse_sql_file("log.sql")
+
         # Take first 80% of rows for training
         rows_to_process = int(len(sql_rows) * 0.8)
         test_rows = sql_rows[:rows_to_process]
-        
+
         logger.info(f"Processing first {rows_to_process} rows (training data)")
         logger.info(f"Reserved {len(sql_rows) - rows_to_process} rows for testing")
-        
+
         success_count = 0
         skip_count = 0
         error_count = 0
-        
+
         for row in test_rows:
             try:
                 id_val, date_str, upc, transfer_type, number = row
-                
+
                 # Clean UPC (remove leading zeros, pad to 12)
-                upc_clean = upc.strip().lstrip('0').zfill(12)
-                
+                upc_clean = upc.strip().lstrip("0").zfill(12)
+
                 # Skip if we don't have a mapping for this UPC
                 if upc_clean not in upc_to_item_id:
                     skip_count += 1
                     continue
-                
+
                 item_id = upc_to_item_id[upc_clean]
-                
+
                 # Parse operation details
                 operation_type, from_loc_name, to_loc_name = map_transfer_type_to_operation(
-                    transfer_type, 
-                    transfer_type.split(' - ')[-1] if ' - ' in transfer_type else 'Shelf'
+                    transfer_type, transfer_type.split(" - ")[-1] if " - " in transfer_type else "Shelf"
                 )
-                
+
                 # Get or create locations
                 from_location_id = get_or_create_location(from_loc_name, user.id) if from_loc_name else None
                 to_location_id = get_or_create_location(to_loc_name, user.id) if to_loc_name else None
-                
+
                 # Parse datetime
                 time_scanned = parse_datetime(date_str)
-                
+
                 # Create ActionLog entry
                 action_log = ActionLogs(
                     user_id=user.id,
@@ -260,35 +254,35 @@ def load_test_data():
                     to_location_id=to_location_id,
                     quantity_delta=int(number),
                     admin_action=True,  # Mark as admin action for ML training
-                    time_scanned=time_scanned
+                    time_scanned=time_scanned,
                 )
-                
+
                 db.session.add(action_log)
                 success_count += 1
-                
+
                 # Commit in batches
                 if success_count % 100 == 0:
                     db.session.commit()
                     logger.info(f"Processed {success_count} records...")
-                
+
             except Exception as e:
                 error_count += 1
                 logger.error(f"Error processing row {row}: {e}")
                 continue
-        
+
         # Final commit
         db.session.commit()
-        
-        logger.info(f"Test data loading complete!")
+
+        logger.info("Test data loading complete!")
         logger.info(f"Successfully loaded: {success_count} records")
         logger.info(f"Skipped (no mapping): {skip_count} records")
         logger.info(f"Errors: {error_count} records")
-        logger.info(f"Training data loaded from first 80% of log.sql")
+        logger.info("Training data loaded from first 80% of log.sql")
         logger.info(f"Remaining 20% ({len(sql_rows) - rows_to_process} rows) reserved for testing predictions")
-        
+
         # Show sample data
         sample_logs = ActionLogs.query.order_by(ActionLogs.time_scanned.asc()).limit(5).all()
-        logger.info(f"\nSample loaded data:")
+        logger.info("\nSample loaded data:")
         for log in sample_logs:
             item = Items.query.get(log.item_id)
             logger.info(f"  {log.time_scanned} - {log.operation_type.value} - {item.name} - Qty: {log.quantity_delta}")

@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 edit_location.py - Script to manage user locations in the InventoryIQ system
 """

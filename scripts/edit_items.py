@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 edit_items.py - Script to import items from CSV in the InventoryIQ system
 """
@@ -24,9 +23,16 @@ def validate_csv_headers(headers):
     """Validate that required headers are present."""
     required_headers = {"user_id", "name"}
     optional_headers = {
-        "upc", "active", "tag_ids", "increments", "image", 
-        "min_quantity", "max_quantity", "batch_size", 
-        "expiration_days", "restock_delivery_days"
+        "upc",
+        "active",
+        "tag_ids",
+        "increments",
+        "image",
+        "min_quantity",
+        "max_quantity",
+        "batch_size",
+        "expiration_days",
+        "restock_delivery_days",
     }
 
     headers_set = set(headers)
@@ -86,7 +92,7 @@ def parse_integer(value, field_name):
     """Parse positive integer value from CSV string."""
     if not value or value.strip() == "":
         return None  # Return None for empty values
-    
+
     try:
         parsed_value = int(value.strip())
         if parsed_value < 0:
@@ -161,7 +167,9 @@ def load_items_from_csv(csv_file_path, target_user_id):
                     item_data["expiration_days"] = parse_integer(row["expiration_days"], "expiration_days")
 
                 if "restock_delivery_days" in row:
-                    item_data["restock_delivery_days"] = parse_integer(row["restock_delivery_days"], "restock_delivery_days")
+                    item_data["restock_delivery_days"] = parse_integer(
+                        row["restock_delivery_days"], "restock_delivery_days"
+                    )
 
                 items.append(item_data)
 
@@ -195,10 +203,10 @@ def create_items_from_data(items_data):
     for item_data in items_data:
         try:
             # Generate UPC manually if not provided
-            if 'upc' not in item_data or not item_data['upc']:
-                item_data['upc'] = generate_unique_upc(item_data['user_id'], used_upcs)
-                used_upcs.add(item_data['upc'])
-            
+            if "upc" not in item_data or not item_data["upc"]:
+                item_data["upc"] = generate_unique_upc(item_data["user_id"], used_upcs)
+                used_upcs.add(item_data["upc"])
+
             item = Items(**item_data)
             db.session.add(item)
             created_count += 1
@@ -213,14 +221,13 @@ def create_items_from_data(items_data):
 def generate_unique_upc(user_id, used_upcs):
     """Generate a unique UPC that doesn't conflict with existing or recently generated ones."""
     from app.inventory.models import Items
-    
+
     halfway_point = "500000000000"  # start auto-generation at halfway point
     max_attempts = 1000
-    
+
     # Get the largest existing UPC from database
     largest_upc = (
-        Items.query.filter(Items.user_id == user_id, Items.upc >= halfway_point)
-        .order_by(Items.upc.desc()).first()
+        Items.query.filter(Items.user_id == user_id, Items.upc >= halfway_point).order_by(Items.upc.desc()).first()
     )
 
     if largest_upc:
@@ -233,12 +240,11 @@ def generate_unique_upc(user_id, used_upcs):
         next_base = str(next_number + attempt).zfill(11)
         check_digit = Items.calculate_upc_check_digit(next_base)
         new_upc = next_base + check_digit
-        
+
         # Check if this UPC exists in database OR in our current session
-        if (not Items.query.filter_by(upc=new_upc).first() and 
-            new_upc not in used_upcs):
+        if not Items.query.filter_by(upc=new_upc).first() and new_upc not in used_upcs:
             return new_upc
-    
+
     raise ValueError(f"Could not generate unique UPC after {max_attempts} attempts")
 
 
