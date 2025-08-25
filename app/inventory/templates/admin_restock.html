@@ -95,7 +95,6 @@
         <span class="confidence-badge">
           {{ "%.0f"|format(row.prediction_confidence.confidence * 100) }}%
         </span>
-        <!-- TODO YELLOW: Remove ML vs prior confidence breakdown from frontend - not needed for users -->
       {% else %}
         <span style="color: #999;">No prediction</span>
       {% endif %}

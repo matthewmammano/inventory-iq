@@ -19,32 +19,6 @@ db: SQLAlchemy = SQLAlchemy()
 login_manager: LoginManager = LoginManager()
 mail: Mail = Mail()
 
-"""
-# TODO BLUE: Strategic DRY Implementation
-
-## Database Query Optimization Analysis Needed
-
-### Repeated Patterns Found:
-1. `Users.query.filter_by(display_name=squad).first()` - Used in 4+ places
-2. `Items.query.filter_by(id=item_id, user_id=user_id).first()` - Used in 8+ places  
-3. Error handling patterns for database failures
-4. Squad validation logic
-
-### Implementation Strategy:
-- Analyze each pattern for:
-  - Performance impact of abstraction
-  - Module-specific context requirements
-  - SQL optimization opportunities
-- Keep complex, performance-critical queries in original modules
-- Abstract only high-value, truly repeated patterns
-- Consider caching for frequently accessed data
-
-### Priority:
-- Low priority - current code is functional
-- Consider during next major refactoring cycle
-- Focus on performance-critical areas first
-"""
-
 
 def create_app() -> Flask:
     """

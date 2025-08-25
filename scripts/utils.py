@@ -1,161 +1,96 @@
 import os
-from typing import Any, Callable, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Type
 
-from app import create_app
+from app import create_app, db
 from app.auth.models import Users
 
 
 def clear_screen():
-    """Clear the terminal screen based on operating system."""
+    """Clear terminal screen."""
     os.system("cls" if os.name == "nt" else "clear")
 
 
 def print_header(title: str):
-    """Print a formatted header for the current operation."""
+    """Print formatted header."""
     clear_screen()
     print("\n" + "=" * 50)
     print(f"{title.center(50)}")
     print("=" * 50 + "\n")
 
 
-def prompt_for_integer(message: str, min_val: int = None, max_val: int = None) -> int:
-    """Prompt the user for an integer input with validation."""
+def get_input(prompt: str) -> Optional[str]:
+    """Get string input, return None if user quits."""
+    value = input(prompt).strip()
+    return None if value.lower() == "q" else value
+
+
+def get_yes_no(prompt: str) -> Optional[bool]:
+    """Get yes/no input."""
     while True:
-        try:
-            value = input(message)
-            if value.lower() == "q":
-                return -1  # Special value for quit
-
-            value = int(value)
-
-            if min_val is not None and value < min_val:
-                print(f"Value must be at least {min_val}. Try again.")
-                continue
-
-            if max_val is not None and value > max_val:
-                print(f"Value must be at most {max_val}. Try again.")
-                continue
-
-            return value
-        except ValueError:
-            print("Please enter a valid number.")
-
-
-def prompt_for_string(message: str, allow_empty: bool = False) -> str:
-    """Prompt the user for a string input with validation."""
-    while True:
-        value = input(message)
-        if value.lower() == "q":
-            return "q"  # Special value for quit
-
-        if not allow_empty and not value.strip():
-            print("Input cannot be empty. Try again.")
-            continue
-
-        return value.strip()
-
-
-def prompt_for_boolean(message: str) -> bool:
-    """Prompt the user for a yes/no response."""
-    while True:
-        response = input(f"{message} (y/n): ").lower()
-        if response in ["y", "yes"]:
+        value = get_input(f"{prompt} (y/n): ")
+        if value is None:
+            return None
+        if value.lower() in ["y", "yes"]:
             return True
-        elif response in ["n", "no"]:
+        elif value.lower() in ["n", "no"]:
             return False
-        else:
-            print("Please enter 'y' or 'n'.")
+        print("Enter 'y' or 'n'")
 
 
-def paginate_display(
-    items: List[Any], display_function: Callable[[Any, int], None], page_size: int = 10
-) -> int:
-    """
-    Display items with pagination and return the selected index.
-
-    Args:
-        items: List of items to display
-        display_function: Function to display a single item with its index
-        page_size: Number of items to display per page
-
-    Returns:
-        Selected index or -1 if user wants to quit
-    """
+def select_from_list(items: List[Any], display_func: Callable, title: str) -> Optional[Any]:
+    """Display paginated list and return selected item."""
     if not items:
+        print_header(title)
         print("No items found.")
-        input("Press Enter to continue...")
-        return -1
+        input("\nPress Enter to continue...")
+        return None
 
+    page_size = 10
     total_pages = (len(items) + page_size - 1) // page_size
-    current_page = 1
+    page = 1
 
     while True:
-        clear_screen()
-        start_index = (current_page - 1) * page_size
-        end_index = min(start_index + page_size, len(items))
+        print_header(title)
 
-        print(f"\nPage {current_page} of {total_pages}\n")
+        start = (page - 1) * page_size
+        end = min(start + page_size, len(items))
 
-        for i in range(start_index, end_index):
-            display_function(items[i], i + 1)
+        print(f"Page {page} of {total_pages}\n")
+        for i in range(start, end):
+            display_func(items[i], i + 1)
 
-        print("\nOptions:")
+        print(f"\nOptions: [1-{len(items)}] select")
         if total_pages > 1:
-            print("n - Next page" if current_page < total_pages else "")
-            print("p - Previous page" if current_page > 1 else "")
-        print("q - Return to previous menu")
+            if page < total_pages:
+                print("n - Next")
+            if page > 1:
+                print("p - Previous")
+        print("q - Quit")
 
-        choice = input("\nEnter the number of your choice or an option: ").lower()
+        choice = input("\nChoice: ").lower()
 
         if choice == "q":
-            return -1
-        elif choice == "n" and current_page < total_pages:
-            current_page += 1
-        elif choice == "p" and current_page > 1:
-            current_page -= 1
+            return None
+        elif choice == "n" and page < total_pages:
+            page += 1
+        elif choice == "p" and page > 1:
+            page -= 1
         elif choice.isdigit():
-            index = int(choice) - 1
-            if 0 <= index < len(items):
-                return index
-            else:
-                print("Invalid selection. Try again.")
-                input("Press Enter to continue...")
-        else:
-            print("Invalid input. Try again.")
-            input("Press Enter to continue...")
+            idx = int(choice) - 1
+            if 0 <= idx < len(items):
+                return items[idx]
+            print("Invalid selection.")
+            input("Press Enter...")
 
 
 def select_user() -> Optional[Users]:
-    """
-    Display a list of users and allow selection of one.
-
-    Returns:
-        Selected user object or None if cancelled
-    """
+    """Select from active users."""
     users = Users.query.filter_by(active=True).order_by(Users.display_name).all()
-
-    def display_user(user, index):
-        print(f"{index}. {user.display_name} ({user.email})")
-
-    print_header("SELECT USER")
-    print("Select a user to continue:\n")
-
-    user_index = paginate_display(users, display_user)
-
-    if user_index == -1:
-        return None
-
-    return users[user_index]
-
-
-def confirm_action(message: str) -> bool:
-    """Prompt for confirmation before proceeding with an action."""
-    response = input(f"\n{message} (y/n): ").lower()
-    return response in ["y", "yes"]
+    return select_from_list(users, lambda u, i: print(f"{i}. {u.display_name} ({u.email})"), "SELECT USER")
 
 
 def ensure_app_context(func):
-    """Decorator to ensure function runs within Flask app context."""
+    """Decorator for Flask app context."""
 
     def wrapper(*args, **kwargs):
         app = create_app()
@@ -163,3 +98,72 @@ def ensure_app_context(func):
             return func(*args, **kwargs)
 
     return wrapper
+
+
+def create_with_validation(model_class: Type, **data) -> tuple[Optional[Any], Optional[str]]:
+    """
+    Create model instance - validation happens automatically via @validates decorators.
+    Returns (instance, error_message)
+    """
+    try:
+        instance = model_class(**data)
+        db.session.add(instance)
+        db.session.commit()
+        print(f"\n[SUCCESS] ✅ {model_class.__name__} created!")
+        return instance, None
+    except ValueError as e:
+        db.session.rollback()
+        return None, str(e)
+    except Exception as e:
+        db.session.rollback()
+        return None, f"Database error: {e}"
+
+
+def delete_with_confirmation(instance: Any, additional_check: Callable = None) -> bool:
+    """Delete model instance with confirmation."""
+    name = getattr(instance, "name", None) or getattr(instance, "display_name", "item")
+
+    # Run additional checks (like checking if item is in use)
+    if additional_check and not additional_check(instance):
+        return False
+
+    if not get_yes_no(f"Delete '{name}'?"):
+        return False
+
+    try:
+        db.session.delete(instance)
+        db.session.commit()
+        print(f"\n[SUCCESS] ✅ '{name}' deleted!")
+        return True
+    except Exception as e:
+        db.session.rollback()
+        print(f"\n[ERROR] Delete failed: {e}")
+        return False
+
+
+def run_menu(title: str, options: Dict[str, tuple[str, Callable]]):
+    """Generic menu loop."""
+    while True:
+        print_header(title)
+
+        for key, (label, _) in options.items():
+            print(f"{key}. {label}")
+
+        choice = get_input(f"\nChoice (1-{len(options)}): ")
+
+        if choice is None or not choice.isdigit():
+            break
+
+        choice_num = int(choice)
+        if str(choice_num) not in options:
+            continue
+
+        try:
+            _, action = options[str(choice_num)]
+            if action() is True:  # Exit signal
+                break
+        except KeyboardInterrupt:
+            print("\nCancelled.")
+        except Exception as e:
+            print(f"\n[ERROR] {e}")
+            input("Press Enter...")
