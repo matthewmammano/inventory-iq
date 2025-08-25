@@ -17,6 +17,7 @@
     <th>From Location</th>
     <th>To Location</th>
     <th>Quantity</th>
+    <th>Time Scanned{% if timezone_hint %} ({{ timezone_hint }}){% endif %}</th>
     <th>Admin Action</th>
   </tr>
   {% for log in action_logs %}
@@ -25,6 +26,7 @@
     <td>{{ log.from_location.name if log.from_location else 'RECOUNT' }}</td>
     <td>{{ log.to_location.name if log.to_location else 'TAKE' }}</td>
     <td>{{ log.quantity_delta }}</td>
+    <td>{{ log.get_time_scanned_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if log.time_scanned else 'Unknown' }}</td>
     <td>{{ 'Yes' if log.admin_action else 'No' }}</td>
   </tr>
   {% endfor %}

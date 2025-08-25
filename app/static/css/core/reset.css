@@ -50,11 +50,6 @@ img, video, svg {
     display: block; /* Prevents inline gap below images */
 }
 
-/* Non-blocking image loading with error handling */
-img {
-    loading: lazy;
-}
-
 img:not([src]) {
     display: none;
 }

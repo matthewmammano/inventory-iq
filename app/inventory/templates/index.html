@@ -21,7 +21,7 @@
 
 <article{% if admin %} class="admin-border"{% endif %}>
     <div>        
-        <input type="text" id="search" name="search" placeholder="Scan item or search here..." />
+        <input type="text" id="search" name="search" placeholder="Scan item barcode or search here (name, category, barcode)..." />
         <ul id="results"></ul>
     </div>
 </article>
@@ -174,8 +174,9 @@ document.addEventListener('DOMContentLoaded', function() {
             // Navigate to scan page for this item
             window.location.href = `{% if admin %}/inventory/${squad}/admin-panel/scan?item_id=${foundItem.id}{% else %}/inventory/${squad}/scan?item_id=${foundItem.id}{% endif %}`;
         } else {
-            // UPC not found - show error message
-            alert(`UPC ${upc} not found in inventory. Please add this item first.`);
+            // UPC not found - redirect with error parameter
+            const params = new URLSearchParams({ upc_error: upc });
+            window.location.href = `{% if admin %}/inventory/${squad}/admin-panel/scan-items?${params}{% else %}/inventory/${squad}/?${params}{% endif %}`;
         }
     }
 });

@@ -28,13 +28,21 @@
     <th>Order Size</th>
     <th>Expiration Days</th>
     <th>Restock Delivery Days</th>
-    <th>Last Accessed</th>
+    <th>Last Accessed{% if timezone_hint %} ({{ timezone_hint }}){% endif %}</th>
   </tr>
   {% for item in items %}
   <tr>
     <td>{{ item.upc }}</td>
     <td>{{ item.active }}</td>
-    <td>{{ item.tags | map(attribute='tag_name') | join(', ') }}</td>
+    <td>
+      <div class="tag-container">
+        {% for tag in item.tags %}
+          <span class="tag-box" style="background-color: {{ tag.color }}; color: {{ tag.text_color }};">
+            {{ tag.tag_name }}
+          </span>
+        {% endfor %}
+      </div>
+    </td>
     <td>{{ item.increments }}</td>
     <td>{{ item.name }}</td>
     <td>{{ item.image }}</td>
@@ -43,7 +51,7 @@
     <td>{{ item.batch_size }}</td>
     <td>{{ item.expiration_days }}</td>
     <td>{{ item.restock_delivery_days }}</td>
-    <td>{{ item.last_accessed }}</td>
+    <td>{{ item.get_last_accessed_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if item.last_accessed else 'Never' }}</td>
   </tr>
   {% endfor %}
 </table>

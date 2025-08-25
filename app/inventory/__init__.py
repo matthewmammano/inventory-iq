@@ -1,7 +1,5 @@
 from flask import Blueprint
 
-# TODO YELLOW: add logging capabilities
-
 # Create separate blueprints for admin and guest routes
 admin_bp = Blueprint("admin", __name__, template_folder="templates", url_prefix="/inventory")
 guest_bp = Blueprint("guest", __name__, template_folder="templates", url_prefix="/inventory")

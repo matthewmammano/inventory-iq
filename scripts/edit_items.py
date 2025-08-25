@@ -1,6 +1,5 @@
-#!/usr/bin/env python3
 """
-edit_items.py - Script to import items from CSV in the InventoryIQ system
+edit_items.py - Item management and CSV import using model validation
 """
 
 import csv
@@ -10,343 +9,361 @@ from pathlib import Path
 from app import db
 from app.inventory.models import Items
 from scripts.utils import (
-    clear_screen,
-    confirm_action,
+    create_with_validation,
+    delete_with_confirmation,
     ensure_app_context,
+    get_input,
+    get_yes_no,
     print_header,
-    prompt_for_integer,
-    prompt_for_string,
+    run_menu,
+    select_from_list,
     select_user,
 )
 
 
-def validate_csv_headers(headers):
-    """Validate that required headers are present."""
-    required_headers = {"user_id", "name"}
-    optional_headers = {
-        "upc", "active", "tag_ids", "increments", "image", 
-        "min_quantity", "max_quantity", "batch_size", 
-        "expiration_days", "restock_delivery_days"
-    }
-
-    headers_set = set(headers)
-
-    # Check required headers
-    missing_required = required_headers - headers_set
-    if missing_required:
-        raise ValueError(f"Missing required CSV headers: {missing_required}")
-
-    # Check for invalid headers
-    valid_headers = required_headers | optional_headers
-    invalid_headers = headers_set - valid_headers
-    if invalid_headers:
-        print(f"[WARNING] Unknown CSV headers will be ignored: {invalid_headers}")
-
-    print(f"[INFO] CSV headers validated. Found: {list(headers_set)}")
-
-
-def parse_tag_ids(tag_ids_str):
-    """Parse tag_ids from string to list."""
-    if not tag_ids_str or tag_ids_str.strip() == "":
-        return []
-
-    try:
-        # Handle both quoted and unquoted JSON arrays
-        tag_ids_str = tag_ids_str.strip()
-        if tag_ids_str.startswith('"') and tag_ids_str.endswith('"'):
-            tag_ids_str = tag_ids_str[1:-1]  # Remove outer quotes
-
-        parsed = json.loads(tag_ids_str)
-        if not isinstance(parsed, list):
-            raise ValueError("tag_ids must be a JSON array")
-
-        # Ensure all items are integers
-        return [int(tag_id) for tag_id in parsed]
-    except (json.JSONDecodeError, ValueError) as e:
-        print(f"[WARNING] Invalid tag_ids format '{tag_ids_str}', using empty list. Error: {e}")
-        return []
-
-
-def parse_boolean(value):
-    """Parse boolean value from CSV string."""
-    if not value or value.strip() == "":
-        return True  # Default to True if empty
-
-    value = value.strip().lower()
-    if value in ("true", "1", "yes", "y"):
-        return True
-    elif value in ("false", "0", "no", "n"):
-        return False
-    else:
-        print(f"[WARNING] Invalid boolean value '{value}', defaulting to True")
-        return True
-
-
-def parse_integer(value, field_name):
-    """Parse positive integer value from CSV string."""
-    if not value or value.strip() == "":
-        return None  # Return None for empty values
-    
-    try:
-        parsed_value = int(value.strip())
-        if parsed_value < 0:
-            print(f"[WARNING] Negative value '{value}' for {field_name}, using None")
-            return None
-        return parsed_value
-    except ValueError:
-        print(f"[WARNING] Invalid integer value '{value}' for {field_name}, using None")
-        return None
-
-
-def load_items_from_csv(csv_file_path, target_user_id):
-    """Load items from CSV file and return list of item dictionaries for the target user."""
-    items = []
-
-    with open(csv_file_path, "r", newline="", encoding="utf-8") as csvfile:
-        # Detect delimiter
-        sample = csvfile.read(1024)
-        csvfile.seek(0)
-        sniffer = csv.Sniffer()
-        delimiter = sniffer.sniff(sample).delimiter
-
-        reader = csv.DictReader(csvfile, delimiter=delimiter)
-
-        # Validate headers
-        validate_csv_headers(reader.fieldnames)
-
-        for row_num, row in enumerate(reader, start=2):  # Start at 2 (header is row 1)
-            try:
-                # Parse required fields
-                user_id = int(row["user_id"])
-                name = row["name"].strip()
-
-                # Skip rows for different users
-                if user_id != target_user_id:
-                    continue
-
-                if not name:
-                    print(f"[WARNING] Row {row_num} has empty name, skipping")
-                    continue
-
-                # Build item dictionary with required fields
-                item_data = {"user_id": user_id, "name": name}
-
-                # Parse optional fields
-                if "upc" in row and row["upc"].strip():
-                    item_data["upc"] = row["upc"].strip()
-
-                if "active" in row:
-                    item_data["active"] = parse_boolean(row["active"])
-
-                if "tag_ids" in row:
-                    item_data["tag_ids"] = parse_tag_ids(row["tag_ids"])
-
-                if "increments" in row and row["increments"].strip():
-                    item_data["increments"] = row["increments"].strip()
-
-                if "image" in row and row["image"].strip():
-                    item_data["image"] = row["image"].strip()
-
-                # Parse integer fields
-                if "min_quantity" in row:
-                    item_data["min_quantity"] = parse_integer(row["min_quantity"], "min_quantity")
-
-                if "max_quantity" in row:
-                    item_data["max_quantity"] = parse_integer(row["max_quantity"], "max_quantity")
-
-                if "batch_size" in row:
-                    item_data["batch_size"] = parse_integer(row["batch_size"], "batch_size")
-
-                if "expiration_days" in row:
-                    item_data["expiration_days"] = parse_integer(row["expiration_days"], "expiration_days")
-
-                if "restock_delivery_days" in row:
-                    item_data["restock_delivery_days"] = parse_integer(row["restock_delivery_days"], "restock_delivery_days")
-
-                items.append(item_data)
-
-            except ValueError as e:
-                print(f"[ERROR] Error parsing row {row_num}: {e}")
-                continue
-            except Exception as e:
-                print(f"[ERROR] Unexpected error parsing row {row_num}: {e}")
-                continue
-
-    return items
-
-
-def delete_user_items(user_id):
-    """Delete all existing items for a specific user."""
-    try:
-        deleted_count = db.session.query(Items).filter_by(user_id=user_id).delete()
-        print(f"[INFO] Deleted {deleted_count} existing items for user {user_id}")
-        return deleted_count
-    except Exception as e:
-        print(f"[ERROR] Error deleting existing items: {e}")
-        raise
-
-
-def create_items_from_data(items_data):
-    """Create new items from parsed data."""
-    created_count = 0
-    failed_count = 0
-    used_upcs = set()  # Track UPCs generated in this session
-
-    for item_data in items_data:
-        try:
-            # Generate UPC manually if not provided
-            if 'upc' not in item_data or not item_data['upc']:
-                item_data['upc'] = generate_unique_upc(item_data['user_id'], used_upcs)
-                used_upcs.add(item_data['upc'])
-            
-            item = Items(**item_data)
-            db.session.add(item)
-            created_count += 1
-        except Exception as e:
-            print(f"[ERROR] Error creating item '{item_data.get('name', 'Unknown')}': {e}")
-            failed_count += 1
-            continue
-
-    return created_count, failed_count
-
-
-def generate_unique_upc(user_id, used_upcs):
-    """Generate a unique UPC that doesn't conflict with existing or recently generated ones."""
-    from app.inventory.models import Items
-    
-    halfway_point = "500000000000"  # start auto-generation at halfway point
-    max_attempts = 1000
-    
-    # Get the largest existing UPC from database
-    largest_upc = (
-        Items.query.filter(Items.user_id == user_id, Items.upc >= halfway_point)
-        .order_by(Items.upc.desc()).first()
-    )
-
-    if largest_upc:
-        base_11 = largest_upc.upc[:11]  # Remove check digit
-        next_number = int(base_11) + 1
-    else:
-        next_number = int(halfway_point[:11])
-
-    for attempt in range(max_attempts):
-        next_base = str(next_number + attempt).zfill(11)
-        check_digit = Items.calculate_upc_check_digit(next_base)
-        new_upc = next_base + check_digit
-        
-        # Check if this UPC exists in database OR in our current session
-        if (not Items.query.filter_by(upc=new_upc).first() and 
-            new_upc not in used_upcs):
-            return new_upc
-    
-    raise ValueError(f"Could not generate unique UPC after {max_attempts} attempts")
-
-
 def import_items():
-    """Import items from CSV file."""
+    """Import items from CSV with model validation."""
     print_header("IMPORT ITEMS FROM CSV")
-    print("This utility will replace ALL items for a selected user with items from a CSV file.")
-    print("\nCSV Format:")
-    print("Required columns: user_id, name")
-    print("Optional columns: upc, active, tag_ids, increments, image,")
-    print("                 min_quantity, max_quantity, batch_size,")
-    print("                 expiration_days, restock_delivery_days")
-    print("\nExample CSV:")
-    print("user_id,name,increments,tag_ids,active,min_quantity,max_quantity,batch_size")
-    print('1,Bandage,individual,"[1,2]",true,10,50,20')
-    print('1,Aspirin,bottle,"[3]",true,5,100,25\n')
+    print("Replace ALL items for selected user with CSV data.")
+    print("\nRequired CSV columns: user_id, name")
+    print(
+        "Optional: upc, active, tag_ids, increments, image, min_quantity, max_quantity, batch_size, expiration_days, restock_delivery_days"
+    )
+    print("\nExample:")
+    print("user_id,name,increments,tag_ids,min_quantity")
+    print('1,Bandage,individual,"[1,2]",10\n')
 
     # Select user
     user = select_user()
     if not user:
         return
 
-    print(f"\nSelected user: {user.display_name} ({user.email})")
-
     # Get CSV file path
-    csv_file_path = prompt_for_string("Enter path to CSV file: ")
-    if csv_file_path == "q":
-        return
-
-    # Check if file exists
-    if not Path(csv_file_path).exists():
-        print(f"[ERROR] CSV file '{csv_file_path}' not found!")
-        input("Press Enter to continue...")
+    csv_path = get_input("CSV file path: ")
+    if not csv_path or not Path(csv_path).exists():
+        print(f"[ERROR] File not found: {csv_path}")
+        input("Press Enter...")
         return
 
     try:
-        print(f"\n[INFO] Loading items from CSV: {csv_file_path}")
-        items_data = load_items_from_csv(csv_file_path, user.id)
-
+        # Load CSV data
+        items_data = load_csv_items(csv_path, user.id)
         if not items_data:
-            print(f"[WARNING] No items found for user {user.id} in CSV file")
-            input("Press Enter to continue...")
+            print(f"[WARNING] No items found for user {user.id}")
+            input("Press Enter...")
             return
 
-        print(f"[INFO] Found {len(items_data)} items for user {user.display_name}")
+        current_count = Items.query.filter_by(user_id=user.id).count()
+        print(f"\n[INFO] Found {len(items_data)} items in CSV")
+        print(f"[WARNING] This will DELETE {current_count} existing items")
 
-        # Show current item count
-        current_count = db.session.query(Items).filter_by(user_id=user.id).count()
-        print(f"[INFO] User currently has {current_count} items")
-
-        # Confirmation
-        print(f"\n[WARNING] This will DELETE ALL {current_count} existing items for {user.display_name}")
-        print(f"[INFO] And replace them with {len(items_data)} items from the CSV")
-
-        if not confirm_action("Continue with import?"):
-            print("Import cancelled.")
+        if not get_yes_no("Continue with import?"):
             return
 
-        # Start transaction
-        print("\n[INFO] Starting database transaction...")
+        # Delete existing and create new
+        print("\n[INFO] Starting import...")
 
-        # Delete all existing items for this user
-        print(f"[INFO] Deleting existing items for {user.display_name}...")
-        deleted_count = delete_user_items(user.id)
+        # Delete all user's items
+        deleted = Items.query.filter_by(user_id=user.id).delete()
+        print(f"Deleted {deleted} existing items")
 
-        # Create new items
-        print("[INFO] Creating new items...")
-        created_count, failed_count = create_items_from_data(items_data)
+        # Create new items using model validation
+        created = 0
+        failed = 0
 
-        # Commit the transaction
-        db.session.commit()
+        for item_data in items_data:
+            item, error = create_with_validation(Items, **item_data)
+            if item:
+                created += 1
+            else:
+                print(f"[ERROR] Failed to create '{item_data.get('name')}': {error}")
+                failed += 1
 
-        print("\n[SUCCESS] ✅ Import completed successfully!")
-        print(f"- Deleted: {deleted_count} existing items")
-        print(f"- Created: {created_count} new items")
-        if failed_count > 0:
-            print(f"- Failed: {failed_count} items (see errors above)")
-
-        # Show UPC generation results
-        items_without_upc = db.session.query(Items).filter(Items.user_id == user.id, Items.upc.is_(None)).count()
-        items_with_upc = db.session.query(Items).filter(Items.user_id == user.id, Items.upc.isnot(None)).count()
-        print(f"- Items with UPC: {items_with_upc}")
-        print(f"- Items without UPC (duplicates or generation failed): {items_without_upc}")
-
-        input("\nPress Enter to continue...")
+        print("\n[SUCCESS] Import complete!")
+        print(f"- Created: {created} items")
+        print(f"- Failed: {failed} items")
 
     except Exception as e:
         print(f"[ERROR] Import failed: {e}")
         db.session.rollback()
-        input("\nPress Enter to continue...")
+
+    input("\nPress Enter...")
+
+
+def load_csv_items(csv_path: str, user_id: int) -> list:
+    """Load and parse CSV items for specific user."""
+    items = []
+
+    with open(csv_path, "r", encoding="utf-8") as f:
+        # Auto-detect CSV delimiter
+        sample = f.read(1024)
+        f.seek(0)
+        delimiter = csv.Sniffer().sniff(sample).delimiter
+
+        reader = csv.DictReader(f, delimiter=delimiter)
+
+        for row_num, row in enumerate(reader, 2):
+            try:
+                # Skip other users
+                if int(row.get("user_id", 0)) != user_id:
+                    continue
+
+                # Build item data
+                item_data = {"user_id": user_id, "name": row["name"].strip()}
+
+                # Add optional fields if present
+                optional_fields = {
+                    "upc": str,
+                    "active": lambda x: x.lower() in ("true", "1", "yes"),
+                    "increments": str,
+                    "image": str,
+                    "min_quantity": int,
+                    "max_quantity": int,
+                    "batch_size": int,
+                    "expiration_days": int,
+                    "restock_delivery_days": int,
+                    "prior_daily_usage": float,
+                    "tag_ids": parse_tag_ids,
+                }
+
+                for field, converter in optional_fields.items():
+                    if field in row and row[field].strip():
+                        try:
+                            item_data[field] = converter(row[field].strip())
+                        except (ValueError, TypeError):
+                            print(f"[WARNING] Row {row_num}: Invalid {field} value '{row[field]}', skipping")
+
+                items.append(item_data)
+
+            except (ValueError, KeyError) as e:
+                print(f"[WARNING] Row {row_num}: {e}, skipping")
+
+    return items
+
+
+def parse_tag_ids(tag_str: str) -> list:
+    """Parse tag_ids JSON string to list of integers."""
+    if not tag_str:
+        return []
+    try:
+        # Handle quoted JSON
+        if tag_str.startswith('"') and tag_str.endswith('"'):
+            tag_str = tag_str[1:-1]
+        parsed = json.loads(tag_str)
+        return [int(x) for x in parsed] if isinstance(parsed, list) else []
+    except (json.JSONDecodeError, ValueError):
+        return []
+
+
+def view_items(user):
+    """View all items for a user."""
+    items = Items.query.filter_by(user_id=user.id).order_by(Items.name).all()
+
+    select_from_list(
+        items,
+        lambda item, i: print(f"{i}. {item.name} (UPC: {item.upc or 'Auto'})"),
+        f"ITEMS FOR {user.display_name.upper()}",
+    )
+
+
+def add_item(user):
+    """Add new item - validation handled by model."""
+    print_header(f"ADD ITEM FOR {user.display_name.upper()}")
+
+    # Required fields
+    name = get_input("Item name: ")
+    if not name:
+        return
+
+    # Optional fields with smart defaults
+    print("\nOptional fields (press Enter to skip):")
+
+    upc = get_input("UPC (12 digits, or Enter for auto): ") or None
+    increments = get_input("Increments (individual, box, case, etc.): ") or None
+    image = get_input("Image URL: ") or None
+
+    # Quantity fields
+    min_qty = get_input("Minimum quantity: ")
+    min_quantity = int(min_qty) if min_qty and min_qty.isdigit() else None
+
+    max_qty = get_input("Maximum quantity: ")
+    max_quantity = int(max_qty) if max_qty and max_qty.isdigit() else None
+
+    batch_sz = get_input("Batch size: ")
+    batch_size = int(batch_sz) if batch_sz and batch_sz.isdigit() else None
+
+    exp_days = get_input("Expiration days: ")
+    expiration_days = int(exp_days) if exp_days and exp_days.isdigit() else None
+
+    delivery_days = get_input("Restock delivery days: ")
+    restock_delivery_days = int(delivery_days) if delivery_days and delivery_days.isdigit() else None
+
+    # Tag IDs (simplified - just enter comma-separated IDs)
+    tag_input = get_input("Tag IDs (comma-separated, e.g. '1,2,3'): ")
+    tag_ids = []
+    if tag_input:
+        try:
+            tag_ids = [int(x.strip()) for x in tag_input.split(",") if x.strip().isdigit()]
+        except ValueError:
+            print("[WARNING] Invalid tag IDs, using none")
+
+    # Build item data
+    item_data = {
+        "user_id": user.id,
+        "name": name,
+        "upc": upc,
+        "increments": increments,
+        "image": image,
+        "min_quantity": min_quantity,
+        "max_quantity": max_quantity,
+        "batch_size": batch_size,
+        "expiration_days": expiration_days,
+        "restock_delivery_days": restock_delivery_days,
+        "tag_ids": tag_ids,
+    }
+
+    # Remove None values
+    item_data = {k: v for k, v in item_data.items() if v is not None}
+
+    # Create item - model handles validation
+    item, error = create_with_validation(Items, **item_data)
+    if error:
+        print(f"\n[ERROR] {error}")
+
+    input("\nPress Enter to continue...")
+
+
+def delete_item(user):
+    """Delete item."""
+    items = Items.query.filter_by(user_id=user.id).order_by(Items.name).all()
+
+    selected = select_from_list(
+        items,
+        lambda item, i: print(f"{i}. {item.name} (UPC: {item.upc or 'Auto'})"),
+        f"DELETE ITEM FOR {user.display_name.upper()}",
+    )
+
+    if not selected:
+        return
+
+    def check_usage(item):
+        """Check if item is used in action logs."""
+        from app.inventory.models import ActionLogs
+
+        logs = ActionLogs.query.filter_by(item_id=item.id).first()
+
+        if logs:
+            print(
+                f"\n[WARNING] This item has {ActionLogs.query.filter_by(item_id=item.id).count()} action log entries."
+            )
+            print("Deleting may cause issues with inventory tracking.")
+            return get_yes_no("Are you SURE you want to delete?")
+        return True
+
+    delete_with_confirmation(selected, check_usage)
+    input("\nPress Enter to continue...")
+
+
+def user_item_menu(user):
+    """Item management for specific user."""
+    options = {
+        "1": ("View Items", lambda: view_items(user)),
+        "2": ("Add Item", lambda: add_item(user)),
+        "3": ("Delete Item", lambda: delete_item(user)),
+        "4": ("Import Items from CSV", lambda: import_items_for_user(user)),
+        "5": ("Return to Main Menu", lambda: True),
+    }
+
+    run_menu(f"ITEM MANAGEMENT FOR {user.display_name.upper()}", options)
+
+
+def import_items_for_user(user):
+    """Import items for specific user (wrapper for existing function)."""
+    print_header("IMPORT ITEMS FROM CSV")
+    print(f"Import items for user: {user.display_name}")
+    print("\nRequired CSV columns: user_id, name")
+    print(
+        "Optional: upc, active, tag_ids, increments, image, min_quantity, max_quantity, batch_size, expiration_days, restock_delivery_days"
+    )
+    print("\nExample:")
+    print("user_id,name,increments,tag_ids,min_quantity")
+    print(f'{user.id},Bandage,individual,"[1,2]",10\n')
+
+    # Get CSV file path
+    csv_path = get_input("CSV file path: ")
+    if not csv_path or not Path(csv_path).exists():
+        print(f"[ERROR] File not found: {csv_path}")
+        input("Press Enter...")
+        return
+
+    try:
+        # Load CSV data
+        items_data = load_csv_items(csv_path, user.id)
+        if not items_data:
+            print(f"[WARNING] No items found for user {user.id}")
+            input("Press Enter...")
+            return
+
+        current_count = Items.query.filter_by(user_id=user.id).count()
+        print(f"\n[INFO] Found {len(items_data)} items in CSV")
+        print(f"[WARNING] This will DELETE {current_count} existing items")
+
+        if not get_yes_no("Continue with import?"):
+            return
+
+        # Delete existing and create new
+        print("\n[INFO] Starting import...")
+
+        # Delete all user's items
+        deleted = Items.query.filter_by(user_id=user.id).delete()
+        print(f"Deleted {deleted} existing items")
+
+        # Create new items using model validation
+        created = 0
+        failed = 0
+
+        for item_data in items_data:
+            item, error = create_with_validation(Items, **item_data)
+            if item:
+                created += 1
+            else:
+                print(f"[ERROR] Failed to create '{item_data.get('name')}': {error}")
+                failed += 1
+
+        print("\n[SUCCESS] Import complete!")
+        print(f"- Created: {created} items")
+        print(f"- Failed: {failed} items")
+
+    except Exception as e:
+        print(f"[ERROR] Import failed: {e}")
+        db.session.rollback()
+
+    input("\nPress Enter...")
 
 
 @ensure_app_context
 def main():
-    """Main function for the item import script."""
-    while True:
-        print_header("ITEM MANAGEMENT")
-        print("1. Import Items from CSV")
-        print("2. Exit")
+    """Main item management menu."""
 
-        choice = prompt_for_integer("\nEnter your choice (1-2): ", 1, 2)
+    def select_and_manage():
+        user = select_user()
+        if user:
+            user_item_menu(user)
 
-        if choice == 1:
-            import_items()
-        elif choice == 2 or choice == -1:
-            clear_screen()
-            print("Exiting item management. Goodbye!")
-            break
+    def exit_program():
+        from scripts.utils import clear_screen
+
+        clear_screen()
+        print("Exiting item management. Goodbye!")
+        return True
+
+    options = {
+        "1": ("Select User", select_and_manage),
+        "2": ("Import Items from CSV (Legacy)", import_items),
+        "3": ("Exit", exit_program),
+    }
+
+    run_menu("ITEM MANAGEMENT", options)
 
 
 if __name__ == "__main__":

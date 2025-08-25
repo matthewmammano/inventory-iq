@@ -1,24 +1,43 @@
+import logging
 from datetime import datetime, timezone
-
-# TODO YELLOW: Add expiration date tracking for items
-# - Add expiry_date field to Items model
-# - Create expiration alerts in admin dashboard  
-# - Filter expired items in inventory views
-# - Add expiration-based reorder suggestions
+from enum import Enum
 
 from sqlalchemy import JSON, event
 from sqlalchemy.orm import validates
 
 from app import db
+from app.alerts.detection_service import AlertDetectionService
 from app.auth.models import UserItemTags
-from app.helpers.model_helpers import check_quantity_alerts, get_or_create_qty_row
-from app.helpers.model_validate import (
+from app.utils.model_validate import (
     validate_image_url,
     validate_non_negative_integer,
     validate_positive_integer,
     validate_string_length,
     validate_tag_id_type,
 )
+from app.utils.timezone_utils import convert_utc_to_local
+
+# TODO YELLOW: update...
+# - use UV instead of pip way better
+
+# TODO GREEN: update...
+# - to NEW version of SQLAlchemy
+
+
+class OperationType(Enum):
+    count = "COUNT"
+    restock = "RESTOCK"
+    takeout = "TAKEOUT"
+    transfer = "TRANSFER"
+
+
+def get_or_create_item_location_quantity(db_session, user_id, item_id, location_id):
+    """Get or create ItemLocationQuantities database row for tracking inventory at specific location."""
+    qty_row = ItemLocationQuantities.query.filter_by(user_id=user_id, item_id=item_id, location_id=location_id).first()
+    if not qty_row:
+        qty_row = ItemLocationQuantities(user_id=user_id, item_id=item_id, location_id=location_id, quantity=0)
+        db_session.add(qty_row)
+    return qty_row
 
 
 class Items(db.Model):
@@ -39,6 +58,13 @@ class Items(db.Model):
     batch_size = db.Column(db.Integer, nullable=True)  # batch amount for restocking
     expiration_days = db.Column(db.Integer, nullable=True)  # approx. days until expiration for perishable items
     restock_delivery_days = db.Column(db.Integer, nullable=True)  # days to expect delivery after restock order
+    prior_daily_usage = db.Column(db.Float, nullable=True)  # manual prior knowledge of daily usage rate
+
+    # TODO ORANGE: Add expiration date tracking for items -> MESSAGE ANDY WELSH PURCHASE
+    # - Add expiry_date field to Items model
+    # - Create expiration alerts in admin dashboard
+    # - Filter expired items in inventory views
+    # - Add expiration-based reorder suggestions
 
     # Relationships
     action_logs = db.relationship("ActionLogs", backref="item", lazy=True)
@@ -74,39 +100,83 @@ class Items(db.Model):
         if self.tag_ids and tag_id in self.tag_ids:
             self.tag_ids.remove(tag_id)
 
+    def get_last_accessed_local(self, user_timezone: str):
+        """Get last_accessed converted to user's local timezone."""
+        return convert_utc_to_local(self.last_accessed, user_timezone)
+
     @validates("tag_ids")
     def validate_tag_ids(self, key, value):
         """Validate that tag_ids is a list of integers."""
         if value is None:
             return []
         if not isinstance(value, list):
+            logging.error(
+                f"Tag validation error for item {getattr(self, 'id', 'new')}: tag_ids must be a list, got {type(value)}"
+            )
             raise ValueError("tag_ids must be a list")
         # Validate all items are integers
         for item in value:
             if not isinstance(item, int):
+                logging.error(
+                    f"Tag validation error for item {getattr(self, 'id', 'new')}: tag ID must be integer, got {type(item)}"
+                )
                 raise ValueError("All tag IDs must be integers")
-            validate_tag_id_type(item)
+            try:
+                validate_tag_id_type(item)
+            except ValueError as e:
+                logging.error(f"Tag validation error for item {getattr(self, 'id', 'new')}: {e}")
+                raise
         return value
 
     @validates("name")
     def validate_name(self, key, value):
         """Validate name field."""
-        return validate_string_length(value, "name", 100, allow_none=False, allow_empty=False)
+        try:
+            return validate_string_length(value, "name", 100, allow_none=False, allow_empty=False)
+        except ValueError as e:
+            logging.error(f"Name validation error for item {getattr(self, 'id', 'new')}: {e}")
+            raise
 
     @validates("increments")
     def validate_increments(self, key, value):
         """Validate increments field."""
-        return validate_string_length(value, "increments", 50, allow_none=True, allow_empty=True)
+        try:
+            return validate_string_length(value, "increments", 50, allow_none=True, allow_empty=True)
+        except ValueError as e:
+            logging.error(f"Increments validation error for item {getattr(self, 'id', 'new')}: {e}")
+            raise
 
     @validates("min_quantity", "max_quantity", "batch_size", "expiration_days", "restock_delivery_days")
     def validate_positive_integers(self, key, value):
         """Validate positive integer fields."""
-        return validate_positive_integer(value, key, allow_none=True)
+        try:
+            return validate_positive_integer(value, key, allow_none=True)
+        except ValueError as e:
+            logging.error(f"Integer validation error for item {getattr(self, 'id', 'new')} field '{key}': {e}")
+            raise
+
+    @validates("prior_daily_usage")
+    def validate_prior_daily_usage(self, key, value):
+        """Validate prior daily usage is a non-negative float."""
+        if value is None:
+            return None
+        try:
+            value = float(value)
+            if value < 0:
+                raise ValueError("Prior daily usage must be non-negative")
+            return value
+        except (ValueError, TypeError) as e:
+            logging.error(f"Prior daily usage validation error for item {getattr(self, 'id', 'new')}: {e}")
+            raise ValueError("Prior daily usage must be a non-negative number")
 
     @validates("image")
     def validate_image(self, key, value):
         """Validate image URL format."""
-        return validate_image_url(value)
+        try:
+            return validate_image_url(value)
+        except ValueError as e:
+            logging.error(f"Image URL validation error for item {getattr(self, 'id', 'new')}: {e}")
+            raise
 
     @staticmethod
     def calculate_upc_check_digit(upc11: str) -> str:
@@ -134,6 +204,9 @@ class Items(db.Model):
         new_upc = next_base + Items.calculate_upc_check_digit(next_base)
 
         if Items.query.filter_by(upc=new_upc).first():
+            logging.error(
+                f"UPC generation failure: Generated UPC {new_upc} already exists for user {user_id} - UPC space may be exhausted"
+            )
             raise ValueError(f"Generated UPC {new_upc} already exists - UPC space may be exhausted")
 
         return new_upc
@@ -144,19 +217,37 @@ class Items(db.Model):
         if not value:
             return None
         if not isinstance(value, str):
+            logging.error(
+                f"UPC validation error for item {getattr(self, 'id', 'new')}: UPC must be a string, got {type(value)}"
+            )
             raise ValueError("UPC must be a string.")
         if not value or value.strip() == "":
             return None
         if not value.isdigit() or len(value) != 12:
+            logging.error(
+                f"UPC validation error for item {getattr(self, 'id', 'new')}: Invalid UPC format '{value}' - must be 12 digits"
+            )
             raise ValueError("UPC must be a 12-digit number.")
         # Validate check digit
         calculated_check = self.calculate_upc_check_digit(value[:11])
         if calculated_check != value[11]:
+            logging.error(
+                f"UPC validation error for item {getattr(self, 'id', 'new')}: Invalid check digit for UPC '{value}'"
+            )
             raise ValueError("Invalid UPC check digit.")
         # Check if UPC already exists
-        existing = Items.query.filter_by(upc=value, user_id=self.user_id).first()
-        if existing and existing.id != self.id:
-            raise ValueError("UPC already exists for another item in your account.")
+        try:
+            existing = Items.query.filter_by(upc=value, user_id=self.user_id).first()
+            if existing and existing.id != self.id:
+                logging.error(
+                    f"UPC validation error: UPC '{value}' already exists for user {self.user_id} on item {existing.id}"
+                )
+                raise ValueError("UPC already exists for another item in your account.")
+        except Exception as e:
+            if "already exists" in str(e):
+                raise
+            logging.error(f"Database error during UPC uniqueness check for item {getattr(self, 'id', 'new')}: {e}")
+            raise ValueError("Database error during UPC validation")
         return value
 
 
@@ -164,20 +255,22 @@ class ActionLogs(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
     item_id = db.Column(db.Integer, db.ForeignKey("items.id"))
+    operation_type = db.Column(db.Enum(OperationType), nullable=False)
     from_location_id = db.Column(
         db.Integer,
         db.ForeignKey("user_item_locations.id"),
-        nullable=True,  # if Null, then RECOUNT, else transfer
+        nullable=True,  # null for COUNT/RESTOCK operations
     )
     to_location_id = db.Column(
         db.Integer,
         db.ForeignKey("user_item_locations.id"),
-        nullable=True,  # if Null, then TAKE, else other
+        nullable=True,  # null for TAKEOUT operations
     )
 
     quantity_delta = db.Column(db.Integer, nullable=False)
     # if this action was performed by an admin (e.g., via the admin panel)
     admin_action = db.Column(db.Boolean, default=False)
+    time_scanned = db.Column(db.DateTime, default=lambda: datetime.now(timezone.utc), nullable=False)
 
     # Relationships
     from_location = db.relationship(
@@ -206,38 +299,77 @@ class ActionLogs(db.Model):
     @validates("quantity_delta")
     def validate_quantity_delta(self, key, value):
         """Validate quantity_delta is a non-negative integer."""
-        return validate_non_negative_integer(value, "quantity_delta", allow_none=False)
+        try:
+            return validate_non_negative_integer(value, "quantity_delta", allow_none=False)
+        except ValueError as e:
+            logging.error(f"Quantity delta validation error for action log {getattr(self, 'id', 'new')}: {e}")
+            raise
 
     @property
-    def is_recount(self):
-        return self.from_location_id is None
+    def is_count(self):
+        return self.operation_type == OperationType.count
+
+    @property
+    def is_restock(self):
+        return self.operation_type == OperationType.restock
 
     @property
     def is_transfer(self):
-        return self.from_location_id is not None
+        return self.operation_type == OperationType.transfer
+
+    @property
+    def is_takeout(self):
+        return self.operation_type == OperationType.takeout
+
+    def get_time_scanned_local(self, user_timezone: str):
+        """Get time_scanned converted to user's local timezone."""
+        return convert_utc_to_local(self.time_scanned, user_timezone)
 
     def process_action(self, db_session):
-        """Update ItemLocationQuantities and check for alerts."""
+        """
+        Update ItemLocationQuantities and check for alerts.
+
+        Negative quantities are allowed and indicate data quality issues
+        that require admin attention via COUNT operations.
+
+        Returns:
+            tuple: (updated_quantities_dict, alerts_list)
+        """
         updated_quantities = {}
         previous_quantities = {}
 
-        # Handle FROM location (subtract)
+        # Handle FROM location (subtract quantity)
         if self.from_location_id:
-            from_qty = get_or_create_qty_row(db_session, self.user_id, self.item_id, self.from_location_id)
+            from_qty = get_or_create_item_location_quantity(
+                db_session, self.user_id, self.item_id, self.from_location_id
+            )
             previous_quantities[self.from_location_id] = from_qty.quantity
-            from_qty.quantity = max(0, from_qty.quantity - self.quantity_delta)
+            from_qty.quantity = from_qty.quantity - self.quantity_delta
             updated_quantities[self.from_location_id] = from_qty.quantity
 
-        # Handle TO location (add/set)
+        # Handle TO location (add/set quantity)
         if self.to_location_id:
-            to_qty = get_or_create_qty_row(db_session, self.user_id, self.item_id, self.to_location_id)
+            to_qty = get_or_create_item_location_quantity(db_session, self.user_id, self.item_id, self.to_location_id)
             previous_quantities[self.to_location_id] = to_qty.quantity
-            to_qty.quantity = (
-                self.quantity_delta if not self.from_location_id else to_qty.quantity + self.quantity_delta
-            )
+
+            if self.operation_type == OperationType.count:
+                # COUNT operations set absolute quantity (ground truth)
+                to_qty.quantity = self.quantity_delta
+            else:
+                # RESTOCK, TRANSFER operations add to existing quantity
+                to_qty.quantity = to_qty.quantity + self.quantity_delta
+
             updated_quantities[self.to_location_id] = to_qty.quantity
 
-        alerts = check_quantity_alerts(self.user_id, self.item_id, updated_quantities, previous_quantities)
+        # Check for alerts (non-blocking to avoid failing inventory operations)
+        try:
+            alerts = AlertDetectionService.check_quantity_alerts(
+                self.user_id, self.item_id, updated_quantities, previous_quantities, self.admin_action
+            )
+        except Exception as e:
+            logging.error(f"Alert detection failed for ActionLog {self.id}: {e}")
+            alerts = []  # Don't fail the operation if alerts fail
+
         return updated_quantities, alerts
 
 
@@ -258,4 +390,8 @@ class ItemLocationQuantities(db.Model):
 def generate_upc_before_insert(mapper, connection, target):
     """Automatically generate UPC after item is inserted if no UPC was provided."""
     if not target.upc and target.user_id:
-        target.upc = Items.generate_upc(target.user_id)
+        try:
+            target.upc = Items.generate_upc(target.user_id)
+        except Exception as e:
+            logging.error(f"UPC generation failure during item insert for user {target.user_id}: {e}")
+            raise
