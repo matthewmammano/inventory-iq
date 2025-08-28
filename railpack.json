@@ -4,11 +4,6 @@
   "packages": {
     "python": "3.13"
   },
-  "steps": {
-    "install": {
-      "commands": ["find / -name requirements.txt 2>/dev/null", "pip install --no-cache-dir -r /app/requirements.txt"]
-    }
-  },
   "deploy": {
     "startCommand": "gunicorn run:app -b 0.0.0.0:$PORT --workers=3 --worker-class=gthread --threads=2 --preload --max-requests=1000 --max-requests-jitter=100 --keep-alive=5 --timeout=120 --log-level=info --access-logfile=- --error-logfile=-"
   }
