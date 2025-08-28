@@ -19,9 +19,14 @@ def view_locations(user):
     """View all locations for a user."""
     locations = UserItemLocations.query.filter_by(user_id=user.id).order_by(UserItemLocations.name).all()
     
+    def display_location(loc, i):
+        access_from = "✓" if loc.user_access_from else "✗"
+        access_to = "✓" if loc.user_access_to else "✗"
+        print(f"{i}. {loc.name} | From:{access_from} To:{access_to}")
+    
     select_from_list(
         locations,
-        lambda loc, i: print(f"{i}. {loc.name}"),
+        display_location,
         f"LOCATIONS FOR {user.display_name.upper()}"
     )
 
@@ -33,9 +38,18 @@ def add_location(user):
     name = get_input("Location name: ")
     if not name:
         return
+    
+    user_access_from = get_yes_no("Can users access items FROM this location? (y/n): ")
+    user_access_to = get_yes_no("Can users access items TO this location? (y/n): ")
         
     # Create location - model handles validation
-    location, error = create_with_validation(UserItemLocations, user_id=user.id, name=name)
+    location, error = create_with_validation(
+        UserItemLocations, 
+        user_id=user.id, 
+        name=name,
+        user_access_from=user_access_from,
+        user_access_to=user_access_to
+    )
     if error:
         print(f"\n[ERROR] {error}")
         

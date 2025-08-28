@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Database Import Script
 
@@ -31,13 +30,17 @@ def import_sql(database_url: str, sql_file: str) -> None:
     print(f"Validating {len(statements)} SQL statements...")
     errors = []
 
-    # Test each statement first
+    # Test each statement with constraints disabled
     for i, statement in enumerate(statements, 1):
         try:
+            # Re-disable constraints for each test (rollback resets them)
+            cursor.execute("SET session_replication_role = replica;")
+            cursor.execute("SET CONSTRAINTS ALL DEFERRED;")
             cursor.execute(statement)
             conn.rollback()  # Don't commit, just test
         except Exception as e:
             errors.append(f"Line {i}: {e}")
+            conn.rollback()  # Reset on error
 
     if errors:
         print("SQL errors found:")

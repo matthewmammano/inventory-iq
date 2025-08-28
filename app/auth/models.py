@@ -151,8 +151,8 @@ class UserItemLocations(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
     name = db.Column(db.String(50), nullable=False)
-    user_access_from = db.Column(db.Boolean, default=True, nullable=False)
-    user_access_to = db.Column(db.Boolean, default=True, nullable=False)
+    user_access_from = db.Column(db.Boolean, default=True, nullable=False)  # for guests only, admin access regardless
+    user_access_to = db.Column(db.Boolean, default=True, nullable=False)  # for guests only, admin access regardless
 
     def __repr__(self):
         return f"<UserItemLocations {self.name}>"
