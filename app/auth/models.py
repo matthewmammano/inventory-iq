@@ -17,7 +17,7 @@ class Users(db.Model, UserMixin):
     id = db.Column(db.Integer, primary_key=True)
     display_name = db.Column(db.String(50), unique=True, nullable=False)
     email = db.Column(db.String(128), unique=True, nullable=False)
-    password = db.Column(db.String(128))
+    password = db.Column(db.Text)
     pin = db.Column(db.String(4), nullable=False, default="1234")
     image = db.Column(db.String(255))
     user_count_allow = db.Column(db.Boolean, default=False)
