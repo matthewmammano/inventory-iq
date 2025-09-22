@@ -12,6 +12,12 @@
     border-bottom: 1px solid var(--grey);
 }
 
+/* Add this new rule for word wrapping */
+.table-view td {
+    max-width: 30ch; /* Limit cell width to 50 characters */
+    overflow-wrap: break-word;
+}
+
 .table-view th {
     background-color: var(--near-grey);
     font-weight: bold;
