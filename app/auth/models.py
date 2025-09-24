@@ -222,12 +222,3 @@ class UserItemTags(db.Model):
         return value.upper()  # Store in uppercase for consistency
 
 
-class UserItemAlerts(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
-    item_id = db.Column(db.Integer, db.ForeignKey("items.id"), nullable=False, index=True)
-
-    __table_args__ = (db.UniqueConstraint("user_id", "item_id", name="uq_user_item_pref"),)
-
-    def __repr__(self):
-        return f"<UserItemAlerts user={self.user_id} item={self.item_id}>"
