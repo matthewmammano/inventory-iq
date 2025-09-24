@@ -1,37 +1,44 @@
 """
-TODO YELLOW UNLESS DONE AUTOMATICALLY!: Implement database backup system
-
-Automated daily database backups to cloud storage with retention policy.
-Requirements listed in config.py:24-27
-
-Implement CLI args to determine backup vs cleanup operation
-
-Cron jobs needed:
-- Daily backup: 0 1 * * *
-- Weekly cleanup: 0 3 * * 0
+Simple database backup with 30-day retention.
+Cron: 0 1 * * * python -m app.tasks.backup_database
 """
 
+import shutil
+import gzip
+from datetime import datetime, timedelta
+from pathlib import Path
 from app import create_app
 
-
 def backup_database():
-    # Logic should:
-    # 1. Create SQLite database backup
-    # 2. Upload to cloud storage (S3, GCS, etc.)
-    # 3. Verify backup integrity
-    # 4. Log backup status for monitoring
-    pass
-
-
-def cleanup_old_backups():
-    # Logic should:
-    # 1. Keep daily backups for 30 days
-    # 2. Keep monthly backups for 1 year
-    # 3. Remove backups beyond retention period
-    pass
-
-
-if __name__ == "__main__":
+    """Create compressed daily backup and cleanup old ones"""
     app = create_app()
     with app.app_context():
-        pass
+        db_path = Path(app.instance_path) / "inventory_iq.db"
+        backup_dir = Path(app.instance_path) / "backups"
+        backup_dir.mkdir(exist_ok=True)
+
+        if not db_path.exists():
+            print("Database file not found")
+            return
+
+        # Create compressed backup
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        backup_file = backup_dir / f"backup_{timestamp}.db.gz"
+
+        with open(db_path, 'rb') as f_in:
+            with gzip.open(backup_file, 'wb') as f_out:
+                shutil.copyfileobj(f_in, f_out)
+
+        # Delete backups older than 30 days
+        cutoff = datetime.now() - timedelta(days=30)
+        deleted = 0
+        for old_backup in backup_dir.glob("backup_*.db.gz"):
+            if datetime.fromtimestamp(old_backup.stat().st_mtime) < cutoff:
+                old_backup.unlink()
+                deleted += 1
+
+        size_mb = round(backup_file.stat().st_size / 1024 / 1024, 2)
+        print(f"Backup created: {backup_file.name} ({size_mb}MB), deleted {deleted} old backups")
+
+if __name__ == "__main__":
+    backup_database()

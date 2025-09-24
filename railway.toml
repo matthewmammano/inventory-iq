@@ -1,0 +1,45 @@
+[build]
+builder = "NIXPACKS"
+
+[deploy]
+healthcheckPath = "/health"
+healthcheckTimeout = 300
+restartPolicyType = "ON_FAILURE"
+restartPolicyMaxRetries = 10
+
+[environments.production.cron]
+# Hourly: Process email alerts
+process_email_alerts.schedule = "0 * * * *"
+process_email_alerts.command = "python -m app.tasks.process_email_alerts"
+
+# Daily at 1 AM: Database backup
+backup_database.schedule = "0 1 * * *"
+backup_database.command = "python -m app.tasks.backup_database"
+
+# Daily at 2 AM: Session cleanup
+cleanup_sessions.schedule = "0 2 * * *"
+cleanup_sessions.command = "python -m app.tasks.cleanup_sessions"
+
+# Daily at 5 AM: Admin count check
+check_admin_recount.schedule = "0 5 * * *"
+check_admin_recount.command = "python -m app.tasks.check_admin_recount"
+
+# Daily at 6 AM: Daily reports
+daily_reports.schedule = "0 6 * * *"
+daily_reports.command = "python -m app.tasks.generate_summary_reports daily"
+
+# Weekly: Monday 7 AM
+weekly_reports.schedule = "0 7 * * 1"
+weekly_reports.command = "python -m app.tasks.generate_summary_reports weekly"
+
+# Monthly: 1st at 4 AM
+archive_action_logs.schedule = "0 4 1 * *"
+archive_action_logs.command = "python -m app.tasks.archive_action_logs"
+
+# Monthly: 1st at 8 AM
+monthly_reports.schedule = "0 8 1 * *"
+monthly_reports.command = "python -m app.tasks.generate_summary_reports monthly"
+
+# Monthly: 1st at 9 AM
+monitor_database_size.schedule = "0 9 1 * *"
+monitor_database_size.command = "python -m app.tasks.monitor_database_size"

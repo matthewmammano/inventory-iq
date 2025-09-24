@@ -1,24 +1,34 @@
 """
-TODO GREEN: Implement session cleanup
-
-Clean up expired sessions based on PERMANENT_SESSION_LIFETIME (2 days).
-Session lifetime set in config.py:10
-
-Cron job needed: 0 2 * * * (daily at 2 AM)
+Clean up expired Flask sessions.
+Cron: 0 2 * * * python -m app.tasks.cleanup_sessions
 """
 
+import time
+from pathlib import Path
 from app import create_app
 
-
 def cleanup_expired_sessions():
-    # Logic should:
-    # 1. Identify sessions older than PERMANENT_SESSION_LIFETIME (2 days)
-    # 2. Remove expired sessions from Flask session storage
-    # 3. Clean up any related session data in database if applicable
-    pass
-
-
-if __name__ == "__main__":
+    """Remove old session files"""
     app = create_app()
     with app.app_context():
-        cleanup_expired_sessions()
+        lifetime = app.config.get('PERMANENT_SESSION_LIFETIME')
+        max_age = lifetime.total_seconds() if lifetime else 30 * 24 * 3600
+        cutoff = time.time() - max_age
+
+        cleaned = 0
+        session_dirs = [
+            Path('/tmp/flask_session'),
+            Path(app.instance_path) / 'flask_session'
+        ]
+
+        for session_dir in session_dirs:
+            if session_dir.exists():
+                for session_file in session_dir.glob("session_*"):
+                    if session_file.stat().st_mtime < cutoff:
+                        session_file.unlink()
+                        cleaned += 1
+
+        print(f"Cleaned {cleaned} expired sessions")
+
+if __name__ == "__main__":
+    cleanup_expired_sessions()

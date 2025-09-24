@@ -208,7 +208,6 @@ class PredictionEngine:
         """
         # Base weights from config
         base_ml_weight = PredictionConfig.DEFAULT_ML_WEIGHT
-        base_prior_weight = PredictionConfig.DEFAULT_PRIOR_WEIGHT
 
         # Adjust based on data point count (more data = higher ML weight)
         data_point_factor = min(1.0, ml_data_points / 10.0)  # Cap at 10 points

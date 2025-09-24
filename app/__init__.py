@@ -1,4 +1,3 @@
-import logging
 import os
 import re
 import sys
@@ -146,5 +145,13 @@ def create_app() -> Flask:
         app.logger.info(f"Application initialized with {db_type} database")
     else:
         app.logger.info(f"Application initialized with database: {db_uri}")
+
+    # Add health check endpoint for Railway
+    @app.route("/health")
+    def health_check():
+        """Health check endpoint for Railway deployment"""
+        from datetime import datetime
+
+        return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 
     return app
