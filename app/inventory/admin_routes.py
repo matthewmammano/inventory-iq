@@ -19,6 +19,13 @@ from app.inventory.scan_operations import (
 )
 from app.prediction.bulk_service import BulkService
 from app.utils.timezone_utils import get_timezone_display_hint
+from app.inventory.threshold_utilities import (
+    get_inventory_level_threshold_class,
+    get_order_quantity_threshold_class,
+    get_days_until_low_threshold_class,
+    format_order_amount_display,
+    format_days_until_low_display,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -236,13 +243,16 @@ def inventory_counts(squad):
     # Build the data structure for the template
     inventory_data = []
     for item in items:
-        row_data = {"item": item, "location_counts": {}, "total": 0}
+        row_data = {"item": item, "location_counts": {}, "location_classes": {}, "total": 0}
 
         for location in locations:
             count = qty_lookup.get((item.id, location.id), 0)
             row_data["location_counts"][location.id] = count
+            row_data["location_classes"][location.id] = get_inventory_level_threshold_class(count)
             row_data["total"] += count
 
+        # Add threshold class for total
+        row_data["total_class"] = get_inventory_level_threshold_class(row_data["total"])
         inventory_data.append(row_data)
 
     return render_template(
@@ -256,6 +266,17 @@ def restock(squad):
     try:
         # Single function call handles everything: recalculation + predictions + formatting
         restock_data = BulkService.get_restock_analysis(db.session, current_user.id)
+
+        # Add threshold classes for visual indicators
+        for item_data in restock_data:
+            item_data['order_class'] = get_order_quantity_threshold_class(item_data.get('order_amount'))
+            item_data['current_total_class'] = get_inventory_level_threshold_class(item_data.get('current_total'))
+            item_data['estimated_total_class'] = get_inventory_level_threshold_class(item_data.get('estimated_total'))
+            item_data['days_class'] = get_days_until_low_threshold_class(item_data.get('days_until_low'))
+
+        # TODO RED: Add client-side table sorting and filtering functionality for all admin table views
+        # Should include: sortable columns, search/filter by item name, filter by threshold ranges,
+        # filter by days until low, order amount ranges, and inventory levels (negative/zero/normal)
         return render_template("admin_restock.html", squad=squad, restock_data=restock_data, admin=True)
     except Exception as e:
         logger.error(f"Restock analysis failed for user {current_user.id}: {e}")

@@ -83,23 +83,29 @@
   </tr>
   {% for row in restock_data %}
   <tr>
-    <td>{{ row.item.name }}</td>
-    <td>{{ row.current_total }}</td>
-    <td>{{ row.estimated_total }}</td>
-    <td>{{ "%.1f"|format(row.monthly_usage_rate) if row.monthly_usage_rate >= 0 else 'N/A' }}</td>
-    <td>{{ row.min_quantity if row.min_quantity > 0 else '-' }}</td>
-    <td>{{ row.max_quantity if row.max_quantity > 0 else '-' }}</td>
-    <td>{{ "%.1f"|format(row.days_until_low if row.days_until_low <= 365 else 365) if row.days_until_low is not none else 'N/A' }}</td>
+    <td>{{ row['item'].name }}</td>
+    <td><span class="{{ row.get('current_total_class', '') }}">{{ row['current_total'] }}</span></td>
+    <td><span class="{{ row.get('estimated_total_class', '') }}">{{ row['estimated_total'] }}</span></td>
+    <td>{{ "%.1f"|format(row['monthly_usage_rate']) if row['monthly_usage_rate'] >= 0 else 'N/A' }}</td>
+    <td>{{ row['min_quantity'] if row['min_quantity'] > 0 else '-' }}</td>
+    <td>{{ row['max_quantity'] if row['max_quantity'] > 0 else '-' }}</td>
     <td>
-      {% if row.prediction_confidence %}
+      {% if row['days_until_low'] is not none %}
+        <span class="{{ row.get('days_class', '') }}">{{ "%.1f"|format(row['days_until_low'] if row['days_until_low'] <= 365 else 365) }}</span>
+      {% else %}
+        N/A
+      {% endif %}
+    </td>
+    <td>
+      {% if row['prediction_confidence'] %}
         <span class="confidence-badge">
-          {{ "%.0f"|format(row.prediction_confidence.confidence * 100) }}%
+          {{ "%.0f"|format(row['prediction_confidence']['confidence'] * 100) }}%
         </span>
       {% else %}
         <span style="color: #999;">No prediction</span>
       {% endif %}
     </td>
-    <td><b>{{ row.order_amount if (row.order_amount is not none and row.order_amount > 0) else ('N/A' if row.order_amount is none else '0') }}</b></td>
+    <td><span class="{{ row.get('order_class', '') }}">{{ row['order_amount'] if (row['order_amount'] is not none and row['order_amount'] > 0) else ('N/A' if row['order_amount'] is none else '0') }}</span></td>
   </tr>
   {% endfor %}
 </table>

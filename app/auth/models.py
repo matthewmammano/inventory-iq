@@ -117,7 +117,6 @@ class UserAlerts(db.Model):
     count_last_days = db.Column(
         db.Integer, default=90, nullable=True
     )  # Alert when it has been more than X days since the last count for item(s), None for disabled
-    # TODO YELLOW: implement this elsewhere in cronjob checking
 
     # Scheduled Reporting Alerts
     daily_summary = db.Column(db.Boolean, default=False, nullable=False)
@@ -146,7 +145,7 @@ class UserAlerts(db.Model):
         return f"<UserAlerts {self.user_id}>"
 
 
-# TODO YELLOW: add a UserLocations and UserStorages (as subclass of UserLocations) for Tom's hospital
+# TODO YELLOW TOM: add a UserLocations and UserStorages (as subclass of UserLocations) for Tom's hospital
 class UserItemLocations(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False, index=True)
@@ -220,5 +219,3 @@ class UserItemTags(db.Model):
             raise ValueError("Color must be a valid hex color format (#rrggbb, e.g., #3b82f6)")
 
         return value.upper()  # Store in uppercase for consistency
-
-

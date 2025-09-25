@@ -17,9 +17,6 @@ from app.utils.model_validate import (
 )
 from app.utils.timezone_utils import convert_utc_to_local
 
-# TODO YELLOW: update...
-# - use UV instead of pip way better
-
 # TODO GREEN: update...
 # - to NEW version of SQLAlchemy
 
@@ -60,7 +57,7 @@ class Items(db.Model):
     restock_delivery_days = db.Column(db.Integer, nullable=True)  # days to expect delivery after restock order
     prior_daily_usage = db.Column(db.Float, nullable=True)  # manual prior knowledge of daily usage rate
 
-    # TODO ORANGE: Add expiration date tracking for items -> MESSAGE ANDY WELSH PURCHASE
+    # TODO ORANGE ANDY: Add expiration date tracking for items -> MESSAGE ANDY WELSH PURCHASE
     # - Add expiry_date field to Items model
     # - Create expiration alerts in admin dashboard
     # - Filter expired items in inventory views

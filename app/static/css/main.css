@@ -10,6 +10,7 @@
 @import 'components/navigation.css';
 @import 'components/flash-messages.css';
 @import 'components/tags.css';
+@import 'components/inventory-thresholds.css';
 
 /* Layouts */
 @import 'layouts/admin-layout.css';

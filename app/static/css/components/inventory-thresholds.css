@@ -1,0 +1,125 @@
+/* Inventory Threshold Color System
+ * Visual indicators for inventory levels and order quantities
+ * Uses consistent color coding across all admin screens
+ */
+
+/* =============================================================================
+   INVENTORY LEVEL THRESHOLDS
+   Applied to current inventory counts to show stock status
+   ============================================================================= */
+
+/* Critical: Negative inventory (user error or system issue) */
+.inventory-level-negative {
+    background-color: #dc2626;
+    color: white;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Warning: Zero inventory (out of stock) */
+.inventory-level-zero {
+    background-color: #fee2e2;
+    color: #991b1b;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Normal: Positive inventory levels */
+.inventory-level-normal {
+    /* Default styling - no special colors needed */
+}
+
+/* =============================================================================
+   ORDER QUANTITY THRESHOLDS
+   Applied to order amounts in restock reports to show urgency
+   ============================================================================= */
+
+/* Critical: Large orders needed (100+ units) */
+.order-quantity-critical {
+    background-color: #7f1d1d;
+    color: white;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* High: Significant orders (50-99 units) */
+.order-quantity-high {
+    background-color: #dc2626;
+    color: white;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Medium: Moderate orders (20-49 units) */
+.order-quantity-medium {
+    background-color: #ea580c;
+    color: white;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Low: Small orders (10-19 units) */
+.order-quantity-low {
+    background-color: #d97706;
+    color: white;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Minimal: Very small orders (1-9 units) */
+.order-quantity-minimal {
+    background-color: #16a34a;
+    color: white;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* None: No order needed (0 units) */
+.order-quantity-none {
+    color: var(--most-black);
+    font-weight: normal;
+}
+
+/* =============================================================================
+   DAYS UNTIL LOW THRESHOLDS
+   Applied to "days until low" column to show timeline urgency
+   ============================================================================= */
+
+/* Immediate: Less than 7 days */
+.days-until-low-immediate {
+    background-color: #dc2626;
+    color: white;
+    font-weight: bold;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Soon: 7-30 days */
+.days-until-low-soon {
+    background-color: #ea580c;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Moderate: 31-90 days */
+.days-until-low-moderate {
+    background-color: #d97706;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+
+/* Good: 90+ days */
+.days-until-low-good {
+    background-color: #16a34a;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+}

@@ -12,34 +12,34 @@ restartPolicyMaxRetries = 10
 process_email_alerts.schedule = "0 * * * *"
 process_email_alerts.command = "python -m app.tasks.process_email_alerts"
 
-# Daily at 1 AM: Database backup
-backup_database.schedule = "0 1 * * *"
+# Daily at 7 PM: Database backup
+backup_database.schedule = "0 19 * * *"
 backup_database.command = "python -m app.tasks.backup_database"
 
-# Daily at 2 AM: Session cleanup
-cleanup_sessions.schedule = "0 2 * * *"
+# Daily at 8 PM: Session cleanup
+cleanup_sessions.schedule = "0 20 * * *"
 cleanup_sessions.command = "python -m app.tasks.cleanup_sessions"
 
-# Daily at 5 AM: Admin count check
-check_admin_recount.schedule = "0 5 * * *"
+# Daily at 9 AM: Admin count check
+check_admin_recount.schedule = "0 9 * * *"
 check_admin_recount.command = "python -m app.tasks.check_admin_recount"
 
-# Daily at 6 AM: Daily reports
-daily_reports.schedule = "0 6 * * *"
+# Daily at 10 AM: Daily reports
+daily_reports.schedule = "0 10 * * *"
 daily_reports.command = "python -m app.tasks.generate_summary_reports daily"
 
-# Weekly: Monday 7 AM
-weekly_reports.schedule = "0 7 * * 1"
+# Weekly: Friday 4 PM
+weekly_reports.schedule = "0 16 * * 5"
 weekly_reports.command = "python -m app.tasks.generate_summary_reports weekly"
 
-# Monthly: 1st at 4 AM
-archive_action_logs.schedule = "0 4 1 * *"
+# Monthly: 1st at 6 PM
+archive_action_logs.schedule = "0 18 1 * *"
 archive_action_logs.command = "python -m app.tasks.archive_action_logs"
 
-# Monthly: 1st at 8 AM
-monthly_reports.schedule = "0 8 1 * *"
+# Monthly: 1st at 3 PM
+monthly_reports.schedule = "0 15 1 * *"
 monthly_reports.command = "python -m app.tasks.generate_summary_reports monthly"
 
-# Monthly: 1st at 9 AM
-monitor_database_size.schedule = "0 9 1 * *"
+# Monthly: 1st at 4 PM
+monitor_database_size.schedule = "0 16 1 * *"
 monitor_database_size.command = "python -m app.tasks.monitor_database_size"

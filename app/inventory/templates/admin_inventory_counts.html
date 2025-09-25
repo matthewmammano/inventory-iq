@@ -27,9 +27,9 @@
   <tr>
     <td>{{ row.item.name }}</td>
     {% for location in locations %}
-    <td>{{ row.location_counts[location.id] }}</td>
+    <td><span class="{{ row.location_classes[location.id] }}">{{ row.location_counts[location.id] }}</span></td>
     {% endfor %}
-    <td><b>{{ row.total }}</b></td>
+    <td><span class="{{ row.total_class }}"><b>{{ row.total }}</b></span></td>
   </tr>
   {% endfor %}
 </table>
