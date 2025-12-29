@@ -1,8 +1,11 @@
 import os
-from typing import Any, Callable, Dict, List, Optional, Type
+from typing import Any, Callable, Dict, List, Type
 
-from app import create_app, db
+from sqlalchemy import select
+
+from app import create_app
 from app.auth.models import Users
+from app.db import get_session
 
 
 def clear_screen():
@@ -18,13 +21,13 @@ def print_header(title: str):
     print("=" * 50 + "\n")
 
 
-def get_input(prompt: str) -> Optional[str]:
+def get_input(prompt: str) -> str | None:
     """Get string input, return None if user quits."""
     value = input(prompt).strip()
     return None if value.lower() == "q" else value
 
 
-def get_yes_no(prompt: str) -> Optional[bool]:
+def get_yes_no(prompt: str) -> bool | None:
     """Get yes/no input."""
     while True:
         value = get_input(f"{prompt} (y/n): ")
@@ -37,7 +40,9 @@ def get_yes_no(prompt: str) -> Optional[bool]:
         print("Enter 'y' or 'n'")
 
 
-def select_from_list(items: List[Any], display_func: Callable, title: str) -> Optional[Any]:
+def select_from_list(
+    items: List[Any], display_func: Callable, title: str
+) -> Any | None:
     """Display paginated list and return selected item."""
     if not items:
         print_header(title)
@@ -83,10 +88,15 @@ def select_from_list(items: List[Any], display_func: Callable, title: str) -> Op
             input("Press Enter...")
 
 
-def select_user() -> Optional[Users]:
-    """Select from active users."""
-    users = Users.query.filter_by(active=True).order_by(Users.display_name).all()
-    return select_from_list(users, lambda u, i: print(f"{i}. {u.display_name} ({u.email})"), "SELECT USER")
+def select_user() -> Users | None:
+    """Select from active users using an explicit session."""
+    with get_session() as session:
+        stmt = select(Users).where(Users.active.is_(True)).order_by(Users.display_name)
+        users_seq = session.execute(stmt).scalars().all()
+        users = list(users_seq)
+    return select_from_list(
+        users, lambda u, i: print(f"{i}. {u.display_name} ({u.email})"), "SELECT USER"
+    )
 
 
 def ensure_app_context(func):
@@ -100,26 +110,27 @@ def ensure_app_context(func):
     return wrapper
 
 
-def create_with_validation(model_class: Type, **data) -> tuple[Optional[Any], Optional[str]]:
+def create_with_validation(model_class: Type, **data) -> tuple[Any | None, str | None]:
     """
     Create model instance - validation happens automatically via @validates decorators.
     Returns (instance, error_message)
     """
     try:
         instance = model_class(**data)
-        db.session.add(instance)
-        db.session.commit()
+        with get_session() as session:
+            session.add(instance)
+            session.commit()
         print(f"\n[SUCCESS] {model_class.__name__} created!")
         return instance, None
     except ValueError as e:
-        db.session.rollback()
         return None, str(e)
     except Exception as e:
-        db.session.rollback()
         return None, f"Database error: {e}"
 
 
-def delete_with_confirmation(instance: Any, additional_check: Callable = None) -> bool:
+def delete_with_confirmation(
+    instance: Any, additional_check: Callable[[Any], bool] | None = None
+) -> bool:
     """Delete model instance with confirmation."""
     name = getattr(instance, "name", None) or getattr(instance, "display_name", "item")
 
@@ -131,12 +142,12 @@ def delete_with_confirmation(instance: Any, additional_check: Callable = None) -
         return False
 
     try:
-        db.session.delete(instance)
-        db.session.commit()
+        with get_session() as session:
+            session.delete(instance)
+            session.commit()
         print(f"\n[SUCCESS] '{name}' deleted!")
         return True
     except Exception as e:
-        db.session.rollback()
         print(f"\n[ERROR] Delete failed: {e}")
         return False
 

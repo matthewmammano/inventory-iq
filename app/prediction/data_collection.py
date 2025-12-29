@@ -5,17 +5,15 @@ Collects trustworthy data points from admin actions (COUNT operations + admin op
 to build reliable trendlines for ML predictions.
 """
 
-import logging
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional
+from datetime import UTC, datetime, timedelta
 
-from sqlalchemy import or_
+from loguru import logger
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
+from app.db import get_session
 from app.inventory.models import ActionLogs, OperationType
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -24,7 +22,8 @@ class DataPoint:
 
     timestamp: datetime
     quantity_change: float  # Net change in quantity (can be negative)
-    location_id: int
+    location_id: int | None
+
     item_id: int
     days_elapsed: float  # Days since previous data point
 
@@ -34,8 +33,12 @@ class DataPointCollector:
 
     @staticmethod
     def collect_data_points(
-        db_session: Session, user_id: int, item_id: int, location_id: Optional[int] = None, days_back: int = 365
-    ) -> List[DataPoint]:
+        db_session: Session | None,
+        user_id: int,
+        item_id: int,
+        location_id: int | None = None,
+        days_back: int = 365,
+    ) -> list[DataPoint]:
         """
         Collect data points from admin operations for trend analysis.
 
@@ -54,26 +57,31 @@ class DataPointCollector:
         Returns:
             List of DataPoint objects sorted by timestamp
         """
-        try:
-            cutoff_time = datetime.now(timezone.utc) - timedelta(days=days_back)
 
-            # Get all COUNT operations (both admin and guest as ground truth points)
-            count_query = db_session.query(ActionLogs).filter(
-                ActionLogs.user_id == user_id,
-                ActionLogs.item_id == item_id,
-                ActionLogs.operation_type == OperationType.count,
-                ActionLogs.time_scanned >= cutoff_time,
+        def _collect(session: Session) -> list[DataPoint]:
+            cutoff_time = datetime.now(UTC) - timedelta(days=days_back)
+
+            # Get all COUNT operations (both admin and guest as ground truth points) using select
+            stmt = (
+                select(ActionLogs)
+                .where(
+                    ActionLogs.user_id == user_id,
+                    ActionLogs.item_id == item_id,
+                    ActionLogs.operation_type == OperationType.count,
+                    ActionLogs.time_scanned >= cutoff_time,
+                )
+                .order_by(ActionLogs.time_scanned.asc())
             )
 
             if location_id:
-                count_query = count_query.filter(ActionLogs.to_location_id == location_id)
+                stmt = stmt.where(ActionLogs.to_location_id == location_id)
 
-            count_operations = count_query.order_by(ActionLogs.time_scanned.asc()).all()
+            count_operations = session.execute(stmt).scalars().all()
 
             if len(count_operations) < 2:
                 return []
 
-            data_points = []
+            data_points: list[DataPoint] = []
 
             # Process each pair of consecutive COUNT operations
             for i in range(1, len(count_operations)):
@@ -82,17 +90,21 @@ class DataPointCollector:
 
                 # Calculate the net usage between these two counts
                 net_change = DataPointCollector._calculate_net_change(
-                    db_session, user_id, item_id, prev_count, curr_count
+                    session, user_id, item_id, prev_count, curr_count
                 )
 
                 if net_change is not None:
-                    days_elapsed = (curr_count.time_scanned - prev_count.time_scanned).total_seconds() / 86400
+                    days_elapsed = (
+                        curr_count.time_scanned - prev_count.time_scanned
+                    ).total_seconds() / 86400
 
                     # Skip data points with very small time intervals (< 1 hour) to avoid division by near-zero
                     MIN_HOURS_BETWEEN_COUNTS = 1.0
                     if days_elapsed < (MIN_HOURS_BETWEEN_COUNTS / 24.0):
                         logger.debug(
-                            f"Skipping data point with {days_elapsed:.4f} days ({days_elapsed * 24:.1f} hours) - too close together"
+                            "Skipping data point with %.4f days (%.1f hours) - too close together",
+                            days_elapsed,
+                            days_elapsed * 24.0,
                         )
                         continue
 
@@ -107,14 +119,24 @@ class DataPointCollector:
 
             return data_points
 
+        try:
+            if db_session is not None:
+                return _collect(db_session)
+            with get_session() as _s:
+                return _collect(_s)
+
         except Exception as e:
             logger.error(f"Error collecting data points: {e}")
             return []
 
     @staticmethod
     def _calculate_net_change(
-        db_session: Session, user_id: int, item_id: int, prev_count: ActionLogs, curr_count: ActionLogs
-    ) -> Optional[float]:
+        db_session: Session | None,
+        user_id: int,
+        item_id: int,
+        prev_count: ActionLogs,
+        curr_count: ActionLogs,
+    ) -> float | None:
         """
         Calculate net change between two COUNT operations.
 
@@ -130,7 +152,8 @@ class DataPointCollector:
         Returns:
             Net change in quantity (negative means net consumption)
         """
-        try:
+
+        def _calc(session: Session) -> float | None:
             location_id = curr_count.to_location_id
 
             # Ensure both counts are for the same location
@@ -138,19 +161,20 @@ class DataPointCollector:
                 return None
 
             # Get ONLY admin operations (excluding COUNTs) between the two counts at this location
-            admin_ops = (
-                db_session.query(ActionLogs)
-                .filter(
-                    ActionLogs.user_id == user_id,
-                    ActionLogs.item_id == item_id,
-                    ActionLogs.admin_action == True,
-                    ActionLogs.operation_type != OperationType.count,  # Exclude all COUNTs
-                    ActionLogs.time_scanned > prev_count.time_scanned,
-                    ActionLogs.time_scanned < curr_count.time_scanned,
-                    or_(ActionLogs.from_location_id == location_id, ActionLogs.to_location_id == location_id),
-                )
-                .all()
+            admin_stmt = select(ActionLogs).where(
+                ActionLogs.user_id == user_id,
+                ActionLogs.item_id == item_id,
+                ActionLogs.admin_action.is_(True),
+                ActionLogs.operation_type != OperationType.count,
+                ActionLogs.time_scanned > prev_count.time_scanned,
+                ActionLogs.time_scanned < curr_count.time_scanned,
+                or_(
+                    ActionLogs.from_location_id == location_id,
+                    ActionLogs.to_location_id == location_id,
+                ),
             )
+
+            admin_ops = session.execute(admin_stmt).scalars().all()
 
             # Calculate net admin operations effect (only RESTOCK, TAKEOUT, TRANSFER)
             admin_net_change = 0
@@ -171,12 +195,23 @@ class DataPointCollector:
 
             return net_change
 
+        try:
+            if db_session is not None:
+                return _calc(db_session)
+            with get_session() as _s:
+                return _calc(_s)
+
         except Exception as e:
             logger.error(f"Error calculating net change: {e}")
             return None
 
     @staticmethod
-    def get_data_summary(db_session: Session, user_id: int, item_id: int, location_id: Optional[int] = None) -> Dict:
+    def get_data_summary(
+        db_session: Session | None,
+        user_id: int,
+        item_id: int,
+        location_id: int | None = None,
+    ) -> dict:
         """
         Get summary statistics about available data points.
 
@@ -184,7 +219,9 @@ class DataPointCollector:
             Dict with count, date_range, avg_daily_usage, etc.
         """
         try:
-            data_points = DataPointCollector.collect_data_points(db_session, user_id, item_id, location_id)
+            data_points = DataPointCollector.collect_data_points(
+                db_session, user_id, item_id, location_id
+            )
 
             if not data_points:
                 return {
@@ -203,7 +240,9 @@ class DataPointCollector:
 
             from .config import PredictionConfig
 
-            sufficient_for_ml = len(data_points) >= PredictionConfig.MIN_DATA_POINTS_FOR_ML
+            sufficient_for_ml = (
+                len(data_points) >= PredictionConfig.MIN_DATA_POINTS_FOR_ML
+            )
 
             return {
                 "data_point_count": len(data_points),

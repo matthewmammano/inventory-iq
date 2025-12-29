@@ -8,10 +8,10 @@ document.querySelectorAll('[data-value]').forEach(btn => {
         const changeValue = parseInt(this.dataset.value);
         let currentValue = parseInt(counterValue.textContent);
         let newValue = currentValue + changeValue;
-        
+
         // Don't allow negative values
         if (newValue < 0) newValue = 0;
-        
+
         counterValue.textContent = newValue;
         counterInput.value = newValue;
     });
@@ -20,7 +20,7 @@ document.querySelectorAll('[data-value]').forEach(btn => {
 submitBtn.addEventListener('click', function() {
     // Update the counter_value before submitting
     counterInput.value = counterValue.textContent;
-    
+
     // Submit the form
     document.getElementById('hidden-form').submit();
 });

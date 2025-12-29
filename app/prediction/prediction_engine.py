@@ -5,18 +5,18 @@ Handles decision logic for when to use ML vs Prior vs Combined predictions
 based on data availability and confidence thresholds.
 """
 
-import logging
 from dataclasses import dataclass
 from enum import Enum
-from typing import Dict, List, Optional
 
+from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.orm import Session
+
+from app.db import get_session
 
 from .aggregation import PriorPredictionResult, PriorTrendlineAggregator
 from .config import PredictionConfig
 from .ml_service import MLPredictionResult, MLPredictionService
-
-logger = logging.getLogger(__name__)
 
 
 class PredictionType(Enum):
@@ -37,8 +37,8 @@ class CombinedPredictionResult:
     prediction_type: PredictionType  # Which method was used
 
     # Source predictions
-    ml_prediction: Optional[MLPredictionResult] = None
-    prior_prediction: Optional[PriorPredictionResult] = None
+    ml_prediction: MLPredictionResult | None = None
+    prior_prediction: PriorPredictionResult | None = None
 
     # Combination weights (if COMBINED)
     ml_weight: float = 0.0
@@ -55,8 +55,8 @@ class PredictionEngine:
 
     @staticmethod
     def predict_usage(
-        db_session: Session, user_id: int, item_id: int, location_id: int
-    ) -> Optional[CombinedPredictionResult]:
+        db_session: Session | None, user_id: int, item_id: int, location_id: int
+    ) -> CombinedPredictionResult | None:
         """
         Predict daily usage rate for item at specific location.
 
@@ -76,24 +76,39 @@ class PredictionEngine:
         Returns:
             CombinedPredictionResult or None if no prediction possible
         """
+        # Accept either a provided Session or use the session helper.
+        # This pattern keeps the public API flexible while centralizing
+        # session lifecycle when a caller does not manage transactions.
+        use_external_session = db_session is not None
+
         try:
-            # Get ML prediction
-            ml_result = MLPredictionService.predict_usage_rate(db_session, user_id, item_id, location_id)
+            if use_external_session:
+                ml_result = MLPredictionService.predict_usage_rate(
+                    db_session, user_id, item_id, location_id
+                )
+                prior_result = PriorTrendlineAggregator.get_prior_prediction(
+                    db_session, user_id, item_id, location_id
+                )
+            else:
+                # Caller passed None - use helper-managed session
+                with get_session() as _s:
+                    ml_result = MLPredictionService.predict_usage_rate(
+                        _s, user_id, item_id, location_id
+                    )
+                    prior_result = PriorTrendlineAggregator.get_prior_prediction(
+                        _s, user_id, item_id, location_id
+                    )
 
-            # Get Prior prediction
-            prior_result = PriorTrendlineAggregator.get_prior_prediction(db_session, user_id, item_id, location_id)
-
-            # Decide which prediction method to use
             return PredictionEngine._decide_prediction_method(ml_result, prior_result)
 
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - top-level safety
             logger.error(f"Prediction engine error: {e}")
             return None
 
     @staticmethod
     def _decide_prediction_method(
-        ml_result: Optional[MLPredictionResult], prior_result: Optional[PriorPredictionResult]
-    ) -> Optional[CombinedPredictionResult]:
+        ml_result: MLPredictionResult | None, prior_result: PriorPredictionResult | None
+    ) -> CombinedPredictionResult | None:
         """
         Decide which prediction method to use based on availability and confidence.
         """
@@ -116,7 +131,9 @@ class PredictionEngine:
         return None
 
     @staticmethod
-    def _create_ml_only_result(ml_result: MLPredictionResult) -> CombinedPredictionResult:
+    def _create_ml_only_result(
+        ml_result: MLPredictionResult,
+    ) -> CombinedPredictionResult:
         """Create result using only ML prediction."""
         confidence_explanation = (
             f"ML prediction from {ml_result.data_point_count} data points "
@@ -135,7 +152,9 @@ class PredictionEngine:
         )
 
     @staticmethod
-    def _create_prior_only_result(prior_result: PriorPredictionResult) -> CombinedPredictionResult:
+    def _create_prior_only_result(
+        prior_result: PriorPredictionResult,
+    ) -> CombinedPredictionResult:
         """Create result using only Prior prediction."""
         confidence_explanation = PriorTrendlineAggregator.get_confidence_explanation(
             prior_result.confidence_score, prior_result.location_count
@@ -158,14 +177,22 @@ class PredictionEngine:
 
         # Calculate adaptive weights based on confidence scores
         ml_weight, prior_weight = PredictionEngine._calculate_adaptive_weights(
-            ml_result.confidence_score, prior_result.confidence_score, ml_result.data_point_count
+            ml_result.confidence_score,
+            prior_result.confidence_score,
+            ml_result.data_point_count,
         )
 
         # Weighted combination of daily usage rates
-        combined_rate = ml_weight * ml_result.daily_usage_rate + prior_weight * prior_result.daily_usage_rate
+        combined_rate = (
+            ml_weight * ml_result.daily_usage_rate
+            + prior_weight * prior_result.daily_usage_rate
+        )
 
         # Combined confidence score (weighted average)
-        combined_confidence = ml_weight * ml_result.confidence_score + prior_weight * prior_result.confidence_score
+        combined_confidence = (
+            ml_weight * ml_result.confidence_score
+            + prior_weight * prior_result.confidence_score
+        )
 
         confidence_explanation = (
             f"Combined: {ml_weight:.1%} ML ({ml_result.data_point_count} points, "
@@ -214,11 +241,15 @@ class PredictionEngine:
 
         # Adjust based on confidence difference
         confidence_ratio = (
-            ml_confidence / (ml_confidence + prior_confidence) if (ml_confidence + prior_confidence) > 0 else 0.5
+            ml_confidence / (ml_confidence + prior_confidence)
+            if (ml_confidence + prior_confidence) > 0
+            else 0.5
         )
 
         # Combine factors
-        ml_weight = base_ml_weight * (0.5 + 0.3 * data_point_factor + 0.2 * confidence_ratio)
+        ml_weight = base_ml_weight * (
+            0.5 + 0.3 * data_point_factor + 0.2 * confidence_ratio
+        )
         prior_weight = 1.0 - ml_weight
 
         # Ensure weights are reasonable
@@ -228,7 +259,9 @@ class PredictionEngine:
         return ml_weight, prior_weight
 
     @staticmethod
-    def predict_item_total(db_session: Session, user_id: int, item_id: int, location_ids: List[int]) -> Dict:
+    def predict_item_total(
+        db_session: Session | None, user_id: int, item_id: int, location_ids: list[int]
+    ) -> dict:
         """
         Predict total daily usage for an item across all locations.
 
@@ -241,26 +274,44 @@ class PredictionEngine:
         Returns:
             Dict with total prediction and per-location breakdown
         """
+        # Flexible session handling: allow caller to pass a Session or None
+        use_external_session = db_session is not None
+
         try:
-            location_predictions = {}
+            location_predictions: dict[int, CombinedPredictionResult | None] = {}
             total_daily_usage = 0.0
             total_confidence = 0.0
             prediction_count = 0
 
-            # Get predictions for each location
-            for location_id in location_ids:
-                prediction = PredictionEngine.predict_usage(db_session, user_id, item_id, location_id)
+            if use_external_session:
+                for location_id in location_ids:
+                    prediction = PredictionEngine.predict_usage(
+                        db_session, user_id, item_id, location_id
+                    )
+                    if prediction:
+                        location_predictions[location_id] = prediction
+                        total_daily_usage += prediction.daily_usage_rate
+                        total_confidence += prediction.confidence_score
+                        prediction_count += 1
+                    else:
+                        location_predictions[location_id] = None
+            else:
+                with get_session() as _s:
+                    for location_id in location_ids:
+                        prediction = PredictionEngine.predict_usage(
+                            _s, user_id, item_id, location_id
+                        )
+                        if prediction:
+                            location_predictions[location_id] = prediction
+                            total_daily_usage += prediction.daily_usage_rate
+                            total_confidence += prediction.confidence_score
+                            prediction_count += 1
+                        else:
+                            location_predictions[location_id] = None
 
-                if prediction:
-                    location_predictions[location_id] = prediction
-                    total_daily_usage += prediction.daily_usage_rate
-                    total_confidence += prediction.confidence_score
-                    prediction_count += 1
-                else:
-                    location_predictions[location_id] = None
-
-            # Calculate average confidence
-            avg_confidence = total_confidence / prediction_count if prediction_count > 0 else 0.0
+            avg_confidence = (
+                total_confidence / prediction_count if prediction_count > 0 else 0.0
+            )
 
             return {
                 "total_daily_usage": total_daily_usage,
@@ -271,7 +322,7 @@ class PredictionEngine:
                 "has_predictions": prediction_count > 0,
             }
 
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - defensive
             logger.error(f"Item total prediction error: {e}")
             return {
                 "total_daily_usage": 0.0,
@@ -283,7 +334,9 @@ class PredictionEngine:
             }
 
     @staticmethod
-    def bulk_predict_items(db_session: Session, user_id: int, item_ids: List[int]) -> Dict[int, Dict]:
+    def bulk_predict_items(
+        db_session: Session | None, user_id: int, item_ids: list[int]
+    ) -> dict[int, dict]:
         """
         Bulk predict usage for multiple items (for admin restock page).
 
@@ -295,19 +348,44 @@ class PredictionEngine:
         Returns:
             Dict mapping item_id to prediction results
         """
+        # Bulk prediction can be called with or without an external session.
+        use_external_session = db_session is not None
+
         try:
-            # Get all locations for this user
             from app.auth.models import UserItemLocations
 
-            locations = db_session.query(UserItemLocations).filter_by(user_id=user_id).all()
-            location_ids = [loc.id for loc in locations]
-
-            results = {}
-            for item_id in item_ids:
-                results[item_id] = PredictionEngine.predict_item_total(db_session, user_id, item_id, location_ids)
+            if use_external_session:
+                stmt = select(UserItemLocations).where(
+                    UserItemLocations.user_id == user_id
+                )
+                locations: list[UserItemLocations] = (
+                    db_session.execute(stmt).scalars().all()
+                )
+                location_ids = [loc.id for loc in locations]
+                results = {
+                    item_id: PredictionEngine.predict_item_total(
+                        db_session, user_id, item_id, location_ids
+                    )
+                    for item_id in item_ids
+                }
+            else:
+                with get_session() as _s:
+                    stmt = select(UserItemLocations).where(
+                        UserItemLocations.user_id == user_id
+                    )
+                    locations: list[UserItemLocations] = (
+                        _s.execute(stmt).scalars().all()
+                    )
+                    location_ids = [loc.id for loc in locations]
+                    results = {
+                        item_id: PredictionEngine.predict_item_total(
+                            _s, user_id, item_id, location_ids
+                        )
+                        for item_id in item_ids
+                    }
 
             return results
 
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - defensive
             logger.error(f"Bulk prediction error: {e}")
             return {}

@@ -4,11 +4,27 @@ Validation helper functions for models.
 Import this into models.py to keep validation logic organized.
 """
 
-import logging
+from loguru import logger
 
 
-def validate_email_format(email):
-    """Validate email format using email-validator library."""
+def validate_email_format(email: str) -> str:
+    """Validate email format using email-validator library.
+
+    Parameters
+    ----------
+    email : str
+        Email address to validate
+
+    Returns
+    -------
+    str
+        Normalized email address
+
+    Raises
+    ------
+    ValueError
+        If email format is invalid
+    """
     from email_validator import EmailNotValidError, validate_email
 
     try:
@@ -16,20 +32,56 @@ def validate_email_format(email):
         valid_email = validate_email(email)
         return valid_email.email  # Returns normalized email
     except EmailNotValidError as e:
-        logging.error(f"Email validation failed for '{email}': {e}")
+        logger.exception(f"Email validation failed for '{email}': {e}")
         raise ValueError("Invalid email format")
 
 
-def validate_timezone(value):
-    """Validate timezone using pytz."""
+def validate_email_with_length(
+    value: str | None, max_length: int, allow_none: bool = True
+) -> str | None:
+    """Validate email format and length (consolidated validation for all email fields)."""
+    if value is None:
+        if allow_none:
+            return None
+        raise ValueError("Email cannot be None")
+    value = validate_email_format(value)
+    validate_string_length(
+        value, "email", max_length, allow_none=False, allow_empty=False
+    )
+    return value
+
+
+def validate_timezone(value: str) -> str:
+    """Validate timezone using pytz.
+
+    Parameters
+    ----------
+    value : str
+        Timezone string to validate
+
+    Returns
+    -------
+    str
+        Validated timezone string
+
+    Raises
+    ------
+    ValueError
+        If timezone is invalid
+    """
     import pytz
 
-    value = validate_string_length(value, "timezone", 50, allow_none=False, allow_empty=False)
+    value = (
+        validate_string_length(
+            value, "timezone", 50, allow_none=False, allow_empty=False
+        )
+        or ""
+    )
 
     try:
         pytz.timezone(value)
     except pytz.UnknownTimeZoneError as e:
-        logging.error(f"Timezone validation failed for '{value}': {e}")
+        logger.exception(f"Timezone validation failed for '{value}': {e}")
         raise ValueError(f"Invalid timezone: {value}")
 
     return value
@@ -40,10 +92,10 @@ def validate_positive_integer(value, field_name, allow_none=True):
     if value is None:
         if allow_none:
             return None
-        logging.error(f"Validation failed: {field_name} cannot be None")
+        logger.error(f"Validation failed: {field_name} cannot be None")
         raise ValueError(f"{field_name} cannot be None")
     if not isinstance(value, int) or value <= 0:
-        logging.error(
+        logger.error(
             f"Validation failed: {field_name} must be a positive integer, got {type(value)} with value {value}"
         )
         raise ValueError(f"{field_name} must be a positive integer")
@@ -55,31 +107,37 @@ def validate_non_negative_integer(value, field_name, allow_none=True):
     if value is None:
         if allow_none:
             return None
-        logging.error(f"Validation failed: {field_name} cannot be None")
+        logger.error(f"Validation failed: {field_name} cannot be None")
         raise ValueError(f"{field_name} cannot be None")
     if not isinstance(value, int) or value < 0:
-        logging.error(
+        logger.error(
             f"Validation failed: {field_name} must be a non-negative integer, got {type(value)} with value {value}"
         )
         raise ValueError(f"{field_name} must be a non-negative integer")
     return value
 
 
-def validate_string_length(value, field_name, max_length, allow_none=True, allow_empty=True):
+def validate_string_length(
+    value, field_name, max_length, allow_none=True, allow_empty=True
+):
     """Validate string length constraints."""
     if value is None:
         if allow_none:
             return None
-        logging.error(f"Validation failed: {field_name} cannot be None")
+        logger.error(f"Validation failed: {field_name} cannot be None")
         raise ValueError(f"{field_name} cannot be None")
     if not isinstance(value, str):
-        logging.error(f"Validation failed: {field_name} must be a string, got {type(value)}")
+        logger.error(
+            f"Validation failed: {field_name} must be a string, got {type(value)}"
+        )
         raise ValueError(f"{field_name} must be a string")
     if not allow_empty and not value.strip():
-        logging.error(f"Validation failed: {field_name} cannot be empty")
+        logger.error(f"Validation failed: {field_name} cannot be empty")
         raise ValueError(f"{field_name} cannot be empty")
     if len(value) > max_length:
-        logging.error(f"Validation failed: {field_name} cannot exceed {max_length} characters, got {len(value)}")
+        logger.error(
+            f"Validation failed: {field_name} cannot exceed {max_length} characters, got {len(value)}"
+        )
         raise ValueError(f"{field_name} cannot exceed {max_length} characters")
     return value
 
@@ -98,13 +156,15 @@ def validate_image_url(value):
         is_local_path = not parsed.scheme or parsed.scheme == "file"
 
         if not (is_url or is_local_path):
-            logging.error(f"Image URL validation failed: '{value}' is not a valid URL or local file path")
+            logger.error(
+                f"Image URL validation failed: '{value}' is not a valid URL or local file path"
+            )
             raise ValueError("Image must be a valid URL or local file path")
 
         try:
             validate_string_length(value, "image", 1020)
         except ValueError as e:
-            logging.error(f"Image URL validation failed: {e}")
+            logger.exception(f"Image URL validation failed: {e}")
             raise
     return value
 
@@ -112,6 +172,8 @@ def validate_image_url(value):
 def validate_tag_id_type(tag_id):
     """Validate that a tag_id is an integer."""
     if not isinstance(tag_id, int):
-        logging.error(f"Tag ID validation failed: expected integer, got {type(tag_id)} with value {tag_id}")
+        logger.error(
+            f"Tag ID validation failed: expected integer, got {type(tag_id)} with value {tag_id}"
+        )
         raise ValueError("Tag ID must be an integer")
     return tag_id

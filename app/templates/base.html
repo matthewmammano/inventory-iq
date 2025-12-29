@@ -6,7 +6,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Inventory IQ{% endblock %}</title>
-    
+
     <!-- TODO GREY: Implement PWA features for wall-mounted touchscreen kiosk
          - Add service worker for offline functionality and asset caching
          - Create web app manifest for fullscreen/kiosk mode experience
@@ -14,19 +14,19 @@
          - Implement background sync to handle network interruptions
          - Optimize touch interface for large buttons and gestures
     -->
-    
-    <!-- TODO GREY: Next iteration: 
+
+    <!-- TODO GREY: Next iteration:
          1. Gradually migrate inline styles/scripts to external files, then remove 'unsafe-inline' for maximum security
          2. Re-enable X-Frame-Options header (currently handled by Flask)
          3. Re-enable CSP with proper font-src directive: "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https:; img-src 'self' data: https: http:; connect-src 'self';"
     -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
-    
+
     <!-- Preconnect for performance -->
     <link rel="preconnect" href="https://cdn.jsdelivr.net">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    
+
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
 
@@ -59,7 +59,7 @@
     <div class="content">
         {% block content %}{% endblock %}
     </div>
-    
+
     <!-- Flash message container (hidden by default) -->
     <div id="flash-container" class="flash-container">
         <img id="flash-image" class="flash-image" src="" />
@@ -70,8 +70,8 @@
             </div>
         </div>
     </div>
-    
-    
+
+
     <!-- JavaScript for flash messages and timer -->
     <script>
         document.addEventListener('DOMContentLoaded', function() {
@@ -81,35 +81,35 @@
                     const flashMessage = document.getElementById('flash-message');
                     const flashImage = document.getElementById('flash-image');
                     const timer = document.getElementById('timer');
-                    
+
                     {% set category = messages[0][0] %}
                     {% set message = messages[0][1] %}
-                    
+
                     {% if category == message %}
                         {% set category = "info" %}
                     {% endif %}
-                    
+
                     // Update content
                     flashMessage.textContent = "{{ message }}";
                     flashImage.src = "{{ url_for('static', filename='images/flash/' + category + '.svg') }}";
-                    
+
                     // Show the flash message
                     flashContainer.classList.add('show');
                     flashContainer.classList.add('flash-{{ category }}');
-                    
+
                     // Duration in milliseconds
                     const duration = 5000; // 5 seconds
                     const startTime = Date.now();
-                    
+
                     // Update function to animate the timer
                     function updateTimer() {
                         const elapsedTime = Date.now() - startTime;
                         const progress = Math.min(elapsedTime / duration, 1);
-                        
+
                         // Update the conic gradient
                         const progressPercent = progress * 100;
                         timer.style.setProperty('--progress', `${progressPercent}%`);
-                        
+
                         if (progress < 1) {
                             // Continue updating if not complete
                             requestAnimationFrame(updateTimer);
@@ -119,14 +119,14 @@
                             flashContainer.classList.remove('flash-{{ category }}');
                         }
                     }
-                    
+
                     // Start the animation
                     requestAnimationFrame(updateTimer);
                 {% endif %}
             {% endwith %}
         });
     </script>
-    
+
     {% block extra_js %}{% endblock %}
 </body>
 </html>

@@ -3,15 +3,17 @@ Monthly database size monitoring and usage report.
 Cron: 0 9 1 * * python -m app.tasks.monitor_database_size
 """
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Optional
 
 from flask import current_app
-from flask_mailman import EmailMessage
+from flask_mailman import EmailMessage, Mail
+from loguru import logger
+from sqlalchemy import func, select
 
 from app import create_app, mail
 from app.auth.models import Users
+from app.db import get_session
 from app.inventory.models import ActionLogs, Items
 
 
@@ -25,11 +27,13 @@ def monitor_database_size() -> None:
         admin_email = _get_admin_email()
 
         if not admin_email:
-            print("No admin email found")
+            logger.warning("No admin email found")
             return
 
         _send_database_report(admin_email, db_size_mb, stats)
-        print(f"Database report sent: {db_size_mb}MB, {stats['users']} users, {stats['items']} items")
+        logger.info(
+            f"Database report sent: {db_size_mb}MB, {stats['users']} users, {stats['items']} items"
+        )
 
 
 def _get_database_size(app) -> float:
@@ -42,22 +46,46 @@ def _get_database_size(app) -> float:
 
 def _get_database_stats() -> dict:
     """Get database statistics."""
-    thirty_days_ago = datetime.now(timezone.utc) - timedelta(days=30)
+    thirty_days_ago = datetime.now(UTC) - timedelta(days=30)
+    with get_session() as session:
+        users_count = int(
+            session.execute(
+                select(func.count()).select_from(Users).where(Users.active.is_(True))
+            ).scalar()
+            or 0
+        )
+        items_count = int(
+            session.execute(
+                select(func.count()).select_from(Items).where(Items.active.is_(True))
+            ).scalar()
+            or 0
+        )
+        recent_actions = int(
+            session.execute(
+                select(func.count())
+                .select_from(ActionLogs)
+                .where(ActionLogs.time_scanned >= thirty_days_ago)
+            ).scalar()
+            or 0
+        )
 
     return {
-        'users': Users.query.filter_by(active=True).count(),
-        'items': Items.query.filter_by(active=True).count(),
-        'recent_actions': ActionLogs.query.filter(ActionLogs.time_scanned >= thirty_days_ago).count()
+        "users": users_count,
+        "items": items_count,
+        "recent_actions": recent_actions,
     }
 
 
-def _get_admin_email() -> Optional[str]:
+def _get_admin_email() -> str | None:
     """Get admin email from config or first active user."""
     admin_email = current_app.config.get("MAIL_DEFAULT_SENDER")
     if admin_email:
         return admin_email
 
-    first_user = Users.query.filter_by(active=True).first()
+    # Fallback to first active user email via explicit session
+    with get_session() as session:
+        stmt = select(Users).where(Users.active.is_(True)).limit(1)
+        first_user = session.execute(stmt).scalars().first()
     return first_user.email if first_user else None
 
 
@@ -68,19 +96,24 @@ def _send_database_report(admin_email: str, db_size_mb: float, stats: dict) -> N
 ======================
 
 Database Size: {db_size_mb} MB
-Active Users: {stats['users']}
-Active Items: {stats['items']}
-Actions (30 days): {stats['recent_actions']}
+Active Users: {stats["users"]}
+Active Items: {stats["items"]}
+Actions (30 days): {stats["recent_actions"]}
 
-Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"""
+Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}"""
 
     msg = EmailMessage(
         subject=subject,
         body=body.strip(),
         from_email=current_app.config["MAIL_DEFAULT_SENDER"],
-        to=[admin_email]
+        to=[admin_email],
     )
-    mail.send(msg)
+    # Use the globally-initialized mail object. Annotate locally for static checkers.
+    mail_obj: Mail = mail  # type: ignore[name-defined]
+    if mail_obj is None:
+        logger.error("Mail service not configured; cannot send database report")
+        return
+    mail_obj.send(msg)
 
 
 if __name__ == "__main__":

@@ -11,11 +11,15 @@ class PredictionConfig:
 
     # Time window for restock validation (global variable for easy changes)
     RESTOCK_VALIDATION_HOURS: Final[int] = 48
-    RESTOCK_VALIDATION_DELTA: Final[timedelta] = timedelta(hours=RESTOCK_VALIDATION_HOURS)
+    RESTOCK_VALIDATION_DELTA: Final[timedelta] = timedelta(
+        hours=RESTOCK_VALIDATION_HOURS
+    )
 
     # ML model configuration
     MIN_DATA_POINTS_FOR_ML: Final[int] = 3
-    ML_TIME_DECAY_FACTOR: Final[float] = 0.95  # Higher values give more weight to recent data
+    ML_TIME_DECAY_FACTOR: Final[float] = (
+        0.95  # Higher values give more weight to recent data
+    )
 
     # Combination weights for ML vs Prior predictions
     MIN_CONFIDENCE_THRESHOLD: Final[float] = 0.6

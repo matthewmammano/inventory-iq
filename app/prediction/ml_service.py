@@ -5,17 +5,16 @@ Uses regression analysis with time decay to predict daily usage patterns
 from admin operation data points.
 """
 
-import logging
 from dataclasses import dataclass
-from typing import Dict, Optional, Tuple
 
 import numpy as np
+from loguru import logger
 from sqlalchemy.orm import Session
+
+from app.db import get_session
 
 from .config import PredictionConfig
 from .data_collection import DataPoint, DataPointCollector
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -36,7 +35,7 @@ class MLPredictionService:
     @staticmethod
     def predict_usage_rate(
         db_session: Session, user_id: int, item_id: int, location_id: int
-    ) -> Optional[MLPredictionResult]:
+    ) -> MLPredictionResult | None:
         """
         Predict daily usage rate using ML with time-weighted data points.
 
@@ -49,9 +48,19 @@ class MLPredictionService:
         Returns:
             MLPredictionResult if sufficient data, None otherwise
         """
+        # Allow callers to pass a Session or rely on the helper-managed session.
+        use_external_session = db_session is not None
+
         try:
-            # Collect data points
-            data_points = DataPointCollector.collect_data_points(db_session, user_id, item_id, location_id)
+            if use_external_session:
+                data_points = DataPointCollector.collect_data_points(
+                    db_session, user_id, item_id, location_id
+                )
+            else:
+                with get_session() as _s:
+                    data_points = DataPointCollector.collect_data_points(
+                        _s, user_id, item_id, location_id
+                    )
 
             if len(data_points) < PredictionConfig.MIN_DATA_POINTS_FOR_ML:
                 return None
@@ -63,10 +72,14 @@ class MLPredictionService:
                 return None
 
             # Perform weighted linear regression
-            daily_rate, r_squared = MLPredictionService._weighted_linear_regression(X, y, weights)
+            daily_rate, r_squared = MLPredictionService._weighted_linear_regression(
+                X, y, weights
+            )
 
             # Determine trend direction
-            trend_direction = MLPredictionService._determine_trend_direction(daily_rate, r_squared)
+            trend_direction = MLPredictionService._determine_trend_direction(
+                daily_rate, r_squared
+            )
 
             # Calculate date range
             date_range = (data_points[-1].timestamp - data_points[0].timestamp).days
@@ -81,12 +94,14 @@ class MLPredictionService:
 
             return result
 
-        except Exception as e:
+        except Exception as e:  # pragma: no cover - defensive
             logger.error(f"ML prediction error: {e}")
             return None
 
     @staticmethod
-    def _prepare_regression_data(data_points: list[DataPoint]) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def _prepare_regression_data(
+        data_points: list[DataPoint],
+    ) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Prepare data for weighted linear regression with time decay.
 
@@ -125,7 +140,9 @@ class MLPredictionService:
         return np.array(X), np.array(y), np.array(weights)
 
     @staticmethod
-    def _weighted_linear_regression(X: np.ndarray, y: np.ndarray, weights: np.ndarray) -> Tuple[float, float]:
+    def _weighted_linear_regression(
+        X: np.ndarray, y: np.ndarray, weights: np.ndarray
+    ) -> tuple[float, float]:
         """
         Perform weighted linear regression to find trend.
 
@@ -141,7 +158,7 @@ class MLPredictionService:
             return 0.0, 0.0
 
         if len(X) == 1:
-            return y[0], 1.0  # Perfect fit for single point
+            return float(y[0]), 1.0  # Perfect fit for single point
 
         try:
             # Weighted linear regression: y = mx + b
@@ -158,7 +175,7 @@ class MLPredictionService:
 
             if denominator == 0:
                 # All X values are the same
-                return np.mean(y), 1.0
+                return float(np.mean(y)), 1.0
 
             slope = numerator / denominator
             intercept = y_mean - slope * x_mean
@@ -175,11 +192,13 @@ class MLPredictionService:
             # Use the regression line to predict usage at the latest time point
             if len(X) > 0:
                 latest_time = np.max(X)
-                current_rate = slope * latest_time + intercept  # y = mx + b at latest time
+                current_rate = (
+                    slope * latest_time + intercept
+                )  # y = mx + b at latest time
             else:
                 current_rate = intercept  # If no time variation, use intercept
 
-            return current_rate, r_squared
+            return float(current_rate), float(r_squared)
 
         except Exception as e:
             logger.error(f"Regression calculation error: {e}")
@@ -210,7 +229,7 @@ class MLPredictionService:
     @staticmethod
     def batch_predict_locations(
         db_session: Session, user_id: int, item_id: int, location_ids: list[int]
-    ) -> Dict[int, Optional[MLPredictionResult]]:
+    ) -> dict[int, MLPredictionResult | None]:
         """
         Batch predict usage rates for multiple locations.
 
@@ -225,5 +244,7 @@ class MLPredictionService:
         """
         results = {}
         for location_id in location_ids:
-            results[location_id] = MLPredictionService.predict_usage_rate(db_session, user_id, item_id, location_id)
+            results[location_id] = MLPredictionService.predict_usage_rate(
+                db_session, user_id, item_id, location_id
+            )
         return results

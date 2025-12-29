@@ -1,15 +1,14 @@
-import logging
 from datetime import datetime
-from typing import Dict
 
 from flask import current_app, render_template
-from flask_mailman import EmailMessage, EmailMultiAlternatives
+from flask_mailman import EmailMessage, EmailMultiAlternatives, Mail
+from loguru import logger
+from sqlalchemy import select
 
-from app import db, mail
+from app import mail
 from app.alerts.models import Alert, EmailBatch
 from app.auth.models import UserAlerts, Users
-
-logger = logging.getLogger(__name__)
+from app.db import get_session
 
 
 class EmailBatchService:
@@ -19,7 +18,9 @@ class EmailBatchService:
     def should_send_email(user_alerts: UserAlerts) -> bool:
         """Check if it's time to send based on grouping hours"""
         logger.info(f"should_send_email called for user_id={user_alerts.user_id}")
-        logger.info(f"Pending alerts count: {len(user_alerts.pending_alerts) if user_alerts.pending_alerts else 0}")
+        logger.info(
+            f"Pending alerts count: {len(user_alerts.pending_alerts) if user_alerts.pending_alerts else 0}"
+        )
         if not user_alerts.pending_alerts:
             return False
         if not user_alerts.last_sent:
@@ -35,12 +36,20 @@ class EmailBatchService:
     def create_email_batch(user_alerts: UserAlerts) -> EmailBatch:
         """Convert pending alerts to EmailBatch for sending"""
         logger.info(f"create_email_batch called for user_id={user_alerts.user_id}")
-        user = db.session.get(Users, user_alerts.user_id)
-        logger.info(f"User found: {user.email if user else 'None'}")
-        alerts = [Alert(**alert_dict) for alert_dict in user_alerts.pending_alerts]
+        pending = user_alerts.pending_alerts or []
+        alerts = [Alert(**alert_dict) for alert_dict in pending]
         logger.info(f"Created {len(alerts)} Alert objects from pending alerts")
 
-        email_batch = EmailBatch(alerts=alerts, user_email=user.email, user_name=user.display_name)
+        with get_session() as session:
+            user = session.get(Users, user_alerts.user_id)
+            if not user:
+                logger.warning(f"User not found for alerts owner {user_alerts.user_id}")
+                return EmailBatch(alerts=alerts, user_email="", user_name="")
+            logger.info(f"User found: {user.email}")
+
+        email_batch = EmailBatch(
+            alerts=alerts, user_email=user.email, user_name=user.display_name
+        )
         logger.info(f"EmailBatch created with subject: {email_batch.subject}")
         return email_batch
 
@@ -53,7 +62,9 @@ class EmailBatchService:
         """
         logger.info(f"send_batch_email called for user_id={user_id}")
         try:
-            user_alerts = UserAlerts.query.filter_by(user_id=user_id).first()
+            with get_session() as session:
+                stmt = select(UserAlerts).where(UserAlerts.user_id == user_id)
+                user_alerts = session.execute(stmt).scalars().first()
             logger.info(f"UserAlerts found: {user_alerts is not None}")
             if not user_alerts or not EmailBatchService.should_send_email(user_alerts):
                 return False
@@ -65,7 +76,9 @@ class EmailBatchService:
             # Create Flask-Mailman message with best practices
             logger.info("Creating Flask-Mailman EmailMultiAlternatives message...")
             logger.info(f"Subject: {email_batch.subject}")
-            logger.info(f"Sender: {current_app.config.get('MAIL_DEFAULT_SENDER', 'NOT_SET')}")
+            logger.info(
+                f"Sender: {current_app.config.get('MAIL_DEFAULT_SENDER', 'NOT_SET')}"
+            )
             logger.info(f"Recipients: {[email_batch.user_email]}")
 
             # Render email templates from alerts/templates folder
@@ -98,15 +111,25 @@ class EmailBatchService:
 
             # Send email
             logger.info("Attempting to send email via Flask-Mailman...")
-            mail.send(msg)
+            # Use the globally-initialized mail object. Annotate locally for static checkers.
+            mail_obj: Mail = mail  # type: ignore[name-defined]
+            if mail_obj is None:
+                logger.error("Mail service not configured; cannot send email")
+                return False
+            mail_obj.send(msg)
             logger.info("Email sent successfully!")
 
             # Clear pending alerts and mark sent
-            user_alerts.pending_alerts = []
-            user_alerts.last_sent = datetime.now()
-            db.session.commit()
+            # IMPORTANT: Re-fetch user_alerts in new session to avoid DetachedInstanceError
+            with get_session() as session:
+                stmt_update = select(UserAlerts).where(UserAlerts.user_id == user_id)
+                user_alerts_attached = session.execute(stmt_update).scalars().first()
+                if user_alerts_attached:
+                    user_alerts_attached.pending_alerts = []
+                    user_alerts_attached.last_sent = datetime.now()
+                    session.commit()
 
-            current_app.logger.info(
+            logger.info(
                 f"Sent batch email with {len(email_batch.alerts)} alerts to {email_batch.user_email}"
             )
             logger.info("send_batch_email completed successfully")
@@ -115,11 +138,11 @@ class EmailBatchService:
         except Exception as e:
             logger.error(f"ERROR in send_batch_email: {e}")
             logger.error(f"Exception type: {type(e).__name__}")
-            current_app.logger.error(f"Failed to send batch email for user {user_id}: {e}")
+            logger.error(f"Failed to send batch email for user {user_id}: {e}")
             return False
 
     @staticmethod
-    def process_all_alerts() -> Dict[str, int]:
+    def process_all_alerts() -> dict[str, int]:
         """Process alerts for all users - for cron job
 
         Returns:
@@ -129,30 +152,45 @@ class EmailBatchService:
         stats = {"processed": 0, "sent": 0, "errors": 0}
 
         try:
-            users_with_alerts = UserAlerts.query.filter(UserAlerts.pending_alerts != []).all()
+            with get_session() as session:
+                all_users = session.execute(select(UserAlerts)).scalars().all()
+
+            users_with_alerts = [
+                ua
+                for ua in all_users
+                if ua.pending_alerts and len(ua.pending_alerts) > 0
+            ]
             stats["processed"] = len(users_with_alerts)
-            logger.info(f"Found {len(users_with_alerts)} users with pending alerts")
+            logger.info(
+                f"Found {len(users_with_alerts)} users with pending alerts (from {len(all_users)} total)"
+            )
 
             for user_alerts in users_with_alerts:
-                logger.info(f"Processing user_id={user_alerts.user_id}")
+                logger.info(
+                    f"Processing user_id={user_alerts.user_id} with {len(user_alerts.pending_alerts)} pending"
+                )
                 if EmailBatchService.should_send_email(user_alerts):
                     logger.info(f"Sending email for user_id={user_alerts.user_id}")
                     if EmailBatchService.send_batch_email(user_alerts.user_id):
                         stats["sent"] += 1
-                        logger.info(f"Email sent successfully for user_id={user_alerts.user_id}")
+                        logger.info(
+                            f"Email sent successfully for user_id={user_alerts.user_id}"
+                        )
                     else:
                         stats["errors"] += 1
                         logger.error(f"Email failed for user_id={user_alerts.user_id}")
                 else:
-                    logger.info(f"Skipping email for user_id={user_alerts.user_id} (conditions not met)")
+                    logger.info(
+                        f"Skipping email for user_id={user_alerts.user_id} (conditions not met)"
+                    )
 
-            current_app.logger.info(f"Alert processing complete: {stats}")
+            logger.info(f"Alert processing complete: {stats}")
             logger.info(f"process_all_alerts completed: {stats}")
             return stats
 
         except Exception as e:
             logger.error(f"ERROR in process_all_alerts: {e}")
             logger.error(f"Exception type: {type(e).__name__}")
-            current_app.logger.error(f"Error in process_all_alerts: {e}")
+            logger.error(f"Error in process_all_alerts: {e}")
             stats["errors"] += 1
             return stats

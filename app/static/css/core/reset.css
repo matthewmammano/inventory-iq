@@ -18,7 +18,7 @@ html {
 body {
     font-family: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
     background-color: var(--background-color);
-    color: var(--most-black);    
+    color: var(--most-black);
     min-height: 100vh;
     scroll-behavior: smooth;
     padding-top: 20vh; /* Account for fixed header */

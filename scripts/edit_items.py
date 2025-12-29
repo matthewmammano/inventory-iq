@@ -6,7 +6,9 @@ import csv
 import json
 from pathlib import Path
 
-from app import db
+from sqlalchemy import delete, func, select
+
+from app.db import get_session
 from app.inventory.models import Items
 from scripts.utils import (
     create_with_validation,
@@ -53,7 +55,11 @@ def import_items():
             input("Press Enter...")
             return
 
-        current_count = Items.query.filter_by(user_id=user.id).count()
+        with get_session() as session:
+            stmt_count = (
+                select(func.count()).select_from(Items).where(Items.user_id == user.id)
+            )
+            current_count = session.execute(stmt_count).scalar() or 0
         print(f"\n[INFO] Found {len(items_data)} items in CSV")
         print(f"[WARNING] This will DELETE {current_count} existing items")
 
@@ -64,7 +70,15 @@ def import_items():
         print("\n[INFO] Starting import...")
 
         # Delete all user's items
-        deleted = Items.query.filter_by(user_id=user.id).delete()
+        with get_session() as session:
+            del_stmt = delete(Items).where(Items.user_id == user.id)
+            res = session.execute(del_stmt)
+            session.commit()
+            deleted = (
+                res.rowcount
+                if hasattr(res, "rowcount") and res.rowcount is not None
+                else 0
+            )
         print(f"Deleted {deleted} existing items")
 
         # Create new items using model validation
@@ -85,7 +99,14 @@ def import_items():
 
     except Exception as e:
         print(f"[ERROR] Import failed: {e}")
-        db.session.rollback()
+        # get_session imported at module level
+
+        # Attempt rollback in a fresh session for safety
+        try:
+            with get_session() as session:
+                session.rollback()
+        except Exception:
+            pass
 
     input("\nPress Enter...")
 
@@ -131,7 +152,9 @@ def load_csv_items(csv_path: str, user_id: int) -> list:
                         try:
                             item_data[field] = converter(row[field].strip())
                         except (ValueError, TypeError):
-                            print(f"[WARNING] Row {row_num}: Invalid {field} value '{row[field]}', skipping")
+                            print(
+                                f"[WARNING] Row {row_num}: Invalid {field} value '{row[field]}', skipping"
+                            )
 
                 items.append(item_data)
 
@@ -157,7 +180,11 @@ def parse_tag_ids(tag_str: str) -> list:
 
 def view_items(user):
     """View all items for a user."""
-    items = Items.query.filter_by(user_id=user.id).order_by(Items.name).all()
+    # get_session imported at module level
+
+    with get_session() as session:
+        stmt = select(Items).where(Items.user_id == user.id).order_by(Items.name)
+        items = list(session.execute(stmt).scalars().all())
 
     select_from_list(
         items,
@@ -196,14 +223,18 @@ def add_item(user):
     expiration_days = int(exp_days) if exp_days and exp_days.isdigit() else None
 
     delivery_days = get_input("Restock delivery days: ")
-    restock_delivery_days = int(delivery_days) if delivery_days and delivery_days.isdigit() else None
+    restock_delivery_days = (
+        int(delivery_days) if delivery_days and delivery_days.isdigit() else None
+    )
 
     # Tag IDs (simplified - just enter comma-separated IDs)
     tag_input = get_input("Tag IDs (comma-separated, e.g. '1,2,3'): ")
     tag_ids = []
     if tag_input:
         try:
-            tag_ids = [int(x.strip()) for x in tag_input.split(",") if x.strip().isdigit()]
+            tag_ids = [
+                int(x.strip()) for x in tag_input.split(",") if x.strip().isdigit()
+            ]
         except ValueError:
             print("[WARNING] Invalid tag IDs, using none")
 
@@ -235,7 +266,11 @@ def add_item(user):
 
 def delete_item(user):
     """Delete item."""
-    items = Items.query.filter_by(user_id=user.id).order_by(Items.name).all()
+    from app.db import get_session
+
+    with get_session() as session:
+        stmt = select(Items).where(Items.user_id == user.id).order_by(Items.name)
+        items = list(session.execute(stmt).scalars().all())
 
     selected = select_from_list(
         items,
@@ -246,18 +281,26 @@ def delete_item(user):
     if not selected:
         return
 
-    def check_usage(item):
+    def check_usage(item) -> bool:
         """Check if item is used in action logs."""
         from app.inventory.models import ActionLogs
 
-        logs = ActionLogs.query.filter_by(item_id=item.id).first()
+        # get_session imported at module level
 
-        if logs:
-            print(
-                f"\n[WARNING] This item has {ActionLogs.query.filter_by(item_id=item.id).count()} action log entries."
-            )
-            print("Deleting may cause issues with inventory tracking.")
-            return get_yes_no("Are you SURE you want to delete?")
+        with get_session() as session:
+            stmt_logs = select(ActionLogs).where(ActionLogs.item_id == item.id)
+            logs = session.execute(stmt_logs).scalars().first()
+            if logs:
+                stmt_count = (
+                    select(func.count())
+                    .select_from(ActionLogs)
+                    .where(ActionLogs.item_id == item.id)
+                )
+                count = session.execute(stmt_count).scalar() or 0
+                print(f"\n[WARNING] This item has {count} action log entries.")
+                print("Deleting may cause issues with inventory tracking.")
+                res = get_yes_no("Are you SURE you want to delete?")
+                return bool(res) if res is not None else False
         return True
 
     delete_with_confirmation(selected, check_usage)
@@ -304,7 +347,13 @@ def import_items_for_user(user):
             input("Press Enter...")
             return
 
-        current_count = Items.query.filter_by(user_id=user.id).count()
+        # get_session imported at module level
+
+        with get_session() as session:
+            stmt_count = (
+                select(func.count()).select_from(Items).where(Items.user_id == user.id)
+            )
+            current_count = session.execute(stmt_count).scalar() or 0
         print(f"\n[INFO] Found {len(items_data)} items in CSV")
         print(f"[WARNING] This will DELETE {current_count} existing items")
 
@@ -315,7 +364,15 @@ def import_items_for_user(user):
         print("\n[INFO] Starting import...")
 
         # Delete all user's items
-        deleted = Items.query.filter_by(user_id=user.id).delete()
+        with get_session() as session:
+            del_stmt = delete(Items).where(Items.user_id == user.id)
+            res = session.execute(del_stmt)
+            session.commit()
+            deleted = (
+                res.rowcount
+                if hasattr(res, "rowcount") and res.rowcount is not None
+                else 0
+            )
         print(f"Deleted {deleted} existing items")
 
         # Create new items using model validation
@@ -336,7 +393,14 @@ def import_items_for_user(user):
 
     except Exception as e:
         print(f"[ERROR] Import failed: {e}")
-        db.session.rollback()
+        # get_session imported at module level
+
+        # Attempt rollback in a fresh session for safety
+        try:
+            with get_session() as session:
+                session.rollback()
+        except Exception:
+            pass
 
     input("\nPress Enter...")
 

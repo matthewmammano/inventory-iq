@@ -5,16 +5,15 @@ Handles aggregation of prior daily usage across multiple locations for an item,
 treating each location as equal contributor to overall item usage.
 """
 
-import logging
 from dataclasses import dataclass
-from typing import Dict, List, Optional
 
+from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.models import UserItemLocations
+from app.db import get_session
 from app.inventory.models import Items
-
-logger = logging.getLogger(__name__)
 
 
 @dataclass
@@ -24,7 +23,7 @@ class PriorPredictionResult:
     daily_usage_rate: float  # Items per day from prior knowledge
     confidence_score: float  # Confidence based on data completeness (0-1)
     location_count: int  # Number of locations contributing
-    source_locations: List[int]  # Location IDs that contributed
+    source_locations: list[int]  # Location IDs that contributed
     prediction_type: str = "PRIOR"
 
 
@@ -33,8 +32,11 @@ class PriorTrendlineAggregator:
 
     @staticmethod
     def get_prior_prediction(
-        db_session: Session, user_id: int, item_id: int, location_id: Optional[int] = None
-    ) -> Optional[PriorPredictionResult]:
+        db_session: Session | None,
+        user_id: int,
+        item_id: int,
+        location_id: int | None = None,
+    ) -> PriorPredictionResult | None:
         """
         Get prior knowledge prediction for an item at specific location or aggregated.
 
@@ -48,18 +50,40 @@ class PriorTrendlineAggregator:
             PriorPredictionResult if prior knowledge available, None otherwise
         """
         try:
-            # Get item with prior daily usage
-            item = db_session.query(Items).filter_by(id=item_id, user_id=user_id).first()
+            # Normalise session handling: prefer Session.get for primary-key lookups
+            if db_session is None:
+                with get_session() as _s:
+                    item = _s.get(Items, item_id)
+                    if (
+                        not item
+                        or item.user_id != user_id
+                        or item.prior_daily_usage is None
+                    ):
+                        return None
 
-            if not item or item.prior_daily_usage is None:
-                return None
-
-            if location_id is not None:
-                # Single location prediction
-                return PriorTrendlineAggregator._single_location_prediction(db_session, user_id, item, location_id)
+                    if location_id is not None:
+                        return PriorTrendlineAggregator._single_location_prediction(
+                            _s, user_id, item, location_id
+                        )
+                    return PriorTrendlineAggregator._aggregated_prediction(
+                        _s, user_id, item
+                    )
             else:
-                # Aggregated prediction across all locations
-                return PriorTrendlineAggregator._aggregated_prediction(db_session, user_id, item)
+                item = db_session.get(Items, item_id)
+                if (
+                    not item
+                    or item.user_id != user_id
+                    or item.prior_daily_usage is None
+                ):
+                    return None
+
+                if location_id is not None:
+                    return PriorTrendlineAggregator._single_location_prediction(
+                        db_session, user_id, item, location_id
+                    )
+                return PriorTrendlineAggregator._aggregated_prediction(
+                    db_session, user_id, item
+                )
 
         except Exception as e:
             logger.error(f"Prior prediction error: {e}")
@@ -68,7 +92,7 @@ class PriorTrendlineAggregator:
     @staticmethod
     def _single_location_prediction(
         db_session: Session, user_id: int, item: Items, location_id: int
-    ) -> Optional[PriorPredictionResult]:
+    ) -> PriorPredictionResult | None:
         """
         Calculate prior prediction for a single location.
 
@@ -76,7 +100,9 @@ class PriorTrendlineAggregator:
         """
         try:
             # Get all locations that have this item
-            locations = PriorTrendlineAggregator._get_active_locations(db_session, user_id, item.id)
+            locations = PriorTrendlineAggregator._get_active_locations(
+                db_session, user_id, item.id
+            )
 
             if not locations:
                 return None
@@ -87,14 +113,19 @@ class PriorTrendlineAggregator:
 
             # Distribute total usage equally across locations
             location_count = len(locations)
-            daily_usage_per_location = item.prior_daily_usage / location_count
+            prior_usage = float(
+                item.prior_daily_usage if item.prior_daily_usage is not None else 0.0
+            )
+            daily_usage_per_location = prior_usage / location_count
 
             # Confidence based on data concentration
             # More locations = lower confidence due to distribution uncertainty
             confidence = max(0.1, min(1.0, 1.0 / max(1, location_count * 0.5)))
 
             return PriorPredictionResult(
-                daily_usage_rate=-abs(daily_usage_per_location),  # Negative = consumption
+                daily_usage_rate=-abs(
+                    daily_usage_per_location
+                ),  # Negative = consumption
                 confidence_score=confidence,
                 location_count=location_count,
                 source_locations=[location_id],
@@ -105,19 +136,25 @@ class PriorTrendlineAggregator:
             return None
 
     @staticmethod
-    def _aggregated_prediction(db_session: Session, user_id: int, item: Items) -> Optional[PriorPredictionResult]:
+    def _aggregated_prediction(
+        db_session: Session, user_id: int, item: Items
+    ) -> PriorPredictionResult | None:
         """
         Calculate aggregated prior prediction across all locations.
         """
         try:
             # Get all locations that have this item
-            locations = PriorTrendlineAggregator._get_active_locations(db_session, user_id, item.id)
+            locations = PriorTrendlineAggregator._get_active_locations(
+                db_session, user_id, item.id
+            )
 
             if not locations:
                 return None
 
             # Total usage is just the prior daily usage
-            total_daily_usage = item.prior_daily_usage
+            total_daily_usage = float(
+                item.prior_daily_usage if item.prior_daily_usage is not None else 0.0
+            )
 
             # High confidence for aggregated predictions
             confidence = 0.9
@@ -134,7 +171,9 @@ class PriorTrendlineAggregator:
             return None
 
     @staticmethod
-    def _get_active_locations(db_session: Session, user_id: int, item_id: int) -> List:
+    def _get_active_locations(
+        db_session: Session, user_id: int, item_id: int
+    ) -> list[UserItemLocations]:
         """
         Get locations that have had activity for this item.
 
@@ -145,17 +184,19 @@ class PriorTrendlineAggregator:
             from app.inventory.models import ItemLocationQuantities
 
             # Get locations with current inventory or recent activity
-            active_locations = (
-                db_session.query(UserItemLocations)
-                .join(ItemLocationQuantities, ItemLocationQuantities.location_id == UserItemLocations.id)
-                .filter(
-                    UserItemLocations.user_id == user_id,
-                    ItemLocationQuantities.item_id == item_id,
-                    ItemLocationQuantities.quantity >= 0,  # Include zero quantities (recent activity)
+            stmt = (
+                select(UserItemLocations)
+                .join(
+                    ItemLocationQuantities,
+                    ItemLocationQuantities.location_id == UserItemLocations.id,
                 )
+                .where(UserItemLocations.user_id == user_id)
+                .where(ItemLocationQuantities.item_id == item_id)
+                .where(ItemLocationQuantities.quantity >= 0)
                 .distinct()
-                .all()
             )
+
+            active_locations = list(db_session.execute(stmt).scalars().all())
 
             return active_locations
 
@@ -165,8 +206,8 @@ class PriorTrendlineAggregator:
 
     @staticmethod
     def batch_predict_locations(
-        db_session: Session, user_id: int, item_id: int, location_ids: List[int]
-    ) -> Dict[int, Optional[PriorPredictionResult]]:
+        db_session: Session, user_id: int, item_id: int, location_ids: list[int]
+    ) -> dict[int, PriorPredictionResult | None]:
         """
         Batch predict prior usage for multiple locations.
 

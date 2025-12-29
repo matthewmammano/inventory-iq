@@ -2,21 +2,20 @@ import os
 import re
 import sys
 from pathlib import Path
-from typing import Optional
 
 from dotenv import load_dotenv
 from flask import Flask, url_for
 from flask_login import LoginManager
 from flask_mailman import Mail
-from flask_sqlalchemy import SQLAlchemy
+from loguru import logger
 
-# Only load dotenv in dev
-if os.environ.get("FLASK_ENV") in (None, "", "dev", "development"):
-    load_dotenv()
+from . import db as db_module
 
-db: SQLAlchemy = SQLAlchemy()
-login_manager: LoginManager = LoginManager()
-mail: Mail = Mail()
+load_dotenv()
+
+
+login_manager = LoginManager()
+mail = Mail()
 
 
 def create_app() -> Flask:
@@ -28,9 +27,15 @@ def create_app() -> Flask:
     Flask
         A fully configured Flask application.
     """
+    import logging
+
     from config import config_by_name
 
     app = Flask(__name__)
+
+    # Suppress verbose Werkzeug development server HTTP request logs
+    logging.getLogger("werkzeug").setLevel(logging.WARNING)
+    # logging.getLogger("urllib3").setLevel(logging.WARNING)
 
     # Load environment-specific configuration
     env: str = os.getenv("FLASK_ENV", "prod")
@@ -44,13 +49,17 @@ def create_app() -> Flask:
     if app.config.get("SQLALCHEMY_DATABASE_URI", "").startswith("sqlite"):
         os.makedirs(app.instance_path, exist_ok=True)
 
-    # Initialize Flask extensions
-    db.init_app(app)
+    # Initialize Flask extensions / database
+    # For the DB, call the explicit init_db function on the db module.
+    db_module.init_db(app)
     login_manager.init_app(app)
     mail.init_app(app)
 
     # Configure Flask-Login
-    login_manager.login_view = "auth.login"
+    # Assign login view via typing.cast to Any so static checkers allow the
+    # runtime assignment while preserving type-safety elsewhere.
+    # Assign login_view at runtime; the explicit attribute exists on LoginManager
+    login_manager.login_view = "auth.login"  # type: ignore[attr-defined]
     login_manager.login_message = "Please log in to access this page."
     login_manager.login_message_category = "warning"
 
@@ -59,7 +68,7 @@ def create_app() -> Flask:
 
     # Custom template filter for general image handling with error fallback
     @app.template_filter("image_src")
-    def image_src(image_path: Optional[str]) -> str:
+    def image_src(image_path: str | None) -> str:
         """
         Custom Jinja filter to generate safe image URLs.
 
@@ -81,19 +90,14 @@ def create_app() -> Flask:
             return image_path
 
         filename = str(image_path).replace("\\", "/").lstrip("/")
-        if filename.startswith("static/"):
-            filename = filename[7:]
+        filename = filename.removeprefix("static/")
 
-        static_path = Path(app.static_folder) / filename.replace("/", os.sep)
-        if static_path.exists():
+        static_folder = app.static_folder or ""
+        static_path = Path(static_folder) / filename.replace("/", os.sep)
+        if static_folder and static_path.exists():
             return url_for("static", filename=filename)
 
         return url_for("static", filename="images/not-found.jpg")
-
-    # Setup production logging
-    from app.logging_config import setup_logging
-
-    setup_logging()
 
     # Import and register Blueprints and models
     from app.alerts import bp as alerts_bp
@@ -113,7 +117,7 @@ def create_app() -> Flask:
 
     # Create all database tables
     @login_manager.user_loader
-    def load_user(user_id: str) -> Optional[Users]:
+    def load_user(user_id: str) -> Users | None:
         """
         Load a user by ID for Flask-Login.
 
@@ -127,24 +131,31 @@ def create_app() -> Flask:
         Users or None
             The user instance if found.
         """
-        return db.session.get(Users, int(user_id))
+        # Use new session helper to query user by primary key
+        from app.db import get_session
+
+        try:
+            with get_session() as session:
+                return session.get(Users, int(user_id))
+        except Exception:
+            return None
 
     with app.app_context():
-        app.logger.info("Initializing database tables...")
+        logger.info("Initializing database tables...")
         try:
-            db.create_all()
-            app.logger.info("Database tables created successfully!")
+            db_module.create_all()
+            logger.info("Database tables created successfully!")
         except Exception as e:
-            app.logger.critical(f"Failed to create database tables: {e}")
+            logger.critical(f"Failed to create database tables: {e}")
             sys.exit(1)
 
     # Log DB URI (mask sensitive info in prod)
     db_uri: str = app.config["SQLALCHEMY_DATABASE_URI"]
     if env == "prod" and db_uri:
         db_type = db_uri.split("://")[0] if "://" in db_uri else "unknown"
-        app.logger.info(f"Application initialized with {db_type} database")
+        logger.info(f"Application initialized with {db_type} database")
     else:
-        app.logger.info(f"Application initialized with database: {db_uri}")
+        logger.info(f"Application initialized with database: {db_uri}")
 
     # Add health check endpoint for Railway
     @app.route("/health")

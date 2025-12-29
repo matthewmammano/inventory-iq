@@ -3,21 +3,19 @@ Production-ready single inventory operation function.
 Handles RECOUNT, TRANSFER, and TAKEOUT with first-aid-squad-friendly error handling.
 """
 
-import logging
-from datetime import datetime, timezone
-from typing import Dict, List, Optional, Tuple
+from datetime import UTC, datetime
 
-from app import db
+from sqlalchemy import select
+
 from app.auth.models import UserItemLocations
+from app.db import get_session
 from app.inventory.models import ActionLogs, Items, OperationType
 
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class InventoryError(Exception):
     """User-friendly inventory operation errors for first aid squads."""
-
-    pass
 
 
 def inventory_operation(
@@ -25,10 +23,10 @@ def inventory_operation(
     item_id: int,
     quantity: int,
     operation_type: OperationType,
-    from_location: Optional[int] = None,
-    to_location: Optional[int] = None,
+    from_location: int | None = None,
+    to_location: int | None = None,
     admin_action: bool = False,
-) -> Tuple[Dict[int, int], List]:
+) -> tuple[dict[int, int], list]:
     """
     Single function for ALL inventory operations with bulletproof error handling.
 
@@ -54,44 +52,67 @@ def inventory_operation(
         InventoryError: User-friendly error messages for first aid squads
     """
     try:
-        # Validate inputs
-        _validate_inputs(user_id, item_id, quantity, operation_type, from_location, to_location)
+        with get_session() as session:
+            # Validate inputs (may need DB access for validators)
+            _validate_inputs(
+                session,
+                user_id,
+                item_id,
+                quantity,
+                operation_type,
+                from_location,
+                to_location,
+            )
 
-        # Update item last_accessed timestamp
-        item = Items.query.filter_by(id=item_id, user_id=user_id).first()
-        item.last_accessed = datetime.now(timezone.utc)
+            # Update item last_accessed timestamp
+            stmt_item = select(Items).where(
+                Items.id == item_id, Items.user_id == user_id
+            )
+            item = session.execute(stmt_item).scalars().first()
+            if item:
+                item.last_accessed = datetime.now(UTC)
 
-        # Create and process action
-        action_log = _create_action_log(
-            user_id, item_id, quantity, operation_type, from_location, to_location, admin_action
-        )
-        updated_quantities, alerts = _process_action_safely(action_log)
+            # Create and process action
+            action_log = _create_action_log(
+                session,
+                user_id,
+                item_id,
+                quantity,
+                operation_type,
+                from_location,
+                to_location,
+                admin_action,
+            )
+            updated_quantities, alerts = _process_action_safely(action_log, session)
 
-        # Handle alerts (non-blocking)
-        _handle_alerts_safely(alerts, user_id, operation_type.value)
+            # Commit transaction BEFORE alert processing to ensure inventory state is persisted
+            # This prevents partial state if alert processing fails
+            session.commit()
+            logger.info(
+                f"{operation_type.value} completed: item {item_id}, quantity {quantity}"
+            )
 
-        # Commit transaction
-        db.session.commit()
-        logger.info(f"{operation_type.value} completed: item {item_id}, quantity {quantity}")
+            # Handle alerts (non-blocking) - after inventory commit
+            _handle_alerts_safely(alerts, user_id, operation_type.value)
 
-        return updated_quantities, alerts
+            return updated_quantities, alerts
 
     except InventoryError:
-        db.session.rollback()
-        raise  # Re-raise user-friendly errors as-is
+        # Re-raise user-friendly errors as-is
+        raise
     except Exception as e:
-        db.session.rollback()
         logger.error(f"Unexpected inventory operation error: {e}")
         raise InventoryError("System error - please try again or contact support")
 
 
 def _validate_inputs(
+    session,
     user_id: int,
     item_id: int,
     quantity: int,
     operation_type: OperationType,
-    from_location: Optional[int],
-    to_location: Optional[int],
+    from_location: int | None,
+    to_location: int | None,
 ):
     """Validate all inputs with first-aid-squad-friendly error messages."""
 
@@ -99,7 +120,10 @@ def _validate_inputs(
     if not isinstance(quantity, int) or quantity < 0:
         raise InventoryError("Quantity must be a positive number")
 
-    if operation_type in [OperationType.transfer, OperationType.takeout] and quantity == 0:
+    if (
+        operation_type in [OperationType.transfer, OperationType.takeout]
+        and quantity == 0
+    ):
         raise InventoryError("Cannot transfer or remove zero items")
 
     # Validate operation type matches location parameters
@@ -113,7 +137,11 @@ def _validate_inputs(
         # RESTOCK validation - require recent COUNT operation
         from app.prediction.validation import RestockValidator
 
-        is_valid, error_msg = RestockValidator.validate_restock_operation(db.session, user_id, item_id, to_location)
+        # validate_restock_operation expects (user_id, item_id, location_id, session=None)
+        # to_location was checked above and is not None here
+        is_valid, error_msg = RestockValidator.validate_restock_operation(
+            user_id, item_id, to_location, session
+        )
         if not is_valid:
             raise InventoryError(error_msg)
 
@@ -127,29 +155,37 @@ def _validate_inputs(
             raise InventoryError("TAKEOUT requires from_location and no to_location")
 
     # Validate item exists
-    item = Items.query.filter_by(id=item_id, user_id=user_id).first()
+    stmt_item = select(Items).where(Items.id == item_id, Items.user_id == user_id)
+    item = session.execute(stmt_item).scalars().first()
     if not item:
         raise InventoryError("Item not found in your inventory")
 
     # Validate locations exist
     if from_location is not None:
-        from_loc = UserItemLocations.query.filter_by(id=from_location, user_id=user_id).first()
+        stmt_from = select(UserItemLocations).where(
+            UserItemLocations.id == from_location, UserItemLocations.user_id == user_id
+        )
+        from_loc = session.execute(stmt_from).scalars().first()
         if not from_loc:
             raise InventoryError("Source location not found")
 
     if to_location is not None:
-        to_loc = UserItemLocations.query.filter_by(id=to_location, user_id=user_id).first()
+        stmt_to = select(UserItemLocations).where(
+            UserItemLocations.id == to_location, UserItemLocations.user_id == user_id
+        )
+        to_loc = session.execute(stmt_to).scalars().first()
         if not to_loc:
             raise InventoryError("Destination location not found")
 
 
 def _create_action_log(
+    session,
     user_id: int,
     item_id: int,
     quantity: int,
     operation_type: OperationType,
-    from_location: Optional[int],
-    to_location: Optional[int],
+    from_location: int | None,
+    to_location: int | None,
     admin_action: bool,
 ) -> ActionLogs:
     """Create ActionLog entry with automatic restock detection."""
@@ -161,27 +197,29 @@ def _create_action_log(
         to_location_id=to_location,
         quantity_delta=quantity,
         admin_action=admin_action,
-        time_scanned=datetime.now(timezone.utc),
+        time_scanned=datetime.now(UTC),
     )
 
-    db.session.add(action_log)
-    db.session.flush()  # Get ID but don't commit yet
+    session.add(action_log)
+    session.flush()  # Get ID but don't commit yet
 
     # Admin actions are now properly typed with explicit operation_type
 
     return action_log
 
 
-def _process_action_safely(action_log: ActionLogs) -> Tuple[Dict[int, int], List]:
+def _process_action_safely(
+    action_log: ActionLogs, session
+) -> tuple[dict[int, int], list]:
     """Process action with error handling."""
     try:
-        return action_log.process_action(db.session)
+        return action_log.process_action(session)
     except Exception as e:
         logger.error(f"Failed to process inventory action: {e}")
         raise InventoryError("Failed to update inventory - please try again")
 
 
-def _handle_alerts_safely(alerts: List, user_id: int, op_type: str):
+def _handle_alerts_safely(alerts: list, user_id: int, op_type: str):
     """Handle alerts without failing the main operation."""
     if not alerts:
         return

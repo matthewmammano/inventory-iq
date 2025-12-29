@@ -19,5 +19,5 @@ __all__ = [
     "cleanup_expired_sessions",
     "generate_summary_reports",
     "monitor_database_size",
-    "process_email_alerts"
+    "process_email_alerts",
 ]

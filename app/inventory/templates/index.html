@@ -20,7 +20,7 @@
 {% block content %}
 
 <article{% if admin %} class="admin-border"{% endif %}>
-    <div>        
+    <div>
         <input type="text" id="search" name="search" placeholder="Scan item barcode or search here (name, category, barcode)..." />
         <ul id="results"></ul>
     </div>
@@ -40,8 +40,8 @@
 
 {% block extra_js %}
 
-<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2" 
-        crossorigin="anonymous" 
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"
+        crossorigin="anonymous"
         defer
         onerror="console.error('Fuse.js failed to load - search functionality disabled')"></script>
 
@@ -53,7 +53,7 @@ document.addEventListener('DOMContentLoaded', function() {
         window.Fuse = function() {
             return {
                 search: function(query) {
-                    return allItems.filter(item => 
+                    return allItems.filter(item =>
                         item.name.toLowerCase().includes(query.toLowerCase()) ||
                         item.tags.some(tag => tag.toLowerCase().includes(query.toLowerCase()))
                     ).map(item => ({ item }));
@@ -61,7 +61,7 @@ document.addEventListener('DOMContentLoaded', function() {
             };
         };
     }
-    
+
     const squad = "{{ squad }}";
 
     const allItems = [
@@ -97,10 +97,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         results.sort((a, b) => {
             if (a.score !== b.score) return a.score - b.score;
-            
+
             const aDate = a.item.last_accessed ? new Date(a.item.last_accessed) : new Date(0);
             const bDate = b.item.last_accessed ? new Date(b.item.last_accessed) : new Date(0);
-            
+
             return bDate - aDate;
         });
 
@@ -112,7 +112,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 <div class="item-name-tags">
                     <span class="item-name">${item.name}</span>
                     <div class="tag-container">
-                        ${item.tag_data.map(tag => 
+                        ${item.tag_data.map(tag =>
                             `<span class="tag-box" style="background-color: ${tag.color}; color: ${tag.text_color};">${tag.name}</span>`
                         ).join('')}
                     </div>
@@ -132,11 +132,11 @@ document.addEventListener('DOMContentLoaded', function() {
     let upcTimeout;
     const UPC_LENGTH = 12;
     const SCAN_TIMEOUT = 100; // ms between keystrokes to detect scan vs typing
-    
+
     document.addEventListener('keydown', function(e) {
         // Clear buffer if too much time passed (user typing vs scanner)
         clearTimeout(upcTimeout);
-        
+
         // If Enter key and we have a 12-digit UPC
         if (e.key === 'Enter' && upcBuffer.length === UPC_LENGTH) {
             e.preventDefault();
@@ -144,16 +144,16 @@ document.addEventListener('DOMContentLoaded', function() {
             upcBuffer = '';
             return;
         }
-        
+
         // If it's a digit, add to buffer
         if (/^\d$/.test(e.key)) {
             upcBuffer += e.key;
-            
+
             // Auto-clear buffer if it gets too long (invalid UPC)
             if (upcBuffer.length > UPC_LENGTH) {
                 upcBuffer = e.key; // Start fresh with this digit
             }
-            
+
             // Set timeout to clear buffer if scanning stops
             upcTimeout = setTimeout(() => {
                 upcBuffer = '';
@@ -163,13 +163,13 @@ document.addEventListener('DOMContentLoaded', function() {
             upcBuffer = '';
         }
     });
-    
+
     function handleUpcScan(upc) {
         console.log('UPC scanned:', upc);
-        
+
         // Find item by UPC in our items array
         const foundItem = allItems.find(item => item.upc === upc);
-        
+
         if (foundItem) {
             // Navigate to scan page for this item
             window.location.href = `{% if admin %}/inventory/${squad}/admin-panel/scan?item_id=${foundItem.id}{% else %}/inventory/${squad}/scan?item_id=${foundItem.id}{% endif %}`;
@@ -181,5 +181,5 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 });
 </script>
-    
+
 {% endblock %}

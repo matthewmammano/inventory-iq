@@ -1,11 +1,13 @@
-import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
+from loguru import logger
+from sqlalchemy import select
 
 from app.auth.models import Users
 from app.core.route_validation import RouteValidationService
+from app.db import get_session
 from app.inventory import guest_bp as bp
 from app.inventory.models import Items
 from app.inventory.scan_operations import (
@@ -16,7 +18,15 @@ from app.inventory.scan_operations import (
     handle_scan_start,
 )
 
-logger = logging.getLogger(__name__)
+
+def _parse_int_optional(val: str | None) -> int | None:
+    """Parse an optional string to int, return None if not present or invalid."""
+    if val is None:
+        return None
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return None
 
 
 @bp.before_request
@@ -30,6 +40,10 @@ def check_authentication_and_squad():
     session.pop("admin_last_active", None)
 
     squad = RouteValidationService.get_squad_from_request()
+
+    # Ensure `squad` is a string before passing to validators (Pylance-friendly)
+    if squad is None:
+        return redirect(url_for("auth.login"))
 
     # Chain validations - return first error found
     for validation in [
@@ -49,7 +63,9 @@ def index(squad):
     # Check for UPC error parameter
     upc_error = request.args.get("upc_error")
     if upc_error:
-        logger.warning(f"UPC scan error for user {current_user.email}: UPC {upc_error} not found")
+        logger.warning(
+            f"UPC scan error for user {current_user.email}: UPC {upc_error} not found"
+        )
         flash(
             f"UPC {upc_error} not found in inventory. Please make sure you are scanning the appropriate item card on shelf.",
             "error",
@@ -57,19 +73,27 @@ def index(squad):
 
     # Get the list of items and order them by last_accessed
     try:
-        items = Items.query.filter_by(user_id=current_user.id).order_by(Items.last_accessed.desc().nullslast()).all()
+        with get_session() as db_session:
+            stmt = (
+                select(Items)
+                .where(Items.user_id == current_user.id)
+                .order_by(Items.last_accessed.desc().nullslast())
+            )
+            items = db_session.execute(stmt).scalars().all()
     except Exception as e:
         logger.error(f"Database error fetching items for user {current_user.id}: {e}")
         flash("Error loading inventory. Please try again.", "error")
         items = []
-    return render_template("index.html", items=items, squad=squad, logo_img=current_user.image)
+    return render_template(
+        "index.html", items=items, squad=squad, logo_img=current_user.image
+    )
 
 
 @bp.route("/<squad>/scan")
 @login_required
 def scan_start(squad):
     """Entry point for scanning - decides scan_selection vs scan"""
-    item_id = request.args.get("item_id")
+    item_id = _parse_int_optional(request.args.get("item_id"))
     return handle_scan_start(squad, item_id, is_admin=False)
 
 
@@ -80,12 +104,17 @@ def scan_locations(squad):
     if request.method == "POST":
         return handle_scan_locations_post(squad, request.form, is_admin=False)
     else:
-        item_id = request.args.get("item_id")
+        item_id = _parse_int_optional(request.args.get("item_id"))
         user_count_allow = request.args.get("user_count_allow", "False") == "True"
         user_restock_allow = request.args.get("user_restock_allow", "False") == "True"
         user_take_allow = request.args.get("user_take_allow", "True") == "True"
         return handle_scan_locations_get(
-            squad, item_id, user_count_allow, user_restock_allow, user_take_allow, is_admin=False
+            squad,
+            item_id,
+            user_count_allow,
+            user_restock_allow,
+            user_take_allow,
+            is_admin=False,
         )
 
 
@@ -96,12 +125,21 @@ def scan_item(squad):
     if request.method == "POST":
         return handle_scan_item_post(squad, request.form, is_admin=False)
     else:
-        item_id = request.args.get("item_id")
+        item_id = _parse_int_optional(request.args.get("item_id"))
         from_location_id = request.args.get("from_location_id")
         to_location_id = request.args.get("to_location_id")
         user_count_allow = request.args.get("user_count_allow", "False") == "True"
         user_restock_allow = request.args.get("user_restock_allow", "False") == "True"
         user_take_allow = request.args.get("user_take_allow", "True") == "True"
+
+        # Infer TAKEOUT operation when to_location_id missing and it's the only allowed operation
+        if (
+            to_location_id is None
+            and not user_count_allow
+            and not user_restock_allow
+            and user_take_allow
+        ):
+            to_location_id = "-1"
         return handle_scan_item_get(
             squad,
             item_id,
@@ -120,7 +158,10 @@ def admin_login(squad):
     if request.method == "POST":
         password = request.form["password"]
         try:
-            user = Users.query.filter_by(display_name=squad).first()
+            with get_session() as db_session:
+                stmt = select(Users).where(Users.display_name == squad)
+                user = db_session.execute(stmt).scalars().first()
+
             if not user:
                 logger.warning(f"Admin login attempt for non-existent squad: {squad}")
                 flash("Invalid squad name. Please try again.", "error")
@@ -134,11 +175,13 @@ def admin_login(squad):
 
         if user.pin and password == correct_password:
             session["admin"] = True
-            session["admin_last_active"] = datetime.now(timezone.utc).timestamp()
+            session["admin_last_active"] = datetime.now(UTC).timestamp()
             flash("Admin access granted.", "success")
             return redirect(url_for("admin.admin_panel", squad=squad))
         else:
-            logger.warning(f"Failed admin login attempt for squad '{squad}' - invalid PIN")
+            logger.warning(
+                f"Failed admin login attempt for squad '{squad}' - invalid PIN"
+            )
             flash("Invalid PIN entered. Please try again.", "error")
             return render_template("admin_login.html", squad=squad, admin=True)
 

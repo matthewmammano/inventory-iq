@@ -12,12 +12,12 @@ ALERTS REQUIRING ATTENTION:
 {{ alert.icon }} {{ alert.type.upper().replace('_', ' ') }}{% if alert.urgent %} [URGENT]{% endif %}
    Item: {{ alert.item }}
    Details: {{ alert.message }}
-   
+
 {% endfor %}
 
 NEXT STEPS:
 • Review items marked as URGENT first
-• Check physical inventory for accuracy  
+• Check physical inventory for accuracy
 • Reorder items as needed
 • Update inventory quantities after restocking
 

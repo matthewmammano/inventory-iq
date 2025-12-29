@@ -4,26 +4,50 @@ Bulk service for restock analysis and batch predictions.
 Provides single-call API for admin restock page with recalculation and predictions.
 """
 
-import logging
-from datetime import datetime, timedelta, timezone
-from typing import Dict, List, Optional, Union
+from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta
 
+from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.data_access import DataAccessService
 from app.core.quantity_service import QuantityService
+from app.db import get_session
 from app.inventory.models import ActionLogs, Items, OperationType
 
 from .prediction_engine import PredictionEngine
-
-logger = logging.getLogger(__name__)
 
 
 class BulkService:
     """Bulk prediction service for admin interfaces."""
 
     @staticmethod
-    def get_restock_analysis(db_session: Session, user_id: int) -> List[Dict]:
+    @contextmanager
+    def _ensure_session(session: Session | None):
+        """
+        Context manager for session handling - use provided session or create temporary one.
+
+        Parameters
+        ----------
+        session : Session | None
+            Database session to use, or None to create a temporary one
+
+        Yields
+        ------
+        Session
+            The provided session or a newly created one
+        """
+        if session is None:
+            with get_session() as _s:
+                yield _s
+        else:
+            yield session
+
+    @staticmethod
+    def get_restock_analysis(
+        db_session: Session, user_id: int, session: Session | None = None
+    ) -> list[dict]:
         """
         Single function call for complete restock analysis.
 
@@ -51,16 +75,22 @@ class BulkService:
             item_ids = [item.id for item in items]
 
             # Step 3: Get bulk predictions
-            predictions = PredictionEngine.bulk_predict_items(db_session, user_id, item_ids)
+            # Use provided session if present, otherwise fall back to db_session
+            _s = session or db_session
+            predictions = PredictionEngine.bulk_predict_items(_s, user_id, item_ids)
 
             # Step 4: Build restock analysis for each item
             restock_data = []
             for item in items:
                 try:
-                    analysis = BulkService._analyze_item_restock(item, predictions.get(item.id, {}), user_id)
+                    analysis = BulkService._analyze_item_restock(
+                        item, predictions.get(item.id, {}), user_id
+                    )
                     restock_data.append(analysis)
                 except Exception as item_error:
-                    logger.error(f"Failed to analyze item {item.id} ({item.name}): {item_error}")
+                    logger.error(
+                        f"Failed to analyze item {item.id} ({item.name}): {item_error}"
+                    )
                     # Continue with other items instead of failing completely
                     continue
 
@@ -77,9 +107,13 @@ class BulkService:
                     days_sort = float(days_val)
 
                 if order_val is None:
-                    order_sort = -999  # N/A goes last (negative because we want highest first)
+                    order_sort = (
+                        -999
+                    )  # N/A goes last (negative because we want highest first)
                 else:
-                    order_sort = -float(order_val)  # Negative for descending order (highest first)
+                    order_sort = -float(
+                        order_val
+                    )  # Negative for descending order (highest first)
 
                 estimated_sort = float(estimated_val)  # Lowest first
 
@@ -90,13 +124,17 @@ class BulkService:
             except Exception as sort_error:
                 logger.error(f"Sorting failed: {sort_error}")
                 # Return unsorted data rather than failing
-                pass
 
             # Count items by urgency for summary
             urgent_items = sum(
-                1 for item in restock_data if item.get("days_until_low") is not None and item["days_until_low"] <= 7
+                1
+                for item in restock_data
+                if item.get("days_until_low") is not None
+                and item["days_until_low"] <= 7
             )
-            zero_usage_items = sum(1 for item in restock_data if item.get("daily_usage_rate", 0) == 0)
+            zero_usage_items = sum(
+                1 for item in restock_data if item.get("daily_usage_rate", 0) == 0
+            )
 
             logger.info(
                 f"Restock analysis complete: {len(restock_data)} items analyzed, "
@@ -109,7 +147,7 @@ class BulkService:
             raise
 
     @staticmethod
-    def _analyze_item_restock(item: Items, prediction: Dict, user_id: int) -> Dict:
+    def _analyze_item_restock(item: Items, prediction: dict, user_id: int) -> dict:
         """
         Analyze restock needs for a single item.
 
@@ -126,7 +164,11 @@ class BulkService:
             min_qty = int(item.min_quantity) if item.min_quantity is not None else 0
             max_qty = int(item.max_quantity) if item.max_quantity is not None else 0
             batch_size = int(item.batch_size) if item.batch_size is not None else 0
-            delivery_days = int(item.restock_delivery_days) if item.restock_delivery_days is not None else 7
+            delivery_days = (
+                int(item.restock_delivery_days)
+                if item.restock_delivery_days is not None
+                else 7
+            )
         except (ValueError, TypeError) as e:
             logger.warning(f"Type conversion error for item {item.id} settings: {e}")
             # Use safe defaults
@@ -145,14 +187,23 @@ class BulkService:
         prediction_count = prediction.get("prediction_count", 0)
 
         # Calculate estimated count based on last COUNT + trend analysis
-        estimated_total = BulkService._calculate_estimated_count(user_id, item.id, daily_usage)
+        estimated_total = BulkService._calculate_estimated_count(
+            user_id, item.id, daily_usage
+        )
 
         # Calculate days until low stock using estimated total for forward-looking analysis
-        days_until_low = BulkService._calculate_days_until_low(estimated_total, min_qty, daily_usage)
+        days_until_low = BulkService._calculate_days_until_low(
+            estimated_total, min_qty, daily_usage
+        )
 
         # Calculate order amount (ensure days_until_low is properly typed)
         order_amount = BulkService._calculate_order_amount(
-            current_total, max_qty, daily_usage, delivery_days, batch_size, days_until_low
+            current_total,
+            max_qty,
+            daily_usage,
+            delivery_days,
+            batch_size,
+            days_until_low,
         )
 
         # Format confidence information
@@ -175,7 +226,9 @@ class BulkService:
         }
 
     @staticmethod
-    def _calculate_estimated_count(user_id: int, item_id: int, daily_usage: float) -> int:
+    def _calculate_estimated_count(
+        user_id: int, item_id: int, daily_usage: float, session: Session | None = None
+    ) -> int:
         """
         Calculate estimated count based on last COUNT + predicted usage since then.
 
@@ -185,97 +238,127 @@ class BulkService:
         3. Estimate consumption: days_elapsed * daily_usage
         4. Return: last_count_value - estimated_consumption
 
-        Args:
-            user_id: User ID
-            item_id: Item ID
-            daily_usage: Daily usage rate from ML predictions
+        Parameters
+        ----------
+        user_id : int
+            User ID
+        item_id : int
+            Item ID
+        daily_usage : float
+            Daily usage rate from ML predictions
+        session : Session | None, optional
+            Database session, by default None (creates temporary session)
 
-        Returns:
+        Returns
+        -------
+        int
             Estimated current count (can be negative if estimated overconsumption)
         """
         try:
-            # Find most recent COUNT operation for this item across all locations
-            last_count = (
-                ActionLogs.query.filter_by(user_id=user_id, item_id=item_id, operation_type=OperationType.count)
-                .order_by(ActionLogs.time_scanned.desc())
-                .first()
-            )
+            with BulkService._ensure_session(session) as _s:
+                # Find most recent COUNT operation for this item
+                stmt = (
+                    select(ActionLogs)
+                    .where(
+                        ActionLogs.user_id == user_id,
+                        ActionLogs.item_id == item_id,
+                        ActionLogs.operation_type == OperationType.count,
+                    )
+                    .order_by(ActionLogs.time_scanned.desc())
+                )
+                last_count: ActionLogs | None = _s.execute(stmt).scalars().first()
 
-            if not last_count:
                 # No COUNT found - fall back to current calculated quantity
-                current_qty_by_location = QuantityService.get_current_quantity(user_id, item_id)
-                return sum(current_qty_by_location.values())
+                if not last_count:
+                    current_qty_by_location = QuantityService.get_current_quantity(
+                        user_id, item_id
+                    )
+                    return sum(current_qty_by_location.values())
 
-            # Calculate days elapsed since last COUNT
-            now = datetime.now(timezone.utc)
+                # Calculate days elapsed since last COUNT
+                now = datetime.now(UTC)
+                count_time = last_count.time_scanned
+                if count_time.tzinfo is None:
+                    count_time = count_time.replace(tzinfo=UTC)
 
-            # Handle timezone-aware/naive datetime comparison
-            count_time = last_count.time_scanned
-            if count_time.tzinfo is None:
-                # Database datetime is naive, convert to UTC
-                count_time = count_time.replace(tzinfo=timezone.utc)
+                days_elapsed = (now - count_time).total_seconds() / (24 * 3600)
+                estimated_consumption = daily_usage * days_elapsed
 
-            days_elapsed = (now - count_time).total_seconds() / (24 * 3600)
+                # Get total from that COUNT across all locations
+                count_total = BulkService._get_count_total_at_time(
+                    user_id, item_id, last_count.time_scanned, session=_s
+                )
 
-            # Estimate consumption since last COUNT
-            estimated_consumption = daily_usage * days_elapsed
-
-            # Start with last COUNT value and subtract estimated consumption
-            # Note: We need to get the total from that COUNT across all locations
-            count_total = BulkService._get_count_total_at_time(user_id, item_id, last_count.time_scanned)
-
-            estimated_total = count_total - estimated_consumption
-
-            return int(estimated_total)
+                estimated_total = count_total - estimated_consumption
+                return int(estimated_total)
 
         except Exception as e:
             logger.error(f"Error calculating estimated count for item {item_id}: {e}")
             # Fall back to current calculated quantity
-            current_qty_by_location = QuantityService.get_current_quantity(user_id, item_id)
+            current_qty_by_location = QuantityService.get_current_quantity(
+                user_id, item_id
+            )
             return sum(current_qty_by_location.values())
 
     @staticmethod
-    def _get_count_total_at_time(user_id: int, item_id: int, count_time: datetime) -> int:
+    def _get_count_total_at_time(
+        user_id: int, item_id: int, count_time: datetime, session: Session | None = None
+    ) -> int:
         """
         Get total quantity from all COUNT operations at or near the specified time.
 
-        Args:
-            user_id: User ID
-            item_id: Item ID
-            count_time: Time of the COUNT operation
+        Parameters
+        ----------
+        user_id : int
+            User ID
+        item_id : int
+            Item ID
+        count_time : datetime
+            Time of the COUNT operation
+        session : Session | None, optional
+            Database session, by default None (creates temporary session)
 
-        Returns:
+        Returns
+        -------
+        int
             Total count value across all locations at that time
         """
         try:
             # Handle timezone-aware/naive datetime
             if count_time.tzinfo is None:
-                count_time = count_time.replace(tzinfo=timezone.utc)
+                count_time = count_time.replace(tzinfo=UTC)
 
             # Get all COUNT operations for this item around this time (within 1 hour)
             time_tolerance = 3600  # 1 hour in seconds
-            start_time = count_time.replace(microsecond=0) - timedelta(seconds=time_tolerance)
-            end_time = count_time.replace(microsecond=0) + timedelta(seconds=time_tolerance)
+            start_time = count_time.replace(microsecond=0) - timedelta(
+                seconds=time_tolerance
+            )
+            end_time = count_time.replace(microsecond=0) + timedelta(
+                seconds=time_tolerance
+            )
 
-            count_operations = ActionLogs.query.filter(
-                ActionLogs.user_id == user_id,
-                ActionLogs.item_id == item_id,
-                ActionLogs.operation_type == OperationType.count,
-                ActionLogs.time_scanned >= start_time,
-                ActionLogs.time_scanned <= end_time,
-            ).all()
+            with BulkService._ensure_session(session) as _s:
+                stmt = select(ActionLogs).where(
+                    ActionLogs.user_id == user_id,
+                    ActionLogs.item_id == item_id,
+                    ActionLogs.operation_type == OperationType.count,
+                    ActionLogs.time_scanned >= start_time,
+                    ActionLogs.time_scanned <= end_time,
+                )
+                count_operations = _s.execute(stmt).scalars().all()
 
-            # Sum up all COUNT values from that time period
-            total_count = sum(op.quantity_delta for op in count_operations)
-
-            return total_count
+                # Sum up all COUNT values from that time period
+                total_count = sum(op.quantity_delta for op in count_operations)
+                return total_count
 
         except Exception as e:
             logger.error(f"Error getting count total at time: {e}")
             return 0
 
     @staticmethod
-    def _calculate_days_until_low(current_total: int, min_qty: int, daily_usage: float) -> Union[float, None]:
+    def _calculate_days_until_low(
+        current_total: int, min_qty: int, daily_usage: float
+    ) -> float | None:
         """Calculate days until stock reaches minimum threshold."""
         if daily_usage <= 0:
             return None  # No usage data
@@ -292,8 +375,8 @@ class BulkService:
         daily_usage: float,
         delivery_days: int,
         batch_size: int,
-        days_until_low: Union[float, None],
-    ) -> Union[int, None]:
+        days_until_low: float | None,
+    ) -> int | None:
         """Calculate recommended order amount."""
         if max_qty <= 0:
             return 0  # No max quantity set
@@ -301,15 +384,16 @@ class BulkService:
         if days_until_low is None or not isinstance(days_until_low, (int, float)):
             return None  # Can't calculate without usage data
 
-        # Ensure days_until_low is numeric before comparison
-        # Ensure all values are properly typed before comparison
+        # Ensure delivery_days is valid integer
         try:
             delivery_days_num = int(delivery_days) if delivery_days else 7
-            if isinstance(days_until_low, (int, float)) and days_until_low > delivery_days_num * 2:
-                return 0  # Not urgent enough to order
         except (ValueError, TypeError) as e:
-            logger.warning(f"Type conversion error in order calculation: {e}")
-            # Continue with calculation if type conversion fails
+            logger.warning(f"Invalid delivery_days value {delivery_days}: {e}")
+            delivery_days_num = 7  # Use default
+
+        # Not urgent if we have more than 2x delivery window
+        if days_until_low > delivery_days_num * 2:
+            return 0  # Not urgent enough to order
 
         # Calculate expected usage during delivery period
         delivery_days_num = int(delivery_days) if delivery_days else 7
@@ -329,21 +413,27 @@ class BulkService:
 
     @staticmethod
     def _format_confidence_info(
-        avg_confidence: float, prediction_count: int, location_predictions: Dict
-    ) -> Optional[Dict]:
+        avg_confidence: float, prediction_count: int, location_predictions: dict
+    ) -> dict | None:
         """Format confidence information for frontend display."""
         if avg_confidence <= 0 or prediction_count <= 0:
             return None
 
         # Count prediction method types
         ml_count = sum(
-            1 for pred in location_predictions.values() if pred and pred.prediction_type.value in ["ML", "COMBINED"]
+            1
+            for pred in location_predictions.values()
+            if pred and pred.prediction_type.value in ["ML", "COMBINED"]
         )
         prior_count = sum(
-            1 for pred in location_predictions.values() if pred and pred.prediction_type.value in ["PRIOR", "COMBINED"]
+            1
+            for pred in location_predictions.values()
+            if pred and pred.prediction_type.value in ["PRIOR", "COMBINED"]
         )
 
-        method_description = f"{ml_count} ML + {prior_count} Prior from {prediction_count} locations"
+        method_description = (
+            f"{ml_count} ML + {prior_count} Prior from {prediction_count} locations"
+        )
 
         return {
             "confidence": avg_confidence,

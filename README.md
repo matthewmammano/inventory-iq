@@ -4,7 +4,7 @@ Flask-based inventory management system with Bayesian prediction, barcode scanni
 
 ## Features
 
-- **Smart Predictions**: Bayesian ML for restock forecasting  
+- **Smart Predictions**: Bayesian ML for restock forecasting
 - **Barcode Scanning**: QR/barcode item tracking
 - **Automated Alerts**: Email notifications for low stock
 - **Multi-User**: Role-based access (admin/guest)
@@ -31,7 +31,7 @@ python run.py
 
 ```bash
 python -m scripts.edit_users      # Manage users
-python -m scripts.edit_items      # Manage inventory items  
+python -m scripts.edit_items      # Manage inventory items
 python -m scripts.edit_locations  # Manage locations
 python -m scripts.edit_tags       # Manage item tags
 ```

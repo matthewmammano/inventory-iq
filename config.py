@@ -34,7 +34,9 @@ class DevelopmentConfig(Config):
     """Development configuration."""
 
     DEBUG = True
-    SQLALCHEMY_DATABASE_URI = os.environ.get("DATABASE_URL") or "sqlite:///inventory_iq.db"
+    SQLALCHEMY_DATABASE_URI = (
+        os.environ.get("DATABASE_URL") or "sqlite:///instance/inventory_iq.db"
+    )
 
 
 class ProductionConfig(Config):
@@ -71,7 +73,9 @@ class ProductionConfig(Config):
 
         missing = [var for var in required_vars if not os.environ.get(var)]
         if missing:
-            raise ValueError(f"Missing required environment variables: {', '.join(missing)}")
+            raise ValueError(
+                f"Missing required environment variables: {', '.join(missing)}"
+            )
 
 
 # Configuration dictionary

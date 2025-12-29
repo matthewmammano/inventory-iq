@@ -40,7 +40,12 @@ def add_user():
 
     choice = get_input("Select (1-5, default 1): ") or "1"
 
-    timezone_map = {"1": "US/Eastern", "2": "US/Central", "3": "US/Mountain", "4": "US/Pacific"}
+    timezone_map = {
+        "1": "US/Eastern",
+        "2": "US/Central",
+        "3": "US/Mountain",
+        "4": "US/Pacific",
+    }
 
     if choice == "5":
         print("Examples: Europe/London, Asia/Tokyo, Australia/Sydney")
@@ -90,14 +95,21 @@ def delete_user():
 
     try:
         user.active = False
-        from app import db
+        from app.db import get_session
 
-        db.session.commit()
+        with get_session() as session:
+            session.add(user)
+            session.commit()
         print(f"\n[SUCCESS] User '{user.display_name}' deactivated.")
     except Exception as e:
-        from app import db
+        from app.db import get_session
 
-        db.session.rollback()
+        # On exception, attempt a rollback in a new session for safety
+        try:
+            with get_session() as session:
+                session.rollback()
+        except Exception:
+            pass
         print(f"\n[ERROR] Failed to deactivate: {e}")
 
     input("\nPress Enter to continue...")
@@ -112,7 +124,11 @@ def main():
         print("Exiting user management. Goodbye!")
         return True
 
-    options = {"1": ("Add New User", add_user), "2": ("Deactivate User", delete_user), "3": ("Exit", exit_program)}
+    options = {
+        "1": ("Add New User", add_user),
+        "2": ("Deactivate User", delete_user),
+        "3": ("Exit", exit_program),
+    }
 
     run_menu("USER MANAGEMENT", options)
 

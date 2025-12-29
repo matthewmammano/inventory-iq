@@ -10,11 +10,11 @@ document.addEventListener('DOMContentLoaded', function() {
         let toVal = document.querySelector('input[name="to_location_id"]:checked');
         // Remove previous highlights
         toOptions.forEach(opt => opt.classList.remove('location-error'));
-        
+
         if (fromVal && toVal) {
             // Check for invalid combinations
             let isInvalid = false;
-            
+
             // Same location error
             if (fromVal.value === toVal.value) {
                 isInvalid = true;
@@ -23,11 +23,11 @@ document.addEventListener('DOMContentLoaded', function() {
             else if (fromVal.value === "-2" && toVal.value === "-1") {
                 isInvalid = true;
             }
-            // RESTOCK (-1) -> TAKE (-1) is invalid  
+            // RESTOCK (-1) -> TAKE (-1) is invalid
             else if (fromVal.value === "-1" && toVal.value === "-1") {
                 isInvalid = true;
             }
-            
+
             if (isInvalid) {
                 // Highlight the selected "to" option
                 let toRadio = document.querySelector('input[name="to_location_id"]:checked');
@@ -41,9 +41,9 @@ document.addEventListener('DOMContentLoaded', function() {
     function checkInvalidCombination() {
         let fromVal = document.querySelector('input[name="from_location_id"]:checked');
         let toVal = document.querySelector('input[name="to_location_id"]:checked');
-        
+
         let hasError = false;
-        
+
         if (fromVal && toVal) {
             // Same location error
             if (fromVal.value === toVal.value) {
@@ -58,7 +58,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 hasError = true;
             }
         }
-        
+
         sameLocationErrorInput.value = hasError ? "1" : "0";
     }
 

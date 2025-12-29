@@ -1,6 +1,7 @@
-import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from zoneinfo import ZoneInfo
+
+from loguru import logger
 
 
 def convert_utc_to_local(utc_datetime: datetime, user_timezone: str) -> datetime:
@@ -20,13 +21,19 @@ def convert_utc_to_local(utc_datetime: datetime, user_timezone: str) -> datetime
 
     try:
         # Ensure UTC timezone is set if not already
-        utc_time = utc_datetime.replace(tzinfo=timezone.utc) if utc_datetime.tzinfo is None else utc_datetime
+        utc_time = (
+            utc_datetime.replace(tzinfo=UTC)
+            if utc_datetime.tzinfo is None
+            else utc_datetime
+        )
         # Convert to user's timezone
         local_tz = ZoneInfo(user_timezone)
         return utc_time.astimezone(local_tz)
     except Exception as e:
         # Fallback to UTC if timezone conversion fails
-        logging.error(f"Timezone conversion failed from UTC to '{user_timezone}': {e}")
+        logger.exception(
+            f"Timezone conversion failed from UTC to '{user_timezone}': {e}"
+        )
         return utc_datetime
 
 
@@ -47,5 +54,7 @@ def get_timezone_display_hint(user_timezone: str) -> str:
         now = datetime.now(ZoneInfo(user_timezone))
         return now.strftime("%Z")
     except Exception as e:
-        logging.error(f"Timezone display hint generation failed for '{user_timezone}': {e}")
+        logger.exception(
+            f"Timezone display hint generation failed for '{user_timezone}': {e}"
+        )
         return user_timezone.split("/")[-1]  # Fallback to city name

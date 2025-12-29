@@ -5,23 +5,21 @@ Only allows RESTOCK operations when there was a recent COUNT operation
 to ensure trustworthy data points for ML predictions.
 """
 
-import logging
-from datetime import datetime, timezone
-from typing import Optional, Tuple
+from datetime import UTC, datetime
+from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.db import get_session
 from app.inventory.models import ActionLogs, OperationType
 
 from .config import PredictionConfig
-
-logger = logging.getLogger(__name__)
+from loguru import logger
 
 
 class RestockValidationError(Exception):
     """Raised when RESTOCK operation validation fails."""
-
-    pass
 
 
 class RestockValidator:
@@ -29,8 +27,8 @@ class RestockValidator:
 
     @staticmethod
     def validate_restock_operation(
-        db_session: Session, user_id: int, item_id: int, location_id: int
-    ) -> Tuple[bool, Optional[str]]:
+        user_id: int, item_id: int, location_id: int, session: Session | None = None
+    ) -> tuple[bool, str | None]:
         """
         Validate that a RESTOCK operation can proceed.
 
@@ -39,6 +37,7 @@ class RestockValidator:
             user_id: User performing operation
             item_id: Item being restocked
             location_id: Location of restock
+            session: Optional[Session]
 
         Returns:
             tuple: (is_valid, error_message)
@@ -47,22 +46,29 @@ class RestockValidator:
             RestockValidationError: If validation fails with user-friendly message
         """
         try:
-            cutoff_time = datetime.now(timezone.utc) - PredictionConfig.RESTOCK_VALIDATION_DELTA
+            cutoff_time = datetime.now(UTC) - PredictionConfig.RESTOCK_VALIDATION_DELTA
 
-            # Check for recent COUNT operation at this location
-            recent_count = (
-                db_session.query(ActionLogs)
-                .filter(
+            # Check for recent COUNT operation at this location using SQLAlchemy 2.0 style select
+            stmt = (
+                select(ActionLogs)
+                .where(
                     ActionLogs.user_id == user_id,
                     ActionLogs.item_id == item_id,
                     ActionLogs.to_location_id == location_id,
                     ActionLogs.operation_type == OperationType.count,
-                    ActionLogs.admin_action == True,  # Only admin counts are trusted
+                    ActionLogs.admin_action.is_(True),
                     ActionLogs.time_scanned >= cutoff_time,
                 )
                 .order_by(ActionLogs.time_scanned.desc())
-                .first()
             )
+
+            if session is None:
+                with get_session() as _s:
+                    recent_count: ActionLogs | None = _s.execute(stmt).scalars().first()
+            else:
+                recent_count: ActionLogs | None = (
+                    session.execute(stmt).scalars().first()
+                )
 
             if not recent_count:
                 hours = PredictionConfig.RESTOCK_VALIDATION_HOURS
@@ -85,10 +91,14 @@ class RestockValidator:
 
         except Exception as e:
             logger.error(f"RESTOCK validation error: {e}")
-            raise RestockValidationError("System error during RESTOCK validation. Please try again.")
+            raise RestockValidationError(
+                "System error during RESTOCK validation. Please try again."
+            )
 
     @staticmethod
-    def get_validation_status(db_session: Session, user_id: int, item_id: int, location_id: int) -> dict:
+    def get_validation_status(
+        user_id: int, item_id: int, location_id: int, session: Session | None = None
+    ) -> dict[str, Any]:
         """
         Get validation status information for UI display.
 
@@ -96,21 +106,28 @@ class RestockValidator:
             dict: Contains validation status, last_count_time, hours_remaining
         """
         try:
-            cutoff_time = datetime.now(timezone.utc) - PredictionConfig.RESTOCK_VALIDATION_DELTA
+            cutoff_time = datetime.now(UTC) - PredictionConfig.RESTOCK_VALIDATION_DELTA
 
-            # Find most recent COUNT at this location
-            recent_count = (
-                db_session.query(ActionLogs)
-                .filter(
+            # Find most recent COUNT at this location using select
+            stmt = (
+                select(ActionLogs)
+                .where(
                     ActionLogs.user_id == user_id,
                     ActionLogs.item_id == item_id,
                     ActionLogs.to_location_id == location_id,
                     ActionLogs.operation_type == OperationType.count,
-                    ActionLogs.admin_action == True,
+                    ActionLogs.admin_action.is_(True),
                 )
                 .order_by(ActionLogs.time_scanned.desc())
-                .first()
             )
+
+            if session is None:
+                with get_session() as _s:
+                    recent_count: ActionLogs | None = _s.execute(stmt).scalars().first()
+            else:
+                recent_count: ActionLogs | None = (
+                    session.execute(stmt).scalars().first()
+                )
 
             if not recent_count:
                 return {
@@ -123,8 +140,12 @@ class RestockValidator:
             is_valid = recent_count.time_scanned >= cutoff_time
 
             if is_valid:
-                hours_since_count = (datetime.now(timezone.utc) - recent_count.time_scanned).total_seconds() / 3600
-                hours_remaining = PredictionConfig.RESTOCK_VALIDATION_HOURS - hours_since_count
+                hours_since_count = (
+                    datetime.now(UTC) - recent_count.time_scanned
+                ).total_seconds() / 3600
+                hours_remaining = (
+                    PredictionConfig.RESTOCK_VALIDATION_HOURS - hours_since_count
+                )
             else:
                 hours_remaining = 0
 
@@ -132,7 +153,11 @@ class RestockValidator:
                 "is_valid": is_valid,
                 "last_count_time": recent_count.time_scanned,
                 "hours_remaining": max(0, hours_remaining),
-                "message": "Valid for RESTOCK" if is_valid else "COUNT expired. Please perform a new COUNT.",
+                "message": (
+                    "Valid for RESTOCK"
+                    if is_valid
+                    else "COUNT expired. Please perform a new COUNT."
+                ),
             }
 
         except Exception as e:

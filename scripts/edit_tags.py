@@ -2,6 +2,8 @@
 edit_tags.py - Tag management using model validation
 """
 
+from sqlalchemy import select
+
 from app.auth.models import UserItemTags
 from scripts.utils import (
     create_with_validation,
@@ -18,10 +20,20 @@ from scripts.utils import (
 
 def view_tags(user):
     """View all tags for a user."""
-    tags = UserItemTags.query.filter_by(user_id=user.id).order_by(UserItemTags.tag_name).all()
+    from app.db import get_session
+
+    with get_session() as session:
+        stmt = (
+            select(UserItemTags)
+            .where(UserItemTags.user_id == user.id)
+            .order_by(UserItemTags.tag_name)
+        )
+        tags = list(session.execute(stmt).scalars().all())
 
     select_from_list(
-        tags, lambda tag, i: print(f"{i}. {tag.tag_name} (Color: {tag.color})"), f"TAGS FOR {user.display_name.upper()}"
+        tags,
+        lambda tag, i: print(f"{i}. {tag.tag_name} (Color: {tag.color})"),
+        f"TAGS FOR {user.display_name.upper()}",
     )
 
 
@@ -36,7 +48,9 @@ def add_tag(user):
     color = get_input("Color (hex like #3b82f6, or Enter for default): ") or None
 
     # Create tag - model handles ALL validation
-    tag, error = create_with_validation(UserItemTags, user_id=user.id, tag_name=tag_name, color=color)
+    tag, error = create_with_validation(
+        UserItemTags, user_id=user.id, tag_name=tag_name, color=color
+    )
     if error:
         print(f"\n[ERROR] {error}")
 
@@ -45,7 +59,15 @@ def add_tag(user):
 
 def edit_tag_color(user):
     """Edit tag color."""
-    tags = UserItemTags.query.filter_by(user_id=user.id).order_by(UserItemTags.tag_name).all()
+    from app.db import get_session
+
+    with get_session() as session:
+        stmt = (
+            select(UserItemTags)
+            .where(UserItemTags.user_id == user.id)
+            .order_by(UserItemTags.tag_name)
+        )
+        tags = list(session.execute(stmt).scalars().all())
 
     selected = select_from_list(
         tags,
@@ -66,14 +88,20 @@ def edit_tag_color(user):
     # Model validation happens automatically
     try:
         selected.color = new_color  # Triggers @validates decorator
-        from app import db
+        from app.db import get_session
 
-        db.session.commit()
+        with get_session() as session:
+            session.add(selected)
+            session.commit()
         print("\n[SUCCESS] Tag color updated!")
     except ValueError as e:
-        from app import db
+        from app.db import get_session
 
-        db.session.rollback()
+        try:
+            with get_session() as session:
+                session.rollback()
+        except Exception:
+            pass
         print(f"\n[ERROR] {e}")
 
     input("\nPress Enter to continue...")
@@ -81,10 +109,20 @@ def edit_tag_color(user):
 
 def delete_tag(user):
     """Delete tag with item usage check."""
-    tags = UserItemTags.query.filter_by(user_id=user.id).order_by(UserItemTags.tag_name).all()
+    from app.db import get_session
+
+    with get_session() as session:
+        stmt = (
+            select(UserItemTags)
+            .where(UserItemTags.user_id == user.id)
+            .order_by(UserItemTags.tag_name)
+        )
+        tags = list(session.execute(stmt).scalars().all())
 
     selected = select_from_list(
-        tags, lambda tag, i: print(f"{i}. {tag.tag_name}"), f"DELETE TAG FOR {user.display_name.upper()}"
+        tags,
+        lambda tag, i: print(f"{i}. {tag.tag_name}"),
+        f"DELETE TAG FOR {user.display_name.upper()}",
     )
 
     if not selected:
@@ -92,19 +130,30 @@ def delete_tag(user):
 
     def check_and_clean_usage(tag):
         """Check if tag is used and remove from items."""
+        from sqlalchemy import select
+
+        from app.db import get_session
         from app.inventory.models import Items
 
-        items_using_tag = Items.query.filter(Items.user_id == user.id, Items.tag_ids.contains([tag.id])).all()
+        with get_session() as session:
+            stmt = select(Items).where(
+                Items.user_id == user.id, Items.tag_ids.contains([tag.id])
+            )
+            items_using_tag = session.execute(stmt).scalars().all()
 
-        if items_using_tag:
-            print(f"\n[WARNING] This tag is used by {len(items_using_tag)} item(s).")
-            if not get_yes_no("Delete tag and remove from all items?"):
-                return False
+            if items_using_tag:
+                print(
+                    f"\n[WARNING] This tag is used by {len(items_using_tag)} item(s)."
+                )
+                if not get_yes_no("Delete tag and remove from all items?"):
+                    return False
 
-            # Remove tag from all items
-            for item in items_using_tag:
-                if tag.id in item.tag_ids:
-                    item.tag_ids.remove(tag.id)
+                # Remove tag from all items
+                for item in items_using_tag:
+                    if tag.id in item.tag_ids:
+                        item.tag_ids.remove(tag.id)
+                        session.add(item)
+                session.commit()
 
         return True
 

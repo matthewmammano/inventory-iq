@@ -14,31 +14,31 @@
 
 <div class="grid-container">
     <div class="where_to_from">{{ "RESTOCK" if from_location == -1 else ("COUNT" if from_location == -2 else (from_location.name if from_location else "Unknown")) }} → {{ "TAKE" if to_location == -1 else (to_location.name if to_location else "Unknown") }}</div>
-    
+
     <div class="image-cell">
-        <img src="{{item.image|image_src}}" 
-             alt="{{item.name}}" 
-             loading="lazy" 
+        <img src="{{item.image|image_src}}"
+             alt="{{item.name}}"
+             loading="lazy"
              decoding="async"
              onerror="this.src='{{ url_for('static', filename='images/not-found.jpg') }}'">
     </div>
-    
+
     <div class="info-section">
         <div class="info-unit">{{item.increments}}</div>
         <div class="info-item">{{item.name}}</div>
     </div>
 
     {# Quantity adjustment buttons - admin gets multiple options, users get single +/- #}
-    
+
     {% if admin %}
-    <div class="minus-buttons">         
+    <div class="minus-buttons">
         <div class="minus-btn" data-value="-1">-1</div>
         <div class="minus-btn" data-value="-5">-5</div>
         <div class="minus-btn" data-value="-10">-10</div>
     </div>
-    
+
     <div class="counter-value">1</div>
-    
+
     <div class="plus-buttons">
         <div class="plus-btn" data-value="1">+1</div>
         <div class="plus-btn" data-value="5">+5</div>
@@ -49,7 +49,7 @@
     <div class="counter-value">1</div>
     <div class="plus-btn" data-value="1">+</div>
     {% endif %}
-    
+
     <div class="cancel-btn" onclick="window.location.href='{{ url_for('admin.admin_scan_items' if admin else 'guest.index', squad=squad) }}'">Cancel</div>
     <div class="submit-btn" type="button">Submit</div>
 

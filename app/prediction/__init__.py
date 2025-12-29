@@ -14,11 +14,11 @@ from .prediction_engine import PredictionEngine
 from .validation import RestockValidator
 
 __all__ = [
-    "PredictionConfig",
-    "RestockValidator",
+    "BulkService",
     "DataPointCollector",
     "MLPredictionService",
-    "PriorTrendlineAggregator",
+    "PredictionConfig",
     "PredictionEngine",
-    "BulkService",
+    "PriorTrendlineAggregator",
+    "RestockValidator",
 ]

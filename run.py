@@ -1,5 +1,7 @@
 import os
 
+from loguru import logger
+
 from app import create_app
 
 app = create_app()
@@ -11,11 +13,11 @@ if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))  # Railway provides PORT
 
     # Log startup information
-    app.logger.info(f"Starting Flask application in {env} mode (debug={debug_mode})")
-    app.logger.info(f"Application listening on host 0.0.0.0:{port}")
+    logger.info(f"Starting Flask application in {env} mode (debug={debug_mode})")
+    logger.info(f"Application listening on host 0.0.0.0:{port}")
 
     try:
         app.run(host="0.0.0.0", port=port, debug=debug_mode)
     except Exception as e:
-        app.logger.critical(f"Flask application failed to start: {e}")
+        logger.critical(f"Flask application failed to start: {e}")
         raise

@@ -19,38 +19,38 @@
             <p>Access view options for items, locations, and tags.</p>
             <a class="card-link" href="{{ url_for('admin.admin_panel_views', squad=squad) }}"></a>
         </div>
-        
+
         <div class="admin-card">
             <h2>Move / Count</h2>
             <p>Use to move / count items for new arrivals and wrong counts.</p>
             <a class="card-link" href="{{ url_for('admin.admin_scan_items', squad=squad) }}"></a>
         </div>
-        
+
         <div class="admin-card">
             <h2>Restock</h2>
             <p>Generate list of how much equipment to reorder.</p>
             <a class="card-link" href="{{ url_for('admin.restock', squad=squad) }}"></a>
         </div>
-        
+
         <div class="admin-card">
             <h2>Inventory Levels</h2>
             <p>View item counts across all locations with totals.</p>
             <a class="card-link" href="{{ url_for('admin.inventory_counts', squad=squad) }}"></a>
         </div>
-        
+
         <div class="admin-card">
             <h2>View History</h2>
             <p>See the history of all changes made to the inventory.</p>
             <a class="card-link" href="{{ url_for('admin.admin_history', squad=squad) }}"></a>
         </div>
-        
+
         <div class="admin-card">
             <h2>Help</h2>
             <p>Contact information listed for support.</p>
             <a class="card-link" href="{{ url_for('admin.help_page', squad=squad) }}"></a>
         </div>
     </div>
-    
+
     <div class="logout-container">
         <a href="{{ url_for('auth.logout') }}" class="logout-button">Logout of Entire Squad Account</a>
     </div>

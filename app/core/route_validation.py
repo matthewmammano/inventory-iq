@@ -4,23 +4,20 @@ Shared route validation and authorization service.
 Eliminates duplicate squad validation and auth checks across admin/guest routes.
 """
 
-import logging
-from datetime import datetime, timezone
-from typing import Optional
+from datetime import UTC, datetime
 
 from flask import flash, request, session, url_for
 from flask_login import current_user
+from loguru import logger
 
 from app.core.data_access import DataAccessService
-
-logger = logging.getLogger(__name__)
 
 
 class RouteValidationService:
     """Centralized route validation and authorization."""
 
     @staticmethod
-    def validate_squad_access(squad: str, require_active: bool = True) -> Optional[str]:
+    def validate_squad_access(squad: str, require_active: bool = True) -> str | None:
         """
         Validate squad exists and is accessible.
 
@@ -48,7 +45,7 @@ class RouteValidationService:
         return None  # Valid
 
     @staticmethod
-    def validate_user_authentication() -> Optional[str]:
+    def validate_user_authentication() -> str | None:
         """
         Validate user is authenticated.
 
@@ -62,7 +59,7 @@ class RouteValidationService:
         return None  # Valid
 
     @staticmethod
-    def validate_admin_session(squad: str, timeout_seconds: int = 21600) -> Optional[str]:
+    def validate_admin_session(squad: str, timeout_seconds: int = 21600) -> str | None:
         """
         Validate admin session is active and not expired.
 
@@ -76,18 +73,24 @@ class RouteValidationService:
         if not session.get("admin"):
             session.pop("admin", None)
             session.pop("admin_last_active", None)
-            logger.warning(f"Admin session not found for user {current_user.email} in squad {squad}")
+            logger.warning(
+                f"Admin session not found for user {current_user.email} in squad {squad}"
+            )
             flash("Admin session not found. Please log in with PIN.", "warning")
             return url_for("guest.index", squad=squad)
 
-        now = datetime.now(timezone.utc).timestamp()
+        now = datetime.now(UTC).timestamp()
         admin_last_active = session.get("admin_last_active")
 
         if not admin_last_active or now - admin_last_active > timeout_seconds:
             session.pop("admin", None)
             session.pop("admin_last_active", None)
-            logger.warning(f"Admin session expired for user {current_user.email} in squad {squad}")
-            flash("Admin session expired. Please log in with your PIN again.", "warning")
+            logger.warning(
+                f"Admin session expired for user {current_user.email} in squad {squad}"
+            )
+            flash(
+                "Admin session expired. Please log in with your PIN again.", "warning"
+            )
             return url_for("guest.index", squad=squad)
 
         # Update last active timestamp
@@ -95,11 +98,11 @@ class RouteValidationService:
         return None  # Valid
 
     @staticmethod
-    def get_squad_from_request() -> Optional[str]:
+    def get_squad_from_request() -> str | None:
         """Get squad parameter from current request."""
         return request.view_args.get("squad") if request.view_args else None
 
     @staticmethod
     def is_static_request() -> bool:
         """Check if current request is for static assets."""
-        return request.endpoint and "static" in request.endpoint
+        return request.endpoint is not None and "static" in request.endpoint

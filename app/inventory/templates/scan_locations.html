@@ -15,7 +15,7 @@
 <div class="scan-selection-container">
    <form id="scan-form" method="POST" action="{{ url_for('admin.scan_locations' if admin else 'guest.scan_locations', squad=squad) }}">
        <input type="hidden" name="item_id" value="{{ item.id }}">
-       
+
        <div class="location-columns">
            <!-- From Column -->
            <div class="location-column">
