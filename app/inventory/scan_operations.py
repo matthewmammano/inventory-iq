@@ -1,3 +1,5 @@
+from dataclasses import dataclass
+
 from flask import flash, redirect, render_template, url_for
 from flask_login import current_user
 from loguru import logger
@@ -7,10 +9,105 @@ from sqlalchemy import select
 from app.auth.location_queries import list_locations
 from app.auth.models import UserItemLocations, Users
 from app.db import get_session
-from app.inventory.constants import OperationType
+from app.inventory.constants import (
+    VIRTUAL_LOCATION_COUNT,
+    VIRTUAL_LOCATION_RESTOCK,
+    VIRTUAL_LOCATION_TAKEOUT,
+    OperationType,
+)
 from app.inventory.inventory_ops import InventoryError, inventory_operation
 from app.inventory.item_queries import get_item
 from app.inventory.models import Items
+
+
+@dataclass
+class ScanPermissions:
+    """User permissions for scan operations."""
+
+    count: bool
+    restock: bool
+    takeout: bool
+
+
+def _determine_operation_type(
+    from_location_id: int | None, to_location_id: int | None
+) -> tuple[OperationType, int | None, int | None]:
+    """Determine operation type and canonical location IDs from virtual locations.
+
+    Args:
+        from_location_id: Source location (-1=restock, -2=count, >0=real location)
+        to_location_id: Destination location (-1=takeout, >0=real location)
+
+    Returns:
+        Tuple of (operation_type, from_location, to_location) for inventory_operation
+
+    Raises:
+        ValueError: If location combination is invalid
+    """
+    if from_location_id == -1:  # RESTOCK
+        return OperationType.restock, None, to_location_id
+
+    if from_location_id == -2:  # COUNT
+        return OperationType.count, None, to_location_id
+
+    if (from_location_id is not None and from_location_id > 0) and (
+        to_location_id is not None and to_location_id > 0
+    ):  # TRANSFER
+        return OperationType.transfer, from_location_id, to_location_id
+
+    if (
+        from_location_id is not None and from_location_id > 0
+    ) and to_location_id == -1:  # TAKEOUT
+        return OperationType.takeout, from_location_id, None
+
+    raise ValueError("Invalid operation parameters")
+
+
+def _parse_location_id(v) -> int | None:
+    """Parse location IDs including virtual locations.
+
+    Shared validator for all Pydantic models needing location parsing.
+    Handles VIRTUAL_LOCATION_RESTOCK, VIRTUAL_LOCATION_COUNT, VIRTUAL_LOCATION_TAKEOUT.
+    """
+    if v is None or v == "":
+        return None
+    if isinstance(v, int):
+        return v
+    if isinstance(v, str):
+        try:
+            return int(v)
+        except ValueError:
+            return None
+    return None
+
+
+def _get_locations_by_access(
+    user_id: int, direction: str, is_admin: bool, session
+) -> list[UserItemLocations]:
+    """Fetch locations user can access. Admin sees all, guests see filtered."""
+    if is_admin:
+        return list(list_locations(user_id, session=session))
+
+    if direction == "from":
+        return list(list_locations(user_id, user_access_from=True, session=session))
+    return list(list_locations(user_id, user_access_to=True, session=session))
+
+
+def _get_success_message(
+    op_type: OperationType,
+    item_name: str,
+    quantity: int,
+    from_location_name: str | None = None,
+    to_location_name: str | None = None,
+) -> str:
+    """Generate operation-specific success message with location details."""
+    messages = {
+        OperationType.count: f"Successfully set {item_name} quantity to {quantity} at {to_location_name}.",
+        OperationType.restock: f"Successfully restocked {quantity} {item_name} to {to_location_name}.",
+        OperationType.takeout: f"Successfully removed {quantity} {item_name} from {from_location_name}.",
+        OperationType.transfer: f"Successfully transferred {quantity} {item_name} from {from_location_name} to {to_location_name}.",
+    }
+    return messages.get(op_type, f"Operation completed for {item_name}.")
 
 
 class ScanLocationsRequest(BaseModel):
@@ -31,16 +128,7 @@ class ScanLocationsRequest(BaseModel):
     @classmethod
     def parse_location_id(cls, v):
         """Parse location IDs including virtual locations (-1, -2)."""
-        if v is None or v == "":
-            return None
-        if isinstance(v, int):
-            return v
-        if isinstance(v, str):
-            try:
-                return int(v)
-            except ValueError:
-                return None
-        return None
+        return _parse_location_id(v)
 
 
 class ScanItemRequest(BaseModel):
@@ -58,17 +146,8 @@ class ScanItemRequest(BaseModel):
     @field_validator("from_location_id", "to_location_id", mode="before")
     @classmethod
     def parse_location_id(cls, v):
-        """Parse location IDs including virtual locations (-1, -2)."""
-        if v is None or v == "":
-            return None
-        if isinstance(v, int):
-            return v
-        if isinstance(v, str):
-            try:
-                return int(v)
-            except ValueError:
-                return None
-        return None
+        """Parse location IDs including virtual locations."""
+        return _parse_location_id(v)
 
     @field_validator("counter_value", mode="before")
     @classmethod
@@ -84,7 +163,7 @@ class ScanItemRequest(BaseModel):
 
 
 def _parse_loc_id(val: str | int | None) -> int | None:
-    """Safely parse location id from strings like '-1', '-2' or numeric strings.
+    """Safely parse location id from strings or numeric strings.
 
     Returns None if input is None or not parseable. Accepts ints as well.
     """
@@ -92,25 +171,24 @@ def _parse_loc_id(val: str | int | None) -> int | None:
         return None
     if isinstance(val, int):
         return val
-    if val in ("-1", "-2"):
-        try:
-            return int(val)
-        except (TypeError, ValueError):
-            return None
     try:
         return int(val)
     except (TypeError, ValueError):
         return None
 
 
-def get_scan_permissions(squad: str, is_admin: bool = False) -> tuple[bool, bool, bool]:
-    """Return (user_count_allow, user_restock_allow, user_take_allow).
+def get_scan_permissions(squad: str, is_admin: bool = False) -> ScanPermissions:
+    """Get user permissions for scan operations.
 
-    If is_admin is True, grant all permissions. Otherwise read from the Users table
-    for the squad's user record.
+    Args:
+        squad: Squad name to fetch permissions for
+        is_admin: If True, grant all permissions
+
+    Returns:
+        ScanPermissions with count, restock, and takeout flags
     """
     if is_admin:
-        return True, True, True
+        return ScanPermissions(count=True, restock=True, takeout=True)
 
     try:
         with get_session() as session:
@@ -120,11 +198,13 @@ def get_scan_permissions(squad: str, is_admin: bool = False) -> tuple[bool, bool
             row = session.execute(stmt).first()
 
         if not row:
-            return False, False, False
-        return bool(row[0]), bool(row[1]), bool(row[2])
+            return ScanPermissions(count=False, restock=False, takeout=False)
+        return ScanPermissions(
+            count=bool(row[0]), restock=bool(row[1]), takeout=bool(row[2])
+        )
     except Exception:
         logger.exception("Error fetching scan permissions")
-        return False, False, False
+        return ScanPermissions(count=False, restock=False, takeout=False)
 
 
 def handle_scan_start(squad: str, item_id: int | None, is_admin: bool = False):
@@ -138,25 +218,21 @@ def handle_scan_start(squad: str, item_id: int | None, is_admin: bool = False):
         endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad))
 
-    user_count_allow, user_restock_allow, user_take_allow = get_scan_permissions(
-        squad, is_admin
-    )
+    perms = get_scan_permissions(squad, is_admin)
 
     with get_session() as db_session:
-        from_location = list(
-            list_locations(current_user.id, user_access_from=True, session=db_session)
+        from_location = _get_locations_by_access(
+            current_user.id, "from", is_admin, db_session
         )
-        to_location = list(
-            list_locations(current_user.id, user_access_to=True, session=db_session)
+        to_location = _get_locations_by_access(
+            current_user.id, "to", is_admin, db_session
         )
 
     # Adjust counts based on permissions
     from_count = (
-        len(from_location)
-        + (1 if user_count_allow else 0)
-        + (1 if user_restock_allow else 0)
+        len(from_location) + (1 if perms.count else 0) + (1 if perms.restock else 0)
     )
-    to_count = len(to_location) + (1 if user_take_allow else 0)
+    to_count = len(to_location) + (1 if perms.takeout else 0)
 
     if from_count == to_count == 1:
         route_prefix = "admin" if is_admin else "guest"
@@ -167,9 +243,9 @@ def handle_scan_start(squad: str, item_id: int | None, is_admin: bool = False):
                 item_id=item.id,
                 from_location_id=from_location[0].id if from_location else None,
                 to_location_id=to_location[0].id if to_location else None,
-                user_count_allow=user_count_allow,
-                user_restock_allow=user_restock_allow,
-                user_take_allow=user_take_allow,
+                user_count_allow=perms.count,
+                user_restock_allow=perms.restock,
+                user_take_allow=perms.takeout,
             )
         )
 
@@ -187,9 +263,9 @@ def handle_scan_start(squad: str, item_id: int | None, is_admin: bool = False):
             f"{route_prefix}.scan_locations",
             squad=squad,
             item_id=item.id,
-            user_count_allow=user_count_allow,
-            user_restock_allow=user_restock_allow,
-            user_take_allow=user_take_allow,
+            user_count_allow=perms.count,
+            user_restock_allow=perms.restock,
+            user_take_allow=perms.takeout,
         )
     )
 
@@ -210,18 +286,12 @@ def handle_scan_locations_get(
             endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
             return redirect(url_for(endpoint, squad=squad))
 
-        if is_admin:
-            from_locations = list(list_locations(current_user.id, session=db_session))
-            to_locations = list(list_locations(current_user.id, session=db_session))
-        else:
-            from_locations = list(
-                list_locations(
-                    current_user.id, user_access_from=True, session=db_session
-                )
-            )
-            to_locations = list(
-                list_locations(current_user.id, user_access_to=True, session=db_session)
-            )
+        from_locations = _get_locations_by_access(
+            current_user.id, "from", is_admin, db_session
+        )
+        to_locations = _get_locations_by_access(
+            current_user.id, "to", is_admin, db_session
+        )
 
     return render_template(
         "scan_locations.html",
@@ -278,9 +348,7 @@ def handle_scan_item_get(
     user_take_allow: bool = False,
     is_admin: bool = False,
 ):
-    """Render scan item page; supports virtual location ids (-1 restock, -2 count)."""
-    # reuse module-level _parse_loc_id
-
+    """Render scan item page; supports virtual location IDs for special operations."""
     with get_session() as session:
         parsed_item_id = _parse_loc_id(item_id) if item_id is not None else None
         item = (
@@ -288,7 +356,7 @@ def handle_scan_item_get(
         )
 
         parsed_from = _parse_loc_id(from_location_id)
-        if parsed_from in (-1, -2):
+        if parsed_from in (VIRTUAL_LOCATION_RESTOCK, VIRTUAL_LOCATION_COUNT):
             from_location = parsed_from
         elif parsed_from is not None:
             from_location = session.get(UserItemLocations, parsed_from)
@@ -296,8 +364,8 @@ def handle_scan_item_get(
             from_location = None
 
         parsed_to = _parse_loc_id(to_location_id)
-        if parsed_to == -1:
-            to_location = -1
+        if parsed_to == VIRTUAL_LOCATION_TAKEOUT:
+            to_location = VIRTUAL_LOCATION_TAKEOUT
         elif parsed_to is not None:
             to_location = session.get(UserItemLocations, parsed_to)
         else:
@@ -343,42 +411,24 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         return redirect(url_for(endpoint, squad=squad))
 
     # Check that at least one location is specified
-    if (validated.from_location_id is None or validated.from_location_id == -1) and (
-        validated.to_location_id is None or validated.to_location_id == -1
+    if (
+        validated.from_location_id is None
+        or validated.from_location_id == VIRTUAL_LOCATION_TAKEOUT
+    ) and (
+        validated.to_location_id is None
+        or validated.to_location_id == VIRTUAL_LOCATION_TAKEOUT
     ):
         flash("Please select a location for this operation.", "error")
         endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad, item_id=validated.item_id))
 
-    # Convert parsed location ids into canonical values used by inventory_operation
-    from_loc_val: int | None = (
-        validated.from_location_id
-        if validated.from_location_id not in (-1, -2)
-        else validated.from_location_id
-    )
-    to_loc_val: int | None = (
-        validated.to_location_id if validated.to_location_id != -1 else -1
-    )
-
-    # Determine operation type based on virtual location IDs
-    if from_loc_val == -1:  # RESTOCK
-        op_type = OperationType.restock
-        from_loc_for_op = None
-    elif from_loc_val == -2:  # COUNT
-        op_type = OperationType.count
-        from_loc_for_op = None
-    elif (from_loc_val is not None and from_loc_val > 0) and (
-        to_loc_val is not None and to_loc_val > 0
-    ):  # TRANSFER
-        op_type = OperationType.transfer
-        from_loc_for_op = from_loc_val
-    elif (
-        from_loc_val is not None and from_loc_val > 0
-    ) and to_loc_val == -1:  # TAKEOUT
-        op_type = OperationType.takeout
-        from_loc_for_op = from_loc_val
-        to_loc_val = None
-    else:
+    # Determine operation type and canonical location values
+    try:
+        op_type, from_loc_for_op, to_loc_val = _determine_operation_type(
+            validated.from_location_id, validated.to_location_id
+        )
+    except ValueError as e:
+        logger.error(f"Invalid operation parameters: {e}")
         flash("Invalid operation parameters.", "error")
         endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad, item_id=validated.item_id))
@@ -405,27 +455,22 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
         return redirect(url_for(endpoint, squad=squad, item_id=validated.item_id))
 
+    # Fetch location names for success message
+    with get_session() as session:
+        from_loc_name = None
+        to_loc_name = None
+        if from_loc_for_op:
+            from_loc = session.get(UserItemLocations, from_loc_for_op)
+            from_loc_name = from_loc.name if from_loc else None
+        if to_loc_val:
+            to_loc = session.get(UserItemLocations, to_loc_val)
+            to_loc_name = to_loc.name if to_loc else None
+
     # Create operation-specific success message
-    if op_type == OperationType.count:
-        flash(
-            f"Successfully set {item.name} quantity to {validated.counter_value}.",
-            "success",
-        )
-    elif op_type == OperationType.restock:
-        flash(
-            f"Successfully restocked {validated.counter_value} {item.name} from supplier.",
-            "success",
-        )
-    elif op_type == OperationType.takeout:
-        flash(
-            f"Successfully removed {validated.counter_value} {item.name} from inventory.",
-            "success",
-        )
-    else:
-        flash(
-            f"Successfully transferred {validated.counter_value} {item.name}.",
-            "success",
-        )
+    message = _get_success_message(
+        op_type, item.name, validated.counter_value, from_loc_name, to_loc_name
+    )
+    flash(message, "success")
 
     endpoint = "admin.admin_panel" if is_admin else "guest.index"
     return redirect(url_for(endpoint, squad=squad))

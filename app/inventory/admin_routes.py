@@ -31,7 +31,7 @@ from app.utils.timezone_utils import get_timezone_display_hint
 
 load_dotenv()
 
-ADMIN_TIMEOUT_SECONDS = 21600  # 6 hours
+ADMIN_TIMEOUT_SECONDS = 2 * 60 * 60  # 2 hours
 
 
 def _parse_optional_int(value: str | None) -> int | None:

@@ -12,6 +12,12 @@ class OperationType(Enum):
     transfer = "TRANSFER"
 
 
+# Virtual Location IDs for scan operations
+VIRTUAL_LOCATION_RESTOCK: int = -1
+VIRTUAL_LOCATION_COUNT: int = -2
+VIRTUAL_LOCATION_TAKEOUT: int = -1
+
+
 # UPC Generation Constants
 UPC_GENERATION_START: str = "500000000000"
 """Starting point for auto-generated UPC codes.
@@ -23,6 +29,7 @@ Generated UPCs start at 500000000000 and increment upward.
 # Validation Constants
 UPC_LENGTH: int = 12
 """Standard UPC-A barcode length (12 digits with check digit)."""
+
 
 # Future constants can be added here:
 # MAX_BATCH_SIZE: int = 10000

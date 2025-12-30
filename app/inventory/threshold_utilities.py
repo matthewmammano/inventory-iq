@@ -24,10 +24,10 @@ ORDER_MINIMAL_THRESHOLD = 1  # 1-9 units = minimal priority
 # 0 units = no order needed
 
 # Days Until Low Thresholds (timeline urgency)
-DAYS_IMMEDIATE_THRESHOLD = 7  # Less than 7 days = immediate action
-DAYS_SOON_THRESHOLD = 30  # 7-30 days = action needed soon
-DAYS_MODERATE_THRESHOLD = 90  # 31-90 days = moderate planning
-# 90+ days = good stock levels
+DAYS_IMMEDIATE_THRESHOLD = 30  # Less than 1 month  = immediate action
+DAYS_SOON_THRESHOLD = 30 * 3  # 1-3 months = action needed soon
+DAYS_MODERATE_THRESHOLD = 30 * 6  # 3-6 months = moderate planning
+# 6+ months = good stock levels
 
 # Maximum display value for days (cap very large numbers)
 MAX_DAYS_DISPLAY = 365

@@ -4,8 +4,6 @@ Centralized quantity calculations built directly from ActionLogs.
 All quantities are computed on-demand; no cached ItemLocationQuantities table.
 """
 
-from __future__ import annotations
-
 from collections import defaultdict
 from typing import TYPE_CHECKING, Iterable
 
