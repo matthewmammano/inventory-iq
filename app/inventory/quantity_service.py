@@ -5,20 +5,19 @@ Single source of truth for all inventory quantity calculations.
 Used by both inventory operations and prediction systems.
 """
 
+from loguru import logger
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
-from app.auth.models import UserItemLocations
+from app.auth.location_queries import list_locations
 from app.db import get_session
+from app.inventory.item_queries import list_items_for_user
 from app.inventory.models import (
     ActionLogs,
     ItemLocationQuantities,
-    Items,
     OperationType,
     get_or_create_item_location_quantity,
 )
-
-from loguru import logger
 
 
 class QuantityService:
@@ -62,24 +61,12 @@ class QuantityService:
                 session.flush()
 
                 # Get all items and locations for this user
-                items = (
-                    session.execute(
-                        select(Items).where(
-                            Items.user_id == user_id, Items.active.is_(True)
-                        )
+                items = list(
+                    list_items_for_user(
+                        user_id, include_inactive=False, session=session
                     )
-                    .scalars()
-                    .all()
                 )
-                locations = (
-                    session.execute(
-                        select(UserItemLocations).where(
-                            UserItemLocations.user_id == user_id
-                        )
-                    )
-                    .scalars()
-                    .all()
-                )
+                locations = list(list_locations(user_id, session=session))
 
                 calculated_count = 0
 

@@ -6,10 +6,12 @@ from flask_login import current_user
 from loguru import logger
 from sqlalchemy import select
 
-from app.auth.models import UserItemLocations, UserItemTags
+from app.auth.location_queries import list_locations
+from app.auth.tag_queries import get_tags_by_ids, list_tags
 from app.core.route_validation import RouteValidationService
 from app.db import get_session
 from app.inventory import admin_bp as bp
+from app.inventory.item_queries import get_item, list_items_for_user
 from app.inventory.models import ActionLogs, ItemLocationQuantities, Items
 from app.inventory.scan_operations import (
     handle_scan_item_get,
@@ -87,22 +89,10 @@ def admin_panel_views(squad):
 @bp.route("/<squad>/admin-panel/view-items")
 def admin_view_items(squad):
     with get_session() as session:
-        items = (
-            session.execute(
-                select(Items)
-                .where(Items.user_id == current_user.id)
-                .order_by(Items.name)
-            )
-            .scalars()
-            .all()
+        items = list(
+            list_items_for_user(current_user.id, include_inactive=True, session=session)
         )
-        tags = (
-            session.execute(
-                select(UserItemTags).where(UserItemTags.user_id == current_user.id)
-            )
-            .scalars()
-            .all()
-        )
+        tags = list_tags(current_user.id, session)
     timezone_hint = get_timezone_display_hint(current_user.timezone)
     return render_template(
         "admin_view_items.html",
@@ -129,22 +119,12 @@ def help_page(squad):
 def save_items(squad):
     if request.method == "GET":
         with get_session() as session:
-            items = (
-                session.execute(
-                    select(Items)
-                    .where(Items.user_id == current_user.id)
-                    .order_by(Items.name)
+            items = list(
+                list_items_for_user(
+                    current_user.id, include_inactive=True, session=session
                 )
-                .scalars()
-                .all()
             )
-            tags = (
-                session.execute(
-                    select(UserItemTags).where(UserItemTags.user_id == current_user.id)
-                )
-                .scalars()
-                .all()
-            )
+            tags = list_tags(current_user.id, session)
         return render_template(
             "admin_edit_items.html",
             squad=squad,
@@ -168,14 +148,11 @@ def save_items(squad):
         return redirect(url_for("admin.admin_view_items", squad=squad))
 
     # Keep track of existing items to detect deletions
+
     with get_session() as session:
         existing_ids = set(
             item.id
-            for item in session.execute(
-                select(Items).where(Items.user_id == current_user.id)
-            )
-            .scalars()
-            .all()
+            for item in list_items_for_user(current_user.id, True, session=session)
         )
     processed_ids = set()
     new_items = []
@@ -203,15 +180,8 @@ def save_items(squad):
         if tag_ids:
             try:
                 with get_session() as session:
-                    valid_tags = (
-                        session.execute(
-                            select(UserItemTags).where(
-                                UserItemTags.id.in_(tag_ids),
-                                UserItemTags.user_id == current_user.id,
-                            )
-                        )
-                        .scalars()
-                        .all()
+                    valid_tags = list(
+                        get_tags_by_ids(current_user.id, tag_ids, session=session)
                     )
                 if len(valid_tags) != len(tag_ids):
                     error_items.append(name)
@@ -228,12 +198,10 @@ def save_items(squad):
 
                 # Update existing item
                 # Update existing item within its own session so changes persist
+
                 with get_session() as session:
-                    stmt = select(Items).where(
-                        Items.id == item_id, Items.user_id == current_user.id
-                    )
-                    item = session.execute(stmt).scalars().first()
-                    if not item:
+                    item = get_item(item_id, session)
+                    if not item or item.user_id != current_user.id:
                         error_items.append(name)
                         continue
 
@@ -270,13 +238,11 @@ def save_items(squad):
                 continue
 
     # Delete items that were removed from the form
+
     with get_session() as session:
         for item_id in existing_ids - processed_ids:
-            stmt = select(Items).where(
-                Items.id == item_id, Items.user_id == current_user.id
-            )
-            item_to_delete = session.execute(stmt).scalars().first()
-            if item_to_delete:
+            item_to_delete = get_item(item_id, session)
+            if item_to_delete and item_to_delete.user_id == current_user.id:
                 session.delete(item_to_delete)
 
     # Commit all changes
@@ -309,25 +275,16 @@ def save_items(squad):
 def inventory_counts(squad):
     """Display items and their counts across all locations"""
     # Get all items, locations and quantities for this user using a session
+
     with get_session() as session:
-        items = (
-            session.execute(
-                select(Items)
-                .where(Items.user_id == current_user.id, Items.active.is_(True))
-                .order_by(Items.name)
+        items = list(
+            list_items_for_user(
+                current_user.id,
+                include_inactive=False,
+                session=session,
             )
-            .scalars()
-            .all()
         )
-        locations = (
-            session.execute(
-                select(UserItemLocations)
-                .where(UserItemLocations.user_id == current_user.id)
-                .order_by(UserItemLocations.name)
-            )
-            .scalars()
-            .all()
-        )
+        locations = list_locations(current_user.id, session=session)
         quantities = (
             session.execute(
                 select(ItemLocationQuantities).where(
@@ -417,15 +374,7 @@ def restock(squad):
 @bp.route("/<squad>/admin-panel/view-locations")
 def admin_view_locations(squad):
     with get_session() as session:
-        locations = (
-            session.execute(
-                select(UserItemLocations)
-                .where(UserItemLocations.user_id == current_user.id)
-                .order_by(UserItemLocations.name)
-            )
-            .scalars()
-            .all()
-        )
+        locations = list_locations(current_user.id, session=session)
     return render_template(
         "admin_view_locations.html", squad=squad, locations=locations, admin=True
     )
@@ -434,15 +383,7 @@ def admin_view_locations(squad):
 @bp.route("/<squad>/admin-panel/view-tags")
 def admin_view_tags(squad):
     with get_session() as session:
-        tags = (
-            session.execute(
-                select(UserItemTags)
-                .where(UserItemTags.user_id == current_user.id)
-                .order_by(UserItemTags.tag_name)
-            )
-            .scalars()
-            .all()
-        )
+        tags = list_tags(current_user.id, session)
     return render_template("admin_view_tags.html", squad=squad, tags=tags, admin=True)
 
 
@@ -484,14 +425,13 @@ def admin_scan_items(squad):
         )
 
     with get_session() as session:
-        items = (
-            session.execute(
-                select(Items)
-                .where(Items.user_id == current_user.id)
-                .order_by(Items.last_accessed.desc().nullslast())
+        items = list(
+            list_items_for_user(
+                current_user.id,
+                include_inactive=True,
+                order_by_last_accessed=True,
+                session=session,
             )
-            .scalars()
-            .all()
         )
     return render_template(
         "index.html", items=items, squad=squad, logo_img=current_user.image, admin=True

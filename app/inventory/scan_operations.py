@@ -4,9 +4,11 @@ from loguru import logger
 from pydantic import BaseModel, Field, ValidationError, field_validator
 from sqlalchemy import select
 
+from app.auth.location_queries import list_locations
 from app.auth.models import UserItemLocations, Users
 from app.db import get_session
 from app.inventory.inventory_ops import InventoryError, inventory_operation
+from app.inventory.item_queries import get_item
 from app.inventory.models import Items, OperationType
 
 
@@ -127,8 +129,7 @@ def get_scan_permissions(squad: str, is_admin: bool = False) -> tuple[bool, bool
 def handle_scan_start(squad: str, item_id: int | None, is_admin: bool = False):
     """Decide whether to go directly to item scan or ask for locations."""
     with get_session() as db_session:
-        stmt = select(Items).where(Items.id == item_id) if item_id else None
-        item = db_session.execute(stmt).scalars().first() if stmt is not None else None
+        item = get_item(item_id, db_session) if item_id else None
 
     if not item:
         logger.warning(f"Scan attempted with invalid item_id: {item_id}")
@@ -141,22 +142,11 @@ def handle_scan_start(squad: str, item_id: int | None, is_admin: bool = False):
     )
 
     with get_session() as db_session:
-        base_stmt = select(UserItemLocations).where(
-            UserItemLocations.user_id == current_user.id
+        from_location = list(
+            list_locations(current_user.id, user_access_from=True, session=db_session)
         )
-        from_location = (
-            db_session.execute(
-                base_stmt.where(UserItemLocations.user_access_from.is_(True))
-            )
-            .scalars()
-            .all()
-        )
-        to_location = (
-            db_session.execute(
-                base_stmt.where(UserItemLocations.user_access_to.is_(True))
-            )
-            .scalars()
-            .all()
+        to_location = list(
+            list_locations(current_user.id, user_access_to=True, session=db_session)
         )
 
     # Adjust counts based on permissions
@@ -213,38 +203,23 @@ def handle_scan_locations_get(
 ):
     """Render the locations selection page for scanning."""
     with get_session() as db_session:
-        stmt_item = select(Items).where(Items.id == item_id) if item_id else None
-        item = (
-            db_session.execute(stmt_item).scalars().first()
-            if stmt_item is not None
-            else None
-        )
+        item = get_item(item_id, db_session) if item_id else None
         if not item:
             flash("Item not found.", "error")
             endpoint = "admin.admin_scan_items" if is_admin else "guest.index"
             return redirect(url_for(endpoint, squad=squad))
 
-        base_stmt = select(UserItemLocations).where(
-            UserItemLocations.user_id == current_user.id
-        )
-
         if is_admin:
-            from_locations = list(db_session.execute(base_stmt).scalars().all())
-            to_locations = list(db_session.execute(base_stmt).scalars().all())
+            from_locations = list(list_locations(current_user.id, session=db_session))
+            to_locations = list(list_locations(current_user.id, session=db_session))
         else:
             from_locations = list(
-                db_session.execute(
-                    base_stmt.where(UserItemLocations.user_access_from.is_(True))
+                list_locations(
+                    current_user.id, user_access_from=True, session=db_session
                 )
-                .scalars()
-                .all()
             )
             to_locations = list(
-                db_session.execute(
-                    base_stmt.where(UserItemLocations.user_access_to.is_(True))
-                )
-                .scalars()
-                .all()
+                list_locations(current_user.id, user_access_to=True, session=db_session)
             )
 
     return render_template(

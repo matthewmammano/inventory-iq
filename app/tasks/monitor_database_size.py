@@ -13,6 +13,7 @@ from sqlalchemy import func, select
 
 from app import create_app, mail
 from app.auth.models import Users
+from app.auth.user_queries import list_users
 from app.db import get_session
 from app.inventory.models import ActionLogs, Items
 
@@ -84,8 +85,8 @@ def _get_admin_email() -> str | None:
 
     # Fallback to first active user email via explicit session
     with get_session() as session:
-        stmt = select(Users).where(Users.active.is_(True)).limit(1)
-        first_user = session.execute(stmt).scalars().first()
+        users = list(list_users(active=True, session=session))
+        first_user = users[0] if users else None
     return first_user.email if first_user else None
 
 
@@ -113,7 +114,7 @@ Generated: {datetime.now().strftime("%Y-%m-%d %H:%M:%S")}"""
     if mail_obj is None:
         logger.error("Mail service not configured; cannot send database report")
         return
-    mail_obj.send(msg)
+    mail_obj.send(msg)  # type: ignore[attr-defined]
 
 
 if __name__ == "__main__":

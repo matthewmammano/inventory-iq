@@ -5,13 +5,14 @@ Handles RECOUNT, TRANSFER, and TAKEOUT with first-aid-squad-friendly error handl
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
-
-from app.auth.models import UserItemLocations
-from app.db import get_session
-from app.inventory.models import ActionLogs, Items, OperationType
-
 from loguru import logger
+
+from app.alerts.alert_service import AlertQueueService
+from app.auth.location_queries import get_location
+from app.db import get_session
+from app.inventory.item_queries import get_item
+from app.inventory.models import ActionLogs, OperationType
+from app.prediction.validation import RestockValidator
 
 
 class InventoryError(Exception):
@@ -65,11 +66,8 @@ def inventory_operation(
             )
 
             # Update item last_accessed timestamp
-            stmt_item = select(Items).where(
-                Items.id == item_id, Items.user_id == user_id
-            )
-            item = session.execute(stmt_item).scalars().first()
-            if item:
+            item = get_item(item_id, session)
+            if item and item.user_id == user_id:
                 item.last_accessed = datetime.now(UTC)
 
             # Create and process action
@@ -135,8 +133,6 @@ def _validate_inputs(
             raise InventoryError("RESTOCK requires no from_location and a to_location")
 
         # RESTOCK validation - require recent COUNT operation
-        from app.prediction.validation import RestockValidator
-
         # validate_restock_operation expects (user_id, item_id, location_id, session=None)
         # to_location was checked above and is not None here
         is_valid, error_msg = RestockValidator.validate_restock_operation(
@@ -155,25 +151,19 @@ def _validate_inputs(
             raise InventoryError("TAKEOUT requires from_location and no to_location")
 
     # Validate item exists
-    stmt_item = select(Items).where(Items.id == item_id, Items.user_id == user_id)
-    item = session.execute(stmt_item).scalars().first()
-    if not item:
+
+    item = get_item(item_id, session)
+    if not item or item.user_id != user_id:
         raise InventoryError("Item not found in your inventory")
 
     # Validate locations exist
     if from_location is not None:
-        stmt_from = select(UserItemLocations).where(
-            UserItemLocations.id == from_location, UserItemLocations.user_id == user_id
-        )
-        from_loc = session.execute(stmt_from).scalars().first()
+        from_loc = get_location(from_location, user_id, session)
         if not from_loc:
             raise InventoryError("Source location not found")
 
     if to_location is not None:
-        stmt_to = select(UserItemLocations).where(
-            UserItemLocations.id == to_location, UserItemLocations.user_id == user_id
-        )
-        to_loc = session.execute(stmt_to).scalars().first()
+        to_loc = get_location(to_location, user_id, session)
         if not to_loc:
             raise InventoryError("Destination location not found")
 
@@ -225,8 +215,6 @@ def _handle_alerts_safely(alerts: list, user_id: int, op_type: str):
         return
 
     try:
-        from app.alerts.alert_service import AlertQueueService
-
         logger.info(f"Processing {len(alerts)} alerts from {op_type}")
         AlertQueueService.queue_alerts_for_user(alerts, user_id)
     except Exception as e:

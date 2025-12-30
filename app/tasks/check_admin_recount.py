@@ -11,7 +11,8 @@ from sqlalchemy import and_, select
 from app import create_app
 from app.auth.models import UserAlerts, Users
 from app.db import get_session
-from app.inventory.models import ActionLogs, Items, OperationType
+from app.inventory.item_queries import list_items_for_user
+from app.inventory.models import ActionLogs, OperationType
 
 
 def check_admin_count_alerts() -> None:
@@ -39,13 +40,7 @@ def _process_user_items(session, user: Users, user_alert: UserAlerts) -> int:
     """Process items for a user and generate alerts."""
     days = user_alert.count_last_days or 0
     cutoff = datetime.now(UTC) - timedelta(days=days)
-    items = (
-        session.execute(
-            select(Items).where(Items.user_id == user.id, Items.active.is_(True))
-        )
-        .scalars()
-        .all()
-    )
+    items = list(list_items_for_user(user.id, include_inactive=False, session=session))
     alerts_added = 0
 
     for item in items:

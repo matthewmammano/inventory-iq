@@ -11,10 +11,10 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.data_access import DataAccessService
-from app.core.quantity_service import QuantityService
 from app.db import get_session
+from app.inventory.item_queries import list_items_for_user
 from app.inventory.models import ActionLogs, Items, OperationType
+from app.inventory.quantity_service import QuantityService
 
 from .prediction_engine import PredictionEngine
 
@@ -67,11 +67,20 @@ class BulkService:
         """
         try:
             # Step 1: Recalculate quantities to ensure accuracy
+
             logger.info(f"Starting restock analysis for user {user_id}")
             QuantityService.recalculate_all_quantities(user_id)
 
             # Step 2: Get all active items
-            items = DataAccessService.get_active_items_for_user(user_id)
+            _s = session or db_session
+            items = list(
+                list_items_for_user(
+                    user_id,
+                    include_inactive=False,
+                    order_by_last_accessed=True,
+                    session=_s,
+                )
+            )
             item_ids = [item.id for item in items]
 
             # Step 3: Get bulk predictions

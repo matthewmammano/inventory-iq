@@ -8,14 +8,12 @@ friendly and easier to type-check.
 TODO: expand with more helper methods as the migration completes.
 """
 
-from collections.abc import Sequence
-
 from loguru import logger
-from sqlalchemy import desc, select
 
-# SQLAlchemy Session type intentionally not imported here to avoid circular imports
 from app.auth.models import Users
+from app.auth.user_queries import get_user_by_display_name
 from app.db import get_session
+from app.inventory.item_queries import get_item, list_items_for_user
 from app.inventory.models import Items
 
 
@@ -43,10 +41,10 @@ class DataAccessService:
         Optional[Users]
             The matching user or ``None`` if not found or on error.
         """
+
         try:
             with get_session() as session:
-                stmt = select(Users).where(Users.display_name == squad_name)
-                return session.execute(stmt).scalars().first()
+                return get_user_by_display_name(squad_name, session)
         except Exception as e:  # pragma: no cover - defensive logging
             logger.error(f"Database error querying user by squad '{squad_name}': {e}")
             return None
@@ -67,14 +65,13 @@ class DataAccessService:
         Optional[Items]
             The item instance or ``None`` if not found.
         """
+
         try:
             with get_session() as session:
-                stmt = (
-                    select(Items)
-                    .where(Items.id == item_id)
-                    .where(Items.user_id == user_id)
-                )
-                return session.execute(stmt).scalars().first()
+                item = get_item(item_id, session)
+                if item and item.user_id != user_id:
+                    return None
+                return item
         except Exception as e:  # pragma: no cover - defensive logging
             logger.error(
                 f"Database error querying item {item_id} for user {user_id}: {e}"
@@ -95,16 +92,17 @@ class DataAccessService:
         List[Items]
             A list of active items (possibly empty on error).
         """
+
         try:
             with get_session() as session:
-                stmt = (
-                    select(Items)
-                    .where(Items.user_id == user_id)
-                    .where(Items.active)
-                    .order_by(desc(Items.last_accessed).nullslast())
+                return list(
+                    list_items_for_user(
+                        user_id,
+                        include_inactive=False,
+                        order_by_last_accessed=True,
+                        session=session,
+                    )
                 )
-                results: Sequence[Items] = session.execute(stmt).scalars().all()
-                return list(results)
         except Exception as e:
             logger.error(
                 f"Database error fetching active items for user {user_id}: {e}"

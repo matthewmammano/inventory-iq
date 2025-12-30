@@ -1,10 +1,9 @@
 from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_user, logout_user
 from loguru import logger
-from sqlalchemy import select
 
 from app.auth import bp
-from app.auth.models import Users
+from app.auth.user_queries import get_user_by_email
 from app.db import get_session
 
 # TODO-1: batch scan out
@@ -30,8 +29,7 @@ def login():
                 return redirect(url_for("auth.login"))
 
             with get_session() as session:
-                stmt = select(Users).where(Users.email == email)
-                user = session.execute(stmt).scalars().first()
+                user = get_user_by_email(email, session)
 
             # Check if the user exists
             if user is None:
@@ -71,10 +69,8 @@ def set_password():
         email = request.form["email"]
         new_password = request.form["password"]
 
-        # Find the user by email
         with get_session() as session:
-            stmt = select(Users).where(Users.email == email)
-            user = session.execute(stmt).scalars().first()
+            user = get_user_by_email(email, session)
         if user is None:
             logger.warning(f"Password set attempt for invalid email: {email}")
             flash("Invalid email", "error")

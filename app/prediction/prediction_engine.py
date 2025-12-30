@@ -9,9 +9,9 @@ from dataclasses import dataclass
 from enum import Enum
 
 from loguru import logger
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.auth.location_queries import list_locations
 from app.db import get_session
 
 from .aggregation import PriorPredictionResult, PriorTrendlineAggregator
@@ -349,18 +349,12 @@ class PredictionEngine:
             Dict mapping item_id to prediction results
         """
         # Bulk prediction can be called with or without an external session.
+
         use_external_session = db_session is not None
 
         try:
-            from app.auth.models import UserItemLocations
-
             if use_external_session:
-                stmt = select(UserItemLocations).where(
-                    UserItemLocations.user_id == user_id
-                )
-                locations: list[UserItemLocations] = (
-                    db_session.execute(stmt).scalars().all()
-                )
+                locations = list(list_locations(user_id, session=db_session))
                 location_ids = [loc.id for loc in locations]
                 results = {
                     item_id: PredictionEngine.predict_item_total(
@@ -370,12 +364,7 @@ class PredictionEngine:
                 }
             else:
                 with get_session() as _s:
-                    stmt = select(UserItemLocations).where(
-                        UserItemLocations.user_id == user_id
-                    )
-                    locations: list[UserItemLocations] = (
-                        _s.execute(stmt).scalars().all()
-                    )
+                    locations = list(list_locations(user_id, session=_s))
                     location_ids = [loc.id for loc in locations]
                     results = {
                         item_id: PredictionEngine.predict_item_total(

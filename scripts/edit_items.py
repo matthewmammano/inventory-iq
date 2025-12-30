@@ -9,8 +9,10 @@ from pathlib import Path
 from sqlalchemy import delete, func, select
 
 from app.db import get_session
-from app.inventory.models import Items
+from app.inventory.item_queries import list_items_for_user
+from app.inventory.models import ActionLogs, Items
 from scripts.utils import (
+    clear_screen,
     create_with_validation,
     delete_with_confirmation,
     ensure_app_context,
@@ -183,8 +185,7 @@ def view_items(user):
     # get_session imported at module level
 
     with get_session() as session:
-        stmt = select(Items).where(Items.user_id == user.id).order_by(Items.name)
-        items = list(session.execute(stmt).scalars().all())
+        items = list(list_items_for_user(user.id, True, session=session))
 
     select_from_list(
         items,
@@ -266,11 +267,8 @@ def add_item(user):
 
 def delete_item(user):
     """Delete item."""
-    from app.db import get_session
-
     with get_session() as session:
-        stmt = select(Items).where(Items.user_id == user.id).order_by(Items.name)
-        items = list(session.execute(stmt).scalars().all())
+        items = list(list_items_for_user(user.id, True, session=session))
 
     selected = select_from_list(
         items,
@@ -283,7 +281,6 @@ def delete_item(user):
 
     def check_usage(item) -> bool:
         """Check if item is used in action logs."""
-        from app.inventory.models import ActionLogs
 
         # get_session imported at module level
 
@@ -415,8 +412,6 @@ def main():
             user_item_menu(user)
 
     def exit_program():
-        from scripts.utils import clear_screen
-
         clear_screen()
         print("Exiting item management. Goodbye!")
         return True

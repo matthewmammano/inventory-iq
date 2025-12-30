@@ -10,7 +10,8 @@ from flask import flash, request, session, url_for
 from flask_login import current_user
 from loguru import logger
 
-from app.core.data_access import DataAccessService
+from app.auth.user_queries import get_user_by_display_name
+from app.db import get_session
 
 
 class RouteValidationService:
@@ -28,12 +29,14 @@ class RouteValidationService:
         Returns:
             None if valid, error redirect URL if invalid
         """
+
         if not squad:
             flash("Squad name is required.", "warning")
             return url_for("auth.login")
 
-        # Get user by squad name using centralized service
-        user = DataAccessService.get_user_by_squad(squad)
+        # Get user by squad name
+        with get_session() as session:
+            user = get_user_by_display_name(squad, session)
         if not user:
             flash("Invalid squad name. Please try again.", "error")
             return url_for("auth.login")

@@ -5,7 +5,11 @@ edit_tags.py - Tag management using model validation
 from sqlalchemy import select
 
 from app.auth.models import UserItemTags
+from app.auth.tag_queries import list_tags
+from app.db import get_session
+from app.inventory.models import Items
 from scripts.utils import (
+    clear_screen,
     create_with_validation,
     delete_with_confirmation,
     ensure_app_context,
@@ -20,15 +24,9 @@ from scripts.utils import (
 
 def view_tags(user):
     """View all tags for a user."""
-    from app.db import get_session
 
     with get_session() as session:
-        stmt = (
-            select(UserItemTags)
-            .where(UserItemTags.user_id == user.id)
-            .order_by(UserItemTags.tag_name)
-        )
-        tags = list(session.execute(stmt).scalars().all())
+        tags = list(list_tags(user.id, session))
 
     select_from_list(
         tags,
@@ -59,15 +57,9 @@ def add_tag(user):
 
 def edit_tag_color(user):
     """Edit tag color."""
-    from app.db import get_session
 
     with get_session() as session:
-        stmt = (
-            select(UserItemTags)
-            .where(UserItemTags.user_id == user.id)
-            .order_by(UserItemTags.tag_name)
-        )
-        tags = list(session.execute(stmt).scalars().all())
+        tags = list(list_tags(user.id, session))
 
     selected = select_from_list(
         tags,
@@ -88,15 +80,12 @@ def edit_tag_color(user):
     # Model validation happens automatically
     try:
         selected.color = new_color  # Triggers @validates decorator
-        from app.db import get_session
 
         with get_session() as session:
             session.add(selected)
             session.commit()
         print("\n[SUCCESS] Tag color updated!")
     except ValueError as e:
-        from app.db import get_session
-
         try:
             with get_session() as session:
                 session.rollback()
@@ -109,15 +98,9 @@ def edit_tag_color(user):
 
 def delete_tag(user):
     """Delete tag with item usage check."""
-    from app.db import get_session
 
     with get_session() as session:
-        stmt = (
-            select(UserItemTags)
-            .where(UserItemTags.user_id == user.id)
-            .order_by(UserItemTags.tag_name)
-        )
-        tags = list(session.execute(stmt).scalars().all())
+        tags = list(list_tags(user.id, session))
 
     selected = select_from_list(
         tags,
@@ -130,10 +113,6 @@ def delete_tag(user):
 
     def check_and_clean_usage(tag):
         """Check if tag is used and remove from items."""
-        from sqlalchemy import select
-
-        from app.db import get_session
-        from app.inventory.models import Items
 
         with get_session() as session:
             stmt = select(Items).where(
@@ -184,8 +163,6 @@ def main():
             user_tag_menu(user)
 
     def exit_program():
-        from scripts.utils import clear_screen
-
         clear_screen()
         print("Exiting tag management. Goodbye!")
         return True

@@ -2,6 +2,15 @@ from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from loguru import logger
+from sqlalchemy import select
+from sqlalchemy import select as _select
+
+from app.auth.models import UserAlerts
+from app.db import get_session
+from app.db import get_session as _get_session
+from app.inventory.item_queries import get_item
+from app.inventory.models import ActionLogs
+from app.prediction.prediction_engine import PredictionEngine
 
 
 class AlertDetectionService:
@@ -15,21 +24,7 @@ class AlertDetectionService:
         previous_quantities: dict[int, int],
         is_admin_action: bool = False,
     ) -> list[dict[str, Any]]:
-        """Check for all types of inventory alerts based on user preferences.
-
-        Notes
-        -----
-        Imports models and session helper inside the function to avoid circular
-        import issues when this module is imported from other packages.
-        """
-
-        # Local imports to avoid circular dependencies
-        from sqlalchemy import select
-
-        from app.auth.models import UserAlerts
-        from app.db import get_session
-        from app.inventory.models import ActionLogs, Items
-
+        """Check for all types of inventory alerts based on user preferences."""
         logger.info(
             f"check_quantity_alerts called by user_id={user_id} on item_id={item_id} "
             f"with quantity from {previous_quantities} to {updated_quantities}"
@@ -39,10 +34,9 @@ class AlertDetectionService:
 
         # Load item and user alert preferences
         with get_session() as session:
-            item_stmt = (
-                select(Items).where(Items.id == item_id).where(Items.user_id == user_id)
-            )
-            item = session.execute(item_stmt).scalars().first()
+            item = get_item(item_id, session)
+            if item and item.user_id != user_id:
+                item = None
 
             ua_stmt = select(UserAlerts).where(UserAlerts.user_id == user_id)
             user_alerts = session.execute(ua_stmt).scalars().first()
@@ -68,8 +62,6 @@ class AlertDetectionService:
                 and user_alerts.low_stock_days > 0
             ):
                 try:
-                    from app.prediction.prediction_engine import PredictionEngine
-
                     with get_session() as pred_session:
                         prediction_result = PredictionEngine.predict_usage(
                             pred_session, user_id, item_id, loc_id
@@ -156,10 +148,6 @@ class AlertDetectionService:
             logger.info(
                 f"Checking rare scan alert: looking for non-admin scans since {cutoff_date}"
             )
-
-            from sqlalchemy import select as _select
-
-            from app.db import get_session as _get_session
 
             with _get_session() as session:
                 stmt = (

@@ -4,9 +4,12 @@ edit_locations.py - Location management using model validation
 
 from sqlalchemy import select
 
+from app.auth.location_queries import list_locations
 from app.auth.models import UserItemLocations
 from app.db import get_session
+from app.inventory.models import ActionLogs
 from scripts.utils import (
+    clear_screen,
     create_with_validation,
     delete_with_confirmation,
     ensure_app_context,
@@ -21,13 +24,9 @@ from scripts.utils import (
 
 def view_locations(user):
     """View all locations for a user."""
+
     with get_session() as session:
-        stmt = (
-            select(UserItemLocations)
-            .where(UserItemLocations.user_id == user.id)
-            .order_by(UserItemLocations.name)
-        )
-        locations = list(session.execute(stmt).scalars().all())
+        locations = list(list_locations(user.id, session=session))
 
     def display_location(loc, i):
         access_from = "✓" if loc.user_access_from else "✗"
@@ -66,13 +65,9 @@ def add_location(user):
 
 def delete_location(user):
     """Delete location with usage check."""
+
     with get_session() as session:
-        stmt = (
-            select(UserItemLocations)
-            .where(UserItemLocations.user_id == user.id)
-            .order_by(UserItemLocations.name)
-        )
-        locations = list(session.execute(stmt).scalars().all())
+        locations = list(list_locations(user.id, session=session))
 
     selected = select_from_list(
         locations,
@@ -85,10 +80,6 @@ def delete_location(user):
 
     def check_usage(location):
         """Check if location is used in action logs."""
-        from sqlalchemy import select
-
-        from app.db import get_session
-        from app.inventory.models import ActionLogs
 
         with get_session() as session:
             stmt_from = select(ActionLogs).where(
@@ -131,8 +122,6 @@ def main():
             user_location_menu(user)
 
     def exit_program():
-        from scripts.utils import clear_screen
-
         clear_screen()
         print("Exiting location management. Goodbye!")
         return True

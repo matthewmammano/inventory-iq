@@ -1,10 +1,9 @@
 import os
 from typing import Any, Callable, Dict, List, Type
 
-from sqlalchemy import select
-
 from app import create_app
 from app.auth.models import Users
+from app.auth.user_queries import list_users
 from app.db import get_session
 
 
@@ -90,10 +89,9 @@ def select_from_list(
 
 def select_user() -> Users | None:
     """Select from active users using an explicit session."""
+
     with get_session() as session:
-        stmt = select(Users).where(Users.active.is_(True)).order_by(Users.display_name)
-        users_seq = session.execute(stmt).scalars().all()
-        users = list(users_seq)
+        users = list(list_users(active=True, session=session))
     return select_from_list(
         users, lambda u, i: print(f"{i}. {u.display_name} ({u.email})"), "SELECT USER"
     )

@@ -110,6 +110,34 @@ def get_session() -> Iterator[Session]:
             SessionLocal.remove()
 
 
+@contextmanager
+def managed_session(session: Session | None) -> Iterator[Session]:
+    """Yield a Session and manage commit/rollback only if we own it.
+
+    - If `session` is None, open via `get_session()`; commit on success,
+      rollback on exception, and close.
+    - If `session` is provided, yield it without committing/rolling back.
+    """
+    ctx = get_session() if session is None else None
+    if ctx is not None:
+        _s: Session = ctx.__enter__()
+    else:
+        if session is None:
+            raise RuntimeError("Session management error: expected a Session")
+        _s = session
+    try:
+        yield _s
+        if ctx is not None:
+            _s.commit()
+    except Exception:
+        if ctx is not None:
+            _s.rollback()
+        raise
+    finally:
+        if ctx is not None:
+            ctx.__exit__(None, None, None)
+
+
 def create_all() -> None:
     """Create all tables for the declarative Base using the initialized engine.
 

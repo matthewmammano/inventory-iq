@@ -3,13 +3,12 @@ from datetime import UTC, datetime
 from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from loguru import logger
-from sqlalchemy import select
 
-from app.auth.models import Users
+from app.auth.user_queries import get_user_by_display_name
 from app.core.route_validation import RouteValidationService
 from app.db import get_session
 from app.inventory import guest_bp as bp
-from app.inventory.models import Items
+from app.inventory.item_queries import list_items_for_user
 from app.inventory.scan_operations import (
     handle_scan_item_get,
     handle_scan_item_post,
@@ -74,12 +73,14 @@ def index(squad):
     # Get the list of items and order them by last_accessed
     try:
         with get_session() as db_session:
-            stmt = (
-                select(Items)
-                .where(Items.user_id == current_user.id)
-                .order_by(Items.last_accessed.desc().nullslast())
+            items = list(
+                list_items_for_user(
+                    current_user.id,
+                    include_inactive=False,
+                    order_by_last_accessed=True,
+                    session=db_session,
+                )
             )
-            items = db_session.execute(stmt).scalars().all()
     except Exception as e:
         logger.error(f"Database error fetching items for user {current_user.id}: {e}")
         flash("Error loading inventory. Please try again.", "error")
@@ -159,8 +160,7 @@ def admin_login(squad):
         password = request.form["password"]
         try:
             with get_session() as db_session:
-                stmt = select(Users).where(Users.display_name == squad)
-                user = db_session.execute(stmt).scalars().first()
+                user = get_user_by_display_name(squad, db_session)
 
             if not user:
                 logger.warning(f"Admin login attempt for non-existent squad: {squad}")
