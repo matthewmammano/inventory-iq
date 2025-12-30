@@ -11,31 +11,21 @@ We use SQLAlchemy 1.4+/2.0 style (future=True, sessionmaker) and a scoped
 session so existing code can call get_session() and get a Session instance.
 """
 
-from __future__ import annotations
-
 from collections.abc import Iterator
 from contextlib import contextmanager
 
 from sqlalchemy import create_engine
 from sqlalchemy.engine import Engine
+from sqlalchemy.orm import DeclarativeBase as _DeclarativeBase
 from sqlalchemy.orm import Session, scoped_session, sessionmaker
-
-try:
-    # SQLAlchemy 2.0 style
-    from sqlalchemy.orm import DeclarativeBase as _DeclarativeBase  # type: ignore
-except Exception:  # pragma: no cover - fallback for older versions
-    from sqlalchemy.orm import declarative_base as _declarative_base
 
 # Module-level objects that will be initialized by init_db
 engine: Engine | None = None
 SessionLocal: scoped_session | None = None
-try:
 
-    class Base(_DeclarativeBase):
-        """Declarative base for ORM models (preferred SQLAlchemy 2.0 API)."""
 
-except Exception:
-    Base = _declarative_base()
+class Base(_DeclarativeBase):
+    """Declarative base for ORM models (preferred SQLAlchemy 2.0 API)."""
 
 
 def init_db(app) -> None:

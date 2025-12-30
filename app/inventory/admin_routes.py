@@ -4,7 +4,7 @@ from dotenv import load_dotenv
 from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from app.auth.location_queries import list_locations
 from app.auth.tag_queries import get_tags_by_ids, list_tags
@@ -12,7 +12,8 @@ from app.core.route_validation import RouteValidationService
 from app.db import get_session
 from app.inventory import admin_bp as bp
 from app.inventory.item_queries import get_item, list_items_for_user
-from app.inventory.models import ActionLogs, ItemLocationQuantities, Items
+from app.inventory.models import ActionLogs, Items
+from app.inventory.quantity_service import calculate_item_quantities
 from app.inventory.scan_operations import (
     handle_scan_item_get,
     handle_scan_item_post,
@@ -238,24 +239,16 @@ def save_items(squad):
                 continue
 
     # Delete items that were removed from the form
-
     with get_session() as session:
         for item_id in existing_ids - processed_ids:
             item_to_delete = get_item(item_id, session)
             if item_to_delete and item_to_delete.user_id == current_user.id:
                 session.delete(item_to_delete)
 
-    # Commit all changes
-    try:
-        # Changes were committed within individual session contexts above. If a single transaction
-        # across the whole operation is required, refactor to use one `with get_session()` block
-        # around the whole function. For now we assume flush/commit at each operation is sufficient.
-        logger.info(
-            f"Admin {current_user.email} saved items: {len(new_items)} new, {len(existing_ids - processed_ids)} deleted"
-        )
-    except Exception as e:
-        logger.error(f"Database error saving items for admin {current_user.email}: {e}")
-        flash("Database error occurred. Please try again.", "error")
+    # All changes committed within individual session contexts above
+    logger.info(
+        f"Admin {current_user.email} saved items: {len(new_items)} new, {len(existing_ids - processed_ids)} deleted"
+    )
 
     if error_items:
         logger.warning(
@@ -274,8 +267,6 @@ def save_items(squad):
 @bp.route("/<squad>/admin-panel/inventory-count-levels")
 def inventory_counts(squad):
     """Display items and their counts across all locations"""
-    # Get all items, locations and quantities for this user using a session
-
     with get_session() as session:
         items = list(
             list_items_for_user(
@@ -285,21 +276,14 @@ def inventory_counts(squad):
             )
         )
         locations = list_locations(current_user.id, session=session)
-        quantities = (
-            session.execute(
-                select(ItemLocationQuantities).where(
-                    ItemLocationQuantities.user_id == current_user.id
-                )
-            )
-            .scalars()
-            .all()
-        )
 
-    # Create a lookup dictionary for quantities
-    qty_lookup = {}
-    for qty in quantities:
-        key = (qty.item_id, qty.location_id)
-        qty_lookup[key] = qty.quantity
+        qty_lookup: dict[tuple[int, int], int] = {}
+        for item in items:
+            qty_by_location = calculate_item_quantities(
+                session, current_user.id, item.id
+            )
+            for loc_id, qty in qty_by_location.items():
+                qty_lookup[(item.id, loc_id)] = qty
 
     # Build the data structure for the template
     inventory_data = []
@@ -390,13 +374,15 @@ def admin_view_tags(squad):
 @bp.route("/<squad>/admin-panel/history")
 def admin_history(squad):
     with get_session() as session:
-        action_logs = (
-            session.execute(
-                select(ActionLogs)
-                .where(ActionLogs.user_id == current_user.id)
-                .order_by(ActionLogs.id.desc())
+        action_logs = list(
+            session.query(ActionLogs)
+            .options(
+                joinedload(ActionLogs.item),
+                joinedload(ActionLogs.from_location),
+                joinedload(ActionLogs.to_location),
             )
-            .scalars()
+            .filter(ActionLogs.user_id == current_user.id)
+            .order_by(ActionLogs.id.desc())
             .all()
         )
     timezone_hint = get_timezone_display_hint(current_user.timezone)

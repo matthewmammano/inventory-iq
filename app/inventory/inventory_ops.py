@@ -10,8 +10,9 @@ from loguru import logger
 from app.alerts.alert_service import AlertQueueService
 from app.auth.location_queries import get_location
 from app.db import get_session
+from app.inventory.constants import OperationType
 from app.inventory.item_queries import get_item
-from app.inventory.models import ActionLogs, OperationType
+from app.inventory.models import ActionLogs
 from app.prediction.validation import RestockValidator
 
 

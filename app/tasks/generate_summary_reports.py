@@ -10,10 +10,11 @@ from typing import Any
 from flask import current_app
 from flask_mailman import EmailMessage, Mail
 from loguru import logger
-from sqlalchemy import and_
+from sqlalchemy import and_, func, select
 
 from app import create_app, mail
 from app.auth.models import UserAlerts, Users
+from app.db import get_session
 from app.inventory.models import ActionLogs
 
 
@@ -28,9 +29,6 @@ def generate_summary_reports(report_type: str) -> None:
             return
 
         days, filter_condition = config
-        from sqlalchemy import select
-
-        from app.db import get_session
 
         with get_session() as session:
             stmt = select(Users).join(UserAlerts).where(filter_condition)
@@ -40,8 +38,6 @@ def generate_summary_reports(report_type: str) -> None:
         sent = 0
         for user in users:
             with get_session() as session:
-                from sqlalchemy import func, select
-
                 count_stmt = (
                     select(func.count())
                     .select_from(ActionLogs)
@@ -93,7 +89,7 @@ Thanks!"""
     if mail_obj is None:
         logger.error("Mail service not configured; cannot send summary report")
         return
-    mail_obj.send(msg)
+    mail_obj.send(msg)  # type: ignore[attr-defined]
 
 
 if __name__ == "__main__":

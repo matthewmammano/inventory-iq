@@ -26,14 +26,12 @@ def convert_utc_to_local(utc_datetime: datetime, user_timezone: str) -> datetime
             if utc_datetime.tzinfo is None
             else utc_datetime
         )
-        # Convert to user's timezone
+        # Convert to user's timezone using IANA name
         local_tz = ZoneInfo(user_timezone)
         return utc_time.astimezone(local_tz)
     except Exception as e:
         # Fallback to UTC if timezone conversion fails
-        logger.exception(
-            f"Timezone conversion failed from UTC to '{user_timezone}': {e}"
-        )
+        logger.error(f"Timezone conversion failed from UTC to '{user_timezone}': {e}")
         return utc_datetime
 
 

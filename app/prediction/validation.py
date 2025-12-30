@@ -8,14 +8,15 @@ to ensure trustworthy data points for ML predictions.
 from datetime import UTC, datetime
 from typing import Any
 
+from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.inventory.models import ActionLogs, OperationType
+from app.inventory.constants import OperationType
+from app.inventory.models import ActionLogs
 
 from .config import PredictionConfig
-from loguru import logger
 
 
 class RestockValidationError(Exception):

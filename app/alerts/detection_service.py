@@ -8,7 +8,6 @@ from sqlalchemy import select as _select
 from app.auth.models import UserAlerts
 from app.db import get_session
 from app.db import get_session as _get_session
-from app.inventory.item_queries import get_item
 from app.inventory.models import ActionLogs
 from app.prediction.prediction_engine import PredictionEngine
 
@@ -34,6 +33,10 @@ class AlertDetectionService:
 
         # Load item and user alert preferences
         with get_session() as session:
+            from app.inventory.item_queries import (
+                get_item,  # Necessary inline import avoids circular dependency with models
+            )
+
             item = get_item(item_id, session)
             if item and item.user_id != user_id:
                 item = None
@@ -80,10 +83,7 @@ class AlertDetectionService:
                             ) / daily_consumption
                             if days_until_low <= user_alerts.low_stock_days:
                                 logger.warning(
-                                    "PREDICTIVE LOW STOCK: %s at location %s will be low in %.1f days",
-                                    item.name,
-                                    loc_id,
-                                    days_until_low,
+                                    f"PREDICTIVE LOW STOCK: {item.name} at location {loc_id} will be low in {days_until_low:.1f} days"
                                 )
                                 alerts.append(
                                     {

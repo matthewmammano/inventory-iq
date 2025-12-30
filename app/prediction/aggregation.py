@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import UserItemLocations
 from app.db import get_session
 from app.inventory.models import Items
+from app.inventory.quantity_service import calculate_item_quantities
 
 
 @dataclass
@@ -181,24 +182,21 @@ class PriorTrendlineAggregator:
             List of UserItemLocations that have inventory for this item
         """
         try:
-            from app.inventory.models import ItemLocationQuantities
+            qty_by_location = calculate_item_quantities(db_session, user_id, item_id)
+            active_location_ids = [
+                loc_id for loc_id, qty in qty_by_location.items() if qty >= 0
+            ]
 
-            # Get locations with current inventory or recent activity
+            if not active_location_ids:
+                return []
+
             stmt = (
                 select(UserItemLocations)
-                .join(
-                    ItemLocationQuantities,
-                    ItemLocationQuantities.location_id == UserItemLocations.id,
-                )
                 .where(UserItemLocations.user_id == user_id)
-                .where(ItemLocationQuantities.item_id == item_id)
-                .where(ItemLocationQuantities.quantity >= 0)
-                .distinct()
+                .where(UserItemLocations.id.in_(active_location_ids))
             )
 
-            active_locations = list(db_session.execute(stmt).scalars().all())
-
-            return active_locations
+            return list(db_session.execute(stmt).scalars().all())
 
         except Exception as e:
             logger.error(f"Error getting active locations: {e}")

@@ -1,6 +1,8 @@
+import logging
 import os
 import re
 import sys
+from datetime import datetime
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -8,6 +10,14 @@ from flask import Flask, url_for
 from flask_login import LoginManager
 from flask_mailman import Mail
 from loguru import logger
+
+from app.alerts import bp as alerts_bp
+from app.auth import bp as auth_bp
+from app.auth.models import Users
+from app.db import get_session
+from app.errors import register_error_handlers
+from app.inventory import admin_bp, guest_bp
+from config import config_by_name
 
 from . import db as db_module
 
@@ -27,9 +37,6 @@ def create_app() -> Flask:
     Flask
         A fully configured Flask application.
     """
-    import logging
-
-    from config import config_by_name
 
     app = Flask(__name__)
 
@@ -99,19 +106,12 @@ def create_app() -> Flask:
 
         return url_for("static", filename="images/not-found.jpg")
 
-    # Import and register Blueprints and models
-    from app.alerts import bp as alerts_bp
-    from app.auth import bp as auth_bp
-    from app.auth.models import Users
-    from app.inventory import admin_bp, guest_bp
-
     app.register_blueprint(auth_bp, url_prefix="/")
     app.register_blueprint(guest_bp, url_prefix="/inventory")
     app.register_blueprint(admin_bp, url_prefix="/inventory")
     app.register_blueprint(alerts_bp, url_prefix="/alerts")
 
     # Register error handlers
-    from app.errors import register_error_handlers
 
     register_error_handlers(app)
 
@@ -132,7 +132,6 @@ def create_app() -> Flask:
             The user instance if found.
         """
         # Use new session helper to query user by primary key
-        from app.db import get_session
 
         try:
             with get_session() as session:
@@ -161,7 +160,6 @@ def create_app() -> Flask:
     @app.route("/health")
     def health_check():
         """Health check endpoint for Railway deployment"""
-        from datetime import datetime
 
         return {"status": "healthy", "timestamp": datetime.now().isoformat()}
 

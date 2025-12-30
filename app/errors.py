@@ -2,13 +2,8 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
-from flask import render_template, request
+from flask import Flask, render_template, request
 from loguru import logger
-
-if TYPE_CHECKING:
-    from flask import Flask
 
 
 def register_error_handlers(app: Flask) -> None:

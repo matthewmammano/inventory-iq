@@ -12,9 +12,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db import get_session
+from app.inventory.constants import OperationType
 from app.inventory.item_queries import list_items_for_user
-from app.inventory.models import ActionLogs, Items, OperationType
-from app.inventory.quantity_service import QuantityService
+from app.inventory.models import ActionLogs, Items
+from app.inventory.quantity_service import calculate_item_quantities
 
 from .prediction_engine import PredictionEngine
 
@@ -52,11 +53,10 @@ class BulkService:
         Single function call for complete restock analysis.
 
         Steps:
-        1. Recalculate all quantities from ActionLogs (ensures data accuracy)
-        2. Get all active items
-        3. Get bulk predictions for all items
-        4. Calculate restock recommendations
-        5. Return formatted data for admin restock page
+        1. Get all active items
+        2. Get bulk predictions for all items
+        3. Calculate restock recommendations
+        4. Return formatted data for admin restock page
 
         Args:
             db_session: Database session
@@ -66,12 +66,9 @@ class BulkService:
             List of restock analysis dicts ready for template rendering
         """
         try:
-            # Step 1: Recalculate quantities to ensure accuracy
-
             logger.info(f"Starting restock analysis for user {user_id}")
-            QuantityService.recalculate_all_quantities(user_id)
 
-            # Step 2: Get all active items
+            # Step 1: Get all active items
             _s = session or db_session
             items = list(
                 list_items_for_user(
@@ -83,17 +80,17 @@ class BulkService:
             )
             item_ids = [item.id for item in items]
 
-            # Step 3: Get bulk predictions
+            # Step 2: Get bulk predictions
             # Use provided session if present, otherwise fall back to db_session
             _s = session or db_session
             predictions = PredictionEngine.bulk_predict_items(_s, user_id, item_ids)
 
-            # Step 4: Build restock analysis for each item
+            # Step 3: Build restock analysis for each item
             restock_data = []
             for item in items:
                 try:
                     analysis = BulkService._analyze_item_restock(
-                        item, predictions.get(item.id, {}), user_id
+                        item, predictions.get(item.id, {}), user_id, _s
                     )
                     restock_data.append(analysis)
                 except Exception as item_error:
@@ -103,7 +100,7 @@ class BulkService:
                     # Continue with other items instead of failing completely
                     continue
 
-            # Step 5: Sort by priority: days until low (lowest first), order amount (highest first), estimated total (lowest first)
+            # Step 4: Sort by priority: days until low (lowest first), order amount (highest first), estimated total (lowest first)
             def sort_key(x):
                 days_val = x["days_until_low"]
                 order_val = x["order_amount"]
@@ -156,7 +153,9 @@ class BulkService:
             raise
 
     @staticmethod
-    def _analyze_item_restock(item: Items, prediction: dict, user_id: int) -> dict:
+    def _analyze_item_restock(
+        item: Items, prediction: dict, user_id: int, session: Session
+    ) -> dict:
         """
         Analyze restock needs for a single item.
 
@@ -187,7 +186,7 @@ class BulkService:
             delivery_days = 7
 
         # Get current quantities
-        current_qty_by_location = QuantityService.get_current_quantity(user_id, item.id)
+        current_qty_by_location = calculate_item_quantities(session, user_id, item.id)
         current_total = sum(current_qty_by_location.values())
 
         # Get prediction data
@@ -279,8 +278,8 @@ class BulkService:
 
                 # No COUNT found - fall back to current calculated quantity
                 if not last_count:
-                    current_qty_by_location = QuantityService.get_current_quantity(
-                        user_id, item_id
+                    current_qty_by_location = calculate_item_quantities(
+                        _s, user_id, item_id
                     )
                     return sum(current_qty_by_location.values())
 
@@ -304,9 +303,7 @@ class BulkService:
         except Exception as e:
             logger.error(f"Error calculating estimated count for item {item_id}: {e}")
             # Fall back to current calculated quantity
-            current_qty_by_location = QuantityService.get_current_quantity(
-                user_id, item_id
-            )
+            current_qty_by_location = calculate_item_quantities(_s, user_id, item_id)
             return sum(current_qty_by_location.values())
 
     @staticmethod

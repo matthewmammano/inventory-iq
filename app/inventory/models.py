@@ -1,5 +1,4 @@
 from datetime import UTC, datetime
-from enum import Enum
 from typing import Any
 
 from loguru import logger
@@ -12,25 +11,25 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
-    UniqueConstraint,
     event,
+    select,
 )
 from sqlalchemy import Enum as SAEnum
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import (
     Mapped,
-    Session,
     mapped_column,
     object_session,
     relationship,
     validates,
 )
 
-from app.alerts.detection_service import AlertDetectionService
 from app.db import Base
-from app.inventory.config import InventoryConfig
-
-# Note: UserItemTags is referenced dynamically in some queries; avoid direct import to
-# prevent circular imports during model import time.
+from app.inventory.constants import UPC_GENERATION_START, OperationType
+from app.inventory.quantity_service import (
+    apply_action_to_quantities,
+    calculate_item_quantities,
+)
 from app.utils.model_validate import (
     validate_image_url,
     validate_non_negative_integer,
@@ -39,42 +38,6 @@ from app.utils.model_validate import (
     validate_tag_id_type,
 )
 from app.utils.timezone_utils import convert_utc_to_local
-
-
-# OperationType remains a Python Enum used by the SAEnum column
-class OperationType(Enum):
-    count = "COUNT"
-    restock = "RESTOCK"
-    takeout = "TAKEOUT"
-    transfer = "TRANSFER"
-
-
-def get_or_create_item_location_quantity(
-    db_session: Session, user_id: int, item_id: int | None, location_id: int
-) -> Any:
-    """Get or create ItemLocationQuantities row for a specific user/item/location.
-
-    This helper uses the provided session and does not commit; caller controls
-    transaction boundaries.
-    """
-    from sqlalchemy import select
-
-    qty_row = (
-        db_session.execute(
-            select(ItemLocationQuantities)
-            .where(ItemLocationQuantities.user_id == user_id)
-            .where(ItemLocationQuantities.item_id == item_id)
-            .where(ItemLocationQuantities.location_id == location_id)
-        )
-        .scalars()
-        .first()
-    )
-    if not qty_row:
-        qty_row = ItemLocationQuantities(
-            user_id=user_id, item_id=item_id, location_id=location_id, quantity=0
-        )
-        db_session.add(qty_row)
-    return qty_row
 
 
 class Items(Base):
@@ -108,7 +71,7 @@ class Items(Base):
     # - Filter expired items in inventory views
     # - Add expiration-based reorder suggestions
     # Relationships
-    action_logs = relationship("ActionLogs", backref="item", lazy="selectin")
+    action_logs = relationship("ActionLogs", back_populates="item", lazy="selectin")
 
     # Indexes
     __table_args__ = (
@@ -237,12 +200,11 @@ class Items(Base):
     @staticmethod
     def generate_upc(db_session, user_id: int) -> str:
         """Generate a new UPC for a user using the provided session."""
-        from sqlalchemy import select
 
         stmt = (
             select(Items)
             .where(Items.user_id == user_id)
-            .where(Items.upc >= InventoryConfig.UPC_GENERATION_START)
+            .where(Items.upc >= UPC_GENERATION_START)
             .order_by(Items.upc.desc())
         )
         largest_upc = db_session.execute(stmt).scalars().first()
@@ -251,7 +213,7 @@ class Items(Base):
             next_number = int(base_11) + 1
             next_base = str(next_number).zfill(11)
         else:
-            next_base = InventoryConfig.UPC_GENERATION_START[:11]
+            next_base = UPC_GENERATION_START[:11]
         new_upc = next_base + Items.calculate_upc_check_digit(next_base)
         stmt_check = select(Items).where(Items.upc == new_upc)
         if db_session.execute(stmt_check).scalars().first():
@@ -287,9 +249,6 @@ class Items(Base):
         # If there's no session or no user_id available yet, defer uniqueness
         # enforcement to higher-level application code.
         try:
-            from sqlalchemy import select
-            from sqlalchemy.exc import SQLAlchemyError
-
             sess = object_session(self)
             user_id_val = getattr(self, "user_id", None)
             if sess is not None and user_id_val is not None:
@@ -340,6 +299,7 @@ class ActionLogs(Base):
         DateTime, default=lambda: datetime.now(UTC), nullable=False
     )
 
+    item = relationship("Items", back_populates="action_logs", lazy="selectin")
     from_location = relationship(
         "UserItemLocations",
         foreign_keys=[from_location_id],
@@ -394,72 +354,42 @@ class ActionLogs(Base):
         return convert_utc_to_local(self.time_scanned, user_timezone)
 
     def process_action(self, db_session) -> tuple[dict[int, int], list[Any]]:
-        updated_quantities: dict[int, int] = {}
-        previous_quantities: dict[int, int] = {}
-        if self.from_location_id:
-            from_qty = get_or_create_item_location_quantity(
-                db_session, self.user_id, self.item_id, self.from_location_id
-            )
-            previous_quantities[self.from_location_id] = from_qty.quantity
-            from_qty.quantity = from_qty.quantity - self.quantity_delta
-            updated_quantities[self.from_location_id] = from_qty.quantity
-
-        if self.to_location_id:
-            to_qty = get_or_create_item_location_quantity(
-                db_session, self.user_id, self.item_id, self.to_location_id
-            )
-            previous_quantities[self.to_location_id] = to_qty.quantity
-            if self.operation_type == OperationType.count:
-                to_qty.quantity = self.quantity_delta
-            else:
-                to_qty.quantity = to_qty.quantity + self.quantity_delta
-            updated_quantities[self.to_location_id] = to_qty.quantity
-
-        # Ensure alerts is always a list for typing consistency
-        alerts: list[Any] = []
-
-        # Alert detection requires a concrete item_id. If this ActionLog
-        # does not reference a specific item (None), skip detection to avoid
-        # passing Optional[int] into a function that expects int.
-        item_id_val = self.item_id
-        if item_id_val is None:
+        """Apply this action to computed quantities and detect alerts."""
+        if self.item_id is None:
             logger.debug(
                 "Skipping alert detection for ActionLog %s: no item_id", self.id
             )
-        else:
-            try:
-                result = AlertDetectionService.check_quantity_alerts(
-                    self.user_id,
-                    item_id_val,
-                    updated_quantities,
-                    previous_quantities,
-                    self.admin_action,
-                )
-                if result:
-                    alerts = result
-            except Exception as e:
-                logger.exception(f"Alert detection failed for ActionLog {self.id}: {e}")
+            return {}, []
+
+        exclude_ids = {self.id} if self.id else None
+        previous_quantities = calculate_item_quantities(
+            db_session,
+            self.user_id,
+            self.item_id,
+            exclude_action_ids=exclude_ids,
+        )
+        updated_quantities = apply_action_to_quantities(previous_quantities, self)
+
+        alerts: list[Any] = []
+
+        try:
+            from app.alerts.detection_service import (
+                AlertDetectionService,  # Necessary inline import avoids circular dependency
+            )
+
+            result = AlertDetectionService.check_quantity_alerts(
+                self.user_id,
+                self.item_id,
+                updated_quantities,
+                previous_quantities,
+                self.admin_action,
+            )
+            if result:
+                alerts = result
+        except Exception as e:
+            logger.exception(f"Alert detection failed for ActionLog {self.id}: {e}")
 
         return updated_quantities, alerts
-
-
-class ItemLocationQuantities(Base):
-    __tablename__ = "item_location_quantities"
-
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(Integer, index=True)
-    item_id: Mapped[int] = mapped_column(Integer, index=True)
-    location_id: Mapped[int] = mapped_column(Integer, index=True)
-    quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-
-    __table_args__ = (
-        UniqueConstraint(
-            "user_id", "item_id", "location_id", name="uq_user_item_location"
-        ),
-    )
-
-    def __repr__(self) -> str:
-        return f"<ItemLocationQuantities user={self.user_id} item={self.item_id} location={self.location_id} qty={self.quantity}>"
 
 
 @event.listens_for(Items, "before_insert")

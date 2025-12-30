@@ -1,184 +1,90 @@
 """
-Centralized quantity calculation service.
+Centralized quantity calculations built directly from ActionLogs.
 
-Single source of truth for all inventory quantity calculations.
-Used by both inventory operations and prediction systems.
+All quantities are computed on-demand; no cached ItemLocationQuantities table.
 """
 
-from loguru import logger
-from sqlalchemy import delete, select
+from __future__ import annotations
+
+from collections import defaultdict
+from typing import TYPE_CHECKING, Iterable
+
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.location_queries import list_locations
-from app.db import get_session
-from app.inventory.item_queries import list_items_for_user
-from app.inventory.models import (
-    ActionLogs,
-    ItemLocationQuantities,
-    OperationType,
-    get_or_create_item_location_quantity,
-)
+from app.inventory.constants import OperationType
+
+if TYPE_CHECKING:
+    # ActionLogs only for type hints; inline import at runtime avoids circular dependency
+    from app.inventory.models import ActionLogs
 
 
-class QuantityService:
-    """Centralized service for all quantity calculations."""
+def _build_quantities_from_logs(logs: Iterable[ActionLogs]) -> dict[int, int]:
+    """Fold ActionLogs into per-location quantities in time order."""
+    quantities: dict[int, int] = defaultdict(int)
 
-    @staticmethod
-    def get_current_quantity(
-        user_id: int, item_id: int, location_id: int | None = None
-    ) -> dict[int, int]:
-        """Get current quantities for an item at location(s)."""
-        with get_session() as session:
-            stmt = select(ItemLocationQuantities).where(
-                ItemLocationQuantities.user_id == user_id,
-                ItemLocationQuantities.item_id == item_id,
-            )
-            if location_id is not None:
-                stmt = stmt.where(ItemLocationQuantities.location_id == location_id)
+    for log in logs:
+        to_loc = log.to_location_id
+        from_loc = log.from_location_id
 
-            quantities = session.execute(stmt).scalars().all()
-            return {qty.location_id: qty.quantity for qty in quantities}
+        if log.operation_type == OperationType.count and to_loc is not None:
+            quantities[to_loc] = log.quantity_delta
+            continue
 
-    @staticmethod
-    def recalculate_all_quantities(user_id: int) -> None:
-        """
-        Recalculate quantities for ALL items and ALL locations.
+        if to_loc is not None:
+            quantities[to_loc] = quantities[to_loc] + log.quantity_delta
+        if from_loc is not None:
+            quantities[from_loc] = quantities[from_loc] - log.quantity_delta
 
-        Single source of truth: For each (item, location) combo, calculate current quantity
-        using: Last COUNT + Sum of operations since COUNT
+    return dict(quantities)
 
-        Args:
-            user_id: User ID to recalculate for
-        """
-        logger.info(f"Starting quantity recalculation for user {user_id}")
-        with get_session() as session:
-            try:
-                # Clear existing quantities
-                del_stmt = delete(ItemLocationQuantities).where(
-                    ItemLocationQuantities.user_id == user_id
-                )
-                session.execute(del_stmt)
-                session.flush()
 
-                # Get all items and locations for this user
-                items = list(
-                    list_items_for_user(
-                        user_id, include_inactive=False, session=session
-                    )
-                )
-                locations = list(list_locations(user_id, session=session))
+def calculate_item_quantities(
+    session: Session,
+    user_id: int,
+    item_id: int,
+    *,
+    location_id: int | None = None,
+    exclude_action_ids: set[int] | None = None,
+) -> dict[int, int]:
+    """Compute current quantities for an item across locations from ActionLogs."""
+    from app.inventory.models import (
+        ActionLogs,
+    )  # Inline import avoids circular dependency
 
-                calculated_count = 0
+    stmt = (
+        select(ActionLogs)
+        .where(ActionLogs.user_id == user_id, ActionLogs.item_id == item_id)
+        .order_by(ActionLogs.time_scanned.asc(), ActionLogs.id.asc())
+    )
 
-                # Calculate quantity for each (item, location) combination
-                for item in items:
-                    for location in locations:
-                        try:
-                            current_quantity = (
-                                QuantityService._calculate_location_quantity(
-                                    session, user_id, item.id, location.id
-                                )
-                            )
+    if exclude_action_ids:
+        stmt = stmt.where(~ActionLogs.id.in_(exclude_action_ids))
 
-                            # Only create record if there's any quantity (positive or negative)
-                            if current_quantity != 0:
-                                qty_record = get_or_create_item_location_quantity(
-                                    session, user_id, item.id, location.id
-                                )
-                                qty_record.quantity = current_quantity
-                                calculated_count += 1
+    logs = session.execute(stmt).scalars().all()
+    quantities = _build_quantities_from_logs(logs)
 
-                        except Exception as e:
-                            logger.error(
-                                f"Failed to calculate quantity for item {item.id}, location {location.id}: {e}"
-                            )
-                            continue
+    if location_id is not None:
+        return {location_id: quantities.get(location_id, 0)}
 
-                session.commit()
-                logger.info(
-                    f"Recalculation complete: updated {calculated_count} quantity records"
-                )
+    return quantities
 
-            except Exception as e:
-                session.rollback()
-                logger.error(f"Quantity recalculation failed for user {user_id}: {e}")
-                raise RuntimeError("Failed to recalculate inventory quantities")
 
-    @staticmethod
-    def _calculate_location_quantity(
-        session: Session, user_id: int, item_id: int, location_id: int
-    ) -> int:
-        """Calculate quantity for a specific (item, location) combination."""
-        # Find most recent COUNT for this (item, location)
-        last_count = (
-            (
-                session.execute(
-                    select(ActionLogs)
-                    .where(
-                        ActionLogs.user_id == user_id,
-                        ActionLogs.item_id == item_id,
-                        ActionLogs.to_location_id == location_id,
-                        ActionLogs.operation_type == OperationType.count,
-                    )
-                    .order_by(ActionLogs.time_scanned.desc())
-                )
-            )
-            .scalars()
-            .first()
-        )
+def apply_action_to_quantities(
+    quantities: dict[int, int], action: ActionLogs
+) -> dict[int, int]:
+    """Apply a single action's delta to an existing quantity map."""
+    updated = dict(quantities)
+    to_loc = action.to_location_id
+    from_loc = action.from_location_id
 
-        if last_count:
-            # Start from COUNT value and add operations since
-            current_quantity = last_count.quantity_delta
+    if action.operation_type == OperationType.count and to_loc is not None:
+        updated[to_loc] = action.quantity_delta
+        return updated
 
-            operations_since = (
-                session.execute(
-                    select(ActionLogs).where(
-                        ActionLogs.user_id == user_id,
-                        ActionLogs.item_id == item_id,
-                        ActionLogs.time_scanned > last_count.time_scanned,
-                        ActionLogs.operation_type != OperationType.count,
-                        (ActionLogs.to_location_id == location_id)
-                        | (ActionLogs.from_location_id == location_id),
-                    )
-                )
-                .scalars()
-                .all()
-            )
+    if to_loc is not None:
+        updated[to_loc] = updated.get(to_loc, 0) + action.quantity_delta
+    if from_loc is not None:
+        updated[from_loc] = updated.get(from_loc, 0) - action.quantity_delta
 
-            for op in operations_since:
-                if op.to_location_id == location_id:
-                    current_quantity += op.quantity_delta  # Add to location
-                if op.from_location_id == location_id:
-                    current_quantity -= op.quantity_delta  # Remove from location
-        else:
-            # No COUNT found - calculate from all operations (start at 0)
-            current_quantity = 0
-
-            all_operations = (
-                session.execute(
-                    select(ActionLogs)
-                    .where(
-                        ActionLogs.user_id == user_id,
-                        ActionLogs.item_id == item_id,
-                        (ActionLogs.to_location_id == location_id)
-                        | (ActionLogs.from_location_id == location_id),
-                    )
-                    .order_by(ActionLogs.time_scanned.asc())
-                )
-                .scalars()
-                .all()
-            )
-
-            for op in all_operations:
-                if (
-                    op.operation_type == OperationType.count
-                    and op.to_location_id == location_id
-                ):
-                    current_quantity = op.quantity_delta  # Set absolute
-                elif op.to_location_id == location_id:
-                    current_quantity += op.quantity_delta  # Add to location
-                elif op.from_location_id == location_id:
-                    current_quantity -= op.quantity_delta  # Remove from location
-
-        return current_quantity
+    return updated

@@ -4,6 +4,10 @@ Validation helper functions for models.
 Import this into models.py to keep validation logic organized.
 """
 
+from urllib.parse import urlparse
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+
+from email_validator import EmailNotValidError, validate_email
 from loguru import logger
 
 
@@ -25,7 +29,6 @@ def validate_email_format(email: str) -> str:
     ValueError
         If email format is invalid
     """
-    from email_validator import EmailNotValidError, validate_email
 
     try:
         # This validates format AND checks if domain exists
@@ -52,12 +55,12 @@ def validate_email_with_length(
 
 
 def validate_timezone(value: str) -> str:
-    """Validate timezone using pytz.
+    """Validate timezone using zoneinfo (IANA timezone names).
 
     Parameters
     ----------
     value : str
-        Timezone string to validate
+        IANA timezone string to validate (e.g., 'America/New_York')
 
     Returns
     -------
@@ -67,9 +70,8 @@ def validate_timezone(value: str) -> str:
     Raises
     ------
     ValueError
-        If timezone is invalid
+        If timezone is invalid or uses deprecated format
     """
-    import pytz
 
     value = (
         validate_string_length(
@@ -79,9 +81,9 @@ def validate_timezone(value: str) -> str:
     )
 
     try:
-        pytz.timezone(value)
-    except pytz.UnknownTimeZoneError as e:
-        logger.exception(f"Timezone validation failed for '{value}': {e}")
+        ZoneInfo(value)
+    except ZoneInfoNotFoundError as e:
+        logger.error(f"Timezone validation failed for '{value}': {e}")
         raise ValueError(f"Invalid timezone: {value}")
 
     return value
@@ -145,8 +147,6 @@ def validate_string_length(
 def validate_image_url(value):
     """Validate image URL format and length. Allows HTTP/HTTPS URLs and local file paths."""
     if value:
-        from urllib.parse import urlparse
-
         parsed = urlparse(value)
 
         # Check if it's a valid HTTP/HTTPS URL

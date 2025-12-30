@@ -43,7 +43,8 @@ def list_items_for_user(
 ) -> list[Items]:
     with managed_session(session) as s:
         stmt = select(Items).where(Items.user_id == user_id)
-        stmt = stmt.where(Items.active.is_(include_inactive))
+        if not include_inactive:
+            stmt = stmt.where(Items.active)
         if order_by_last_accessed:
             stmt = stmt.order_by(Items.last_accessed.desc().nulls_last())
         else:

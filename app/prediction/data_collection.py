@@ -13,7 +13,10 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.db import get_session
-from app.inventory.models import ActionLogs, OperationType
+from app.inventory.constants import OperationType
+from app.inventory.models import ActionLogs
+
+from .config import PredictionConfig
 
 
 @dataclass
@@ -102,9 +105,7 @@ class DataPointCollector:
                     MIN_HOURS_BETWEEN_COUNTS = 1.0
                     if days_elapsed < (MIN_HOURS_BETWEEN_COUNTS / 24.0):
                         logger.debug(
-                            "Skipping data point with %.4f days (%.1f hours) - too close together",
-                            days_elapsed,
-                            days_elapsed * 24.0,
+                            f"Skipping data point with {days_elapsed:.4f} days ({days_elapsed * 24.0:.1f} hours) - too close together"
                         )
                         continue
 
@@ -237,8 +238,6 @@ class DataPointCollector:
             avg_daily_usage = total_usage / total_days if total_days > 0 else 0
 
             date_range = (data_points[-1].timestamp - data_points[0].timestamp).days
-
-            from .config import PredictionConfig
 
             sufficient_for_ml = (
                 len(data_points) >= PredictionConfig.MIN_DATA_POINTS_FOR_ML

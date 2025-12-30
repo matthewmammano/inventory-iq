@@ -2,14 +2,16 @@
 edit_users.py - User management using model validation
 """
 
-import pytz
+from zoneinfo import available_timezones
 
 from app.auth.models import Users
+from app.db import get_session
 from scripts.utils import (
     clear_screen,
     create_with_validation,
     ensure_app_context,
     get_input,
+    get_yes_no,
     print_header,
     run_menu,
     select_user,
@@ -36,24 +38,27 @@ def add_user():
 
     # Timezone selection
     print("\nTimezone options:")
-    print("1. US/Eastern  2. US/Central  3. US/Mountain  4. US/Pacific  5. Custom")
+    print(
+        "1. America/New_York (EST/EDT)  2. America/Chicago (CST/CDT)  "
+        "3. America/Denver (MST/MDT)  4. America/Los_Angeles (PST/PDT)  5. Custom"
+    )
 
     choice = get_input("Select (1-5, default 1): ") or "1"
 
     timezone_map = {
-        "1": "US/Eastern",
-        "2": "US/Central",
-        "3": "US/Mountain",
-        "4": "US/Pacific",
+        "1": "America/New_York",
+        "2": "America/Chicago",
+        "3": "America/Denver",
+        "4": "America/Los_Angeles",
     }
 
     if choice == "5":
         print("Examples: Europe/London, Asia/Tokyo, Australia/Sydney")
         timezone_name = get_input("Enter timezone: ")
-        if not timezone_name or timezone_name not in pytz.all_timezones:
-            timezone_name = "US/Eastern"
+        if not timezone_name or timezone_name not in available_timezones():
+            timezone_name = "America/New_York"
     else:
-        timezone_name = timezone_map.get(choice, "US/Eastern")
+        timezone_name = timezone_map.get(choice, "America/New_York")
 
     # Optional fields
     image_url = get_input("Profile image URL (optional): ") or None
@@ -88,22 +93,17 @@ def delete_user():
 
     print(f"\nSelected: {user.display_name} ({user.email})")
 
-    from scripts.utils import get_yes_no
-
     if not get_yes_no(f"Deactivate user '{user.display_name}'?"):
         return
 
     try:
         user.active = False
-        from app.db import get_session
 
         with get_session() as session:
             session.add(user)
             session.commit()
         print(f"\n[SUCCESS] User '{user.display_name}' deactivated.")
     except Exception as e:
-        from app.db import get_session
-
         # On exception, attempt a rollback in a new session for safety
         try:
             with get_session() as session:

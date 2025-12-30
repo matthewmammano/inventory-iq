@@ -7,9 +7,10 @@ from sqlalchemy import select
 from app.auth.location_queries import list_locations
 from app.auth.models import UserItemLocations, Users
 from app.db import get_session
+from app.inventory.constants import OperationType
 from app.inventory.inventory_ops import InventoryError, inventory_operation
 from app.inventory.item_queries import get_item
-from app.inventory.models import Items, OperationType
+from app.inventory.models import Items
 
 
 class ScanLocationsRequest(BaseModel):
