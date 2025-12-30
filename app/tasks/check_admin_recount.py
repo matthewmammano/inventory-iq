@@ -6,10 +6,11 @@ Cron: 0 5 * * * python -m app.tasks.check_admin_recount
 from datetime import UTC, datetime, timedelta
 
 from loguru import logger
-from sqlalchemy import and_, select
+from sqlalchemy import select
 
 from app import create_app
 from app.auth.models import UserAlerts, Users
+from app.auth.user_queries import get_user
 from app.db import get_session
 from app.inventory.constants import OperationType
 from app.inventory.item_queries import list_items_for_user
@@ -27,7 +28,7 @@ def check_admin_count_alerts() -> None:
             user_alerts = session.execute(stmt).scalars().all()
 
             for user_alert in user_alerts:
-                user = session.get(Users, user_alert.user_id)
+                user = get_user(user_alert.user_id, session=session)
                 if not user or not user.active:
                     continue
 
@@ -45,27 +46,19 @@ def _process_user_items(session, user: Users, user_alert: UserAlerts) -> int:
     alerts_added = 0
 
     for item in items:
-        if not _has_recent_admin_count(session, user.id, item.id, cutoff):
-            _add_alert(user_alert, item.name, days)
-            alerts_added += 1
-
-    return alerts_added
-
-
-def _has_recent_admin_count(
-    session, user_id: int, item_id: int, cutoff: datetime
-) -> bool:
-    """Check if item has recent admin count."""
-    stmt = select(ActionLogs).where(
-        and_(
-            ActionLogs.user_id == user_id,
-            ActionLogs.item_id == item_id,
+        stmt = select(ActionLogs).where(
+            ActionLogs.user_id == user.id,
+            ActionLogs.item_id == item.id,
             ActionLogs.operation_type == OperationType.count,
             ActionLogs.admin_action.is_(True),
             ActionLogs.time_scanned >= cutoff,
         )
-    )
-    return session.execute(stmt).scalars().first() is not None
+        has_recent = session.execute(stmt).scalars().first() is not None
+        if not has_recent:
+            _add_alert(user_alert, item.name, days)
+            alerts_added += 1
+
+    return alerts_added
 
 
 def _add_alert(user_alert: UserAlerts, item_name: str, days: int) -> None:

@@ -8,6 +8,7 @@ from sqlalchemy.orm import joinedload
 
 from app.auth.location_queries import list_locations
 from app.auth.tag_queries import get_tags_by_ids, list_tags
+from app.auth.user_queries import get_user_permissions
 from app.core.route_validation import RouteValidationService
 from app.db import get_session
 from app.inventory import admin_bp as bp
@@ -439,9 +440,23 @@ def scan_locations(squad):
         return handle_scan_locations_post(squad, request.form, is_admin=True)
     else:
         item_id = _parse_optional_int(request.args.get("item_id"))
-        user_count_allow = request.args.get("user_count_allow", "True") == "True"
-        user_restock_allow = request.args.get("user_restock_allow", "True") == "True"
-        user_take_allow = request.args.get("user_take_allow", "True") == "True"
+        # Get user permissions or use request override
+        perms = get_user_permissions(squad)
+        user_count_allow = (
+            request.args.get("user_count_allow") == "False"
+            and False
+            or (perms[0] if perms else True)
+        )
+        user_restock_allow = (
+            request.args.get("user_restock_allow") == "False"
+            and False
+            or (perms[1] if perms else True)
+        )
+        user_take_allow = (
+            request.args.get("user_take_allow") == "False"
+            and False
+            or (perms[2] if perms else True)
+        )
         return handle_scan_locations_get(
             squad,
             item_id,
@@ -461,9 +476,23 @@ def scan_item(squad):
         item_id = _parse_optional_int(request.args.get("item_id"))
         from_location_id = _parse_optional_int(request.args.get("from_location_id"))
         to_location_id = _parse_optional_int(request.args.get("to_location_id"))
-        user_count_allow = request.args.get("user_count_allow", "True") == "True"
-        user_restock_allow = request.args.get("user_restock_allow", "True") == "True"
-        user_take_allow = request.args.get("user_take_allow", "True") == "True"
+        # Get user permissions or use request override
+        perms = get_user_permissions(squad)
+        user_count_allow = (
+            request.args.get("user_count_allow") == "False"
+            and False
+            or (perms[0] if perms else True)
+        )
+        user_restock_allow = (
+            request.args.get("user_restock_allow") == "False"
+            and False
+            or (perms[1] if perms else True)
+        )
+        user_take_allow = (
+            request.args.get("user_take_allow") == "False"
+            and False
+            or (perms[2] if perms else True)
+        )
 
         # Infer TAKEOUT operation when to_location_id missing and it's the only allowed operation
         if (

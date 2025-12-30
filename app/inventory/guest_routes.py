@@ -4,7 +4,7 @@ from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from loguru import logger
 
-from app.auth.user_queries import get_user_by_display_name
+from app.auth.user_queries import get_user_by_display_name, get_user_permissions
 from app.core.route_validation import RouteValidationService
 from app.db import get_session
 from app.inventory import guest_bp as bp
@@ -106,16 +106,29 @@ def scan_locations(squad):
         return handle_scan_locations_post(squad, request.form, is_admin=False)
     else:
         item_id = _parse_int_optional(request.args.get("item_id"))
-        user_count_allow = request.args.get("user_count_allow", "False") == "True"
-        user_restock_allow = request.args.get("user_restock_allow", "False") == "True"
-        user_take_allow = request.args.get("user_take_allow", "True") == "True"
+        # Get user permissions or use request override (default to False for guest)
+        perms = get_user_permissions(squad)
+        user_count_allow = (
+            request.args.get("user_count_allow") == "True"
+            if "user_count_allow" in request.args
+            else (perms[0] if perms else False)
+        )
+        user_restock_allow = (
+            request.args.get("user_restock_allow") == "True"
+            if "user_restock_allow" in request.args
+            else (perms[1] if perms else False)
+        )
+        user_take_allow = (
+            request.args.get("user_take_allow") == "True"
+            if "user_take_allow" in request.args
+            else (perms[2] if perms else True)
+        )
         return handle_scan_locations_get(
             squad,
             item_id,
             user_count_allow,
             user_restock_allow,
             user_take_allow,
-            is_admin=False,
         )
 
 

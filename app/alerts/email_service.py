@@ -6,8 +6,10 @@ from loguru import logger
 from sqlalchemy import select
 
 from app import mail
+from app.alerts.alert_queries import get_user_alerts
 from app.alerts.models import Alert, EmailBatch
-from app.auth.models import UserAlerts, Users
+from app.auth.models import UserAlerts
+from app.auth.user_queries import get_user
 from app.db import get_session
 
 
@@ -40,12 +42,11 @@ class EmailBatchService:
         alerts = [Alert(**alert_dict) for alert_dict in pending]
         logger.info(f"Created {len(alerts)} Alert objects from pending alerts")
 
-        with get_session() as session:
-            user = session.get(Users, user_alerts.user_id)
-            if not user:
-                logger.warning(f"User not found for alerts owner {user_alerts.user_id}")
-                return EmailBatch(alerts=alerts, user_email="", user_name="")
-            logger.info(f"User found: {user.email}")
+        user = get_user(user_alerts.user_id)
+        if not user:
+            logger.warning(f"User not found for alerts owner {user_alerts.user_id}")
+            return EmailBatch(alerts=alerts, user_email="", user_name="")
+        logger.info(f"User found: {user.email}")
 
         email_batch = EmailBatch(
             alerts=alerts, user_email=user.email, user_name=user.display_name
@@ -62,9 +63,7 @@ class EmailBatchService:
         """
         logger.info(f"send_batch_email called for user_id={user_id}")
         try:
-            with get_session() as session:
-                stmt = select(UserAlerts).where(UserAlerts.user_id == user_id)
-                user_alerts = session.execute(stmt).scalars().first()
+            user_alerts = get_user_alerts(user_id)
             logger.info(f"UserAlerts found: {user_alerts is not None}")
             if not user_alerts or not EmailBatchService.should_send_email(user_alerts):
                 return False
@@ -116,14 +115,13 @@ class EmailBatchService:
             if mail_obj is None:
                 logger.error("Mail service not configured; cannot send email")
                 return False
-            mail_obj.send(msg)
+            mail_obj.send(msg)  # type: ignore[attr-defined]
             logger.info("Email sent successfully!")
 
             # Clear pending alerts and mark sent
             # IMPORTANT: Re-fetch user_alerts in new session to avoid DetachedInstanceError
             with get_session() as session:
-                stmt_update = select(UserAlerts).where(UserAlerts.user_id == user_id)
-                user_alerts_attached = session.execute(stmt_update).scalars().first()
+                user_alerts_attached = get_user_alerts(user_id, session=session)
                 if user_alerts_attached:
                     user_alerts_attached.pending_alerts = []
                     user_alerts_attached.last_sent = datetime.now()

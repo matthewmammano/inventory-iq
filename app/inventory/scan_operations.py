@@ -4,10 +4,10 @@ from flask import flash, redirect, render_template, url_for
 from flask_login import current_user
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError, field_validator
-from sqlalchemy import select
 
-from app.auth.location_queries import list_locations
-from app.auth.models import UserItemLocations, Users
+from app.auth.location_queries import get_location, list_locations
+from app.auth.models import UserItemLocations
+from app.auth.user_queries import get_user_permissions
 from app.db import get_session
 from app.inventory.constants import (
     VIRTUAL_LOCATION_COUNT,
@@ -17,7 +17,6 @@ from app.inventory.constants import (
 )
 from app.inventory.inventory_ops import InventoryError, inventory_operation
 from app.inventory.item_queries import get_item
-from app.inventory.models import Items
 
 
 @dataclass
@@ -191,12 +190,7 @@ def get_scan_permissions(squad: str, is_admin: bool = False) -> ScanPermissions:
         return ScanPermissions(count=True, restock=True, takeout=True)
 
     try:
-        with get_session() as session:
-            stmt = select(
-                Users.user_count_allow, Users.user_restock_allow, Users.user_take_allow
-            ).where(Users.display_name == squad)
-            row = session.execute(stmt).first()
-
+        row = get_user_permissions(squad)
         if not row:
             return ScanPermissions(count=False, restock=False, takeout=False)
         return ScanPermissions(
@@ -351,15 +345,13 @@ def handle_scan_item_get(
     """Render scan item page; supports virtual location IDs for special operations."""
     with get_session() as session:
         parsed_item_id = _parse_loc_id(item_id) if item_id is not None else None
-        item = (
-            session.get(Items, parsed_item_id) if parsed_item_id is not None else None
-        )
+        item = get_item(parsed_item_id, session=session) if parsed_item_id else None
 
         parsed_from = _parse_loc_id(from_location_id)
         if parsed_from in (VIRTUAL_LOCATION_RESTOCK, VIRTUAL_LOCATION_COUNT):
             from_location = parsed_from
         elif parsed_from is not None:
-            from_location = session.get(UserItemLocations, parsed_from)
+            from_location = get_location(parsed_from, current_user.id, session=session)
         else:
             from_location = None
 
@@ -367,7 +359,7 @@ def handle_scan_item_get(
         if parsed_to == VIRTUAL_LOCATION_TAKEOUT:
             to_location = VIRTUAL_LOCATION_TAKEOUT
         elif parsed_to is not None:
-            to_location = session.get(UserItemLocations, parsed_to)
+            to_location = get_location(parsed_to, current_user.id, session=session)
         else:
             to_location = None
 
@@ -402,8 +394,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         return redirect(url_for(endpoint, squad=squad))
 
     # Fetch item from database
-    with get_session() as session:
-        item = session.get(Items, validated.item_id)
+    item = get_item(validated.item_id)
 
     if not item:
         flash("Item not found. Please verify the UPC code and try again.", "error")
@@ -456,15 +447,13 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         return redirect(url_for(endpoint, squad=squad, item_id=validated.item_id))
 
     # Fetch location names for success message
-    with get_session() as session:
-        from_loc_name = None
-        to_loc_name = None
-        if from_loc_for_op:
-            from_loc = session.get(UserItemLocations, from_loc_for_op)
-            from_loc_name = from_loc.name if from_loc else None
-        if to_loc_val:
-            to_loc = session.get(UserItemLocations, to_loc_val)
-            to_loc_name = to_loc.name if to_loc else None
+    from_loc_name, to_loc_name = None, None
+    if from_loc_for_op:
+        from_loc = get_location(from_loc_for_op, current_user.id)
+        from_loc_name = from_loc.name if from_loc else None
+    if to_loc_val:
+        to_loc = get_location(to_loc_val, current_user.id)
+        to_loc_name = to_loc.name if to_loc else None
 
     # Create operation-specific success message
     message = _get_success_message(

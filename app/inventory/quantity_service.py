@@ -4,6 +4,8 @@ Centralized quantity calculations built directly from ActionLogs.
 All quantities are computed on-demand; no cached ItemLocationQuantities table.
 """
 
+from __future__ import annotations
+
 from collections import defaultdict
 from typing import TYPE_CHECKING, Iterable
 
@@ -13,7 +15,6 @@ from sqlalchemy.orm import Session
 from app.inventory.constants import OperationType
 
 if TYPE_CHECKING:
-    # ActionLogs only for type hints; inline import at runtime avoids circular dependency
     from app.inventory.models import ActionLogs
 
 
@@ -46,20 +47,16 @@ def calculate_item_quantities(
     exclude_action_ids: set[int] | None = None,
 ) -> dict[int, int]:
     """Compute current quantities for an item across locations from ActionLogs."""
-    from app.inventory.models import (
-        ActionLogs,
-    )  # Inline import avoids circular dependency
+    from app.inventory.models import ActionLogs
 
     stmt = (
         select(ActionLogs)
         .where(ActionLogs.user_id == user_id, ActionLogs.item_id == item_id)
         .order_by(ActionLogs.time_scanned.asc(), ActionLogs.id.asc())
     )
-
     if exclude_action_ids:
         stmt = stmt.where(~ActionLogs.id.in_(exclude_action_ids))
-
-    logs = session.execute(stmt).scalars().all()
+    logs = list(session.execute(stmt).scalars().all())
     quantities = _build_quantities_from_logs(logs)
 
     if location_id is not None:

@@ -3,9 +3,8 @@ from typing import Any
 
 from loguru import logger
 from sqlalchemy import select
-from sqlalchemy import select as _select
 
-from app.auth.models import UserAlerts
+from app.alerts.alert_queries import get_user_alerts
 from app.db import get_session
 from app.db import get_session as _get_session
 from app.inventory.models import ActionLogs
@@ -41,8 +40,7 @@ class AlertDetectionService:
             if item and item.user_id != user_id:
                 item = None
 
-            ua_stmt = select(UserAlerts).where(UserAlerts.user_id == user_id)
-            user_alerts = session.execute(ua_stmt).scalars().first()
+            user_alerts = get_user_alerts(user_id, session=session)
 
         if not item or not user_alerts:
             logger.warning("Missing item or user_alerts, returning empty alerts")
@@ -144,14 +142,16 @@ class AlertDetectionService:
             and user_alerts.rare_scan_days > 0
             and not is_admin_action
         ):
-            cutoff_date = datetime.now(UTC) - timedelta(days=user_alerts.rare_scan_days)
             logger.info(
-                f"Checking rare scan alert: looking for non-admin scans since {cutoff_date}"
+                f"Checking rare scan alert for last {user_alerts.rare_scan_days} days"
             )
 
             with _get_session() as session:
+                cutoff_date = datetime.now(UTC) - timedelta(
+                    days=user_alerts.rare_scan_days
+                )
                 stmt = (
-                    _select(ActionLogs)
+                    select(ActionLogs)
                     .where(
                         ActionLogs.user_id == user_id,
                         ActionLogs.item_id == item_id,

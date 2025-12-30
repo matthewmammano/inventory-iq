@@ -11,7 +11,6 @@ All functions accept an optional `session` parameter for transaction control.
 
 from typing import Iterable
 
-from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -51,68 +50,3 @@ def list_items_for_user(
             stmt = stmt.order_by(Items.name)
         result: Iterable[Items] = s.execute(stmt).scalars().all()
         return list(result)
-
-
-def create_item(
-    name: str,
-    upc: str | None,
-    user_id: int,
-    *,
-    increments: str | None = None,
-    image: str | None = None,
-    session: Session | None = None,
-) -> Items:
-    with managed_session(session) as s:
-        item = Items(
-            name=name,
-            upc=upc,
-            user_id=user_id,
-            increments=increments,
-            image=image,
-        )
-        s.add(item)
-        s.flush()
-        logger.info(f"Created item {item.name} (id={item.id}) for user={user_id}")
-        return item
-
-
-def update_item(
-    item_id: int,
-    *,
-    name: str | None = None,
-    upc: str | None = None,
-    increments: str | None = None,
-    image: str | None = None,
-    active: bool | None = None,
-    session: Session | None = None,
-) -> Items | None:
-    with managed_session(session) as s:
-        stmt = select(Items).where(Items.id == item_id)
-        item = s.execute(stmt).scalars().first()
-        if not item:
-            return None
-        if name is not None:
-            item.name = name
-        if upc is not None:
-            item.upc = upc
-        if increments is not None:
-            item.increments = increments
-        if image is not None:
-            item.image = image
-        if active is not None:
-            item.active = active
-        s.flush()
-        logger.info(f"Updated item id={item_id}")
-        return item
-
-
-def deactivate_item(item_id: int, session: Session | None = None) -> bool:
-    with managed_session(session) as s:
-        stmt = select(Items).where(Items.id == item_id)
-        item = s.execute(stmt).scalars().first()
-        if not item:
-            return False
-        item.active = False
-        s.flush()
-        logger.info(f"Deactivated item id={item_id}")
-        return True

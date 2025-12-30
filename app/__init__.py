@@ -14,7 +14,7 @@ from loguru import logger
 from app.alerts import bp as alerts_bp
 from app.auth import bp as auth_bp
 from app.auth.models import Users
-from app.db import get_session
+from app.auth.user_queries import get_user
 from app.errors import register_error_handlers
 from app.inventory import admin_bp, guest_bp
 from config import config_by_name
@@ -131,11 +131,9 @@ def create_app() -> Flask:
         Users or None
             The user instance if found.
         """
-        # Use new session helper to query user by primary key
 
         try:
-            with get_session() as session:
-                return session.get(Users, int(user_id))
+            return get_user(int(user_id))
         except Exception:
             return None
 

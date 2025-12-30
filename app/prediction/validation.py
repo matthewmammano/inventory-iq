@@ -9,12 +9,9 @@ from datetime import UTC, datetime
 from typing import Any
 
 from loguru import logger
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db import get_session
-from app.inventory.constants import OperationType
-from app.inventory.models import ActionLogs
+from app.inventory.action_log_queries import get_recent_admin_count
 
 from .config import PredictionConfig
 
@@ -47,29 +44,14 @@ class RestockValidator:
             RestockValidationError: If validation fails with user-friendly message
         """
         try:
-            cutoff_time = datetime.now(UTC) - PredictionConfig.RESTOCK_VALIDATION_DELTA
-
-            # Check for recent COUNT operation at this location using SQLAlchemy 2.0 style select
-            stmt = (
-                select(ActionLogs)
-                .where(
-                    ActionLogs.user_id == user_id,
-                    ActionLogs.item_id == item_id,
-                    ActionLogs.to_location_id == location_id,
-                    ActionLogs.operation_type == OperationType.count,
-                    ActionLogs.admin_action.is_(True),
-                    ActionLogs.time_scanned >= cutoff_time,
-                )
-                .order_by(ActionLogs.time_scanned.desc())
+            # Check for recent COUNT operation at this location
+            recent_count = get_recent_admin_count(
+                user_id,
+                item_id,
+                location_id,
+                PredictionConfig.RESTOCK_VALIDATION_HOURS,
+                session=session,
             )
-
-            if session is None:
-                with get_session() as _s:
-                    recent_count: ActionLogs | None = _s.execute(stmt).scalars().first()
-            else:
-                recent_count: ActionLogs | None = (
-                    session.execute(stmt).scalars().first()
-                )
 
             if not recent_count:
                 hours = PredictionConfig.RESTOCK_VALIDATION_HOURS
@@ -109,26 +91,14 @@ class RestockValidator:
         try:
             cutoff_time = datetime.now(UTC) - PredictionConfig.RESTOCK_VALIDATION_DELTA
 
-            # Find most recent COUNT at this location using select
-            stmt = (
-                select(ActionLogs)
-                .where(
-                    ActionLogs.user_id == user_id,
-                    ActionLogs.item_id == item_id,
-                    ActionLogs.to_location_id == location_id,
-                    ActionLogs.operation_type == OperationType.count,
-                    ActionLogs.admin_action.is_(True),
-                )
-                .order_by(ActionLogs.time_scanned.desc())
+            # Find most recent COUNT at this location
+            recent_count = get_recent_admin_count(
+                user_id,
+                item_id,
+                location_id,
+                PredictionConfig.RESTOCK_VALIDATION_HOURS,
+                session=session,
             )
-
-            if session is None:
-                with get_session() as _s:
-                    recent_count: ActionLogs | None = _s.execute(stmt).scalars().first()
-            else:
-                recent_count: ActionLogs | None = (
-                    session.execute(stmt).scalars().first()
-                )
 
             if not recent_count:
                 return {

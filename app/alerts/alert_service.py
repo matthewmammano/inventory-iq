@@ -4,9 +4,8 @@ from datetime import datetime
 from typing import Any
 
 from loguru import logger
-from sqlalchemy import select
 
-from app.auth.models import UserAlerts
+from app.alerts.alert_queries import get_user_alerts
 from app.db import get_session
 
 
@@ -41,9 +40,7 @@ class AlertQueueService:
             f"add_alert called: user_id={user_id}, alert_type={alert_type}, item_name={item_name}, urgent={urgent}"
         )
         with get_session() as session:
-            # Use SQLAlchemy 2.0 scalar query pattern for better type inference
-            stmt = select(UserAlerts).filter_by(user_id=user_id)
-            user_alerts: UserAlerts | None = session.scalars(stmt).one_or_none()
+            user_alerts = get_user_alerts(user_id, session=session)
 
             logger.info(f"UserAlerts query result: {user_alerts}")
             if not user_alerts:
@@ -94,9 +91,7 @@ class AlertQueueService:
 
         with get_session() as session:
             logger.info(f"Queuing {len(alerts)} alerts for user {user_id}")
-            # Use SQLAlchemy 2.0 scalar query pattern
-            stmt = select(UserAlerts).filter_by(user_id=user_id)
-            user_alerts: UserAlerts | None = session.scalars(stmt).one_or_none()
+            user_alerts = get_user_alerts(user_id, session=session)
 
             if not user_alerts:
                 logger.warning(f"No UserAlerts record found for user {user_id}")

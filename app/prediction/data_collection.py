@@ -6,7 +6,7 @@ to build reliable trendlines for ML predictions.
 """
 
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 
 from loguru import logger
 from sqlalchemy import or_, select
@@ -62,9 +62,8 @@ class DataPointCollector:
         """
 
         def _collect(session: Session) -> list[DataPoint]:
-            cutoff_time = datetime.now(UTC) - timedelta(days=days_back)
-
-            # Get all COUNT operations (both admin and guest as ground truth points) using select
+            # Get all COUNT operations as ground truth points
+            cutoff_time = datetime.now() - timedelta(days=days_back)
             stmt = (
                 select(ActionLogs)
                 .where(
@@ -75,11 +74,9 @@ class DataPointCollector:
                 )
                 .order_by(ActionLogs.time_scanned.asc())
             )
-
             if location_id:
                 stmt = stmt.where(ActionLogs.to_location_id == location_id)
-
-            count_operations = session.execute(stmt).scalars().all()
+            count_operations = list(session.execute(stmt).scalars().all())
 
             if len(count_operations) < 2:
                 return []
@@ -161,8 +158,8 @@ class DataPointCollector:
             if prev_count.to_location_id != location_id:
                 return None
 
-            # Get ONLY admin operations (excluding COUNTs) between the two counts at this location
-            admin_stmt = select(ActionLogs).where(
+            # Get ONLY admin operations (excluding COUNTs) between the two counts
+            stmt = select(ActionLogs).where(
                 ActionLogs.user_id == user_id,
                 ActionLogs.item_id == item_id,
                 ActionLogs.admin_action.is_(True),
@@ -174,8 +171,7 @@ class DataPointCollector:
                     ActionLogs.to_location_id == location_id,
                 ),
             )
-
-            admin_ops = session.execute(admin_stmt).scalars().all()
+            admin_ops = list(session.execute(stmt).scalars().all())
 
             # Calculate net admin operations effect (only RESTOCK, TAKEOUT, TRANSFER)
             admin_net_change = 0

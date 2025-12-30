@@ -13,6 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import UserItemLocations
 from app.db import get_session
+from app.inventory.item_queries import get_item
 from app.inventory.models import Items
 from app.inventory.quantity_service import calculate_item_quantities
 
@@ -70,7 +71,7 @@ class PriorTrendlineAggregator:
                         _s, user_id, item
                     )
             else:
-                item = db_session.get(Items, item_id)
+                item = get_item(item_id, session=db_session)
                 if (
                     not item
                     or item.user_id != user_id

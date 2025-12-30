@@ -9,7 +9,7 @@ from pathlib import Path
 from sqlalchemy import delete, func, select
 
 from app.db import get_session
-from app.inventory.item_queries import list_items_for_user
+from app.inventory.item_queries import get_item_by_upc, list_items_for_user
 from app.inventory.models import ActionLogs, Items
 from scripts.utils import (
     clear_screen,
@@ -133,6 +133,17 @@ def load_csv_items(csv_path: str, user_id: int) -> list:
 
                 # Build item data
                 item_data = {"user_id": user_id, "name": row["name"].strip()}
+
+                # Validate UPC uniqueness if provided
+                if row.get("upc") and row["upc"].strip():
+                    upc = row["upc"].strip()
+                    with get_session() as session:
+                        existing = get_item_by_upc(user_id, upc, session=session)
+                        if existing:
+                            print(
+                                f"[WARNING] Row {row_num}: UPC '{upc}' already exists for user, skipping"
+                            )
+                            continue
 
                 # Add optional fields if present
                 optional_fields = {

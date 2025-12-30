@@ -262,8 +262,8 @@ class BulkService:
         int
             Estimated current count (can be negative if estimated overconsumption)
         """
-        try:
-            with BulkService._ensure_session(session) as _s:
+        with BulkService._ensure_session(session) as s:
+            try:
                 # Find most recent COUNT operation for this item
                 stmt = (
                     select(ActionLogs)
@@ -274,12 +274,12 @@ class BulkService:
                     )
                     .order_by(ActionLogs.time_scanned.desc())
                 )
-                last_count: ActionLogs | None = _s.execute(stmt).scalars().first()
+                last_count = s.execute(stmt).scalars().first()
 
                 # No COUNT found - fall back to current calculated quantity
                 if not last_count:
                     current_qty_by_location = calculate_item_quantities(
-                        _s, user_id, item_id
+                        s, user_id, item_id
                     )
                     return sum(current_qty_by_location.values())
 
@@ -294,17 +294,19 @@ class BulkService:
 
                 # Get total from that COUNT across all locations
                 count_total = BulkService._get_count_total_at_time(
-                    user_id, item_id, last_count.time_scanned, session=_s
+                    user_id, item_id, last_count.time_scanned, session=s
                 )
 
                 estimated_total = count_total - estimated_consumption
                 return int(estimated_total)
 
-        except Exception as e:
-            logger.error(f"Error calculating estimated count for item {item_id}: {e}")
-            # Fall back to current calculated quantity
-            current_qty_by_location = calculate_item_quantities(_s, user_id, item_id)
-            return sum(current_qty_by_location.values())
+            except Exception as e:
+                logger.error(
+                    f"Error calculating estimated count for item {item_id}: {e}"
+                )
+                # Fall back to current calculated quantity
+                current_qty_by_location = calculate_item_quantities(s, user_id, item_id)
+                return sum(current_qty_by_location.values())
 
     @staticmethod
     def _get_count_total_at_time(
@@ -343,19 +345,24 @@ class BulkService:
                 seconds=time_tolerance
             )
 
-            with BulkService._ensure_session(session) as _s:
-                stmt = select(ActionLogs).where(
-                    ActionLogs.user_id == user_id,
-                    ActionLogs.item_id == item_id,
-                    ActionLogs.operation_type == OperationType.count,
-                    ActionLogs.time_scanned >= start_time,
-                    ActionLogs.time_scanned <= end_time,
-                )
-                count_operations = _s.execute(stmt).scalars().all()
+            start_time = count_time.replace(microsecond=0) - timedelta(
+                seconds=time_tolerance
+            )
+            end_time = count_time.replace(microsecond=0) + timedelta(
+                seconds=time_tolerance
+            )
+            stmt = select(ActionLogs).where(
+                ActionLogs.user_id == user_id,
+                ActionLogs.item_id == item_id,
+                ActionLogs.operation_type == OperationType.count,
+                ActionLogs.time_scanned >= start_time,
+                ActionLogs.time_scanned <= end_time,
+            )
+            count_operations = list(session.execute(stmt).scalars().all())
 
-                # Sum up all COUNT values from that time period
-                total_count = sum(op.quantity_delta for op in count_operations)
-                return total_count
+            # Sum up all COUNT values from that time period
+            total_count = sum(op.quantity_delta for op in count_operations)
+            return total_count
 
         except Exception as e:
             logger.error(f"Error getting count total at time: {e}")
