@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from app.inventory.constants import OperationType
 
 if TYPE_CHECKING:
-    from app.inventory.models import ActionLogs
+    from app.inventory.data.models import ActionLogs
 
 
 def _build_quantities_from_logs(logs: Iterable[ActionLogs]) -> dict[int, int]:
@@ -47,7 +47,7 @@ def calculate_item_quantities(
     exclude_action_ids: set[int] | None = None,
 ) -> dict[int, int]:
     """Compute current quantities for an item across locations from ActionLogs."""
-    from app.inventory.models import ActionLogs
+    from app.inventory.data.models import ActionLogs
 
     stmt = (
         select(ActionLogs)

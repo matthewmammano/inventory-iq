@@ -26,7 +26,7 @@ from sqlalchemy.orm import (
 
 from app.db import Base
 from app.inventory.constants import UPC_GENERATION_START, OperationType
-from app.inventory.quantity_service import (
+from app.inventory.data.quantity import (
     apply_action_to_quantities,
     calculate_item_quantities,
 )

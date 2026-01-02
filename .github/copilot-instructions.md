@@ -1,4 +1,157 @@
-# Code Standards & Best Practices for Production
+# Inventory IQ - AI Agent Guide
+
+## Project Overview
+
+**Inventory IQ** is a production Flask app for smart inventory management with:
+- **Bayesian ML predictions** for restock forecasting (`app/prediction/`)
+- **Real-time barcode scanning** with QR codes (`app/inventory/scan_operations.py`)
+- **Automated email alerts** for low stock (`app/alerts/`)
+- **Multi-user squads** with role-based access (admin/guest)
+- **Event-sourced quantities** - all inventory calculated from `ActionLogs` (no caching)
+
+**Stack:** Flask 3.x + SQLAlchemy 2.x + Scikit-learn + PostgreSQL (prod) / SQLite (dev)
+
+---
+
+## Architecture Patterns
+
+### 1. Event-Sourced Inventory (Critical!)
+**Never cache quantities.** All inventory counts are computed on-demand from `ActionLogs`:
+```python
+# app/inventory/quantity_service.py
+def calculate_item_quantities(session, user_id, item_id, location_id=None):
+    """Fold ActionLogs chronologically to compute current quantities"""
+    logs = session.query(ActionLogs).filter(...).order_by(ActionLogs.time_scanned).all()
+    return _build_quantities_from_logs(logs)  # Pure function, no state
+```
+**Why:** Single source of truth. Any quantity change = new ActionLog row. Recalculate everywhere.
+
+### 2. Blueprint Structure & Route Validation
+Routes organized by concern with squad-based multi-tenancy:
+- `app/auth/` - Login, password management
+- `app/inventory/admin_routes.py` - Admin-only inventory management
+- `app/inventory/guest_routes.py` - Guest barcode scanning
+- `app/alerts/` - Alert detection and email batching
+
+**Squad validation pattern** (avoids duplication):
+```python
+# app/core/route_validation.py - Centralized validation service
+@bp.before_request
+def check_admin_authorization():
+    """Chain validations before every route"""
+    for validation in [
+        RouteValidationService.validate_user_authentication(),
+        RouteValidationService.validate_squad_access(squad),
+        RouteValidationService.validate_admin_session(squad, TIMEOUT),
+    ]:
+        if validation:
+            return redirect(validation)  # First failure wins
+```
+
+### 3. Database Session Management
+**Always use `get_session()` context manager** from `app/db.py`:
+```python
+from app.db import get_session
+
+with get_session() as session:
+    item = session.query(Items).get(item_id)
+    session.add(new_log)
+    session.commit()  # Auto-rollback on exception, always closes
+```
+**Never:** Manual `Session()` creation. **Why:** Prevents connection leaks in Railway production.
+
+### 4. Configuration System
+Environment-driven config in `config.py`:
+- `DevelopmentConfig` - SQLite, debug mode
+- `ProductionConfig` - PostgreSQL with Railway optimizations (pool_pre_ping, pool_recycle)
+- Load via `FLASK_ENV` env var (defaults to `prod` for safety)
+
+**Always reference:** `current_app.config["KEY"]` or import from `config.py`, never `os.environ.get()`
+
+---
+
+## Critical Workflows
+
+### Management Scripts (CLI Tools)
+**Run as modules** to preserve app context:
+```bash
+python -m scripts.edit_users      # User CRUD (display_name, email, PIN, timezone)
+python -m scripts.edit_items      # Item CRUD (barcode, tags, thresholds)
+python -m scripts.edit_locations  # Location management
+python -m scripts.edit_tags       # Tag management
+```
+**Pattern:** All scripts use `scripts/utils.py` helpers (`ensure_app_context`, `create_with_validation`). Model validation via Pydantic-style validators in SQLAlchemy models.
+
+### Background Tasks
+Scheduled tasks in `app/tasks/` (run via cron/Railway):
+```bash
+python -m app.tasks.process_email_alerts      # Batch email alerts hourly
+python -m app.tasks.archive_action_logs       # Archive old logs monthly
+python -m app.tasks.check_admin_recount       # Detect admin recounts
+```
+
+### Prediction Engine Usage
+**Bayesian ML with time-weighted regression:**
+```python
+# app/prediction/prediction_engine.py
+result = PredictionEngine.predict_usage(session, user_id, item_id, location_id)
+# Returns: daily_usage_rate, confidence_score, trend_direction
+# Falls back to simple average if <5 data points
+```
+
+---
+
+## Project-Specific Conventions
+
+### Route Naming
+All routes prefixed with `/<squad>/` for multi-tenancy:
+```python
+@bp.route("/<squad>/admin-panel/scan/item", methods=["GET", "POST"])
+def scan_item(squad: str):
+    # squad = user.display_name (validated in before_request)
+```
+
+### Flash Message Categories
+Use specific categories for consistent styling:
+- `"success"` - Green confirmation
+- `"error"` - Red critical errors
+- `"warning"` - Yellow user attention needed
+- `"info"` - Blue informational
+
+### Model Validation Pattern
+Models use `@validates` decorator for field validation (not Pydantic):
+```python
+# app/auth/models.py
+class Users(Base):
+    @validates("pin")
+    def validate_pin(self, key, value):
+        if not value or not value.isdigit() or len(value) != 4:
+            raise ValueError("PIN must be exactly 4 digits")
+        return value
+```
+
+### Query Separation
+**Never query in route handlers.** Extract to `*_queries.py` modules:
+- `app/auth/user_queries.py` - `get_user()`, `get_user_by_display_name()`
+- `app/inventory/item_queries.py` - `get_item()`, `list_items_for_user()`
+- `app/auth/location_queries.py` - `list_locations()`
+
+**Pattern:** Pure functions taking `Session` as argument, return model instances or None.
+
+### Timezone Handling
+Users have custom timezones in `Users.timezone` (default: `America/New_York`):
+```python
+# app/utils/timezone_utils.py
+from datetime import datetime, UTC
+from zoneinfo import ZoneInfo
+
+def convert_utc_to_user_tz(utc_time: datetime, timezone_name: str) -> datetime:
+    """Convert UTC datetime to user's timezone"""
+    return utc_time.replace(tzinfo=UTC).astimezone(ZoneInfo(timezone_name))
+```
+**All ActionLogs stored in UTC**, convert for display only.
+
+---
 
 ## Philosophy: KISS + DRY = Production Ready
 
@@ -6,9 +159,7 @@
 **DRY (Don't Repeat Yourself):** One source of truth for each piece of logic.
 **Explicit is better than implicit:** Clear code > clever code (per Zen of Python).
 
----
-
-## Core Principles - Order of Priority
+### Core Principles - Order of Priority
 
 1. **Readability** - Code is read 100x more than written. Write for humans first.
 2. **Simplicity** - Shortest viable solution. No premature optimization.

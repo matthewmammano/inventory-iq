@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.alerts.alert_queries import get_user_alerts
 from app.db import get_session
 from app.db import get_session as _get_session
-from app.inventory.models import ActionLogs
+from app.inventory.data.models import ActionLogs
 from app.prediction.prediction_engine import PredictionEngine
 
 
@@ -32,7 +32,7 @@ class AlertDetectionService:
 
         # Load item and user alert preferences
         with get_session() as session:
-            from app.inventory.item_queries import (
+            from app.inventory.data.item_queries import (
                 get_item,  # Necessary inline import avoids circular dependency with models
             )
 

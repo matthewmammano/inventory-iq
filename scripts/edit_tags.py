@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.auth.models import UserItemTags
 from app.auth.tag_queries import list_tags
 from app.db import get_session
-from app.inventory.models import Items
+from app.inventory.data.models import Items
 from scripts.utils import (
     clear_screen,
     create_with_validation,

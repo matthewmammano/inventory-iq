@@ -7,7 +7,7 @@ from sqlalchemy import select
 from app.auth.location_queries import list_locations
 from app.auth.models import UserItemLocations
 from app.db import get_session
-from app.inventory.models import ActionLogs
+from app.inventory.data.models import ActionLogs
 from scripts.utils import (
     clear_screen,
     create_with_validation,

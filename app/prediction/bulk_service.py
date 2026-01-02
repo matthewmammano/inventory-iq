@@ -13,9 +13,9 @@ from sqlalchemy.orm import Session
 
 from app.db import get_session
 from app.inventory.constants import OperationType
-from app.inventory.item_queries import list_items_for_user
-from app.inventory.models import ActionLogs, Items
-from app.inventory.quantity_service import calculate_item_quantities
+from app.inventory.data.item_queries import list_items_for_user
+from app.inventory.data.models import ActionLogs, Items
+from app.inventory.data.quantity import calculate_item_quantities
 
 from .prediction_engine import PredictionEngine
 
@@ -358,6 +358,8 @@ class BulkService:
                 ActionLogs.time_scanned >= start_time,
                 ActionLogs.time_scanned <= end_time,
             )
+            if session is None:
+                return 0
             count_operations = list(session.execute(stmt).scalars().all())
 
             # Sum up all COUNT values from that time period

@@ -9,8 +9,8 @@ from pathlib import Path
 from sqlalchemy import delete, func, select
 
 from app.db import get_session
-from app.inventory.item_queries import get_item_by_upc, list_items_for_user
-from app.inventory.models import ActionLogs, Items
+from app.inventory.data.item_queries import get_item_by_upc, list_items_for_user
+from app.inventory.data.models import ActionLogs, Items
 from scripts.utils import (
     clear_screen,
     create_with_validation,

@@ -12,7 +12,7 @@ from sqlalchemy import delete, select
 
 from app import create_app
 from app.db import get_session
-from app.inventory.models import ActionLogs
+from app.inventory.data.models import ActionLogs
 
 
 def archive_action_logs():

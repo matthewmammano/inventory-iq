@@ -15,7 +15,7 @@ from app import create_app, mail
 from app.auth.models import Users
 from app.auth.user_queries import list_users
 from app.db import get_session
-from app.inventory.models import ActionLogs, Items
+from app.inventory.data.models import ActionLogs, Items
 
 
 def monitor_database_size() -> None:

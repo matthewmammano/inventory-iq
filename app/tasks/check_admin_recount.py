@@ -13,8 +13,8 @@ from app.auth.models import UserAlerts, Users
 from app.auth.user_queries import get_user
 from app.db import get_session
 from app.inventory.constants import OperationType
-from app.inventory.item_queries import list_items_for_user
-from app.inventory.models import ActionLogs
+from app.inventory.data.item_queries import list_items_for_user
+from app.inventory.data.models import ActionLogs
 
 
 def check_admin_count_alerts() -> None:

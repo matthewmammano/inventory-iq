@@ -13,9 +13,9 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import UserItemLocations
 from app.db import get_session
-from app.inventory.item_queries import get_item
-from app.inventory.models import Items
-from app.inventory.quantity_service import calculate_item_quantities
+from app.inventory.data.item_queries import get_item
+from app.inventory.data.models import Items
+from app.inventory.data.quantity import calculate_item_quantities
 
 
 @dataclass

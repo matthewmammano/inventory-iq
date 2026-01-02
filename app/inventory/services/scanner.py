@@ -15,8 +15,9 @@ from app.inventory.constants import (
     VIRTUAL_LOCATION_TAKEOUT,
     OperationType,
 )
-from app.inventory.inventory_ops import InventoryError, inventory_operation
-from app.inventory.item_queries import get_item
+from app.inventory.data.item_queries import get_item
+from app.inventory.services.operations import InventoryError, inventory_operation
+from app.utils.parsing import parse_optional_int
 
 
 @dataclass
@@ -60,24 +61,6 @@ def _determine_operation_type(
         return OperationType.takeout, from_location_id, None
 
     raise ValueError("Invalid operation parameters")
-
-
-def _parse_location_id(v) -> int | None:
-    """Parse location IDs including virtual locations.
-
-    Shared validator for all Pydantic models needing location parsing.
-    Handles VIRTUAL_LOCATION_RESTOCK, VIRTUAL_LOCATION_COUNT, VIRTUAL_LOCATION_TAKEOUT.
-    """
-    if v is None or v == "":
-        return None
-    if isinstance(v, int):
-        return v
-    if isinstance(v, str):
-        try:
-            return int(v)
-        except ValueError:
-            return None
-    return None
 
 
 def _get_locations_by_access(
@@ -127,7 +110,7 @@ class ScanLocationsRequest(BaseModel):
     @classmethod
     def parse_location_id(cls, v):
         """Parse location IDs including virtual locations (-1, -2)."""
-        return _parse_location_id(v)
+        return parse_optional_int(v)
 
 
 class ScanItemRequest(BaseModel):
@@ -146,7 +129,7 @@ class ScanItemRequest(BaseModel):
     @classmethod
     def parse_location_id(cls, v):
         """Parse location IDs including virtual locations."""
-        return _parse_location_id(v)
+        return parse_optional_int(v)
 
     @field_validator("counter_value", mode="before")
     @classmethod
@@ -159,21 +142,6 @@ class ScanItemRequest(BaseModel):
         if isinstance(v, str) and v.isdigit():
             return int(v)
         raise ValueError("Quantity must be a valid number")
-
-
-def _parse_loc_id(val: str | int | None) -> int | None:
-    """Safely parse location id from strings or numeric strings.
-
-    Returns None if input is None or not parseable. Accepts ints as well.
-    """
-    if val is None:
-        return None
-    if isinstance(val, int):
-        return val
-    try:
-        return int(val)
-    except (TypeError, ValueError):
-        return None
 
 
 def get_scan_permissions(squad: str, is_admin: bool = False) -> ScanPermissions:
@@ -344,10 +312,10 @@ def handle_scan_item_get(
 ):
     """Render scan item page; supports virtual location IDs for special operations."""
     with get_session() as session:
-        parsed_item_id = _parse_loc_id(item_id) if item_id is not None else None
+        parsed_item_id = parse_optional_int(item_id) if item_id is not None else None
         item = get_item(parsed_item_id, session=session) if parsed_item_id else None
 
-        parsed_from = _parse_loc_id(from_location_id)
+        parsed_from = parse_optional_int(from_location_id)
         if parsed_from in (VIRTUAL_LOCATION_RESTOCK, VIRTUAL_LOCATION_COUNT):
             from_location = parsed_from
         elif parsed_from is not None:
@@ -355,7 +323,7 @@ def handle_scan_item_get(
         else:
             from_location = None
 
-        parsed_to = _parse_loc_id(to_location_id)
+        parsed_to = parse_optional_int(to_location_id)
         if parsed_to == VIRTUAL_LOCATION_TAKEOUT:
             to_location = VIRTUAL_LOCATION_TAKEOUT
         elif parsed_to is not None:

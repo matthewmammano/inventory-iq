@@ -11,7 +11,7 @@ from typing import Any
 from loguru import logger
 from sqlalchemy.orm import Session
 
-from app.inventory.action_log_queries import get_recent_admin_count
+from app.inventory.data.action_log_queries import get_recent_admin_count
 
 from .config import PredictionConfig
 

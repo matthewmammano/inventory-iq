@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 
 from flask import flash, redirect, render_template, request, session, url_for
+from flask.typing import ResponseReturnValue
 from flask_login import current_user, login_required
 from loguru import logger
 
@@ -8,31 +9,22 @@ from app.auth.user_queries import get_user_by_display_name, get_user_permissions
 from app.core.route_validation import RouteValidationService
 from app.db import get_session
 from app.inventory import guest_bp as bp
-from app.inventory.item_queries import list_items_for_user
-from app.inventory.scan_operations import (
+from app.inventory.data.item_queries import list_items_for_user
+from app.inventory.services.scanner import (
     handle_scan_item_get,
     handle_scan_item_post,
     handle_scan_locations_get,
     handle_scan_locations_post,
     handle_scan_start,
 )
-
-
-def _parse_int_optional(val: str | None) -> int | None:
-    """Parse an optional string to int, return None if not present or invalid."""
-    if val is None:
-        return None
-    try:
-        return int(val)
-    except (TypeError, ValueError):
-        return None
+from app.utils.parsing import parse_optional_int
 
 
 @bp.before_request
-def check_authentication_and_squad():
-    """Reset admin session and validate guest access."""
+def check_authentication_and_squad() -> ResponseReturnValue:
+    """Validate guest authentication and reset admin session."""
     if RouteValidationService.is_static_request():
-        return
+        return None
 
     # Reset admin session for all guest routes
     session.pop("admin", None)
@@ -51,14 +43,13 @@ def check_authentication_and_squad():
     ]:
         if validation:
             return redirect(validation)
+    return None
 
 
 @bp.route("/<squad>/")
 @login_required
-def index(squad):
-    """
-    Display the inventory for the given squad to search or scan UPC.
-    """
+def index(squad: str) -> ResponseReturnValue:
+    """Render guest welcome page."""
     # Check for UPC error parameter
     upc_error = request.args.get("upc_error")
     if upc_error:
@@ -92,20 +83,20 @@ def index(squad):
 
 @bp.route("/<squad>/scan")
 @login_required
-def scan_start(squad):
-    """Entry point for scanning - decides scan_selection vs scan"""
-    item_id = _parse_int_optional(request.args.get("item_id"))
+def scan_start(squad: str) -> ResponseReturnValue:
+    """Handle scan workflow initialization."""
+    item_id = parse_optional_int(request.args.get("item_id"))
     return handle_scan_start(squad, item_id, is_admin=False)
 
 
 @bp.route("/<squad>/scan/locations", methods=["GET", "POST"])
 @login_required
-def scan_locations(squad):
-    """Select to and from locations for scanning"""
+def scan_locations(squad: str) -> ResponseReturnValue:
+    """Handle GET/POST for location scanning."""
     if request.method == "POST":
         return handle_scan_locations_post(squad, request.form, is_admin=False)
     else:
-        item_id = _parse_int_optional(request.args.get("item_id"))
+        item_id = parse_optional_int(request.args.get("item_id"))
         # Get user permissions or use request override (default to False for guest)
         perms = get_user_permissions(squad)
         user_count_allow = (
@@ -134,12 +125,12 @@ def scan_locations(squad):
 
 @bp.route("/<squad>/scan/item", methods=["GET", "POST"])
 @login_required
-def scan_item(squad):
-    """Scan item with locations alerady selected (automatically if only one each)"""
+def scan_item(squad: str) -> ResponseReturnValue:
+    """Handle GET/POST for item scanning."""
     if request.method == "POST":
         return handle_scan_item_post(squad, request.form, is_admin=False)
     else:
-        item_id = _parse_int_optional(request.args.get("item_id"))
+        item_id = parse_optional_int(request.args.get("item_id"))
         from_location_id = request.args.get("from_location_id")
         to_location_id = request.args.get("to_location_id")
         user_count_allow = request.args.get("user_count_allow", "False") == "True"
@@ -168,7 +159,8 @@ def scan_item(squad):
 
 # Admin login page using PIN from Users DB
 @bp.route("/<squad>/admin", methods=["GET", "POST"])
-def admin_login(squad):
+def admin_login(squad: str) -> ResponseReturnValue:
+    """Handle admin session login with PIN."""
     if request.method == "POST":
         password = request.form["password"]
         try:

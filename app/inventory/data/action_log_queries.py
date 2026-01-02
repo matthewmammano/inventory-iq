@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.inventory.constants import OperationType
-from app.inventory.models import ActionLogs
+from app.inventory.data.models import ActionLogs
 
 
 def get_recent_admin_count(

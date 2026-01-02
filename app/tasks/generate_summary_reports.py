@@ -15,7 +15,7 @@ from sqlalchemy import and_, func, select
 from app import create_app, mail
 from app.auth.models import UserAlerts, Users
 from app.db import get_session
-from app.inventory.models import ActionLogs
+from app.inventory.data.models import ActionLogs
 
 
 def generate_summary_reports(report_type: str) -> None:

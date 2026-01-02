@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_session
 from app.inventory.constants import OperationType
-from app.inventory.models import ActionLogs
+from app.inventory.data.models import ActionLogs
 
 from .config import PredictionConfig
 

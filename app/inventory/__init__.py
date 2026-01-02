@@ -9,5 +9,5 @@ guest_bp = Blueprint(
 )
 
 # Import routes after blueprint definitions
-from app.inventory.admin_routes import *  # noqa: E402, F403 - Flask blueprint pattern
-from app.inventory.guest_routes import *  # noqa: E402, F403 - Flask blueprint pattern
+from app.inventory.routes.admin import *  # noqa: E402, F403 - Flask blueprint pattern
+from app.inventory.routes.guest import *  # noqa: E402, F403 - Flask blueprint pattern
