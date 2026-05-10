@@ -18,13 +18,10 @@ class Settings(BaseSettings):
     secret_key: str
     debug: bool = False
 
-    mail_server: str = ""
-    mail_port: int = 587
-    mail_use_tls: bool = True
-    mail_username: str = ""
-    mail_password: str = ""
-    mail_default_sender: str = ""
-    mail_timeout_seconds: int = 4
+    brevo_api_key: str = ""
+    brevo_sender_email: str = ""
+    brevo_sender_name: str = "Inventory IQ"
+    brevo_timeout_seconds: int = 4
 
     session_lifetime_days: int = 30
     scheduler_enabled: bool = False

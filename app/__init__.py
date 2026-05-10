@@ -9,7 +9,6 @@ from pathlib import Path
 
 from flask import Flask, url_for
 from flask_login import LoginManager
-from flask_mailman import Mail
 from loguru import logger
 
 from app.alerts import bp as alerts_bp
@@ -25,7 +24,6 @@ from app.shared.database import init_db
 from app.shared.logging import setup_logging
 
 login_manager = LoginManager()
-mail = Mail()
 
 
 def create_app() -> Flask:
@@ -36,7 +34,7 @@ def create_app() -> Flask:
     _instance = Path(__file__).resolve().parent.parent / "instance"
     app = Flask(__name__, instance_path=str(_instance))
 
-    # Core + mail config
+    # Core config
     app.config.update(
         SECRET_KEY=settings.secret_key,
         SQLALCHEMY_DATABASE_URI=settings.database_url,
@@ -44,13 +42,10 @@ def create_app() -> Flask:
         PERMANENT_SESSION_LIFETIME=settings.session_lifetime,
         CONTACT_PHONE=settings.contact_phone,
         DEBUG=settings.debug,
-        MAIL_SERVER=settings.mail_server,
-        MAIL_PORT=settings.mail_port,
-        MAIL_USE_TLS=settings.mail_use_tls,
-        MAIL_USERNAME=settings.mail_username,
-        MAIL_PASSWORD=settings.mail_password,
-        MAIL_DEFAULT_SENDER=settings.mail_default_sender,
-        MAIL_TIMEOUT=settings.mail_timeout_seconds,
+        BREVO_API_KEY=settings.brevo_api_key,
+        BREVO_SENDER_EMAIL=settings.brevo_sender_email,
+        BREVO_SENDER_NAME=settings.brevo_sender_name,
+        BREVO_TIMEOUT_SECONDS=settings.brevo_timeout_seconds,
     )
 
     if settings.database_url.startswith("sqlite"):
@@ -59,7 +54,6 @@ def create_app() -> Flask:
     # Initialize extensions
     init_db(settings.database_url)
     login_manager.init_app(app)
-    mail.init_app(app)
 
     login_manager.login_view = "auth.login"  # type: ignore[attr-defined]
     login_manager.login_message = "Please log in to access this page."

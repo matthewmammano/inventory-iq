@@ -4,20 +4,16 @@ from __future__ import annotations
 
 import secrets
 from datetime import timedelta
-from pathlib import Path
 
-from flask import current_app
-from flask_mailman import EmailMultiAlternatives
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.shared.clock import utc_now, utc_now_naive
+from app.shared.brevo_email import OutboundEmail, send_email
+from app.shared.clock import utc_now_naive
 
 from .constants import RESET_PIN_DIGITS, RESET_PIN_MAX_ATTEMPTS, RESET_PIN_TTL_MINUTES
 from .models import Agencies, PasswordResetPins
-
-MAIL_REQUIRED_KEYS = ("MAIL_SERVER", "MAIL_USERNAME", "MAIL_PASSWORD", "MAIL_DEFAULT_SENDER")
 
 
 def create_password_reset_pin(session: Session, email: str) -> bool:
@@ -126,34 +122,13 @@ def _send_reset_pin(email: str, pin: str) -> bool:
         f"Your reset PIN is: {pin}\n\n"
         f"This PIN expires in {RESET_PIN_TTL_MINUTES} minutes."
     )
-    if not _mail_enabled():
-        return _write_reset_file(email, body)
-    try:
-        EmailMultiAlternatives(
+    sent = send_email(
+        OutboundEmail(
             subject="Inventory IQ Password Reset PIN",
-            body=body,
-            from_email=current_app.config.get("MAIL_DEFAULT_SENDER"),
-            to=[email],
-        ).send()
+            text_body=body,
+            to_email=email,
+        )
+    )
+    if sent:
         logger.info("Password reset PIN email sent")
-        return True
-    except Exception:
-        logger.exception("Password reset PIN email failed")
-        return False
-
-
-def _mail_enabled() -> bool:
-    return all(str(current_app.config.get(key) or "").strip() for key in MAIL_REQUIRED_KEYS)
-
-
-def _write_reset_file(email: str, body: str) -> bool:
-    try:
-        reset_dir = Path(current_app.instance_path) / "password_resets"
-        reset_dir.mkdir(parents=True, exist_ok=True)
-        path = reset_dir / f"{utc_now().strftime('%Y%m%d_%H%M%S_%f')}_reset.txt"
-        path.write_text(f"To: {email}\n\n{body}", encoding="utf-8")
-        logger.info("Password reset PIN written to file", extra={"path": str(path)})
-        return True
-    except OSError:
-        logger.exception("Password reset PIN file write failed")
-        return False
+    return sent

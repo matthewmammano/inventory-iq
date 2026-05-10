@@ -22,10 +22,8 @@ TEST_DB = Path("instance/alert_system_test.db")
 START_AT = datetime(2026, 5, 10, 6, 0, tzinfo=UTC)
 
 settings.database_url = f"sqlite:///{TEST_DB.as_posix()}"
-settings.mail_server = ""
-settings.mail_username = ""
-settings.mail_password = ""
-settings.mail_default_sender = ""
+settings.brevo_api_key = ""
+settings.brevo_sender_email = ""
 settings.dev_clock_enabled = True
 settings.scheduler_enabled = False
 

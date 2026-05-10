@@ -5,39 +5,32 @@ from __future__ import annotations
 from pathlib import Path
 
 from flask import current_app, render_template
-from flask_mailman import EmailMultiAlternatives
 from loguru import logger
 
+from app.shared.brevo_email import OutboundEmail, brevo_configured, send_email
 from app.shared.clock import utc_now
 
 from .schema import EmailBatch
 
-MAIL_REQUIRED_KEYS = ("MAIL_SERVER", "MAIL_USERNAME", "MAIL_PASSWORD", "MAIL_DEFAULT_SENDER")
-
 
 def deliver_batch(batch: EmailBatch) -> bool:
-    """Send through SMTP, or write files when mail config is intentionally disabled."""
-    if not _mail_enabled():
+    """Send through Brevo, or write files when email config is intentionally disabled."""
+    text_body = render_template("batch_email.txt", batch=batch)
+    html_body = render_template("batch_email.html", batch=batch)
+    if not brevo_configured():
         return _write_batch_file(batch)
 
-    try:
-        msg = EmailMultiAlternatives(
+    sent = send_email(
+        OutboundEmail(
             subject=batch.subject,
-            body=render_template("batch_email.txt", batch=batch),
-            from_email=current_app.config.get("MAIL_DEFAULT_SENDER"),
-            to=[batch.agency_email],
+            text_body=text_body,
+            html_body=html_body,
+            to_email=batch.agency_email,
         )
-        msg.attach_alternative(render_template("batch_email.html", batch=batch), "text/html")
-        msg.send()
+    )
+    if sent:
         logger.info("Alert email sent")
-        return True
-    except Exception:
-        logger.exception("Alert email send failed")
-        return False
-
-
-def _mail_enabled() -> bool:
-    return all(str(current_app.config.get(key) or "").strip() for key in MAIL_REQUIRED_KEYS)
+    return sent
 
 
 def _write_batch_file(batch: EmailBatch) -> bool:

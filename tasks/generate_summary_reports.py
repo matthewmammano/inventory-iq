@@ -6,14 +6,13 @@ Cron: 0 6 * * * python tasks/generate_summary_reports.py daily
 import sys
 from datetime import UTC, datetime, timedelta
 
-from flask import current_app
-from flask_mailman import EmailMessage
 from loguru import logger
 from sqlalchemy import and_, func, select
 
 from app import create_app
 from app.auth.models import Agencies, AgencyEmails
 from app.inventory.models import ActionLogs
+from app.shared.brevo_email import OutboundEmail, send_email
 from app.shared.database import get_session
 
 
@@ -54,14 +53,17 @@ def generate_summary_reports(report_type: str) -> None:
                 )
                 agency = s.get(Agencies, ae.agency_id)
 
-            if count > 0 and agency:
-                _send_report(ae.email, agency.display_name, report_type, count, cutoff)
+            if (
+                count > 0
+                and agency
+                and _send_report(ae.email, agency.display_name, report_type, count, cutoff)
+            ):
                 sent += 1
 
         logger.info(f"Sent {sent} {report_type} summary reports")
 
 
-def _send_report(email: str, name: str, report_type: str, count: int, cutoff: datetime) -> None:
+def _send_report(email: str, name: str, report_type: str, count: int, cutoff: datetime) -> bool:
     body = (
         f"Hi {name},\n\n"
         f"Your {report_type} inventory summary:\n"
@@ -69,13 +71,13 @@ def _send_report(email: str, name: str, report_type: str, count: int, cutoff: da
         f"  Period: {cutoff.date()} to {datetime.now().date()}\n\n"
         f"Thanks!"
     )
-    msg = EmailMessage(
-        subject=f"{report_type.title()} Inventory Summary",
-        body=body,
-        from_email=current_app.config.get("MAIL_DEFAULT_SENDER"),
-        to=[email],
+    return send_email(
+        OutboundEmail(
+            subject=f"{report_type.title()} Inventory Summary",
+            text_body=body,
+            to_email=email,
+        )
     )
-    msg.send()
 
 
 if __name__ == "__main__":
