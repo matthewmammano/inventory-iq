@@ -12,6 +12,10 @@
     text-decoration: none;
 }
 
+.header-button-muted {
+    background-color: #f1f5f9;
+}
+
 .positive-button {
     color: var(--most-black);
     background-color: var(--accept-color);

@@ -94,8 +94,8 @@ def forgot_password():
         if not sent:
             flash("Reset PIN email could not be sent. Please try again shortly.", "error")
             return redirect(url_for("auth.forgot_password"))
-        flash("If that agency email is active, a reset PIN was sent.", "info")
-        return redirect(url_for("auth.login"))
+        flash("If that agency email is active, enter the reset PIN sent to that email.", "info")
+        return redirect(url_for("auth.reset_password"))
     return render_template("forgot_password.html")
 
 
