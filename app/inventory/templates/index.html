@@ -19,7 +19,7 @@
 
 {% block content %}
 
-<article{% if admin %} class="admin-border"{% endif %}>
+<article class="scan-search-panel{% if admin %} admin-border{% endif %}">
     <div>
         <input type="text" id="search" name="search" placeholder="Scan item barcode or search here (name, category, barcode)..." />
         <ul id="results"></ul>

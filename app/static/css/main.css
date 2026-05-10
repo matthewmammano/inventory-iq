@@ -11,11 +11,13 @@
 @import 'components/flash-messages.css';
 @import 'components/tags.css';
 @import 'components/inventory-thresholds.css';
+@import 'components/bulk-quantity.css';
 
 /* Layouts */
 @import 'layouts/admin-layout.css';
 @import 'layouts/scanning.css';
-@import 'layouts/scan-locations.css';
+@import 'layouts/scan-storages.css';
 
 /* Pages */
 @import 'pages/index.css';
+@import 'pages/auth.css';

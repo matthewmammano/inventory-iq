@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% from "macros.html" import header_button, bulk_quantity_table %}
+
+{% block title %}Count Location{% endblock %}
+{% block header_right %}{{ header_button(url_for('admin.admin_panel', squad=squad), 'Back')}}{% endblock %}
+{% block header_title %}{{ squad }}{% endblock %}
+{% block sub_title %}Count: {{ location.name }}{% endblock %}
+
+{% block content %}
+<p class="bulk-page-note">Count every storage in this location before vendor restock. Current calculated values are prefilled.</p>
+<form method="POST">
+  {{ bulk_quantity_table(items, storages, counts, 'Save Count', original_counts) }}
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/quantity-dirty-fields.js') }}" defer></script>
+{% endblock %}

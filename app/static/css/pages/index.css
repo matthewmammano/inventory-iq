@@ -1,14 +1,17 @@
-/* Index Page Styles */
-.content {
-    display: flex;
-    justify-content: center;
+#search {
+    width: 100%;
+    min-height: 64px;
+    padding: 0 18px;
+    margin: 48px 0 24px;
+    border: 3px solid black;
+    box-sizing: border-box;
+    background: var(--near-white);
+    font-size: 1.4rem;
 }
 
-input {
-    width: 75vw;
-    padding: 10px;
-    margin: 3.5rem 0;
-    box-sizing: border-box;
+.scan-search-panel {
+    width: min(900px, 90vw);
+    margin: 0 auto;
 }
 
 /* Results list styling */
@@ -16,7 +19,7 @@ input {
     list-style: none;
     padding: 0;
     margin: 0;
-    width: 75vw;
+    width: 100%;
 }
 
 #results li {

@@ -1,0 +1,57 @@
+.auth-panel {
+    background: #fffef7;
+    border: 3px solid #111827;
+    box-shadow: 0 8px 18px rgba(17, 24, 39, 0.12);
+    margin: 60px auto;
+    max-width: 520px;
+    padding: 32px;
+}
+
+.auth-panel h2 {
+    font-size: 36px;
+    margin: 0 0 10px;
+}
+
+.auth-panel p {
+    font-size: 18px;
+    margin: 0 0 24px;
+}
+
+.auth-form {
+    display: grid;
+    gap: 14px;
+}
+
+.auth-form label {
+    font-size: 18px;
+    font-weight: 800;
+}
+
+.auth-form input {
+    border: 3px solid #111827;
+    font-size: 24px;
+    min-height: 58px;
+    padding: 8px 12px;
+}
+
+.auth-submit,
+.auth-link {
+    border: 3px solid #111827;
+    color: #111827;
+    display: block;
+    font-size: 24px;
+    font-weight: 900;
+    margin-top: 18px;
+    padding: 16px;
+    text-align: center;
+    text-decoration: none;
+}
+
+.auth-submit {
+    background: #f7c957;
+    cursor: pointer;
+}
+
+.auth-link {
+    background: #f1f5f9;
+}

@@ -9,3 +9,41 @@
 {% macro header_button(url, text) %}
     <a href="{{ url }}" class="header-button">{{ text }}</a>
 {% endmacro %}
+
+{% macro bulk_quantity_table(items, storages, values, submit_text, original_values=None) %}
+    {% set originals = original_values if original_values is not none else values %}
+    <div class="bulk-table-wrap">
+        <table class="bulk-quantity-table">
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    {% for storage in storages %}
+                    <th>{{ storage.name }}</th>
+                    {% endfor %}
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items %}
+                <tr>
+                    <th scope="row">{{ item.name }}</th>
+                    {% for storage in storages %}
+                    <td>
+                        <input
+                            type="number"
+                            min="0"
+                            aria-label="{{ item.name }} in {{ storage.name }}"
+                            name="qty_{{ item.id }}_{{ storage.id }}"
+                            value="{{ values[(item.id, storage.id)] }}"
+                            data-original-value="{{ originals[(item.id, storage.id)] }}"
+                            required>
+                    </td>
+                    {% endfor %}
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <div class="bulk-form-actions">
+        <button class="positive-button" type="submit">{{ submit_text }}</button>
+    </div>
+{% endmacro %}

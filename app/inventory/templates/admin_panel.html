@@ -33,6 +33,12 @@
         </div>
 
         <div class="admin-card">
+            <h2>Bulk Action</h2>
+            <p>Count or receive stock for a whole location at once.</p>
+            <a class="card-link" href="{{ url_for('admin.bulk_actions', squad=squad) }}"></a>
+        </div>
+
+        <div class="admin-card">
             <h2>Inventory Levels</h2>
             <p>View item counts across all locations with totals.</p>
             <a class="card-link" href="{{ url_for('admin.inventory_counts', squad=squad) }}"></a>

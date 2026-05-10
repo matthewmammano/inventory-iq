@@ -26,8 +26,7 @@
     <th>Min Quantity</th>
     <th>Max Quantity</th>
     <th>Order Size</th>
-    <th>Expiration Days</th>
-    <th>Restock Delivery Days</th>
+    <th>Lead Time Override</th>
     <th>Last Accessed{% if timezone_hint %} ({{ timezone_hint }}){% endif %}</th>
   </tr>
   {% for item in items %}
@@ -49,8 +48,7 @@
     <td>{{ item.min_quantity }}</td>
     <td>{{ item.max_quantity }}</td>
     <td>{{ item.batch_size }}</td>
-    <td>{{ item.expiration_days }}</td>
-    <td>{{ item.restock_delivery_days }}</td>
+    <td>{{ item.restock_delivery_days if item.restock_delivery_days is not none else 'Default' }}</td>
     <td>{{ item.get_last_accessed_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if item.last_accessed else 'Never' }}</td>
   </tr>
   {% endfor %}

@@ -13,7 +13,11 @@
 {% block content %}
 
 <div class="grid-container">
-    <div class="where_to_from">{{ "RESTOCK" if from_location == -1 else ("COUNT" if from_location == -2 else (from_location.name if from_location else "Unknown")) }} → {{ "TAKE" if to_location == -1 else (to_location.name if to_location else "Unknown") }}</div>
+    <div class="where_to_from">
+        {% set from_name = from_location.name if not admin and from_location not in [-1, -2] and from_location else from_location.full_name if from_location not in [-1, -2] and from_location else "Unknown" %}
+        {% set to_name = to_location.name if not admin and to_location != -1 and to_location else to_location.full_name if to_location != -1 and to_location else "Unknown" %}
+        {{ "RESTOCK" if from_location == -1 else ("COUNT" if from_location == -2 else from_name) }} → {{ "TAKE" if to_location == -1 else to_name }}
+    </div>
 
     <div class="image-cell">
         <img src="{{item.image|image_src}}"

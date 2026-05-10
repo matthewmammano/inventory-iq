@@ -1,0 +1,50 @@
+[project]
+name = "inventory-iq"
+version = "0.1.0"
+requires-python = ">=3.13"
+dependencies = [
+    "Flask",
+    "Flask-Login",
+    "Flask-Mailman",
+    "SQLAlchemy",
+    "pydantic",
+    "pydantic-settings",
+    "email-validator",
+    "python-dotenv",
+    "loguru",
+    "numpy",
+    "pandas",
+    "xgboost",
+    "scikit-learn",
+]
+
+[build-system]
+requires = ["setuptools>=75.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["."]
+
+[tool.black]
+line-length = 100
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "RUF", "NPY", "PTH", "N", "ERA"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 10
+
+[tool.pyright]
+include = ["app", "scripts", "tasks"]
+pythonVersion = "3.13"
+venvPath = "."
+venv = ".venv"
+typeCheckingMode = "basic"
+reportMissingTypeStubs = false
+
+[tool.djlint]
+profile = "jinja"
+ignore = "H006,H013,H014,H021,H029,H030,H031,T001,T003"

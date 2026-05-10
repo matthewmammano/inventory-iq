@@ -1,86 +1,113 @@
-from dotenv import load_dotenv
+"""Admin blueprint routes for inventory management."""
+
+from typing import Any
+
 from flask import current_app, flash, redirect, render_template, request, url_for
-from flask.typing import ResponseReturnValue
 from flask_login import current_user
 from loguru import logger
-from sqlalchemy.orm import joinedload
+from sqlalchemy import or_, select
 
-from app.auth.location_queries import list_locations
-from app.auth.tag_queries import list_tags
-from app.auth.user_queries import get_user_permissions
-from app.core.route_validation import RouteValidationService
-from app.db import get_session
+from app.alerts.alert_service import record_action_log_alerts
+from app.auth.queries import list_tags, list_top_locations
 from app.inventory import admin_bp as bp
-from app.inventory.data.item_queries import list_items_for_user
-from app.inventory.data.models import ActionLogs
-from app.inventory.data.quantity import calculate_item_quantities
-from app.inventory.services.scanner import (
+from app.inventory.item_queries import list_items
+from app.inventory.location_operations import (
+    build_location_count_rows,
+    get_location_storages,
+    parse_quantity_grid,
+    save_location_count,
+    save_location_restock,
+)
+from app.inventory.models import ActionLogs
+from app.inventory.scan_flow import (
     handle_scan_item_get,
     handle_scan_item_post,
-    handle_scan_locations_get,
-    handle_scan_locations_post,
     handle_scan_start,
+    handle_scan_storages_get,
+    handle_scan_storages_post,
 )
-from app.inventory.ui.threshold_display import (
-    get_days_until_low_threshold_class,
-    get_inventory_level_threshold_class,
-    get_order_quantity_threshold_class,
+from app.inventory.ui import (
+    get_days_until_low_class,
+    get_inventory_level_class,
+    get_order_quantity_class,
 )
 from app.prediction.bulk_service import BulkService
-from app.utils.parsing import parse_optional_int
-from app.utils.timezone_utils import get_timezone_display_hint
+from app.prediction.estimator import get_location_item_quantity
+from app.prediction.validation import validate_location_restock
+from app.shared.constants import ADMIN_TIMEOUT
+from app.shared.database import get_session
+from app.shared.timezone_utils import get_timezone_hint
+from app.shared.utils import (
+    get_squad_from_request,
+    is_static_request,
+    parse_optional_int,
+    validate_admin_session,
+    validate_squad_access,
+)
 
-load_dotenv()
-
-ADMIN_TIMEOUT_SECONDS = 2 * 60 * 60  # 2 hours
+# ---------------------------------------------------------------------------
+# Authorization guard
+# ---------------------------------------------------------------------------
 
 
 @bp.before_request
-def check_admin_authorization() -> ResponseReturnValue:
-    """Validate admin authorization and secure admin routes."""
-    if RouteValidationService.is_static_request():
+def check_admin() -> Any:
+    if is_static_request():
         return None
 
-    squad = RouteValidationService.get_squad_from_request() or ""
+    squad = get_squad_from_request() or ""
+    if not current_user.is_authenticated:
+        logger.warning("Admin route rejected: unauthenticated", extra={"squad": squad})
+        flash("You must be logged in.", "warning")
+        return redirect(url_for("auth.login"))
 
-    for validation in [
-        RouteValidationService.validate_user_authentication(),
-        RouteValidationService.validate_squad_access(squad),
-        RouteValidationService.validate_admin_session(squad, ADMIN_TIMEOUT_SECONDS),
+    for redirect_url in [
+        validate_squad_access(squad),
+        validate_admin_session(squad, ADMIN_TIMEOUT),
     ]:
-        if validation:
-            return redirect(validation)
+        if redirect_url:
+            return redirect(redirect_url)
 
     if current_user.display_name != squad:
         logger.warning(
-            f"Unauthorized squad access: user {current_user.email} tried to access squad {squad}"
+            "Admin route rejected: squad mismatch",
+            extra={
+                "agency_id": current_user.id,
+                "requested_squad": squad,
+                "user_squad": current_user.display_name,
+            },
         )
         flash("You do not have permission to access this squad.", "warning")
         return redirect(url_for("auth.login"))
+
     return None
 
 
+# ---------------------------------------------------------------------------
+# Dashboard
+# ---------------------------------------------------------------------------
+
+
 @bp.route("/<squad>/admin-panel")
-def admin_panel(squad: str) -> ResponseReturnValue:
-    """Render main admin dashboard."""
+def admin_panel(squad: str) -> Any:
     return render_template("admin_panel.html", squad=squad, admin=True)
 
 
 @bp.route("/<squad>/admin-panel/views")
-def admin_panel_views(squad: str) -> ResponseReturnValue:
-    """Render admin view selector."""
+def admin_panel_views(squad: str) -> Any:
     return render_template("admin_panel_views.html", squad=squad, admin=True)
 
 
+# ---------------------------------------------------------------------------
+# Items
+# ---------------------------------------------------------------------------
+
+
 @bp.route("/<squad>/admin-panel/view-items")
-def admin_view_items(squad: str) -> ResponseReturnValue:
-    """Render inventory items list."""
-    with get_session() as session:
-        items = list(
-            list_items_for_user(current_user.id, include_inactive=True, session=session)
-        )
-        tags = list_tags(current_user.id, session)
-    timezone_hint = get_timezone_display_hint(current_user.timezone)
+def admin_view_items(squad: str) -> Any:
+    with get_session() as s:
+        items = list_items(current_user.id, include_inactive=True, session=s)
+        tags = list_tags(current_user.id, s)
     return render_template(
         "admin_view_items.html",
         squad=squad,
@@ -88,195 +115,453 @@ def admin_view_items(squad: str) -> ResponseReturnValue:
         tags=tags,
         admin=True,
         user_timezone=current_user.timezone,
-        timezone_hint=timezone_hint,
+        timezone_hint=get_timezone_hint(current_user.timezone),
     )
 
 
-@bp.route("/<squad>/help")
-def help_page(squad: str) -> ResponseReturnValue:
-    """Render help page with contact info."""
-    developer_phone = current_app.config["CONTACT_PHONE"]
-    return render_template(
-        "admin_help.html", squad=squad, contact_phone=developer_phone, admin=True
-    )
-
-
-@bp.route("/<squad>/admin-panel/edit-items", methods=["GET", "POST"])
-def save_items(squad: str) -> ResponseReturnValue:
-    """Handle GET/POST for batch item editing."""
-    if request.method == "GET":
-        with get_session() as session:
-            items = list_items_for_user(
-                current_user.id, include_inactive=True, session=session
-            )
-            tags = list_tags(current_user.id, session)
-        return render_template(
-            "admin_edit_items.html",
-            squad=squad,
-            items=items,
-            tags=tags,
-            admin=True,
-        )
-
-    from app.inventory.data.item_queries import batch_update_items
-
-    result = batch_update_items(current_user.id, request.form.get("itemsData"))
-    if result.errors:
-        flash(f"Errors: {', '.join(result.errors)}", "warning")
-    else:
-        flash("All items saved successfully!", "success")
-    return redirect(url_for("admin.admin_view_items", squad=squad))
+# ---------------------------------------------------------------------------
+# Inventory counts
+# ---------------------------------------------------------------------------
 
 
 @bp.route("/<squad>/admin-panel/inventory-count-levels")
-def inventory_counts(squad: str) -> ResponseReturnValue:
-    """Display inventory counts across all locations."""
-    with get_session() as session:
-        items = list(
-            list_items_for_user(
-                current_user.id,
-                include_inactive=False,
-                session=session,
-            )
+@bp.route("/<squad>/admin-panel/inventory-count-levels/<int:agency_location_id>")
+def inventory_counts(squad: str, agency_location_id: int | None = None) -> Any:
+    if agency_location_id is None:
+        with get_session() as s:
+            locations = list_top_locations(current_user.id, s)
+        return render_template(
+            "admin_select_location.html",
+            squad=squad,
+            locations=locations,
+            endpoint="admin.inventory_counts",
+            title="Inventory Count Levels",
+            admin=True,
         )
-        locations = list_locations(current_user.id, session=session)
 
-        qty_lookup: dict[tuple[int, int], int] = {}
-        for item in items:
-            qty_by_location = calculate_item_quantities(
-                session, current_user.id, item.id
+    with get_session() as s:
+        location = BulkService.get_location(s, current_user.id, agency_location_id)
+        if location is None:
+            logger.error(
+                "Inventory counts rejected: location not found",
+                extra={
+                    "agency_id": current_user.id,
+                    "squad": squad,
+                    "agency_location_id": agency_location_id,
+                },
             )
-            for loc_id, qty in qty_by_location.items():
-                qty_lookup[(item.id, loc_id)] = qty
+            flash("Location not found.", "error")
+            return redirect(url_for("admin.inventory_counts", squad=squad))
+        items, storages, counts = build_location_count_rows(s, current_user.id, agency_location_id)
 
     inventory_data = []
     for item in items:
-        row_data = {
-            "item": item,
-            "location_counts": {},
-            "location_classes": {},
-            "total": 0,
-        }
-
-        for location in locations:
-            count = qty_lookup.get((item.id, location.id), 0)
-            row_data["location_counts"][location.id] = count
-            row_data["location_classes"][location.id] = (
-                get_inventory_level_threshold_class(count)
-            )
-            row_data["total"] += count
-
-        row_data["total_class"] = get_inventory_level_threshold_class(row_data["total"])
-        inventory_data.append(row_data)
+        row: dict = {"item": item, "location_counts": {}, "location_classes": {}, "total": 0}
+        for loc in storages:
+            count = counts.get((item.id, loc.id), 0)
+            row["location_counts"][loc.id] = count
+            row["location_classes"][loc.id] = get_inventory_level_class(count)
+            row["total"] += count
+        row["total_class"] = get_inventory_level_class(row["total"])
+        inventory_data.append(row)
 
     return render_template(
         "admin_inventory_counts.html",
         squad=squad,
         inventory_data=inventory_data,
-        locations=locations,
+        locations=storages,
+        selected_location=location,
         admin=True,
     )
 
 
-@bp.route("/<squad>/admin-panel/restock")
-def restock(squad: str) -> ResponseReturnValue:
-    """Render restock analysis with ML predictions."""
-    try:
-        with get_session() as session:
-            restock_data = BulkService.get_restock_analysis(session, current_user.id)
+# ---------------------------------------------------------------------------
+# Restock analysis
+# ---------------------------------------------------------------------------
 
-            for item_data in restock_data:
-                item_data["order_class"] = get_order_quantity_threshold_class(
-                    item_data.get("order_amount") or 0
+
+@bp.route("/<squad>/admin-panel/restock")
+@bp.route("/<squad>/admin-panel/restock/<int:agency_location_id>")
+def restock(squad: str, agency_location_id: int | None = None) -> Any:
+    if agency_location_id is None:
+        with get_session() as s:
+            locations = list_top_locations(current_user.id, s)
+        return render_template(
+            "admin_select_location.html",
+            squad=squad,
+            locations=locations,
+            endpoint="admin.restock",
+            title="Restock Report",
+            admin=True,
+        )
+
+    try:
+        with get_session() as s:
+            location = BulkService.get_location(s, current_user.id, agency_location_id)
+            if location is None:
+                logger.error(
+                    "Restock report rejected: location not found",
+                    extra={
+                        "agency_id": current_user.id,
+                        "squad": squad,
+                        "agency_location_id": agency_location_id,
+                    },
                 )
-                item_data["current_total_class"] = get_inventory_level_threshold_class(
-                    item_data.get("current_total") or 0
+                flash("Location not found.", "error")
+                return redirect(url_for("admin.restock", squad=squad))
+            restock_data = BulkService.get_restock_analysis(s, current_user.id, agency_location_id)
+        for row in restock_data:
+            row["order_class"] = get_order_quantity_class(row.get("order_amount"))
+            row["current_total_class"] = get_inventory_level_class(row.get("current_total") or 0)
+            row["days_class"] = get_days_until_low_class(row.get("days_until_stockout"))
+    except Exception:
+        logger.exception(
+            "Restock analysis failed",
+            extra={
+                "agency_id": current_user.id,
+                "squad": squad,
+                "agency_location_id": agency_location_id,
+            },
+        )
+        flash("Error loading restock analysis.", "error")
+        restock_data = []
+        location = None
+
+    return render_template(
+        "admin_restock.html",
+        squad=squad,
+        restock_data=restock_data,
+        selected_location=location,
+        admin=True,
+    )
+
+
+@bp.route("/<squad>/admin-panel/bulk-actions")
+@bp.route("/<squad>/admin-panel/bulk-actions/<int:agency_location_id>")
+def bulk_actions(squad: str, agency_location_id: int | None = None) -> Any:
+    if agency_location_id is None:
+        with get_session() as s:
+            locations = list_top_locations(current_user.id, s)
+        return render_template(
+            "admin_select_location.html",
+            squad=squad,
+            locations=locations,
+            endpoint="admin.bulk_actions",
+            title="Bulk Action",
+            admin=True,
+        )
+
+    with get_session() as s:
+        location = BulkService.get_location(s, current_user.id, agency_location_id)
+    if location is None:
+        logger.error(
+            "Bulk action rejected: location not found",
+            extra={
+                "agency_id": current_user.id,
+                "squad": squad,
+                "agency_location_id": agency_location_id,
+            },
+        )
+        flash("Location not found.", "error")
+        return redirect(url_for("admin.bulk_actions", squad=squad))
+    return render_template("admin_bulk_actions.html", squad=squad, location=location, admin=True)
+
+
+@bp.route("/<squad>/admin-panel/count/<int:agency_location_id>", methods=["GET", "POST"])
+def count_location(squad: str, agency_location_id: int) -> Any:
+    with get_session() as s:
+        location = BulkService.get_location(s, current_user.id, agency_location_id)
+        if location is None:
+            logger.error(
+                "Bulk count rejected: location not found",
+                extra={
+                    "agency_id": current_user.id,
+                    "squad": squad,
+                    "agency_location_id": agency_location_id,
+                },
+            )
+            flash("Location not found.", "error")
+            return redirect(url_for("admin.admin_panel", squad=squad))
+        items, storages, counts = build_location_count_rows(s, current_user.id, agency_location_id)
+        original_counts = dict(counts)
+        if request.method == "POST":
+            submitted_counts = parse_quantity_grid(request.form)
+            try:
+                quantity_snapshots = _location_item_snapshots(
+                    s, current_user.id, agency_location_id, {item.id for item in items}
                 )
-                item_data["estimated_total_class"] = (
-                    get_inventory_level_threshold_class(
-                        item_data.get("estimated_total") or 0
+                logs = save_location_count(s, current_user.id, agency_location_id, submitted_counts)
+                count = len(logs)
+                record_action_log_alerts(
+                    s,
+                    logs,
+                    _updated_location_snapshots(
+                        s, current_user.id, agency_location_id, quantity_snapshots
+                    ),
+                )
+                s.commit()
+                logger.info(
+                    "Bulk count saved",
+                    extra={
+                        "agency_id": current_user.id,
+                        "squad": squad,
+                        "agency_location_id": agency_location_id,
+                        "entry_count": count,
+                    },
+                )
+                flash(f"Saved {count} count entries for {location.name}.", "success")
+                return redirect(
+                    url_for(
+                        "admin.bulk_actions",
+                        squad=squad,
+                        agency_location_id=agency_location_id,
                     )
                 )
-                item_data["days_class"] = get_days_until_low_threshold_class(
-                    item_data.get("days_until_low") or 0
+            except Exception:
+                s.rollback()
+                logger.exception(
+                    "Bulk count failed",
+                    extra={
+                        "agency_id": current_user.id,
+                        "squad": squad,
+                        "agency_location_id": agency_location_id,
+                    },
                 )
+                flash("Could not save count. Your entered numbers are still shown.", "error")
+                counts.update(submitted_counts)
+    return render_template(
+        "admin_location_count.html",
+        squad=squad,
+        location=location,
+        items=items,
+        storages=storages,
+        counts=counts,
+        original_counts=original_counts,
+        admin=True,
+    )
 
-        return render_template(
-            "admin_restock.html", squad=squad, restock_data=restock_data, admin=True
-        )
-    except Exception as e:
-        logger.error(f"Restock analysis failed for user {current_user.id}: {e}")
-        flash("Error loading restock analysis. Please try again.", "error")
-        return render_template(
-            "admin_restock.html", squad=squad, restock_data=[], admin=True
-        )
+
+@bp.route("/<squad>/admin-panel/restock/<int:agency_location_id>/receive", methods=["GET", "POST"])
+def receive_location_restock(squad: str, agency_location_id: int) -> Any:
+    with get_session() as s:
+        location = BulkService.get_location(s, current_user.id, agency_location_id)
+        if location is None:
+            logger.error(
+                "Bulk restock rejected: location not found",
+                extra={
+                    "agency_id": current_user.id,
+                    "squad": squad,
+                    "agency_location_id": agency_location_id,
+                },
+            )
+            flash("Location not found.", "error")
+            return redirect(url_for("admin.restock", squad=squad))
+        items, storages, _counts = build_location_count_rows(s, current_user.id, agency_location_id)
+        values = {(item.id, storage.id): 0 for item in items for storage in storages}
+        stale_items = [
+            item.name
+            for item in items
+            if not validate_location_restock(current_user.id, item.id, agency_location_id, s)[0]
+        ]
+        if stale_items:
+            logger.warning(
+                "Bulk restock blocked: full count required",
+                extra={
+                    "agency_id": current_user.id,
+                    "squad": squad,
+                    "agency_location_id": agency_location_id,
+                    "stale_item_count": len(stale_items),
+                },
+            )
+            flash("Full location count required before vendor restock.", "warning")
+            return redirect(
+                url_for(
+                    "admin.count_location",
+                    squad=squad,
+                    agency_location_id=agency_location_id,
+                )
+            )
+        if request.method == "POST":
+            values.update(parse_quantity_grid(request.form))
+            try:
+                quantity_snapshots = _location_item_snapshots(
+                    s, current_user.id, agency_location_id, {item.id for item in items}
+                )
+                logs = save_location_restock(s, current_user.id, agency_location_id, values)
+                count = len(logs)
+                record_action_log_alerts(
+                    s,
+                    logs,
+                    _updated_location_snapshots(
+                        s, current_user.id, agency_location_id, quantity_snapshots
+                    ),
+                )
+                s.commit()
+                logger.info(
+                    "Bulk restock saved",
+                    extra={
+                        "agency_id": current_user.id,
+                        "squad": squad,
+                        "agency_location_id": agency_location_id,
+                        "entry_count": count,
+                    },
+                )
+                flash(f"Saved {count} restock entries for {location.name}.", "success")
+                return redirect(
+                    url_for(
+                        "admin.bulk_actions",
+                        squad=squad,
+                        agency_location_id=agency_location_id,
+                    )
+                )
+            except Exception:
+                s.rollback()
+                logger.exception(
+                    "Bulk restock failed",
+                    extra={
+                        "agency_id": current_user.id,
+                        "squad": squad,
+                        "agency_location_id": agency_location_id,
+                    },
+                )
+                flash("Could not save restock. Your entered numbers are still shown.", "error")
+    return render_template(
+        "admin_location_restock_receive.html",
+        squad=squad,
+        location=location,
+        items=items,
+        storages=storages,
+        values=values,
+        original_values={(item.id, storage.id): 0 for item in items for storage in storages},
+        admin=True,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Locations, tags, history, help
+# ---------------------------------------------------------------------------
 
 
 @bp.route("/<squad>/admin-panel/view-locations")
-def admin_view_locations(squad: str) -> ResponseReturnValue:
-    """Render location list and management."""
-    with get_session() as session:
-        locations = list_locations(current_user.id, session=session)
+def admin_view_locations(squad: str) -> Any:
+    with get_session() as s:
+        locations = list_top_locations(current_user.id, session=s)
     return render_template(
         "admin_view_locations.html", squad=squad, locations=locations, admin=True
     )
 
 
 @bp.route("/<squad>/admin-panel/view-tags")
-def admin_view_tags(squad: str) -> ResponseReturnValue:
-    """Render tag list and management."""
-    with get_session() as session:
-        tags = list_tags(current_user.id, session)
+def admin_view_tags(squad: str) -> Any:
+    with get_session() as s:
+        tags = list_tags(current_user.id, s)
     return render_template("admin_view_tags.html", squad=squad, tags=tags, admin=True)
 
 
 @bp.route("/<squad>/admin-panel/history")
-def admin_history(squad: str) -> ResponseReturnValue:
-    """Render action history log for auditing."""
-    with get_session() as session:
-        action_logs = list(
-            session.query(ActionLogs)
-            .options(
-                joinedload(ActionLogs.item),
-                joinedload(ActionLogs.from_location),
-                joinedload(ActionLogs.to_location),
-            )
-            .filter(ActionLogs.user_id == current_user.id)
-            .order_by(ActionLogs.id.desc())
-            .all()
+@bp.route("/<squad>/admin-panel/history/<int:agency_location_id>")
+def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
+    if agency_location_id is None:
+        with get_session() as s:
+            locations = list_top_locations(current_user.id, s)
+        return render_template(
+            "admin_select_history_location.html", squad=squad, locations=locations, admin=True
         )
-    timezone_hint = get_timezone_display_hint(current_user.timezone)
+
+    selected_location = None
+    with get_session() as s:
+        stmt = select(ActionLogs).where(ActionLogs.agency_id == current_user.id)
+        if agency_location_id != 0:
+            selected_location = BulkService.get_location(s, current_user.id, agency_location_id)
+            if selected_location is None:
+                logger.error(
+                    "History view rejected: location not found",
+                    extra={
+                        "agency_id": current_user.id,
+                        "squad": squad,
+                        "agency_location_id": agency_location_id,
+                    },
+                )
+                flash("Location not found.", "error")
+                return redirect(url_for("admin.admin_history", squad=squad))
+            storage_ids = [
+                storage.id
+                for storage in get_location_storages(s, current_user.id, agency_location_id)
+            ]
+            stmt = stmt.where(
+                or_(
+                    ActionLogs.from_location_id.in_(storage_ids),
+                    ActionLogs.to_location_id.in_(storage_ids),
+                )
+                if storage_ids
+                else ActionLogs.id == -1
+            )
+        logs = list(s.execute(stmt.order_by(ActionLogs.id.desc())).scalars().all())
     return render_template(
         "admin_history.html",
         squad=squad,
-        action_logs=action_logs,
+        action_logs=logs,
+        selected_location=selected_location,
         admin=True,
         user_timezone=current_user.timezone,
-        timezone_hint=timezone_hint,
+        timezone_hint=get_timezone_hint(current_user.timezone),
     )
 
 
+@bp.route("/<squad>/help")
+def help_page(squad: str) -> Any:
+    return render_template(
+        "admin_help.html",
+        squad=squad,
+        contact_phone=current_app.config.get("CONTACT_PHONE", ""),
+        admin=True,
+    )
+
+
+def _location_item_snapshots(
+    session,
+    agency_id: int,
+    agency_location_id: int,
+    item_ids: set[int],
+) -> dict[int, int]:
+    return {
+        item_id: get_location_item_quantity(session, agency_id, item_id, agency_location_id)
+        for item_id in item_ids
+    }
+
+
+def _updated_location_snapshots(
+    session,
+    agency_id: int,
+    agency_location_id: int,
+    previous_totals: dict[int, int],
+) -> dict[tuple[int, int, int], tuple[int, int]]:
+    return {
+        (agency_id, item_id, agency_location_id): (
+            before_total,
+            get_location_item_quantity(session, agency_id, item_id, agency_location_id),
+        )
+        for item_id, before_total in previous_totals.items()
+    }
+
+
+# ---------------------------------------------------------------------------
+# Scan flow
+# ---------------------------------------------------------------------------
+
+
 @bp.route("/<squad>/admin-panel/scan-items")
-def admin_scan_items(squad: str) -> ResponseReturnValue:
-    """Render item scanning interface."""
+def admin_scan_items(squad: str) -> Any:
     upc_error = request.args.get("upc_error")
     if upc_error:
-        logger.warning(
-            f"UPC scan error for admin {current_user.email}: UPC {upc_error} not found"
+        logger.error(
+            "Admin inventory search failed: UPC not found",
+            extra={"agency_id": current_user.id, "squad": squad, "upc": upc_error},
         )
-        flash(
-            f"UPC {upc_error} not found in inventory. Please make sure you are scanning the appropriate item card on shelf.",
-            "error",
-        )
-
-    with get_session() as session:
-        items = list(
-            list_items_for_user(
-                current_user.id,
-                include_inactive=True,
-                order_by_last_accessed=True,
-                session=session,
-            )
+        flash(f"UPC {upc_error} not found in inventory.", "error")
+    with get_session() as s:
+        items = list_items(
+            current_user.id, include_inactive=True, order_by_last_accessed=True, session=s
         )
     return render_template(
         "index.html", items=items, squad=squad, logo_img=current_user.image, admin=True
@@ -284,85 +569,39 @@ def admin_scan_items(squad: str) -> ResponseReturnValue:
 
 
 @bp.route("/<squad>/admin-panel/scan")
-def admin_scan_start(squad: str) -> ResponseReturnValue:
-    """Handle scan workflow initialization."""
-    item_id = parse_optional_int(request.args.get("item_id"))
-    return handle_scan_start(squad, item_id, is_admin=True)
+def admin_scan_start(squad: str) -> Any:
+    return handle_scan_start(squad, parse_optional_int(request.args.get("item_id")), is_admin=True)
 
 
-@bp.route("/<squad>/admin-panel/scan/locations", methods=["GET", "POST"])
-def scan_locations(squad: str) -> ResponseReturnValue:
-    """Handle GET/POST for location scanning."""
+@bp.route("/<squad>/admin-panel/scan/storages", methods=["GET", "POST"])
+def scan_storages(squad: str) -> Any:
     if request.method == "POST":
-        return handle_scan_locations_post(squad, request.form, is_admin=True)
-    else:
-        item_id = parse_optional_int(request.args.get("item_id"))
-        perms = get_user_permissions(squad)
-        user_count_allow = (
-            request.args.get("user_count_allow") == "False"
-            and False
-            or (perms[0] if perms else True)
-        )
-        user_restock_allow = (
-            request.args.get("user_restock_allow") == "False"
-            and False
-            or (perms[1] if perms else True)
-        )
-        user_take_allow = (
-            request.args.get("user_take_allow") == "False"
-            and False
-            or (perms[2] if perms else True)
-        )
-        return handle_scan_locations_get(
-            squad,
-            item_id,
-            user_count_allow,
-            user_restock_allow,
-            user_take_allow,
-            is_admin=True,
-        )
+        return handle_scan_storages_post(squad, request.form, is_admin=True)
+    item_id = parse_optional_int(request.args.get("item_id"))
+    user_count_allow = request.args.get("user_count_allow", "true").lower() != "false"
+    user_restock_allow = request.args.get("user_restock_allow", "true").lower() != "false"
+    return handle_scan_storages_get(
+        squad, item_id, user_count_allow, user_restock_allow, is_admin=True
+    )
 
 
 @bp.route("/<squad>/admin-panel/scan/item", methods=["GET", "POST"])
-def scan_item(squad: str) -> ResponseReturnValue:
-    """Handle GET/POST for item scanning."""
+def scan_item(squad: str) -> Any:
     if request.method == "POST":
         return handle_scan_item_post(squad, request.form, is_admin=True)
-    else:
-        item_id = parse_optional_int(request.args.get("item_id"))
-        from_location_id = parse_optional_int(request.args.get("from_location_id"))
-        to_location_id = parse_optional_int(request.args.get("to_location_id"))
-        perms = get_user_permissions(squad)
-        user_count_allow = (
-            request.args.get("user_count_allow") == "False"
-            and False
-            or (perms[0] if perms else True)
-        )
-        user_restock_allow = (
-            request.args.get("user_restock_allow") == "False"
-            and False
-            or (perms[1] if perms else True)
-        )
-        user_take_allow = (
-            request.args.get("user_take_allow") == "False"
-            and False
-            or (perms[2] if perms else True)
-        )
-
-        if (
-            to_location_id is None
-            and not user_count_allow
-            and not user_restock_allow
-            and user_take_allow
-        ):
-            to_location_id = -1
-        return handle_scan_item_get(
-            squad,
-            item_id,
-            from_location_id,
-            to_location_id,
-            user_count_allow,
-            user_restock_allow,
-            user_take_allow,
-            is_admin=True,
-        )
+    item_id = parse_optional_int(request.args.get("item_id"))
+    from_location_id = parse_optional_int(request.args.get("from_location_id"))
+    to_location_id = parse_optional_int(request.args.get("to_location_id"))
+    user_count_allow = request.args.get("user_count_allow", "true").lower() != "false"
+    user_restock_allow = request.args.get("user_restock_allow", "true").lower() != "false"
+    if to_location_id is None and not user_count_allow and not user_restock_allow:
+        to_location_id = -1
+    return handle_scan_item_get(
+        squad,
+        item_id,
+        from_location_id,
+        to_location_id,
+        user_count_allow,
+        user_restock_allow,
+        is_admin=True,
+    )

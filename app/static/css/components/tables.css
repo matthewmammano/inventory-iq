@@ -7,15 +7,21 @@
 
 .table-view th,
 .table-view td {
-    padding: 12px;
+    padding: 8px 10px;
+    font-size: 0.95rem;
     text-align: left;
     border-bottom: 1px solid var(--grey);
+    white-space: nowrap;
 }
 
-/* Add this new rule for word wrapping */
+/* Allow columns to use full row width instead of hard-clamping each cell. */
 .table-view td {
-    max-width: 30ch; /* Limit cell width to 50 characters */
+    max-width: none;
     overflow-wrap: break-word;
+}
+
+.table-view td:first-child {
+    white-space: normal;
 }
 
 .table-view th {

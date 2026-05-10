@@ -7,19 +7,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{% block title %}Inventory IQ{% endblock %}</title>
 
-    <!-- TODO GREY: Implement PWA features for wall-mounted touchscreen kiosk
-         - Add service worker for offline functionality and asset caching
-         - Create web app manifest for fullscreen/kiosk mode experience
-         - Add IndexedDB for offline data storage and sync queuing
-         - Implement background sync to handle network interruptions
-         - Optimize touch interface for large buttons and gestures
-    -->
-
-    <!-- TODO GREY: Next iteration:
-         1. Gradually migrate inline styles/scripts to external files, then remove 'unsafe-inline' for maximum security
-         2. Re-enable X-Frame-Options header (currently handled by Flask)
-         3. Re-enable CSP with proper font-src directive: "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https:; img-src 'self' data: https: http:; connect-src 'self';"
-    -->
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
 
     <!-- Preconnect for performance -->

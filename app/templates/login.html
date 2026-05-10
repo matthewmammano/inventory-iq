@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+
+{% block title %}Login{% endblock %}
+
+{% block sub_title %}Login{% endblock %}
+
+{% block content %}
+
+<section class="auth-panel">
+    <h2>Agency Login</h2>
+    <form method="POST" class="auth-form">
+        <label>Email</label>
+        <input type="email" name="email" autocomplete="username" required>
+
+        <label>Password</label>
+        <input type="password" name="password" autocomplete="current-password" required>
+
+        <button type="submit" class="auth-submit">Login</button>
+    </form>
+    <a class="auth-link" href="{{ url_for('auth.forgot_password') }}">Forgot password?</a>
+    <a class="auth-link" href="{{ url_for('auth.reset_password') }}">I have a reset PIN</a>
+</section>
+
+{% endblock %}

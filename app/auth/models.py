@@ -1,54 +1,63 @@
+"""SQLAlchemy ORM models for auth domain."""
+
 import re
 import string
 from datetime import UTC, datetime
-from typing import Any
 
 from flask_login import UserMixin
-from loguru import logger
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from app.db import Base
-from app.utils.model_validate import (
-    validate_email_with_length,
+from app.alerts.models import AlertRecords
+from app.shared.clock import utc_now_naive
+from app.shared.database import Base
+from app.shared.validators import (
+    validate_email_format,
     validate_image_url,
+    validate_pin,
     validate_string_length,
     validate_timezone,
 )
 
-DEFAULT_TEXT = "#000000"
-WHITE_TEXT = "#ffffff"
+from .constants import BLACK_HEX, WHITE_HEX
 
 
-class Users(Base, UserMixin):
-    __tablename__ = "users"
+class Agencies(Base, UserMixin):
+    """Primary agency model (referenced as 'agency' in code)."""
+
+    __tablename__ = "agencies"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    display_name: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
-    email: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    display_name: Mapped[str] = mapped_column(String(50), unique=True)
+    email: Mapped[str] = mapped_column(String(128), unique=True)
     password: Mapped[str | None] = mapped_column(Text)
-    pin: Mapped[str] = mapped_column(String(4), nullable=False, default="1234")
-    image: Mapped[str | None] = mapped_column(String(255))
+    pin: Mapped[str] = mapped_column(String(4))
+    image: Mapped[str | None] = mapped_column(Text)
     user_count_allow: Mapped[bool] = mapped_column(Boolean, default=False)
     user_restock_allow: Mapped[bool] = mapped_column(Boolean, default=False)
-    user_take_allow: Mapped[bool] = mapped_column(Boolean, default=True)
-    notes: Mapped[str | None] = mapped_column(Text)
-    timezone: Mapped[str] = mapped_column(
-        String(50), default="America/New_York", nullable=False
-    )
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime, default=lambda: datetime.now(UTC), nullable=False
-    )
-    active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    timezone: Mapped[str] = mapped_column(String(50), default="America/New_York")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    # Relationships (deferred to string names to avoid circular imports)
-    items = relationship("Items", backref="user", lazy="selectin")
-    logs = relationship("ActionLogs", backref="user", lazy="selectin")
-    emails = relationship("UserEmails", backref="user", lazy="selectin")
-    alerts = relationship("UserAlerts", backref="user", lazy="selectin")
-    item_tags = relationship("UserItemTags", backref="user", lazy="selectin")
-    locations = relationship("UserItemLocations", backref="user", lazy="selectin")
+    # Alert detection thresholds
+    lead_time_days: Mapped[int] = mapped_column(Integer, default=21)
+    alert_rare_scan_days: Mapped[int] = mapped_column(Integer, default=90)
+
+    # Restock requirements
+    count_last_days: Mapped[int] = mapped_column(Integer, default=90)
+
+    items = relationship("Items", backref="agency", lazy="selectin")
+    logs = relationship("ActionLogs", backref="agency", lazy="selectin")
+    emails = relationship("AgencyEmails", backref="agency", lazy="selectin")
+    alert_records = relationship(AlertRecords, back_populates="agency", lazy="selectin")
+    password_reset_pins = relationship(
+        "PasswordResetPins", back_populates="agency", lazy="selectin"
+    )
+    item_tags = relationship("AgencyItemTags", backref="agency", lazy="selectin")
+    locations = relationship("AgencyLocations", back_populates="agency", lazy="selectin")
+    storages = relationship("AgencyStorages", back_populates="agency", lazy="selectin")
 
     def set_password(self, password: str) -> None:
         """Set the password hash."""
@@ -60,189 +69,203 @@ class Users(Base, UserMixin):
             return False
         return check_password_hash(self.password, password)
 
-    def __repr__(self):
-        return f"<User {self.display_name}>"
-
     @property
-    def user_context(self):
-        """Return the user context for Flask-Login."""
+    def agency_context(self) -> dict[str, str | int | None]:
+        """Context dict for Flask-Login."""
         return {
-            "user_id": self.id,
+            "agency_id": self.id,
             "display_name": self.display_name,
             "image": self.image,
             "timezone": self.timezone,
         }
 
     @validates("display_name")
-    def validate_display_name(self, key: str, value: str) -> str | None:
-        """Validate display name."""
+    def validate_display_name(self, _key: str, value: str) -> str | None:
         return validate_string_length(
             value, "display_name", 50, allow_none=False, allow_empty=False
         )
 
     @validates("email")
-    def validate_email(self, key: str, value: str | None) -> str | None:
-        """Validate email format and length."""
-        return validate_email_with_length(value, max_length=128, allow_none=False)
+    def validate_email(self, _key: str, value: str | None) -> str | None:
+        return validate_email_format(value, max_length=128, allow_none=False)
 
     @validates("pin")
-    def validate_pin(self, key: str, value: str) -> str:
-        """Validate PIN format."""
-        if not value or not value.isdigit() or len(value) != 4:
-            raise ValueError("PIN must be exactly 4 digits")
-        return value
+    def validate_pin_field(self, _key: str, value: str) -> str:
+        return validate_pin(value)
 
     @validates("image")
-    def validate_image(self, key: str, value: str | None) -> str | None:
-        """Validate image URL format."""
+    def validate_image(self, _key: str, value: str | None) -> str | None:
         return validate_image_url(value)
 
     @validates("timezone")
-    def validate_timezone_field(self, key: str, value: str) -> str:
-        """Validate timezone."""
+    def validate_timezone_field(self, _key: str, value: str) -> str:
         return validate_timezone(value)
 
 
-class UserEmails(Base):
-    __tablename__ = "user_emails"
+class PasswordResetPins(Base):
+    """Hashed short-lived password reset PIN for kiosk-friendly reset flow."""
+
+    __tablename__ = "password_reset_pins"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), index=True, nullable=False
-    )
-    email: Mapped[str] = mapped_column(String(128), unique=True, nullable=False)
+    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
+    pin_hash: Mapped[str] = mapped_column(String(255))
+    expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive)
+
+    agency = relationship("Agencies", back_populates="password_reset_pins", lazy="selectin")
+
+    def set_pin(self, pin: str) -> None:
+        self.pin_hash = generate_password_hash(pin)
+
+    def check_pin(self, pin: str) -> bool:
+        return check_password_hash(self.pin_hash, pin)
+
+
+class AgencyEmails(Base):
+    """Additional emails per agency."""
+
+    __tablename__ = "agency_emails"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
+    email: Mapped[str] = mapped_column(String(128), unique=True)
+
+    alert_for_stockout: Mapped[bool] = mapped_column(Boolean, default=True)
+    alert_for_stockout_pred: Mapped[bool] = mapped_column(Boolean, default=True)
+    alert_for_low: Mapped[bool] = mapped_column(Boolean, default=True)
+    alert_for_low_pred: Mapped[bool] = mapped_column(Boolean, default=True)
+    alert_for_stale_count: Mapped[bool] = mapped_column(Boolean, default=True)
+    alert_for_rare_takeout: Mapped[bool] = mapped_column(Boolean, default=False)
+    alert_for_count: Mapped[bool] = mapped_column(Boolean, default=True)
+    alert_for_restock: Mapped[bool] = mapped_column(Boolean, default=True)
+    alert_for_takeout: Mapped[bool] = mapped_column(Boolean, default=False)
+    alert_for_transfer: Mapped[bool] = mapped_column(Boolean, default=False)
+
+    daily_summary: Mapped[bool] = mapped_column(Boolean, default=False)
+    weekly_summary: Mapped[bool] = mapped_column(Boolean, default=True)
+    monthly_summary: Mapped[bool] = mapped_column(Boolean, default=True)
+    yearly_summary: Mapped[bool] = mapped_column(Boolean, default=True)
 
     @validates("email")
-    def validate_email(self, key: str, value: str | None) -> str | None:
-        """Validate email."""
-        return validate_email_with_length(value, max_length=255, allow_none=False)
+    def validate_email(self, _key: str, value: str | None) -> str | None:
+        return validate_email_format(value, max_length=255, allow_none=False)
 
 
-class UserAlerts(Base):
-    __tablename__ = "user_alerts"
+class AgencyLocations(Base):
+    """Top-level physical locations per agency."""
 
-    id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), index=True, nullable=False
-    )
-    email_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("user_emails.id"), nullable=False
-    )
-
-    low_stock_days: Mapped[int] = mapped_column(Integer, default=14, nullable=False)
-    rare_scan_days: Mapped[int] = mapped_column(Integer, default=30, nullable=False)
-    zero_stock: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    count_last_days: Mapped[int | None] = mapped_column(
-        Integer, default=90, nullable=True
-    )
-
-    daily_summary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-    weekly_summary: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
-    monthly_summary: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False
-    )
-    quarterly_summary: Mapped[bool] = mapped_column(
-        Boolean, default=False, nullable=False
-    )
-    yearly_summary: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
-
-    alert_grouping_hours: Mapped[int] = mapped_column(
-        Integer, default=24, nullable=False
-    )
-    alert_delivery_hour: Mapped[int] = mapped_column(Integer, default=8, nullable=False)
-
-    pending_alerts: Mapped[list[dict[str, Any]]] = mapped_column(
-        JSON, default=list, nullable=False
-    )
-    last_sent: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-
-    # GREEN: Add critical level classification system for inventory items (RED/YELLOW/GREEN priority)
-    # This would allow different alert thresholds based on item criticality:
-    # - RED: Life-saving (Narcan, O2, AED pads) - immediate alerts
-    # - YELLOW: Important (bandages, splints) - standard alerts
-    # - GREEN: Nice-to-have (cleaning supplies) - relaxed alerts
-
-    def __repr__(self):
-        return f"<UserAlerts {self.user_id}>"
-
-
-# TODO-3 TOM: add a UserLocations and UserStorages (as subclass of UserLocations) for Tom's hospital
-
-
-class UserItemLocations(Base):
-    __tablename__ = "user_item_locations"
+    __tablename__ = "agency_locations"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), index=True, nullable=False
-    )
-    name: Mapped[str] = mapped_column(String(50), nullable=False)
-    user_access_from: Mapped[bool] = mapped_column(
-        Boolean, default=True, nullable=False
-    )
-    user_access_to: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
+    name: Mapped[str] = mapped_column(String(50))
 
-    def __repr__(self):
-        return f"<UserItemLocations {self.name}>"
+    agency = relationship("Agencies", back_populates="locations", lazy="selectin")
+    storages = relationship(
+        "AgencyStorages",
+        back_populates="location",
+        lazy="selectin",
+        order_by="AgencyStorages.name",
+    )
+
+    __table_args__ = (
+        UniqueConstraint("agency_id", "name", name="uq_agency_locations_agency_name"),
+    )
 
     @validates("name")
-    def validate_location_name(self, key: str, value: str) -> str | None:
-        """Validate location name."""
-        return validate_string_length(
-            value, "name", 50, allow_none=False, allow_empty=False
-        )
+    def validate_name(self, _key: str, value: str) -> str | None:
+        return validate_string_length(value, "name", 50, allow_none=False, allow_empty=False)
 
 
-class UserItemTags(Base):
-    __tablename__ = "user_item_tags"
+class AgencyDevices(Base):
+    """Browser/device default location for one agency."""
+
+    __tablename__ = "agency_devices"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    user_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("users.id"), index=True, nullable=False
+    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
+    device_token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    agency_location_id: Mapped[int | None] = mapped_column(
+        Integer, ForeignKey("agency_locations.id"), nullable=True
     )
-    tag_name: Mapped[str] = mapped_column(String(50), nullable=False)
-    color: Mapped[str] = mapped_column(
-        String(7), default="#3b82f6"
-    )  # Default blue color
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+
+    location = relationship("AgencyLocations", lazy="selectin")
+
+
+class AgencyStorages(Base):
+    """Storage units within a location."""
+
+    __tablename__ = "agency_storages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
+    location_id: Mapped[int] = mapped_column(Integer, ForeignKey("agency_locations.id"), index=True)
+    name: Mapped[str] = mapped_column(String(50))
+    user_access_from: Mapped[bool] = mapped_column(Boolean, default=True)
+    user_access_to: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    agency = relationship("Agencies", back_populates="storages", lazy="selectin")
+    location = relationship("AgencyLocations", back_populates="storages", lazy="selectin")
+
+    __table_args__ = (
+        UniqueConstraint("location_id", "name", name="uq_agency_storages_location_name"),
+    )
+
+    @validates("name")
+    def validate_name(self, _key: str, value: str) -> str | None:
+        return validate_string_length(value, "name", 50, allow_none=False, allow_empty=False)
 
     @property
-    def text_color(self):
-        """Calculate contrasting text color (black or white) based on background color brightness."""
+    def full_name(self) -> str:
+        """User-facing location/storage label."""
+        location_name = self.location.name if self.location else ""
+        return f"{location_name} / {self.name}" if location_name else self.name
+
+    @property
+    def history_name(self) -> str:
+        """Compact label for movement history."""
+        location_name = self.location.name if self.location else ""
+        return f"{location_name} - {self.name}" if location_name else self.name
+
+
+class AgencyItemTags(Base):
+    """Agency-defined item tags."""
+
+    __tablename__ = "agency_item_tags"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
+    tag_name: Mapped[str] = mapped_column(String(50))
+    color: Mapped[str] = mapped_column(String(7))
+
+    __table_args__ = (
+        UniqueConstraint("agency_id", "tag_name", name="uq_agency_item_tags_agency_tag"),
+    )
+
+    @property
+    def text_color(self) -> str:
+        """Calculate contrasting text color."""
         color = (self.color or "").lstrip("#")
-        if len(color) != 6:
-            logger.warning(
-                "Missing/invalid tag color %r; defaulting text color to black",
-                self.color,
-            )
-            return DEFAULT_TEXT
-
-        if any(c not in string.hexdigits for c in color):
-            logger.debug(
-                "Non-hex tag color %r; defaulting text color to black", self.color
-            )
-            return DEFAULT_TEXT
-
+        if len(color) != 6 or any(c not in string.hexdigits for c in color):
+            return BLACK_HEX
         r, g, b = int(color[0:2], 16), int(color[2:4], 16), int(color[4:6], 16)
-
         brightness = r * 0.299 + g * 0.587 + b * 0.114
-        return WHITE_TEXT if brightness < 128 else DEFAULT_TEXT
-
-    def __repr__(self):
-        return f"<UserItemTags {self.tag_name}>"
+        return WHITE_HEX if brightness < 128 else BLACK_HEX
 
     @validates("tag_name")
-    def validate_tag_name(self, key: str, value: str) -> str | None:
-        """Validate tag name."""
-        return validate_string_length(
-            value, "tag_name", 50, allow_none=False, allow_empty=False
-        )
+    def validate_tag_name(self, _key: str, value: str) -> str | None:
+        return validate_string_length(value, "tag_name", 50, allow_none=False, allow_empty=False)
 
     @validates("color")
     def validate_color(self, _key: str, value: str | None) -> str:
-        """Validate color is valid hex format (#rrggbb)."""
-        if value is None:
-            return "#3b82f6"
-        if not isinstance(value, str):
+        if not value or not isinstance(value, str):
             raise TypeError("Color must be a string")
         value = value.strip()
         if not re.match(r"^#[0-9A-Fa-f]{6}$", value):

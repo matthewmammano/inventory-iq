@@ -1,104 +1,144 @@
-<!DOCTYPE html>
-<html>
+<!doctype html>
+<html lang="en">
 <head>
-    <title>{{ batch.subject }}</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 0;
-            padding: 20px;
-            background-color: #f8f9fa;
-        }
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-            background: white;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .header {
-            background: #007bff;
-            color: white;
-            padding: 20px;
-            border-radius: 8px 8px 0 0;
-            text-align: center;
-        }
-        .content { padding: 20px; }
-        .alert-item {
-            padding: 12px;
-            margin: 8px 0;
-            border-left: 4px solid #28a745;
-            background: #f8f9fa;
-            border-radius: 4px;
-        }
-        .alert-urgent {
-            border-left-color: #dc3545;
-            background: #f8d7da;
-        }
-        .alert-icon {
-            font-size: 18px;
-            margin-right: 8px;
-        }
-        .alert-type {
-            font-weight: bold;
-            color: #495057;
-            text-transform: uppercase;
-            font-size: 12px;
-        }
-        .footer {
-            padding: 15px 20px;
-            background: #f8f9fa;
-            border-radius: 0 0 8px 8px;
-            text-align: center;
-            font-size: 12px;
-            color: #6c757d;
-        }
-        .summary {
-            background: #e9ecef;
-            padding: 15px;
-            border-radius: 4px;
-            margin-bottom: 20px;
-        }
-    </style>
+  <meta charset="utf-8">
+  <title>{{ batch.subject }}</title>
+  <style>
+    body {
+      background: #f3f5f7;
+      color: #1f2933;
+      font-family: Arial, Helvetica, sans-serif;
+      font-size: 14px;
+      line-height: 1.35;
+      margin: 0;
+      padding: 18px;
+    }
+    .container {
+      margin: 0 auto;
+      max-width: 920px;
+    }
+    .panel {
+      background: #ffffff;
+      border: 1px solid #d9dee7;
+      border-radius: 5px;
+      margin-bottom: 12px;
+      padding: 16px;
+    }
+    .header {
+      border-top: 5px solid #9f1f1f;
+    }
+    h1 {
+      font-size: 28px;
+      line-height: 1.15;
+      margin: 0;
+    }
+    h2 {
+      font-size: 18px;
+      margin: 0 0 5px;
+    }
+    .eyebrow {
+      color: #667085;
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: .08em;
+      margin: 0 0 7px;
+      text-transform: uppercase;
+    }
+    .meta,
+    .note,
+    .footer {
+      color: #667085;
+      font-size: 13px;
+    }
+    .summary {
+      display: grid;
+      gap: 8px;
+      grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+      margin-top: 14px;
+    }
+    .summary-box {
+      border: 1px solid #d9dee7;
+      border-radius: 5px;
+      padding: 10px;
+    }
+    .summary-box strong {
+      display: block;
+      font-size: 21px;
+      line-height: 1;
+    }
+    .summary-box span {
+      color: #667085;
+      display: block;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 4px;
+      text-transform: uppercase;
+    }
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+    th,
+    td {
+      border-bottom: 1px solid #edf0f4;
+      padding: 8px 9px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th {
+      background: #f7f9fc;
+      color: #667085;
+      font-size: 11px;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+    }
+    td {
+      font-size: 13px;
+    }
+  </style>
 </head>
 <body>
-    <div class="container">
-        <div class="header">
-            <h1>{{ batch.subject }}</h1>
-            <p>Hello {{ batch.user_name }},</p>
-        </div>
-
-        <div class="content">
-            <div class="summary">
-                <strong>SUMMARY:</strong> {{ batch.alerts|length }} items need your attention
-                {% if batch.alerts|selectattr("urgent")|list|length > 0 %}
-                <br><strong>URGENT:</strong> {{ batch.alerts|selectattr("urgent")|list|length }} items require immediate action
-                {% endif %}
-            </div>
-
-            {% for alert in batch.alerts %}
-            <div class="alert-item{% if alert.urgent %} alert-urgent{% endif %}">
-                <div class="alert-type">{{ alert.icon }} {{ alert.type.replace('_', ' ') }}</div>
-                <strong>{{ alert.item }}</strong>
-                <br>{{ alert.message }}
-                {% if alert.urgent %}<br><em style="color: #dc3545;">URGENT: Attention required</em>{% endif %}
-            </div>
-            {% endfor %}
-
-            <p style="margin-top: 20px;">
-                <strong>Next Steps:</strong><br>
-                • Review items marked as urgent first<br>
-                • Check physical inventory for accuracy<br>
-                • Reorder items as needed<br>
-                • Update inventory quantities after restocking
-            </p>
-        </div>
-
-        <div class="footer">
-            Generated by Inventory IQ Alert System<br>
-            Point Pleasant First Aid Squad<br>
-            <em>Automated alert - please do not reply to this email</em>
-        </div>
+  <div class="container">
+    <div class="panel header">
+      <p class="eyebrow">Inventory IQ Alert Email</p>
+      <h1>{{ batch.subject }}</h1>
+      <p class="meta">Generated {{ batch.generated_at }}</p>
+      <div class="summary">
+        {% for item in batch.summary %}
+          <div class="summary-box" style="background: {{ item.color }}14; color: {{ item.color }};">
+            <strong>{{ item.count }}</strong>
+            <span>{{ item.label }}</span>
+          </div>
+        {% endfor %}
+      </div>
     </div>
+
+    {% for section in batch.sections %}
+      <div class="panel" style="border-top: 4px solid {{ section.color }};">
+        <h2>{{ section.title }}</h2>
+        <p class="note">{{ section.note }}</p>
+        <table>
+          <thead>
+            <tr>
+              {% for column in section.columns %}
+                <th>{{ column.label }}</th>
+              {% endfor %}
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in section.rows %}
+              <tr>
+                {% for column in section.columns %}
+                  <td>{{ row.get(column.key, "") }}</td>
+                {% endfor %}
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endfor %}
+
+    <p class="footer">Automated Inventory IQ alert. Please do not reply to this email.</p>
+  </div>
 </body>
 </html>

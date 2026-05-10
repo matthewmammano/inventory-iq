@@ -6,7 +6,7 @@
 {% block header_right %}{{ header_button(url_for('admin.admin_panel', squad=squad), 'Back')}}{% endblock %}
 
 {% block header_title %}{{squad}}{% endblock %}
-{% block sub_title %}Restock Report{% endblock %}
+{% block sub_title %}Restock Report{% if selected_location %}: {{ selected_location.name }}{% endif %}{% endblock %}
 
 {% block extra_css %}
 <style>
@@ -65,7 +65,6 @@
 </div>
 
 <div id="restock-content" style="display: none;">
-
 {% if restock_data|length == 0 %}
   <p>No items found.</p>
 {% else %}
@@ -73,39 +72,43 @@
   <tr>
     <th>Item Name</th>
     <th>Current Total</th>
-    <th>Estimated Total</th>
-    <th>Monthly Usage</th>
+    <th>Projected At Lead Time</th>
+    <th>Daily Usage (AI)</th>
     <th>Min Quantity</th>
+    <th>Gap to Min</th>
     <th>Max Quantity</th>
-    <th>Days Until Low</th>
-    <th>Prediction Confidence</th>
+    <th>Days Until Stockout (AI)</th>
+    <th>Suggested Reorder Date (AI)</th>
+    <th>Last Counted At</th>
+    <th>Confidence (AI)</th>
     <th>Order Amount</th>
   </tr>
   {% for row in restock_data %}
   <tr>
     <td>{{ row['item'].name }}</td>
     <td><span class="{{ row.get('current_total_class', '') }}">{{ row['current_total'] }}</span></td>
-    <td><span class="{{ row.get('estimated_total_class', '') }}">{{ row['estimated_total'] }}</span></td>
-    <td>{{ "%.1f"|format(row['monthly_usage_rate']) if row['monthly_usage_rate'] >= 0 else 'N/A' }}</td>
+    <td>{{ row['projected_lead_time_total'] }}</td>
+    <td>{{ "%.1f"|format(row['daily_usage_rate']) if row['daily_usage_rate'] >= 0 else 'N/A' }}</td>
     <td>{{ row['min_quantity'] if row['min_quantity'] > 0 else '-' }}</td>
+    <td>{{ row['gap_to_min'] }}</td>
     <td>{{ row['max_quantity'] if row['max_quantity'] > 0 else '-' }}</td>
     <td>
-      {% if row['days_until_low'] is not none %}
-        <span class="{{ row.get('days_class', '') }}">{{ "%.1f"|format(row['days_until_low'] if row['days_until_low'] <= 365 else 365) }}</span>
+      {% if row['days_until_stockout'] is not none %}
+        <span class="{{ row.get('days_class', '') }}">{{ "%.1f"|format(row['days_until_stockout'] if row['days_until_stockout'] <= 365 else 365) }}</span>
       {% else %}
         N/A
       {% endif %}
     </td>
     <td>
-      {% if row['prediction_confidence'] %}
-        <span class="confidence-badge">
-          {{ "%.0f"|format(row['prediction_confidence']['confidence'] * 100) }}%
-        </span>
+      {% if row['suggested_reorder_date'] %}
+        {{ row['suggested_reorder_date'].strftime('%Y-%m-%d') }}
       {% else %}
-        <span style="color: #999;">No prediction</span>
+        N/A
       {% endif %}
     </td>
-    <td><span class="{{ row.get('order_class', '') }}">{{ row['order_amount'] if (row['order_amount'] is not none and row['order_amount'] > 0) else ('N/A' if row['order_amount'] is none else '0') }}</span></td>
+    <td>{{ row['last_counted_at'].strftime('%Y-%m-%d %H:%M') if row['last_counted_at'] else 'N/A' }}</td>
+    <td>{{ row['confidence_percent'] ~ '%' if row['confidence_percent'] is not none else '' }}</td>
+    <td><span class="{{ row.get('order_class', '') }}">{{ row['order_amount_display'] }}</span></td>
   </tr>
   {% endfor %}
 </table>

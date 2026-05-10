@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% from "macros.html" import header_button %}
+
+{% block title %}Bulk Action{% endblock %}
+{% block header_right %}{{ header_button(url_for('admin.bulk_actions', squad=squad), 'Back')}}{% endblock %}
+{% block header_title %}{{ squad }}{% endblock %}
+{% block sub_title %}Bulk Action: {{ location.name }}{% endblock %}
+
+{% block content %}
+<div class="admin-container">
+  <div class="admin-grid">
+    <div class="admin-card">
+      <h2>Bulk Restock</h2>
+      <p>Enter outside vendor stock received for this location.</p>
+      <a class="card-link" href="{{ url_for('admin.receive_location_restock', squad=squad, agency_location_id=location.id) }}"></a>
+    </div>
+    <div class="admin-card">
+      <h2>Bulk Count</h2>
+      <p>Enter current counted quantities for every storage.</p>
+      <a class="card-link" href="{{ url_for('admin.count_location', squad=squad, agency_location_id=location.id) }}"></a>
+    </div>
+  </div>
+</div>
+{% endblock %}

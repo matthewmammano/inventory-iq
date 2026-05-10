@@ -1,23 +1,16 @@
-import os
+"""Application entry point."""
 
 from loguru import logger
 
 from app import create_app
+from app.shared.config import settings
+from app.shared.scheduler import start_scheduler
 
 app = create_app()
+start_scheduler(app)
 
 if __name__ == "__main__":
-    # Railway auto-sets PORT, default to prod for safety
-    env = os.environ.get("FLASK_ENV", "prod")
-    debug_mode = env in ["dev", "development"]
-    port = int(os.environ.get("PORT", 5000))  # Railway provides PORT
-
-    # Log startup information
-    logger.info(f"Starting Flask application in {env} mode (debug={debug_mode})")
-    logger.info(f"Application listening on host 0.0.0.0:{port}")
-
-    try:
-        app.run(host="0.0.0.0", port=port, debug=debug_mode)
-    except Exception as e:
-        logger.critical(f"Flask application failed to start: {e}")
-        raise
+    local_url = f"http://127.0.0.1:{settings.port}"
+    logger.info(f"Starting app on port {settings.port} (debug={settings.debug})")
+    print(f"\nOpen Inventory IQ: {local_url}\n")
+    app.run(host="0.0.0.0", port=settings.port, debug=settings.debug)

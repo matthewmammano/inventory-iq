@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% from "macros.html" import header_button %}
+
+{% block title %}Select Location{% endblock %}
+{% block header_right %}{{ header_button(url_for('guest.index', squad=squad), 'Back')}}{% endblock %}
+{% block header_title %}Location{% endblock %}
+{% block sub_title %}Choose this device location{% endblock %}
+
+{% block content %}
+{% if locations|length == 0 %}
+  <p>No locations found. Ask an admin to add one.</p>
+{% else %}
+<div class="scan-selection-container">
+  <form method="POST">
+    <input type="hidden" name="item_id" value="{{ item_id }}">
+    <h2 class="column-title">Select where this device is being used.</h2>
+    <div class="storage-options">
+    {% for location in locations %}
+      <label class="storage-option">
+        <input type="radio" name="agency_location_id" value="{{ location.id }}" required>
+        <span class="storage-label">{{ location.name }}</span>
+      </label>
+    {% endfor %}
+    </div>
+    <div class="form-actions">
+      <button type="submit" class="positive-button">Continue</button>
+    </div>
+  </form>
+</div>
+{% endif %}
+{% endblock %}

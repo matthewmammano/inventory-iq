@@ -1,5 +1,7 @@
 /* Flash Message Components */
 .flash-container {
+    --flash-color: var(--grey);
+    --flash-light: var(--most-white);
     position: fixed;
     bottom: -5px;
     left: 0;
@@ -20,6 +22,8 @@
 
 /* Category-specific styling */
 .flash-container.flash-error {
+    --flash-color: #dc3545;
+    --flash-light: #f7cdd0;
     background-color: #f7cdd0;
     outline-color: #dc3545;
     outline-width: 10px;
@@ -27,14 +31,20 @@
 }
 
 .flash-container.flash-success {
+    --flash-color: #28a745;
+    --flash-light: #d7f3df;
     outline-color: #28a745;
 }
 
 .flash-container.flash-warning {
+    --flash-color: #ffc107;
+    --flash-light: #fff1bf;
     outline-color: #ffc107;
 }
 
 .flash-container.flash-info {
+    --flash-color: #17a2b8;
+    --flash-light: #d3f3f7;
     outline-color: #17a2b8;
 }
 
@@ -65,7 +75,7 @@
     width: 100%;
     height: 100%;
     border-radius: 50%;
-    background-color: var(--most-white);
+    background-color: var(--flash-light);
     position: relative;
     overflow: hidden;
 }
@@ -75,7 +85,7 @@
     height: 100%;
     border-radius: 50%;
     background: conic-gradient(
-        var(--most-white) var(--progress, 0%),
-        #C4C4C4 var(--progress, 0%)
+        var(--flash-light) var(--progress, 0%),
+        var(--flash-color) var(--progress, 0%)
     );
 }

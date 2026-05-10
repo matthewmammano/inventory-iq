@@ -1,193 +1,269 @@
-from datetime import UTC, datetime
+"""Guest blueprint routes."""
 
-from flask import flash, redirect, render_template, request, session, url_for
-from flask.typing import ResponseReturnValue
+from datetime import UTC, datetime
+from typing import Any
+
+from flask import flash, make_response, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_required
 from loguru import logger
 
-from app.auth.user_queries import get_user_by_display_name, get_user_permissions
-from app.core.route_validation import RouteValidationService
-from app.db import get_session
+from app.auth.device_locations import (
+    current_device_token,
+    get_device_location_id,
+    get_or_create_device,
+    save_device_location,
+    set_device_cookie,
+)
+from app.auth.queries import get_agency_by_display_name, list_top_locations
 from app.inventory import guest_bp as bp
-from app.inventory.data.item_queries import list_items_for_user
-from app.inventory.services.scanner import (
+from app.inventory.item_queries import list_items
+from app.inventory.scan_flow import (
     handle_scan_item_get,
     handle_scan_item_post,
-    handle_scan_locations_get,
-    handle_scan_locations_post,
     handle_scan_start,
+    handle_scan_storages_get,
+    handle_scan_storages_post,
 )
-from app.utils.parsing import parse_optional_int
+from app.shared.database import get_session
+from app.shared.utils import (
+    get_squad_from_request,
+    is_static_request,
+    parse_optional_int,
+    validate_squad_access,
+)
+
+# ---------------------------------------------------------------------------
+# Authentication guard
+# ---------------------------------------------------------------------------
 
 
 @bp.before_request
-def check_authentication_and_squad() -> ResponseReturnValue:
-    """Validate guest authentication and reset admin session."""
-    if RouteValidationService.is_static_request():
+def check_guest_auth() -> Any:
+    if is_static_request():
         return None
 
-    # Reset admin session for all guest routes
+    # Always clear admin session on guest routes
     session.pop("admin", None)
     session.pop("admin_last_active", None)
 
-    squad = RouteValidationService.get_squad_from_request()
-
-    # Ensure `squad` is a string before passing to validators (Pylance-friendly)
+    squad = get_squad_from_request()
     if squad is None:
         return redirect(url_for("auth.login"))
 
-    # Chain validations - return first error found
-    for validation in [
-        RouteValidationService.validate_user_authentication(),
-        RouteValidationService.validate_squad_access(squad),
-    ]:
-        if validation:
-            return redirect(validation)
+    if not current_user.is_authenticated:
+        logger.warning("Guest route rejected: unauthenticated", extra={"squad": squad})
+        flash("You must be logged in.", "warning")
+        return redirect(url_for("auth.login"))
+
+    redirect_url = validate_squad_access(squad)
+    if redirect_url:
+        return redirect(redirect_url)
+
     return None
+
+
+# ---------------------------------------------------------------------------
+# Guest index
+# ---------------------------------------------------------------------------
 
 
 @bp.route("/<squad>/")
 @login_required
-def index(squad: str) -> ResponseReturnValue:
-    """Render guest welcome page."""
-    # Check for UPC error parameter
+def index(squad: str) -> Any:
     upc_error = request.args.get("upc_error")
     if upc_error:
-        logger.warning(
-            f"UPC scan error for user {current_user.email}: UPC {upc_error} not found"
+        logger.error(
+            "Guest inventory search failed: UPC not found",
+            extra={"agency_id": current_user.id, "upc": upc_error},
         )
-        flash(
-            f"UPC {upc_error} not found in inventory. Please make sure you are scanning the appropriate item card on shelf.",
-            "error",
-        )
-
-    # Get the list of items and order them by last_accessed
+        flash(f"UPC {upc_error} not found in inventory.", "error")
     try:
-        with get_session() as db_session:
-            items = list(
-                list_items_for_user(
-                    current_user.id,
-                    include_inactive=False,
-                    order_by_last_accessed=True,
-                    session=db_session,
-                )
-            )
-    except Exception as e:
-        logger.error(f"Database error fetching items for user {current_user.id}: {e}")
-        flash("Error loading inventory. Please try again.", "error")
+        with get_session() as s:
+            items = list_items(current_user.id, order_by_last_accessed=True, session=s)
+    except Exception:
+        logger.exception(
+            "Guest inventory load failed",
+            extra={"agency_id": current_user.id, "squad": squad},
+        )
+        flash("Error loading inventory.", "error")
         items = []
-    return render_template(
-        "index.html", items=items, squad=squad, logo_img=current_user.image
+    return render_template("index.html", items=items, squad=squad, logo_img=current_user.image)
+
+
+# ---------------------------------------------------------------------------
+# Admin login (PIN-based)
+# ---------------------------------------------------------------------------
+
+
+@bp.route("/<squad>/admin", methods=["GET", "POST"])
+def admin_login(squad: str) -> Any:
+    token = current_device_token()
+    if request.method == "POST":
+        if request.form.get("form_name") == "device_location":
+            location_id = parse_optional_int(request.form.get("agency_location_id"))
+            try:
+                with get_session() as s:
+                    save_device_location(current_user.id, token, location_id, s)
+                    s.commit()
+                logger.info(
+                    "Device default location saved from admin login page",
+                    extra={
+                        "agency_id": current_user.id,
+                        "squad": squad,
+                        "agency_location_id": location_id,
+                    },
+                )
+                flash("Default location saved for this device.", "success")
+            except ValueError as exc:
+                logger.error(
+                    "Device default location rejected from admin login page",
+                    extra={
+                        "agency_id": current_user.id,
+                        "squad": squad,
+                        "agency_location_id": location_id,
+                        "error": str(exc),
+                    },
+                )
+                flash(str(exc), "error")
+            return _admin_login_response(squad, token)
+
+        pin = request.form.get("password", "")
+        with get_session() as s:
+            agency = get_agency_by_display_name(squad, s)
+        if not agency:
+            logger.error("Admin PIN login rejected: invalid squad", extra={"squad": squad})
+            flash("Invalid squad name.", "error")
+            return _admin_login_response(squad, token)
+        if agency.pin and pin == agency.pin:
+            session["admin"] = True
+            session["admin_last_active"] = datetime.now(UTC).timestamp()
+            logger.info(
+                "Admin PIN login granted",
+                extra={"agency_id": current_user.id, "squad": squad},
+            )
+            flash("Admin access granted.", "success")
+            response = make_response(redirect(url_for("admin.admin_panel", squad=squad)))
+            set_device_cookie(response, token)
+            return response
+        logger.warning(
+            "Admin PIN login rejected: invalid PIN",
+            extra={"agency_id": current_user.id, "squad": squad},
+        )
+        flash("Invalid PIN.", "error")
+    return _admin_login_response(squad, token)
+
+
+def _admin_login_response(squad: str, token: str) -> Any:
+    with get_session() as s:
+        locations = list_top_locations(current_user.id, s)
+        device = get_or_create_device(current_user.id, token, s)
+        selected_location_id = device.agency_location_id
+        s.commit()
+    response = make_response(
+        render_template(
+            "admin_login.html",
+            squad=squad,
+            locations=locations,
+            selected_location_id=selected_location_id,
+        )
     )
+    set_device_cookie(response, token)
+    return response
+
+
+# ---------------------------------------------------------------------------
+# Scan flow
+# ---------------------------------------------------------------------------
 
 
 @bp.route("/<squad>/scan")
 @login_required
-def scan_start(squad: str) -> ResponseReturnValue:
-    """Handle scan workflow initialization."""
-    item_id = parse_optional_int(request.args.get("item_id"))
-    return handle_scan_start(squad, item_id, is_admin=False)
+def scan_start(squad: str) -> Any:
+    if get_device_location_id(current_user.id) is None:
+        return redirect(
+            url_for("guest.scan_location", squad=squad, item_id=request.args.get("item_id"))
+        )
+    return handle_scan_start(squad, parse_optional_int(request.args.get("item_id")), is_admin=False)
 
 
-@bp.route("/<squad>/scan/locations", methods=["GET", "POST"])
+@bp.route("/<squad>/scan/location", methods=["GET", "POST"])
 @login_required
-def scan_locations(squad: str) -> ResponseReturnValue:
-    """Handle GET/POST for location scanning."""
+def scan_location(squad: str) -> Any:
+    item_id = parse_optional_int(request.values.get("item_id"))
+    if item_id is None:
+        logger.error(
+            "Device location selection rejected: missing item",
+            extra={"agency_id": current_user.id, "squad": squad},
+        )
+        flash("Item not found.", "error")
+        return redirect(url_for("guest.index", squad=squad))
+
     if request.method == "POST":
-        return handle_scan_locations_post(squad, request.form, is_admin=False)
-    else:
-        item_id = parse_optional_int(request.args.get("item_id"))
-        # Get user permissions or use request override (default to False for guest)
-        perms = get_user_permissions(squad)
-        user_count_allow = (
-            request.args.get("user_count_allow") == "True"
-            if "user_count_allow" in request.args
-            else (perms[0] if perms else False)
+        token = current_device_token()
+        location_id = parse_optional_int(request.form.get("agency_location_id"))
+        try:
+            with get_session() as s:
+                save_device_location(current_user.id, token, location_id, s)
+                s.commit()
+        except ValueError as exc:
+            logger.error(
+                "Device location selection rejected",
+                extra={
+                    "agency_id": current_user.id,
+                    "squad": squad,
+                    "agency_location_id": location_id,
+                    "error": str(exc),
+                },
+            )
+            flash(str(exc), "error")
+            return redirect(url_for("guest.scan_location", squad=squad, item_id=item_id))
+        logger.info(
+            "Device location selected during guest scan",
+            extra={
+                "agency_id": current_user.id,
+                "squad": squad,
+                "item_id": item_id,
+                "agency_location_id": location_id,
+            },
         )
-        user_restock_allow = (
-            request.args.get("user_restock_allow") == "True"
-            if "user_restock_allow" in request.args
-            else (perms[1] if perms else False)
+        response = make_response(
+            redirect(url_for("guest.scan_storages", squad=squad, item_id=item_id))
         )
-        user_take_allow = (
-            request.args.get("user_take_allow") == "True"
-            if "user_take_allow" in request.args
-            else (perms[2] if perms else True)
+        set_device_cookie(response, token)
+        return response
+
+    with get_session() as s:
+        locations = list_top_locations(current_user.id, s)
+    return render_template("scan_location.html", squad=squad, item_id=item_id, locations=locations)
+
+
+@bp.route("/<squad>/scan/storages", methods=["GET", "POST"])
+@login_required
+def scan_storages(squad: str) -> Any:
+    if get_device_location_id(current_user.id) is None:
+        return redirect(
+            url_for("guest.scan_location", squad=squad, item_id=request.values.get("item_id"))
         )
-        return handle_scan_locations_get(
-            squad,
-            item_id,
-            user_count_allow,
-            user_restock_allow,
-            user_take_allow,
-        )
+    if request.method == "POST":
+        return handle_scan_storages_post(squad, request.form, is_admin=False)
+    item_id = parse_optional_int(request.args.get("item_id"))
+    user_count_allow = request.args.get("user_count_allow", "false").lower() == "true"
+    user_restock_allow = request.args.get("user_restock_allow", "false").lower() == "true"
+    return handle_scan_storages_get(squad, item_id, user_count_allow, user_restock_allow)
 
 
 @bp.route("/<squad>/scan/item", methods=["GET", "POST"])
 @login_required
-def scan_item(squad: str) -> ResponseReturnValue:
-    """Handle GET/POST for item scanning."""
+def scan_item(squad: str) -> Any:
     if request.method == "POST":
         return handle_scan_item_post(squad, request.form, is_admin=False)
-    else:
-        item_id = parse_optional_int(request.args.get("item_id"))
-        from_location_id = request.args.get("from_location_id")
-        to_location_id = request.args.get("to_location_id")
-        user_count_allow = request.args.get("user_count_allow", "False") == "True"
-        user_restock_allow = request.args.get("user_restock_allow", "False") == "True"
-        user_take_allow = request.args.get("user_take_allow", "True") == "True"
-
-        # Infer TAKEOUT operation when to_location_id missing and it's the only allowed operation
-        if (
-            to_location_id is None
-            and not user_count_allow
-            and not user_restock_allow
-            and user_take_allow
-        ):
-            to_location_id = "-1"
-        return handle_scan_item_get(
-            squad,
-            item_id,
-            from_location_id,
-            to_location_id,
-            user_count_allow,
-            user_restock_allow,
-            user_take_allow,
-            is_admin=False,
-        )
-
-
-# Admin login page using PIN from Users DB
-@bp.route("/<squad>/admin", methods=["GET", "POST"])
-def admin_login(squad: str) -> ResponseReturnValue:
-    """Handle admin session login with PIN."""
-    if request.method == "POST":
-        password = request.form["password"]
-        try:
-            with get_session() as db_session:
-                user = get_user_by_display_name(squad, db_session)
-
-            if not user:
-                logger.warning(f"Admin login attempt for non-existent squad: {squad}")
-                flash("Invalid squad name. Please try again.", "error")
-                return render_template("admin_login.html", squad=squad, admin=True)
-
-            correct_password = user.pin
-        except Exception as e:
-            logger.error(f"Database error during admin login for squad '{squad}': {e}")
-            flash("Database error. Please try again.", "error")
-            return render_template("admin_login.html", squad=squad, admin=True)
-
-        if user.pin and password == correct_password:
-            session["admin"] = True
-            session["admin_last_active"] = datetime.now(UTC).timestamp()
-            flash("Admin access granted.", "success")
-            return redirect(url_for("admin.admin_panel", squad=squad))
-        else:
-            logger.warning(
-                f"Failed admin login attempt for squad '{squad}' - invalid PIN"
-            )
-            flash("Invalid PIN entered. Please try again.", "error")
-            return render_template("admin_login.html", squad=squad, admin=True)
-
-    return render_template("admin_login.html", squad=squad, admin=True)
+    item_id = parse_optional_int(request.args.get("item_id"))
+    from_location_id = request.args.get("from_location_id")
+    to_location_id = request.args.get("to_location_id")
+    user_count_allow = request.args.get("user_count_allow", "false").lower() == "true"
+    user_restock_allow = request.args.get("user_restock_allow", "false").lower() == "true"
+    if to_location_id is None and not user_count_allow and not user_restock_allow:
+        to_location_id = "-1"
+    return handle_scan_item_get(
+        squad, item_id, from_location_id, to_location_id, user_count_allow, user_restock_allow
+    )

@@ -17,16 +17,31 @@
 {% else %}
 <table class="table-view">
   <tr>
-    <th>Name</th>
+    <th>Location</th>
+    <th>Storage</th>
     <th>User Access From</th>
     <th>User Access To</th>
   </tr>
   {% for location in locations %}
-  <tr>
-    <td>{{ location.name }}</td>
-    <td>{{ location.user_access_from }}</td>
-    <td>{{ location.user_access_to }}</td>
-  </tr>
+    {% if location.storages|length == 0 %}
+      <tr>
+        <td>{{ location.name }}</td>
+        <td>No storages</td>
+        <td></td>
+        <td></td>
+      </tr>
+    {% else %}
+      {% for storage in location.storages %}
+        <tr>
+          {% if loop.first %}
+            <td rowspan="{{ location.storages|length }}">{{ location.name }}</td>
+          {% endif %}
+          <td>{{ storage.name }}</td>
+          <td>{{ storage.user_access_from }}</td>
+          <td>{{ storage.user_access_to }}</td>
+        </tr>
+      {% endfor %}
+    {% endif %}
   {% endfor %}
 </table>
 {% endif %}

@@ -6,7 +6,7 @@
 {% block header_right %}{{ header_button(url_for('admin.admin_panel', squad=squad), 'Back')}}{% endblock %}
 
 {% block header_title %}{{squad}}{% endblock %}
-{% block sub_title %}Action History{% endblock %}
+{% block sub_title %}Action History{% if selected_location %}: {{ selected_location.name }}{% else %}: All Locations{% endif %}{% endblock %}
 
 
 {% block content %}
@@ -14,8 +14,8 @@
 <table class="table-view">
   <tr>
     <th>Item</th>
-    <th>From Location</th>
-    <th>To Location</th>
+    <th>From</th>
+    <th>To</th>
     <th>Quantity</th>
     <th>Time Scanned{% if timezone_hint %} ({{ timezone_hint }}){% endif %}</th>
     <th>Admin Action</th>
@@ -23,8 +23,8 @@
   {% for log in action_logs %}
   <tr>
     <td>{{ log.item.name if log.item else 'None' }}</td>
-    <td>{{ log.from_location.name if log.from_location else 'RECOUNT' }}</td>
-    <td>{{ log.to_location.name if log.to_location else 'TAKE' }}</td>
+    <td>{{ log.from_location.history_name if log.from_location else log.operation_type.value }}</td>
+    <td>{{ log.to_location.history_name if log.to_location else 'TAKE' }}</td>
     <td>{{ log.quantity_delta }}</td>
     <td>{{ log.get_time_scanned_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if log.time_scanned else 'Unknown' }}</td>
     <td>{{ 'Yes' if log.admin_action else 'No' }}</td>

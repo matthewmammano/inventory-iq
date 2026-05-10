@@ -1,111 +1,125 @@
+"""Auth routes: login, logout, set-password."""
+
 from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_user, logout_user
 from loguru import logger
 
-from app.auth import bp
-from app.auth.user_queries import get_user_by_email
-from app.db import get_session
+from app.shared.database import get_session
 
-# TODO-1: batch scan out
-
-# TODO-1: add a rig-check feature
-# - store info about # of items in each place of ambulance (bag, shelf, back of stretcher, etc)
-# - doing the form AUTOMATICALLY tells you how much of each item to take out... then you correct that number in end
+from . import bp
+from .password_reset_service import create_password_reset_pin, reset_password_with_pin
+from .queries import get_agency_by_email
 
 
-# Root route serves login page directly
 @bp.route("/", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        try:
-            email = request.form.get("email", "").strip()
-            password = request.form.get("password", "").strip()
+        email = request.form.get("email", "").strip()
+        password = request.form.get("password", "").strip()
 
-            if not email or not password:
-                logger.warning(
-                    f"Login attempt with missing fields - email: {bool(email)}, password: {bool(password)}"
-                )
-                flash("Email and password are required.", "error")
-                return redirect(url_for("auth.login"))
+        if not email or not password:
+            logger.warning("Login rejected: missing email or password")
+            flash("Email and password are required.", "error")
+            return redirect(url_for("auth.login"))
 
-            with get_session() as session:
-                user = get_user_by_email(email, session)
+        with get_session() as s:
+            agency = get_agency_by_email(email, s)
 
-            # Check if the user exists
-            if user is None:
-                logger.warning(f"Failed login attempt - user not found: {email}")
-                flash("Invalid email or password.", "error")
-                return redirect(url_for("auth.login"))
-
-            # Check if password is set yet, ask them to set it if not
-            if not user.password:
-                logger.info(f"User {email} needs to set password")
-                flash("Please set your password first.", "info")
-                return redirect(url_for("auth.set_password"))
-
-            # Check if password is correct
-            if user.check_password(password):
-                login_user(user)
-                logger.info(f"Successful login: {user.email} ({user.display_name})")
-                flash("Logged in successfully!", "success")
-                return redirect(url_for("guest.index", squad=user.display_name))
-
-            # If the password is incorrect, show an error message
-            logger.warning(f"Failed login attempt - incorrect password: {email}")
+        if agency is None or not agency.active:
+            logger.warning("Login rejected: invalid or inactive agency")
             flash("Invalid email or password.", "error")
             return redirect(url_for("auth.login"))
-        except Exception as e:
-            logger.error(f"Exception in login route: {e}")
-            flash("An error occurred during login. Please try again.", "error")
-            return redirect(url_for("auth.login"))
+
+        if not agency.password:
+            logger.info("Login requires password setup", extra={"agency_id": agency.id})
+            flash("Please set your password first.", "info")
+            return redirect(url_for("auth.set_password"))
+
+        if agency.check_password(password):
+            login_user(agency)
+            logger.info("Login succeeded", extra={"agency_id": agency.id})
+            return redirect(url_for("guest.index", squad=agency.display_name))
+
+        logger.warning("Login rejected: password mismatch", extra={"agency_id": agency.id})
+        flash("Invalid email or password.", "error")
+        return redirect(url_for("auth.login"))
 
     return render_template("login.html", logo_img="images/logos/me.svg")
 
 
-# Set password route (for first-time users AND reset password)
 @bp.route("/set-password", methods=["GET", "POST"])
 def set_password():
     if request.method == "POST":
-        email = request.form["email"]
-        new_password = request.form["password"]
-
-        with get_session() as session:
-            user = get_user_by_email(email, session)
-        if user is None:
-            logger.warning(f"Password set attempt for invalid email: {email}")
-            flash("Invalid email", "error")
+        email = request.form.get("email", "").strip()
+        new_password = request.form.get("password", "").strip()
+        if len(new_password) < 8:
+            logger.warning("Password setup rejected: password too short")
+            flash("Password must be at least 8 characters.", "error")
             return redirect(url_for("auth.set_password"))
-        elif user.password:
-            logger.warning(
-                f"Password set attempt for user with existing password: {email}"
+
+        with get_session() as s:
+            agency = get_agency_by_email(email, s)
+
+        if agency is None or not agency.active:
+            logger.warning("Password setup rejected: invalid or inactive agency")
+            flash("Invalid email.", "error")
+            return redirect(url_for("auth.set_password"))
+
+        if agency.password:
+            logger.info(
+                "Password setup skipped: password already set",
+                extra={"agency_id": agency.id},
             )
             flash("Password already set. Please log in.", "info")
             return redirect(url_for("auth.login"))
 
-        try:
-            user.set_password(new_password)
-            with get_session() as session:
-                session.add(user)
-                session.commit()
-            logger.info(f"Password set successfully for user: {email}")
-            flash("Password set successfully. Please log in now.", "success")
-        except Exception as e:
-            logger.error(f"Error setting password for user {email}: {e}")
-            flash("An error occurred setting your password. Please try again.", "error")
+        with get_session() as s:
+            s.add(agency)
+            agency.set_password(new_password)
+            s.commit()
+
+        logger.info("Password set", extra={"agency_id": agency.id})
+        flash("Password set successfully. Please log in.", "success")
         return redirect(url_for("auth.login"))
 
     return render_template("set_password.html")
 
 
+@bp.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        with get_session() as s:
+            create_password_reset_pin(s, email)
+        flash("If that agency email is active, a reset PIN was sent.", "info")
+        return redirect(url_for("auth.login"))
+    return render_template("forgot_password.html")
+
+
+@bp.route("/reset-password", methods=["GET", "POST"])
+def reset_password():
+    if request.method == "POST":
+        email = request.form.get("email", "").strip()
+        pin = request.form.get("pin", "").strip()
+        new_password = request.form.get("password", "").strip()
+        if len(new_password) < 8:
+            flash("Password must be at least 8 characters.", "error")
+            return redirect(url_for("auth.reset_password"))
+        with get_session() as s:
+            if reset_password_with_pin(s, email, pin, new_password):
+                flash("Password reset successfully. Please log in.", "success")
+                return redirect(url_for("auth.login"))
+        flash("Reset PIN is invalid or expired.", "error")
+        return redirect(url_for("auth.reset_password"))
+    return render_template("reset_password.html")
+
+
 @bp.route("/logout")
 def logout():
-    # Clear session variables related to admin mode
     session.pop("admin", None)
     session.pop("admin_last_active", None)
-
-    # Log the user out completely
-    user_email = current_user.email if current_user.is_authenticated else "unknown"
+    agency_id = current_user.id if current_user.is_authenticated else None
     logout_user()
-    logger.info(f"User logged out: {user_email}")
+    logger.info("Logout", extra={"agency_id": agency_id})
     flash("Logged out successfully!", "success")
     return redirect(url_for("auth.login"))
