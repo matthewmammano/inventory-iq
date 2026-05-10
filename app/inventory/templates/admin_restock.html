@@ -107,7 +107,7 @@
       {% endif %}
     </td>
     <td>{{ row['last_counted_at'].strftime('%Y-%m-%d %H:%M') if row['last_counted_at'] else 'N/A' }}</td>
-    <td>{{ row['confidence_percent'] ~ '%' if row['confidence_percent'] is not none else '' }}</td>
+    <td>{{ row['confidence_display'] ~ '%' if row['confidence_display'] is not none else '' }}</td>
     <td><span class="{{ row.get('order_class', '') }}">{{ row['order_amount_display'] }}</span></td>
   </tr>
   {% endfor %}

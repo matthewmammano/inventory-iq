@@ -5,8 +5,6 @@ Revises:
 Create Date: 2026-05-10
 """
 
-from __future__ import annotations
-
 from alembic import op
 
 from app.alerts import models as _alert_models  # noqa: F401

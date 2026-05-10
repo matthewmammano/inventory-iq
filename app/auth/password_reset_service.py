@@ -1,7 +1,5 @@
 """Password reset PIN creation, validation, and email delivery."""
 
-from __future__ import annotations
-
 import secrets
 from datetime import timedelta
 

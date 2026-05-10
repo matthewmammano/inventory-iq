@@ -1,7 +1,5 @@
 """Support helpers for inventory scan flows."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 from flask import redirect, url_for

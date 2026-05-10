@@ -1,9 +1,6 @@
 """Weighted location-level trend fitting."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
-from math import ceil
 
 from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
@@ -18,7 +15,7 @@ from app.shared.clock import utc_now
 @dataclass(frozen=True)
 class TrendFit:
     trend_per_day: float
-    confidence_percent: int
+    confidence_percent: float
     segment_count: int
 
 
@@ -123,10 +120,10 @@ def _confidence_percent(
     weights: list[float],
     fitted_trend: float,
     segment_count: int,
-) -> int:
+) -> float:
     weight_total = sum(weights)
     if weight_total <= 0:
-        return 0
+        return 0.0
 
     mean = sum(w * trend for trend, w in zip(trends, weights, strict=True)) / weight_total
     variance = (
@@ -136,5 +133,4 @@ def _confidence_percent(
     spread = variance**0.5
     agreement = 1.0 if spread == 0 else abs(fitted_trend) / (abs(fitted_trend) + spread)
     volume = min(segment_count / CONFIDENCE_FULL_SEGMENTS, 1.0)
-    raw = max(0.0, min(agreement * volume, 1.0))
-    return min(100, ceil(raw * 10) * 10) if raw > 0 else 0
+    return max(0.0, min(agreement * volume * 100, 100.0))

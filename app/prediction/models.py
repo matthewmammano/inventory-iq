@@ -21,7 +21,7 @@ class InventoryTrend(Base):
         Integer, ForeignKey("agency_locations.id"), index=True
     )
     trend_per_day: Mapped[float] = mapped_column(Float)
-    confidence_percent: Mapped[int | None] = mapped_column(Integer)
+    confidence_percent: Mapped[float | None] = mapped_column(Float)
     segment_count: Mapped[int] = mapped_column(Integer, default=0)
     data_signature: Mapped[str] = mapped_column(String(64))
     trained_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)

@@ -1,7 +1,5 @@
 """Small in-process scheduler for local/demo runtime jobs."""
 
-from __future__ import annotations
-
 import json
 import os
 import threading

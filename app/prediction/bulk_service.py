@@ -1,7 +1,5 @@
 """Restock analysis for one agency location."""
 
-from __future__ import annotations
-
 from datetime import datetime
 
 from loguru import logger
@@ -18,6 +16,7 @@ from app.prediction.estimator import (
     project_location_item,
     reorder_date,
 )
+from app.prediction.formatting import rounded_confidence_percent
 from app.prediction.segments import get_location_storage_ids
 from app.shared.timezone_utils import convert_utc_to_local
 
@@ -125,6 +124,7 @@ class BulkService:
                 order_amount, days_low
             ),
             "confidence_percent": projection.confidence_percent,
+            "confidence_display": rounded_confidence_percent(projection.confidence_percent),
             "daily_usage_rate": projection.daily_usage,
             "used_fallback": projection.used_fallback,
         }

@@ -1,7 +1,5 @@
 """Device-level default location persistence."""
 
-from __future__ import annotations
-
 import hashlib
 import secrets
 from datetime import UTC, datetime

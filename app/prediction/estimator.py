@@ -1,7 +1,5 @@
 """Location-level inventory projection from persisted trend parameters."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import date, timedelta
 
@@ -19,7 +17,7 @@ class LocationProjection:
     agency_location_id: int
     current_quantity: int
     trend_per_day: float
-    confidence_percent: int | None
+    confidence_percent: float | None
     segment_count: int
     used_fallback: bool
 

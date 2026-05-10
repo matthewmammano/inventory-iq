@@ -10,5 +10,5 @@ class LocationPredictionResponse(BaseModel):
     agency_location_id: int
     current_quantity: int
     trend_per_day: float
-    confidence_percent: int | None = Field(default=None, ge=0, le=100)
+    confidence_percent: float | None = Field(default=None, ge=0, le=100)
     days_until_low: float | None = Field(default=None, ge=0)

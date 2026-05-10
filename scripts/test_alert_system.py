@@ -4,8 +4,6 @@ This is intentionally a script, not pytest, because the repo has no test
 framework yet and the output is meant to be readable during local QA.
 """
 
-from __future__ import annotations
-
 import json
 from collections import Counter
 from dataclasses import dataclass

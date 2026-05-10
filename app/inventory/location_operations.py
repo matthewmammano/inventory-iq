@@ -1,7 +1,5 @@
 """Bulk location count and vendor restock operations."""
 
-from __future__ import annotations
-
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 

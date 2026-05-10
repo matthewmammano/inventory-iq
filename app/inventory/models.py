@@ -1,9 +1,6 @@
 """SQLAlchemy ORM models for inventory domain."""
 
-from __future__ import annotations
-
 from datetime import datetime
-from typing import TYPE_CHECKING
 
 from loguru import logger
 from sqlalchemy import (
@@ -33,9 +30,6 @@ from app.shared.validators import (
 
 from .constants import UPC_GENERATION_START, OperationType
 
-if TYPE_CHECKING:
-    from app.auth.models import AgencyItemTags
-
 
 class Items(Base):
     """Inventory item master record."""
@@ -62,7 +56,7 @@ class Items(Base):
     prior_daily_usage: Mapped[float] = mapped_column(Float)
 
     action_logs = relationship("ActionLogs", back_populates="item", lazy="selectin")
-    tags: list[AgencyItemTags]
+    tags: list[object]
 
     __table_args__ = (
         UniqueConstraint("agency_id", "upc", name="uq_items_agency_upc"),

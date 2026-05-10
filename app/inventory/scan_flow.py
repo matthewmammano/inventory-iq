@@ -1,7 +1,5 @@
 """Inventory scan-flow handlers."""
 
-from __future__ import annotations
-
 from flask import flash, redirect, render_template, url_for
 from flask_login import current_user
 from loguru import logger

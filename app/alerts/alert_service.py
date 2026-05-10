@@ -1,7 +1,5 @@
 """Alert generation and state sync."""
 
-from __future__ import annotations
-
 from datetime import UTC, datetime, time, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo

@@ -17,7 +17,7 @@ print(f"Total items: {len(rows)}")
 
 for row in rows:
     item = row["item"]
-    confidence = row["confidence_percent"]
+    confidence = row["confidence_display"]
     confidence_display = confidence if confidence is not None else ""
     print(
         f"{item.name}: current={row['current_total']} usage={row['daily_usage_rate']:.2f} "

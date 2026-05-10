@@ -1,7 +1,5 @@
 """Alert email delivery adapters."""
 
-from __future__ import annotations
-
 from pathlib import Path
 
 from flask import current_app, render_template

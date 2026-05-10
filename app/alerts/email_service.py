@@ -1,7 +1,5 @@
 """Send grouped inventory alert emails."""
 
-from __future__ import annotations
-
 from collections import Counter
 from datetime import datetime
 from typing import Any
@@ -11,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.models import Agencies, AgencyEmails
+from app.prediction.formatting import rounded_confidence_percent
 from app.shared.clock import utc_now, utc_now_naive
 from app.shared.database import get_session
 from app.shared.timezone_utils import convert_utc_to_local
@@ -429,7 +428,7 @@ def _prediction(details: dict[str, Any]) -> str | None:
 
 
 def _confidence(details: dict[str, Any]) -> str:
-    value = details.get("confidence_percent")
+    value = rounded_confidence_percent(details.get("confidence_percent"))
     return "" if value is None else f"{value}%"
 
 
