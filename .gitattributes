@@ -1,0 +1,11 @@
+* text=auto eol=lf
+
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.png binary
+*.svg text eol=lf
+
+*.db binary
+*.sqlite binary
+*.sqlite3 binary

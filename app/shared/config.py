@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     mail_username: str = ""
     mail_password: str = ""
     mail_default_sender: str = ""
+    mail_timeout_seconds: int = 4
 
     session_lifetime_days: int = 30
     scheduler_enabled: bool = False

@@ -90,7 +90,10 @@ def forgot_password():
     if request.method == "POST":
         email = request.form.get("email", "").strip()
         with get_session() as s:
-            create_password_reset_pin(s, email)
+            sent = create_password_reset_pin(s, email)
+        if not sent:
+            flash("Reset PIN email could not be sent. Please try again shortly.", "error")
+            return redirect(url_for("auth.forgot_password"))
         flash("If that agency email is active, a reset PIN was sent.", "info")
         return redirect(url_for("auth.login"))
     return render_template("forgot_password.html")

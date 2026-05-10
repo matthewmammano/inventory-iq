@@ -50,6 +50,7 @@ def create_app() -> Flask:
         MAIL_USERNAME=settings.mail_username,
         MAIL_PASSWORD=settings.mail_password,
         MAIL_DEFAULT_SENDER=settings.mail_default_sender,
+        MAIL_TIMEOUT=settings.mail_timeout_seconds,
     )
 
     if settings.database_url.startswith("sqlite"):
