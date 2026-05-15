@@ -24,9 +24,6 @@
       margin-bottom: 12px;
       padding: 16px;
     }
-    .header {
-      border-top: 5px solid #9f1f1f;
-    }
     h1 {
       font-size: 28px;
       line-height: 1.15;
@@ -38,10 +35,13 @@
     }
     .eyebrow {
       color: #667085;
+      border-radius: 999px;
+      display: inline-block;
       font-size: 11px;
       font-weight: 800;
       letter-spacing: .08em;
       margin: 0 0 7px;
+      padding: 5px 9px;
       text-transform: uppercase;
     }
     .meta,
@@ -53,7 +53,7 @@
     .summary {
       display: grid;
       gap: 8px;
-      grid-template-columns: repeat(auto-fit, minmax(135px, 1fr));
+      grid-template-columns: repeat(2, minmax(0, 1fr));
       margin-top: 14px;
     }
     .summary-box {
@@ -95,17 +95,22 @@
     td {
       font-size: 13px;
     }
+    @media (max-width: 560px) {
+      .summary {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="panel header">
-      <p class="eyebrow">Inventory IQ Alert Email</p>
+      <p class="eyebrow" style="background: {{ batch.severity_color }}14; border: 1px solid {{ batch.severity_color }}33; color: {{ batch.severity_color }};">{{ batch.severity_label }} Inventory Email</p>
       <h1>{{ batch.subject }}</h1>
       <p class="meta">Generated {{ batch.generated_at }}</p>
       <div class="summary">
         {% for item in batch.summary %}
-          <div class="summary-box" style="background: {{ item.color }}14; color: {{ item.color }};">
+          <div class="summary-box" style="background: {{ batch.severity_color }}14; border-color: {{ batch.severity_color }}33; color: {{ batch.severity_color }};">
             <strong>{{ item.count }}</strong>
             <span>{{ item.label }}</span>
           </div>
@@ -114,7 +119,7 @@
     </div>
 
     {% for section in batch.sections %}
-      <div class="panel" style="border-top: 4px solid {{ section.color }};">
+      <div class="panel" style="border-top: 4px solid {{ batch.severity_color }};">
         <h2>{{ section.title }}</h2>
         <p class="note">{{ section.note }}</p>
         <table>

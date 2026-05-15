@@ -170,12 +170,15 @@ def _build_batch(
 ) -> EmailBatch | None:
     if not alerts:
         return None
-    sections = _build_sections(alerts)
+    sections = _build_sections(alerts, agency.timezone)
+    severity = _severity(alerts)
     return EmailBatch(
         agency_email=recipient.email,
         agency_name=agency.display_name,
         generated_at=_display_now(agency.timezone),
-        subject=_subject(agency.display_name, alerts),
+        subject=_subject(agency.display_name),
+        severity_label=severity["label"],
+        severity_color=severity["color"],
         summary=_summary(alerts),
         sections=sections,
     )
@@ -184,14 +187,14 @@ def _build_batch(
 def _summary(alerts: list[AlertRecords]) -> list[AlertSummaryItem]:
     counts = Counter(alert.type for alert in alerts)
     return [
-        AlertSummaryItem(label=LABEL_BY_TYPE[alert_type], count=count, color=alert_type.color)
+        AlertSummaryItem(label=LABEL_BY_TYPE[alert_type], count=count)
         for alert_type, count in counts.items()
         if count > 0
     ]
 
 
-def _build_sections(alerts: list[AlertRecords]) -> list[AlertTableSection]:
-    return [
+def _build_sections(alerts: list[AlertRecords], timezone: str) -> list[AlertTableSection]:
+    sections = [
         section
         for builder in (
             _stockout_section,
@@ -200,10 +203,13 @@ def _build_sections(alerts: list[AlertRecords]) -> list[AlertTableSection]:
             _low_pred_section,
             _stale_count_section,
             _rare_takeout_section,
-            _scan_activity_section,
         )
         if (section := builder(alerts)) is not None
     ]
+    scan_section = _scan_activity_section(alerts, timezone)
+    if scan_section is not None:
+        sections.append(scan_section)
+    return sections
 
 
 def _stockout_section(alerts: list[AlertRecords]) -> AlertTableSection | None:
@@ -277,9 +283,7 @@ def _stock_section(
     rows = [_stock_row(alert) for alert in alerts if alert.type == alert_type]
     if not rows:
         return None
-    return AlertTableSection(
-        title=title, note=note, color=alert_type.color, columns=columns, rows=rows
-    )
+    return AlertTableSection(title=title, note=note, columns=columns, rows=rows)
 
 
 def _stock_row(alert: AlertRecords) -> dict[str, str | int | float | None]:
@@ -345,14 +349,14 @@ def _rare_takeout_section(alerts: list[AlertRecords]) -> AlertTableSection | Non
     )
 
 
-def _scan_activity_section(alerts: list[AlertRecords]) -> AlertTableSection | None:
+def _scan_activity_section(alerts: list[AlertRecords], timezone: str) -> AlertTableSection | None:
     rows = [
         {
             "item_name": alert.details_json.get("item_name"),
             "scan_type": _scan_type(alert.details_json),
             "quantity": alert.details_json.get("quantity"),
             "admin_action": "Yes" if alert.details_json.get("admin_action") else "No",
-            "time_scanned": alert.details_json.get("time_scanned"),
+            "time_scanned": _display_datetime(alert.details_json.get("time_scanned"), timezone),
         }
         for alert in alerts
         if alert.type in ACTION_TYPES
@@ -385,18 +389,19 @@ def _simple_section(
         AlertTableColumn(key=spec.split(":", 1)[0], label=spec.split(":", 1)[1])
         for spec in column_specs
     ]
-    return AlertTableSection(
-        title=title, note=note, color=alert_type.color, columns=columns, rows=rows
-    )
+    return AlertTableSection(title=title, note=note, columns=columns, rows=rows)
 
 
-def _subject(agency_name: str, alerts: list[AlertRecords]) -> str:
-    emoji = "\U0001f7e2"
+def _subject(agency_name: str) -> str:
+    return f"Inventory Alert Report - {agency_name}"
+
+
+def _severity(alerts: list[AlertRecords]) -> dict[str, str]:
     if any(alert.type == AlertType.STOCKOUT for alert in alerts):
-        emoji = "\U0001f534"
-    elif any(alert.type in WARNING_TYPES for alert in alerts):
-        emoji = "\U0001f7e1"
-    return f"{emoji} Inventory Alert Report - {agency_name} - {utc_now().date()}"
+        return {"label": "Critical", "color": "#9F1F1F"}
+    if any(alert.type in WARNING_TYPES for alert in alerts):
+        return {"label": "Warning", "color": "#8A5A00"}
+    return {"label": "Activity", "color": "#2F6B4F"}
 
 
 def _mark_sent(alerts: list[AlertRecords], now: datetime) -> None:
@@ -408,7 +413,22 @@ def _mark_sent(alerts: list[AlertRecords], now: datetime) -> None:
 def _display_now(timezone: str) -> str:
     now = utc_now()
     local = convert_utc_to_local(now, timezone) or now
-    return local.strftime("%B %d, %Y at %I:%M %p %Z")
+    return _format_local_datetime(local)
+
+
+def _display_datetime(value: Any, timezone: str) -> str:
+    if not value:
+        return ""
+    try:
+        parsed = datetime.fromisoformat(str(value))
+    except ValueError:
+        return str(value).replace("T", " ").split(".", maxsplit=1)[0]
+    local = convert_utc_to_local(parsed, timezone) or parsed
+    return _format_local_datetime(local)
+
+
+def _format_local_datetime(value: datetime) -> str:
+    return value.strftime("%B %d, %Y %H:%M")
 
 
 def _total(value: Any) -> str:
