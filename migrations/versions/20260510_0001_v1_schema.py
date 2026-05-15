@@ -1,4 +1,7 @@
-"""v1 schema baseline
+"""v1 schema baseline.
+
+Creates the full current schema for fresh databases. Future migrations should
+make explicit incremental changes instead of editing this baseline.
 
 Revision ID: 20260510_0001
 Revises:

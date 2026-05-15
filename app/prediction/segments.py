@@ -24,12 +24,16 @@ from app.shared.clock import utc_now
 
 @dataclass(frozen=True)
 class CountAnchor:
+    """A completed full-location count at one point in time."""
+
     counted_at: datetime
     total_quantity: int
 
 
 @dataclass(frozen=True)
 class TrendSegment:
+    """Usage trend between two count anchors."""
+
     start_at: datetime
     end_at: datetime
     start_quantity: int

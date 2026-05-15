@@ -14,6 +14,8 @@ from app.shared.clock import utc_now
 
 @dataclass(frozen=True)
 class TrendFit:
+    """Persistable weighted trend fit."""
+
     trend_per_day: float
     confidence_percent: float
     segment_count: int
@@ -58,6 +60,7 @@ def get_inventory_trend(
     item_id: int,
     agency_location_id: int,
 ) -> InventoryTrend | None:
+    """Return the persisted trend for one agency item/location."""
     try:
         return (
             session.execute(

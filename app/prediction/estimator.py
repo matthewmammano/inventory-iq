@@ -13,6 +13,8 @@ from app.prediction.usage_model import get_inventory_trend
 
 @dataclass(frozen=True)
 class LocationProjection:
+    """Current stock plus learned usage trend for one item/location."""
+
     item_id: int
     agency_location_id: int
     current_quantity: int
@@ -75,12 +77,14 @@ def effective_lead_time_days(
 
 
 def projected_quantity(current_quantity: int, trend_per_day: float, days: float) -> float:
+    """Project quantity after a number of days, never below zero."""
     return max(float(current_quantity) + trend_per_day * days, 0.0)
 
 
 def days_to_threshold(
     current_quantity: int, trend_per_day: float, threshold: float
 ) -> float | None:
+    """Return days until a quantity threshold is reached, if usage is trending down."""
     if current_quantity <= threshold:
         return 0.0
     if trend_per_day >= 0:
@@ -89,6 +93,7 @@ def days_to_threshold(
 
 
 def reorder_date(days_until_low: float | None, lead_time_days: int) -> date | None:
+    """Return the latest suggested order date before hitting minimum stock."""
     if days_until_low is None:
         return None
     return date.today() + timedelta(days=max(days_until_low - max(lead_time_days, 0), 0.0))

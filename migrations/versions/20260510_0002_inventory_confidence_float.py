@@ -1,4 +1,7 @@
-"""store raw confidence as float
+"""Store raw prediction confidence as float.
+
+User-facing views round this value to 10% buckets; the database keeps the raw
+fit score for future model tuning.
 
 Revision ID: 20260510_0002
 Revises: 20260510_0001

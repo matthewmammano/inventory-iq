@@ -47,6 +47,7 @@ def validate_location_restock(
     agency_location_id: int,
     session: Session,
 ) -> tuple[bool, str]:
+    """Require every storage in a location to have a fresh count before restock."""
     stale_storage_ids = get_stale_count_storage_ids(agency_id, item_id, agency_location_id, session)
     if not stale_storage_ids:
         return True, ""
@@ -64,6 +65,7 @@ def get_stale_count_storage_ids(
     agency_location_id: int,
     session: Session,
 ) -> list[int]:
+    """Return storage IDs missing a recent count for restock validation."""
     storage_ids = get_location_storage_ids(session, agency_id, agency_location_id)
     if not storage_ids:
         return []
