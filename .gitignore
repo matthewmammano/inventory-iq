@@ -74,10 +74,6 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Uploaded local assets
-app/static/images/logos/*
-!app/static/images/logos/.gitkeep
-
 # Editors and OS files
 .vscode/
 .idea/
