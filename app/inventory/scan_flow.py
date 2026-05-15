@@ -281,7 +281,12 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         return redirect(url_for(fallback, squad=squad, item_id=request_data.item_id))
 
     message = scan_success_message(
-        operation_type, item.name, request_data.counter_value, from_storage_id, to_storage_id
+        operation_type,
+        item.name,
+        request_data.counter_value,
+        from_storage_id,
+        to_storage_id,
+        is_admin=is_admin,
     )
     logger.info(
         "Inventory operation completed",

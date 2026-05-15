@@ -83,11 +83,13 @@ def scan_success_message(
     quantity: int,
     from_storage_id: int | None,
     to_storage_id: int | None,
+    *,
+    is_admin: bool = False,
 ) -> str:
     from_storage = get_storage(from_storage_id, current_user.id) if from_storage_id else None
     to_storage = get_storage(to_storage_id, current_user.id) if to_storage_id else None
-    from_name = from_storage.full_name if from_storage else None
-    to_name = to_storage.full_name if to_storage else None
+    from_name = _scan_storage_name(from_storage, is_admin)
+    to_name = _scan_storage_name(to_storage, is_admin)
 
     match operation_type:
         case OperationType.COUNT:
@@ -99,6 +101,12 @@ def scan_success_message(
         case OperationType.TRANSFER:
             return f"Transferred {quantity} {item_name} from {from_name} to {to_name}."
     return f"Operation completed for {item_name}."
+
+
+def _scan_storage_name(storage: AgencyStorages | None, is_admin: bool) -> str | None:
+    if storage is None:
+        return None
+    return storage.full_name if is_admin else storage.name
 
 
 def can_skip_storage_selection(

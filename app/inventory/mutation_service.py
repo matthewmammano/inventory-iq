@@ -1,7 +1,5 @@
 """Validated inventory mutations."""
 
-from typing import Any
-
 from loguru import logger
 from sqlalchemy.orm import Session
 
@@ -15,7 +13,6 @@ from .constants import OperationType
 from .errors import InventoryError
 from .item_queries import get_item
 from .models import ActionLogs
-from .quantity_service import calculate_item_quantities
 
 
 def inventory_operation(
@@ -26,7 +23,7 @@ def inventory_operation(
     from_location: int | None = None,
     to_location: int | None = None,
     admin_action: bool = False,
-) -> tuple[dict[int, int], list[Any]]:
+) -> None:
     """Execute one validated inventory operation and queue generated alerts."""
     from app.alerts.alert_service import record_action_log_alerts
 
@@ -54,9 +51,6 @@ def inventory_operation(
         db.commit()
 
         logger.info("{}: item={} qty={}", operation_type.value, item_id, quantity)
-
-        quantities = calculate_item_quantities(db, agency_id, item_id)
-        return quantities, []
 
 
 def _validate_operation(

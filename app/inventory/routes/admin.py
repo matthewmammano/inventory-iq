@@ -7,18 +7,24 @@ from flask_login import current_user
 from loguru import logger
 from sqlalchemy import or_, select
 
-from app.alerts.alert_service import record_action_log_alerts
+from app.auth.models import AgencyLocations
 from app.auth.queries import list_tags, list_top_locations
 from app.inventory import admin_bp as bp
+from app.inventory.bulk_location_service import (
+    empty_quantity_grid,
+    item_ids,
+    item_names_requiring_count,
+    load_location_quantity_grid,
+    save_bulk_location_count,
+    save_bulk_location_restock,
+)
 from app.inventory.item_queries import list_items
 from app.inventory.location_operations import (
     build_location_count_rows,
     get_location_storages,
     parse_quantity_grid,
-    save_location_count,
-    save_location_restock,
 )
-from app.inventory.models import ActionLogs
+from app.inventory.models import ActionLogs, Items
 from app.inventory.scan_flow import (
     handle_scan_item_get,
     handle_scan_item_post,
@@ -32,8 +38,6 @@ from app.inventory.ui import (
     get_order_quantity_class,
 )
 from app.prediction.bulk_service import BulkService
-from app.prediction.estimator import get_location_item_quantity
-from app.prediction.validation import validate_location_restock
 from app.shared.constants import ADMIN_TIMEOUT
 from app.shared.database import get_session
 from app.shared.timezone_utils import get_timezone_hint
@@ -270,8 +274,8 @@ def bulk_actions(squad: str, agency_location_id: int | None = None) -> Any:
 @bp.route("/<squad>/admin-panel/count/<int:agency_location_id>", methods=["GET", "POST"])
 def count_location(squad: str, agency_location_id: int) -> Any:
     with get_session() as s:
-        location = BulkService.get_location(s, current_user.id, agency_location_id)
-        if location is None:
+        grid = load_location_quantity_grid(s, current_user.id, agency_location_id)
+        if grid is None:
             logger.error(
                 "Bulk count rejected: location not found",
                 extra={
@@ -282,53 +286,13 @@ def count_location(squad: str, agency_location_id: int) -> Any:
             )
             flash("Location not found.", "error")
             return redirect(url_for("admin.admin_panel", squad=squad))
-        items, storages, counts = build_location_count_rows(s, current_user.id, agency_location_id)
+        location, items, storages = grid.location, grid.items, grid.storages
+        counts = grid.quantities
         original_counts = dict(counts)
         if request.method == "POST":
-            submitted_counts = parse_quantity_grid(request.form)
-            try:
-                quantity_snapshots = _location_item_snapshots(
-                    s, current_user.id, agency_location_id, {item.id for item in items}
-                )
-                logs = save_location_count(s, current_user.id, agency_location_id, submitted_counts)
-                count = len(logs)
-                record_action_log_alerts(
-                    s,
-                    logs,
-                    _updated_location_snapshots(
-                        s, current_user.id, agency_location_id, quantity_snapshots
-                    ),
-                )
-                s.commit()
-                logger.info(
-                    "Bulk count saved",
-                    extra={
-                        "agency_id": current_user.id,
-                        "squad": squad,
-                        "agency_location_id": agency_location_id,
-                        "entry_count": count,
-                    },
-                )
-                flash(f"Saved {count} count entries for {location.name}.", "success")
-                return redirect(
-                    url_for(
-                        "admin.bulk_actions",
-                        squad=squad,
-                        agency_location_id=agency_location_id,
-                    )
-                )
-            except Exception:
-                s.rollback()
-                logger.exception(
-                    "Bulk count failed",
-                    extra={
-                        "agency_id": current_user.id,
-                        "squad": squad,
-                        "agency_location_id": agency_location_id,
-                    },
-                )
-                flash("Could not save count. Your entered numbers are still shown.", "error")
-                counts.update(submitted_counts)
+            response = _handle_count_post(s, squad, location, items, counts)
+            if response:
+                return response
     return render_template(
         "admin_location_count.html",
         squad=squad,
@@ -344,8 +308,8 @@ def count_location(squad: str, agency_location_id: int) -> Any:
 @bp.route("/<squad>/admin-panel/restock/<int:agency_location_id>/receive", methods=["GET", "POST"])
 def receive_location_restock(squad: str, agency_location_id: int) -> Any:
     with get_session() as s:
-        location = BulkService.get_location(s, current_user.id, agency_location_id)
-        if location is None:
+        grid = load_location_quantity_grid(s, current_user.id, agency_location_id)
+        if grid is None:
             logger.error(
                 "Bulk restock rejected: location not found",
                 extra={
@@ -356,13 +320,9 @@ def receive_location_restock(squad: str, agency_location_id: int) -> Any:
             )
             flash("Location not found.", "error")
             return redirect(url_for("admin.restock", squad=squad))
-        items, storages, _counts = build_location_count_rows(s, current_user.id, agency_location_id)
-        values = {(item.id, storage.id): 0 for item in items for storage in storages}
-        stale_items = [
-            item.name
-            for item in items
-            if not validate_location_restock(current_user.id, item.id, agency_location_id, s)[0]
-        ]
+        location, items, storages = grid.location, grid.items, grid.storages
+        values = empty_quantity_grid(items, storages)
+        stale_items = item_names_requiring_count(s, current_user.id, agency_location_id, items)
         if stale_items:
             logger.warning(
                 "Bulk restock blocked: full count required",
@@ -382,49 +342,9 @@ def receive_location_restock(squad: str, agency_location_id: int) -> Any:
                 )
             )
         if request.method == "POST":
-            values.update(parse_quantity_grid(request.form))
-            try:
-                quantity_snapshots = _location_item_snapshots(
-                    s, current_user.id, agency_location_id, {item.id for item in items}
-                )
-                logs = save_location_restock(s, current_user.id, agency_location_id, values)
-                count = len(logs)
-                record_action_log_alerts(
-                    s,
-                    logs,
-                    _updated_location_snapshots(
-                        s, current_user.id, agency_location_id, quantity_snapshots
-                    ),
-                )
-                s.commit()
-                logger.info(
-                    "Bulk restock saved",
-                    extra={
-                        "agency_id": current_user.id,
-                        "squad": squad,
-                        "agency_location_id": agency_location_id,
-                        "entry_count": count,
-                    },
-                )
-                flash(f"Saved {count} restock entries for {location.name}.", "success")
-                return redirect(
-                    url_for(
-                        "admin.bulk_actions",
-                        squad=squad,
-                        agency_location_id=agency_location_id,
-                    )
-                )
-            except Exception:
-                s.rollback()
-                logger.exception(
-                    "Bulk restock failed",
-                    extra={
-                        "agency_id": current_user.id,
-                        "squad": squad,
-                        "agency_location_id": agency_location_id,
-                    },
-                )
-                flash("Could not save restock. Your entered numbers are still shown.", "error")
+            response = _handle_restock_post(s, squad, location, items, values)
+            if response:
+                return response
     return render_template(
         "admin_location_restock_receive.html",
         squad=squad,
@@ -432,8 +352,96 @@ def receive_location_restock(squad: str, agency_location_id: int) -> Any:
         items=items,
         storages=storages,
         values=values,
-        original_values={(item.id, storage.id): 0 for item in items for storage in storages},
+        original_values=empty_quantity_grid(items, storages),
         admin=True,
+    )
+
+
+def _handle_count_post(
+    session,
+    squad: str,
+    location: AgencyLocations,
+    items: list[Items],
+    counts: dict[tuple[int, int], int],
+) -> Any | None:
+    submitted_counts = parse_quantity_grid(request.form)
+    try:
+        count = save_bulk_location_count(
+            session,
+            current_user.id,
+            location.id,
+            submitted_counts,
+            item_ids(items),
+        )
+        session.commit()
+        _log_bulk_save("Bulk count saved", squad, location.id, count)
+        flash(f"Saved {count} count entries for {location.name}.", "success")
+        return _bulk_actions_redirect(squad, location.id)
+    except Exception:
+        session.rollback()
+        _log_bulk_failure("Bulk count failed", squad, location.id)
+        flash("Could not save count. Your entered numbers are still shown.", "error")
+        counts.update(submitted_counts)
+        return None
+
+
+def _handle_restock_post(
+    session,
+    squad: str,
+    location: AgencyLocations,
+    items: list[Items],
+    values: dict[tuple[int, int], int],
+) -> Any | None:
+    values.update(parse_quantity_grid(request.form))
+    try:
+        count = save_bulk_location_restock(
+            session,
+            current_user.id,
+            location.id,
+            values,
+            item_ids(items),
+        )
+        session.commit()
+        _log_bulk_save("Bulk restock saved", squad, location.id, count)
+        flash(f"Saved {count} restock entries for {location.name}.", "success")
+        return _bulk_actions_redirect(squad, location.id)
+    except Exception:
+        session.rollback()
+        _log_bulk_failure("Bulk restock failed", squad, location.id)
+        flash("Could not save restock. Your entered numbers are still shown.", "error")
+        return None
+
+
+def _log_bulk_save(message: str, squad: str, agency_location_id: int, entry_count: int) -> None:
+    logger.info(
+        message,
+        extra={
+            "agency_id": current_user.id,
+            "squad": squad,
+            "agency_location_id": agency_location_id,
+            "entry_count": entry_count,
+        },
+    )
+
+
+def _log_bulk_failure(message: str, squad: str, agency_location_id: int) -> None:
+    logger.exception(
+        message,
+        extra={
+            "agency_id": current_user.id,
+            "squad": squad,
+            "agency_location_id": agency_location_id,
+        },
+    )
+
+
+def _bulk_actions_redirect(squad: str, agency_location_id: int) -> Any:
+    return redirect(
+        url_for(
+            "admin.bulk_actions",
+            squad=squad,
+            agency_location_id=agency_location_id,
+        )
     )
 
 
@@ -516,33 +524,6 @@ def help_page(squad: str) -> Any:
         contact_phone=current_app.config.get("CONTACT_PHONE", ""),
         admin=True,
     )
-
-
-def _location_item_snapshots(
-    session,
-    agency_id: int,
-    agency_location_id: int,
-    item_ids: set[int],
-) -> dict[int, int]:
-    return {
-        item_id: get_location_item_quantity(session, agency_id, item_id, agency_location_id)
-        for item_id in item_ids
-    }
-
-
-def _updated_location_snapshots(
-    session,
-    agency_id: int,
-    agency_location_id: int,
-    previous_totals: dict[int, int],
-) -> dict[tuple[int, int, int], tuple[int, int]]:
-    return {
-        (agency_id, item_id, agency_location_id): (
-            before_total,
-            get_location_item_quantity(session, agency_id, item_id, agency_location_id),
-        )
-        for item_id, before_total in previous_totals.items()
-    }
 
 
 # ---------------------------------------------------------------------------
