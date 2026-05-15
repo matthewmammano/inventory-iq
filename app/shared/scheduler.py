@@ -1,4 +1,8 @@
-"""Small in-process scheduler for local/demo runtime jobs."""
+"""Small in-process scheduler for demo/runtime jobs.
+
+It writes instance/scheduler_state.json so hourly/daily jobs do not repeat every
+poll or every restart. Delete that file in local dev to force jobs to run again.
+"""
 
 import json
 import os

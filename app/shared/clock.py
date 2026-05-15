@@ -1,4 +1,8 @@
-"""Central time source with optional local development controls."""
+"""Central UTC time source with optional local fake-time controls.
+
+Only code that needs current time should use this module. That keeps scheduler
+and alert tests controllable without changing business logic.
+"""
 
 import json
 from datetime import UTC, datetime
@@ -22,6 +26,7 @@ def utc_now() -> datetime:
 
 
 def utc_now_naive() -> datetime:
+    """Return UTC now without tzinfo for legacy SQLAlchemy DateTime columns."""
     return utc_now().replace(tzinfo=None)
 
 

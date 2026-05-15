@@ -1,4 +1,8 @@
-"""Control local fake time for scheduler and alert QA."""
+"""Control local fake time for scheduler and alert QA.
+
+Requires DEV_CLOCK_ENABLED=true. This writes instance/dev_clock.json; production
+should leave fake time disabled.
+"""
 
 import argparse
 import json
@@ -9,6 +13,7 @@ from app.shared.clock import CLOCK_FILE, utc_now
 
 
 def main() -> None:
+    """Parse CLI args and update the dev clock state file."""
     parser = argparse.ArgumentParser(description="Control instance/dev_clock.json")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("status")
