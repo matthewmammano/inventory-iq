@@ -18,10 +18,11 @@ class Settings(BaseSettings):
     secret_key: str
     debug: bool = False
 
-    brevo_api_key: str = ""
-    brevo_sender_email: str = ""
-    brevo_sender_name: str = "Inventory IQ"
-    brevo_timeout_seconds: int = 4
+    email_api_url: str = ""
+    email_api_key: str = ""
+    email_sender_email: str = ""
+    email_sender_name: str = "Inventory IQ"
+    email_timeout_seconds: int = 4
 
     session_lifetime_days: int = 30
     scheduler_enabled: bool = False

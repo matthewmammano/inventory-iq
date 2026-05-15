@@ -5,17 +5,17 @@ from pathlib import Path
 from flask import current_app, render_template
 from loguru import logger
 
-from app.shared.brevo_email import OutboundEmail, brevo_configured, send_email
 from app.shared.clock import utc_now
+from app.shared.email_client import OutboundEmail, email_configured, send_email
 
 from .schema import EmailBatch
 
 
 def deliver_batch(batch: EmailBatch) -> bool:
-    """Send through Brevo, or write files when email config is intentionally disabled."""
+    """Send through the provider, or write files when email config is disabled."""
     text_body = render_template("batch_email.txt", batch=batch)
     html_body = render_template("batch_email.html", batch=batch)
-    if not brevo_configured():
+    if not email_configured():
         return _write_batch_file(batch)
 
     sent = send_email(

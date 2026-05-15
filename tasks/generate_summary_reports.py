@@ -12,8 +12,8 @@ from sqlalchemy import and_, func, select
 from app import create_app
 from app.auth.models import Agencies, AgencyEmails
 from app.inventory.models import ActionLogs
-from app.shared.brevo_email import OutboundEmail, send_email
 from app.shared.database import get_session
+from app.shared.email_client import OutboundEmail, send_email
 
 
 def generate_summary_reports(report_type: str) -> None:

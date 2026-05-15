@@ -7,8 +7,8 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.shared.brevo_email import OutboundEmail, send_email
 from app.shared.clock import utc_now_naive
+from app.shared.email_client import OutboundEmail, send_email
 
 from .constants import RESET_PIN_DIGITS, RESET_PIN_MAX_ATTEMPTS, RESET_PIN_TTL_MINUTES
 from .models import Agencies, PasswordResetPins
