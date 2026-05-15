@@ -47,6 +47,13 @@ venv = ".venv"
 typeCheckingMode = "basic"
 reportMissingTypeStubs = false
 
+[tool.mypy]
+python_version = "3.13"
+
+[[tool.mypy.overrides]]
+module = ["flask_login", "flask_login.*"]
+ignore_missing_imports = true
+
 [tool.djlint]
 profile = "jinja"
 ignore = "H006,H013,H014,H021,H029,H030,H031,T001,T003"
