@@ -1,16 +1,18 @@
 """Send grouped inventory alert emails."""
 
 from collections import Counter
-from datetime import datetime
+from datetime import UTC, datetime, timedelta
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from loguru import logger
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth.models import Agencies, AgencyEmails
+from app.inventory.models import ActionLogs
 from app.prediction.formatting import rounded_confidence_percent
-from app.shared.clock import utc_now, utc_now_naive
+from app.shared.clock import utc_now_naive
 from app.shared.database import get_session
 from app.shared.timezone_utils import convert_utc_to_local
 
@@ -33,6 +35,8 @@ ACTION_TYPES = {
     AlertType.TAKEOUT_ACTION,
     AlertType.TRANSFER_ACTION,
 }
+
+HOURLY_TYPES = {AlertType.STOCKOUT, *ACTION_TYPES}
 
 PREFERENCE_BY_TYPE = {
     AlertType.STOCKOUT: "alert_for_stockout",
@@ -61,122 +65,160 @@ LABEL_BY_TYPE = {
 }
 
 
-def process_all_alerts() -> dict[str, int]:
-    """Send due alert emails; leave failed batches pending for retry."""
-    stats = {"processed": 0, "sent": 0}
+def process_all_alerts(*, force: bool = False) -> dict[str, int]:
+    """Send pending alert emails by cadence; leave failed batches pending for retry."""
+    stats = {"processed": 0, "sent": 0, "failed": 0}
     now = _now()
 
     with get_session() as session:
-        due = _pending_due_alerts(session, now)
-        if not due:
-            logger.info("No due alert emails")
+        recipients = _pending_recipients(session)
+        if not recipients:
+            logger.info("Alert email processing complete: no pending recipients")
             return stats
 
-        for agency_id in sorted({alert.agency_id for alert in due}):
-            agency = session.get(Agencies, agency_id)
-            if agency is None:
+        for recipient in recipients:
+            agency = session.get(Agencies, recipient.agency_id)
+            if agency is None or not agency.active:
+                logger.warning(
+                    "Alert email skipped: agency missing or inactive",
+                    extra={"agency_id": recipient.agency_id, "agency_email_id": recipient.id},
+                )
                 continue
-            alerts = _alerts_for_agency_email(session, agency_id, now)
+            alerts = _alerts_for_recipient(session, recipient, agency, now, force=force)
+            type_counts = _alert_type_counts(alerts)
+            logger.info(
+                "Alert email recipient checked: "
+                f"agency_email_id={recipient.id} sendable={len(alerts)} "
+                f"force={force} types={_format_counts(type_counts)}",
+                extra={
+                    "agency_id": agency.id,
+                    "agency_email_id": recipient.id,
+                    "pending_alerts": len(alerts),
+                    "force": force,
+                    "type_counts": dict(type_counts),
+                },
+            )
             if not alerts:
                 continue
             stats["processed"] += 1
-            if _send_agency_alerts(session, agency, alerts):
+            if _send_recipient_alerts(session, agency, recipient, alerts, now, force=force):
                 _mark_sent(alerts, now)
                 session.commit()
                 stats["sent"] += 1
+                logger.info(
+                    "Alert email recipient sent: "
+                    f"agency_email_id={recipient.id} sent_alerts={len(alerts)} "
+                    f"types={_format_counts(type_counts)}",
+                    extra={
+                        "agency_id": agency.id,
+                        "agency_email_id": recipient.id,
+                        "sent_alerts": len(alerts),
+                        "type_counts": dict(type_counts),
+                    },
+                )
             else:
                 session.rollback()
+                stats["failed"] += 1
+                logger.critical(
+                    f"Alert email failed after retries: agency_email_id={recipient.id}",
+                    extra={"agency_id": agency.id, "agency_email_id": recipient.id},
+                )
 
-    logger.info("Alert email batch complete", extra=stats)
+    logger.info(
+        "Alert email batch complete: "
+        f"processed={stats['processed']} sent={stats['sent']} failed={stats['failed']}",
+        extra=stats,
+    )
     return stats
 
 
-def _send_agency_alerts(
+def _send_recipient_alerts(
     session: Session,
     agency: Agencies,
+    recipient: AgencyEmails,
     alerts: list[AlertRecords],
+    now: datetime,
+    *,
+    force: bool,
 ) -> bool:
-    recipients = list(
-        session.execute(
-            select(AgencyEmails)
-            .where(AgencyEmails.agency_id == agency.id)
-            .order_by(AgencyEmails.email)
-        )
-        .scalars()
-        .all()
+    batch = _build_batch(
+        session,
+        agency,
+        recipient,
+        alerts,
+        include_summaries=force or _is_daily_email_window(agency.timezone, now),
+        now=now,
     )
-    if not recipients:
-        logger.warning("No alert recipients configured", extra={"agency_id": agency.id})
-        return False
-
-    batches: list[EmailBatch] = []
-    for recipient in recipients:
-        batch = _build_batch(agency, recipient, _filter_alerts_for_recipient(alerts, recipient))
-        if batch is not None and batch.sections:
-            batches.append(batch)
-
-    if not batches:
-        logger.info("No matching alert recipients", extra={"agency_id": agency.id})
+    if batch is None or not batch.sections:
+        logger.info(
+            "Alert email recipient skipped: no matching sections",
+            extra={"agency_id": agency.id, "agency_email_id": recipient.id},
+        )
         return True
 
-    return all(deliver_batch(batch) for batch in batches)
+    return deliver_batch(batch)
 
 
-def _pending_due_alerts(session: Session, now: datetime) -> list[AlertRecords]:
+def _pending_recipients(session: Session) -> list[AgencyEmails]:
     return list(
         session.execute(
-            select(AlertRecords).where(
-                AlertRecords.action == AlertAction.PENDING,
-                AlertRecords.scheduled <= now,
-            )
+            select(AgencyEmails)
+            .join(AlertRecords, AlertRecords.agency_email_id == AgencyEmails.id)
+            .where(AlertRecords.action == AlertAction.PENDING)
+            .distinct()
+            .order_by(AgencyEmails.agency_id, AgencyEmails.id)
         )
         .scalars()
         .all()
     )
 
 
-def _alerts_for_agency_email(session: Session, agency_id: int, now: datetime) -> list[AlertRecords]:
+def _alerts_for_recipient(
+    session: Session,
+    recipient: AgencyEmails,
+    agency: Agencies,
+    now: datetime,
+    *,
+    force: bool,
+) -> list[AlertRecords]:
     alerts = list(
         session.execute(
             select(AlertRecords)
-            .where(AlertRecords.agency_id == agency_id, AlertRecords.action == AlertAction.PENDING)
-            .order_by(AlertRecords.scheduled, AlertRecords.id)
+            .where(
+                AlertRecords.agency_email_id == recipient.id,
+                AlertRecords.action == AlertAction.PENDING,
+            )
+            .order_by(AlertRecords.created_at, AlertRecords.id)
         )
         .scalars()
         .all()
     )
-    due_exists = any(alert.scheduled <= now for alert in alerts)
-    if not due_exists:
-        return []
-    return [
-        alert
-        for alert in alerts
-        if alert.scheduled <= now or (alert.type.allow_early and due_exists)
-    ]
-
-
-def _filter_alerts_for_recipient(
-    alerts: list[AlertRecords], recipient: AgencyEmails
-) -> list[AlertRecords]:
-    return [
-        alert
-        for alert in alerts
-        if bool(getattr(recipient, PREFERENCE_BY_TYPE.get(alert.type, ""), False))
-    ]
+    if force or _is_daily_email_window(agency.timezone, now):
+        return alerts
+    return [alert for alert in alerts if alert.type in HOURLY_TYPES]
 
 
 def _build_batch(
-    agency: Agencies, recipient: AgencyEmails, alerts: list[AlertRecords]
+    session: Session,
+    agency: Agencies,
+    recipient: AgencyEmails,
+    alerts: list[AlertRecords],
+    *,
+    include_summaries: bool,
+    now: datetime,
 ) -> EmailBatch | None:
-    if not alerts:
-        return None
     sections = _build_sections(alerts, agency.timezone)
+    if include_summaries:
+        sections.extend(_summary_sections(session, agency, recipient, now))
+    if not sections:
+        return None
     severity = _severity(alerts)
     return EmailBatch(
         agency_email=recipient.email,
         agency_name=agency.display_name,
-        generated_at=_display_now(agency.timezone),
-        subject=_subject(agency.display_name),
+        generated_at=_display_now(agency.timezone, now),
+        subject=_subject(agency.display_name, severity["label"]),
+        title=_title(agency.display_name),
         severity_label=severity["label"],
         severity_color=severity["color"],
         summary=_summary(alerts),
@@ -376,6 +418,83 @@ def _scan_activity_section(alerts: list[AlertRecords], timezone: str) -> AlertTa
     )
 
 
+def _summary_sections(
+    session: Session,
+    agency: Agencies,
+    recipient: AgencyEmails,
+    now: datetime,
+) -> list[AlertTableSection]:
+    local_now = _local_now(agency.timezone, now)
+    sections: list[AlertTableSection] = []
+    for report_type, enabled, bounds in (
+        ("Daily", recipient.daily_summary, _prior_day_bounds(local_now)),
+        (
+            "Weekly",
+            recipient.weekly_summary and local_now.weekday() == 0,
+            _prior_week_bounds(local_now),
+        ),
+        (
+            "Monthly",
+            recipient.monthly_summary and local_now.day == 1,
+            _prior_month_bounds(local_now),
+        ),
+        (
+            "Yearly",
+            recipient.yearly_summary and local_now.month == 1 and local_now.day == 1,
+            _prior_year_bounds(local_now),
+        ),
+    ):
+        if enabled and (section := _summary_section(session, agency.id, report_type, bounds)):
+            sections.append(section)
+    return sections
+
+
+def _summary_section(
+    session: Session,
+    agency_id: int,
+    report_type: str,
+    bounds: tuple[datetime, datetime],
+) -> AlertTableSection | None:
+    rows = _summary_rows(session, agency_id, bounds)
+    return _simple_section(
+        AlertType.COUNT_ACTION,
+        f"{report_type} Summary",
+        f"{report_type} scan totals for the completed reporting period.",
+        rows,
+        ["operation_type:Operation", "scan_count:Scans", "quantity_total:Quantity"],
+    )
+
+
+def _summary_rows(
+    session: Session,
+    agency_id: int,
+    bounds: tuple[datetime, datetime],
+) -> list[dict[str, Any]]:
+    start_at, end_at = bounds
+    rows = session.execute(
+        select(
+            ActionLogs.operation_type,
+            func.count(ActionLogs.id),
+            func.coalesce(func.sum(ActionLogs.quantity_delta), 0),
+        )
+        .where(
+            ActionLogs.agency_id == agency_id,
+            ActionLogs.time_scanned >= start_at,
+            ActionLogs.time_scanned < end_at,
+        )
+        .group_by(ActionLogs.operation_type)
+        .order_by(ActionLogs.operation_type)
+    ).all()
+    return [
+        {
+            "operation_type": operation.value.title(),
+            "scan_count": scan_count,
+            "quantity_total": quantity_total,
+        }
+        for operation, scan_count, quantity_total in rows
+    ]
+
+
 def _simple_section(
     alert_type: AlertType,
     title: str,
@@ -392,7 +511,16 @@ def _simple_section(
     return AlertTableSection(title=title, note=note, columns=columns, rows=rows)
 
 
-def _subject(agency_name: str) -> str:
+def _subject(agency_name: str, severity_label: str) -> str:
+    prefix = {
+        "Critical": "🟥 [CRITICAL]",
+        "Warning": "🟨 [WARNING]",
+        "Activity": "🟩 [ACTIVITY]",
+    }[severity_label]
+    return f"{prefix} Inventory Alert Report - {agency_name}"
+
+
+def _title(agency_name: str) -> str:
     return f"Inventory Alert Report - {agency_name}"
 
 
@@ -410,8 +538,7 @@ def _mark_sent(alerts: list[AlertRecords], now: datetime) -> None:
         alert.action_at = now
 
 
-def _display_now(timezone: str) -> str:
-    now = utc_now()
+def _display_now(timezone: str, now: datetime) -> str:
     local = convert_utc_to_local(now, timezone) or now
     return _format_local_datetime(local)
 
@@ -465,5 +592,52 @@ def _scan_type(details: dict[str, Any]) -> str:
     return operation
 
 
+def _alert_type_counts(alerts: list[AlertRecords]) -> Counter[str]:
+    return Counter(alert.type.value for alert in alerts)
+
+
+def _format_counts(counts: Counter[str]) -> str:
+    if not counts:
+        return "none"
+    return ", ".join(f"{key}={counts[key]}" for key in sorted(counts))
+
+
 def _now() -> datetime:
     return utc_now_naive()
+
+
+def _is_daily_email_window(timezone: str, now: datetime) -> bool:
+    local = _local_now(timezone, now)
+    return local.hour == 8
+
+
+def _local_now(timezone: str, now: datetime) -> datetime:
+    aware = now.replace(tzinfo=UTC) if now.tzinfo is None else now
+    return aware.astimezone(ZoneInfo(timezone or "UTC"))
+
+
+def _prior_day_bounds(local_now: datetime) -> tuple[datetime, datetime]:
+    end_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
+    return _utc_naive(end_local - timedelta(days=1)), _utc_naive(end_local)
+
+
+def _prior_week_bounds(local_now: datetime) -> tuple[datetime, datetime]:
+    end_local = (local_now - timedelta(days=local_now.weekday())).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
+    return _utc_naive(end_local - timedelta(days=7)), _utc_naive(end_local)
+
+
+def _prior_month_bounds(local_now: datetime) -> tuple[datetime, datetime]:
+    end_local = local_now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    previous_month = (end_local - timedelta(days=1)).replace(day=1)
+    return _utc_naive(previous_month), _utc_naive(end_local)
+
+
+def _prior_year_bounds(local_now: datetime) -> tuple[datetime, datetime]:
+    end_local = local_now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
+    return _utc_naive(end_local.replace(year=end_local.year - 1)), _utc_naive(end_local)
+
+
+def _utc_naive(value: datetime) -> datetime:
+    return value.astimezone(UTC).replace(tzinfo=None)

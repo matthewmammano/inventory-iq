@@ -1,4 +1,4 @@
-{{ batch.subject }}
+{{ batch.title }}
 Severity: {{ batch.severity_label }}
 Generated {{ batch.generated_at }}
 

@@ -46,12 +46,12 @@ def _write_batch_file(batch: EmailBatch) -> bool:
 
 
 def _alert_file_path() -> Path:
-    alerts_dir = Path(current_app.instance_path) / "alerts"
-    alerts_dir.mkdir(parents=True, exist_ok=True)
+    logs_dir = Path(current_app.instance_path) / "logs"
+    logs_dir.mkdir(parents=True, exist_ok=True)
     stamp = utc_now().strftime("%Y%m%d_%H%M%S_%f")
-    path = alerts_dir / f"{stamp}_alert.html"
+    path = logs_dir / f"{stamp}_alert.html"
     index = 1
     while path.exists():
-        path = alerts_dir / f"{stamp}_{index}_alert.html"
+        path = logs_dir / f"{stamp}_{index}_alert.html"
         index += 1
     return path

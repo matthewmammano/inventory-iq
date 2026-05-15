@@ -2,12 +2,7 @@
 
 from enum import Enum
 
-
-class AlertCadence(str, Enum):
-    """When an alert is eligible for email delivery."""
-
-    HOURLY = "hourly"
-    DAILY = "daily"
+ALERT_RESEND_SUPPRESSION_DAYS = 7
 
 
 class AlertType(str, Enum):
@@ -38,27 +33,19 @@ class AlertType(str, Enum):
             return "#8A5A00"
         return "#2F6B4F"
 
-    @property
-    def cadence(self) -> AlertCadence:
-        if self == AlertType.STOCKOUT:
-            return AlertCadence.HOURLY
-        return AlertCadence.DAILY
-
-    @property
-    def allow_early(self) -> bool:
-        """Allow this pending alert to ride along when another email is due."""
-        return self not in {
-            AlertType.COUNT_ACTION,
-            AlertType.RESTOCK_ACTION,
-            AlertType.TAKEOUT_ACTION,
-            AlertType.TRANSFER_ACTION,
-        }
-
 
 class AlertAction(str, Enum):
-    """Lifecycle state for one generated alert row."""
+    """Lifecycle state for one generated alert row.
+
+    PENDING: waiting to be included in an email.
+    SENT: already emailed.
+    SUPPRESSED: intentionally not emailed because a stronger related alert covers it.
+    CLEARED: cancelled before email because the condition disappeared.
+    RESOLVED: emailed earlier, then the condition disappeared.
+    """
 
     PENDING = "pending"
     SENT = "sent"
     SUPPRESSED = "suppressed"
     CLEARED = "cleared"
+    RESOLVED = "resolved"

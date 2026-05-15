@@ -64,10 +64,10 @@ def main() -> None:
             ctx = _seed_database()
             _create_runtime_alerts(ctx)
             _assert_generated_alerts(ctx)
-            _assert_no_email_before_due(initial_files)
-            early_files = _assert_early_stockout_email(initial_files)
-            _assert_daily_scan_email(initial_files | early_files)
+            hourly_files = _assert_hourly_email(initial_files)
+            _assert_daily_email(initial_files | hourly_files)
             _assert_final_state()
+            _assert_resolved_condition_can_alert_again(ctx)
         logger.info("Alert system QA completed successfully")
     finally:
         _reset_clock()
@@ -348,45 +348,10 @@ def _scan(
     to_id: int | None = None,
 ) -> None:
     item_id = ctx.items[item_name]
-    before = _location_snapshots(session, ctx.agency_id, item_id, from_id, to_id)
     action = _add_log(
         session, ctx.agency_id, item_id, operation_type, quantity, utc_now(), from_id, to_id
     )
-    after = _updated_snapshots(session, ctx.agency_id, item_id, before)
-    record_action_log_alerts(session, [action], after)
-
-
-def _location_snapshots(
-    session: Session,
-    agency_id: int,
-    item_id: int,
-    from_id: int | None,
-    to_id: int | None,
-) -> dict[int, int]:
-    location_ids = {
-        storage.location_id
-        for storage_id in (from_id, to_id)
-        if storage_id and (storage := session.get(AgencyStorages, storage_id))
-    }
-    return {
-        location_id: get_location_item_quantity(session, agency_id, item_id, location_id)
-        for location_id in location_ids
-    }
-
-
-def _updated_snapshots(
-    session: Session,
-    agency_id: int,
-    item_id: int,
-    previous: dict[int, int],
-) -> dict[tuple[int, int, int], tuple[int, int]]:
-    return {
-        (agency_id, item_id, location_id): (
-            before,
-            get_location_item_quantity(session, agency_id, item_id, location_id),
-        )
-        for location_id, before in previous.items()
-    }
+    record_action_log_alerts(session, [action])
 
 
 def _add_log(
@@ -430,19 +395,18 @@ def _assert_generated_alerts(ctx: AlertTestContext) -> None:
         _assert_absent(alerts, AlertType.RARE_TAKEOUT, "Old Transfer Only")
         _assert_absent(alerts, AlertType.RARE_TAKEOUT, "Recent Takeout")
         _assert_prediction_details(alerts)
-        _assert_schedules(alerts)
         _assert_current_total(session, ctx, "Stockout Negative", -2)
 
 
 def _assert_type_actions(alerts: list[AlertRecords]) -> None:
     expected = {
-        (AlertType.STOCKOUT, AlertAction.PENDING): 2,
-        (AlertType.STOCKOUT, AlertAction.CLEARED): 1,
-        (AlertType.STOCKOUT_PRED, AlertAction.PENDING): 3,
-        (AlertType.LOW, AlertAction.PENDING): 1,
-        (AlertType.LOW, AlertAction.SUPPRESSED): 2,
-        (AlertType.LOW_PRED, AlertAction.PENDING): 1,
-        (AlertType.LOW_PRED, AlertAction.SUPPRESSED): 3,
+        (AlertType.STOCKOUT, AlertAction.PENDING): 4,
+        (AlertType.STOCKOUT, AlertAction.CLEARED): 2,
+        (AlertType.STOCKOUT_PRED, AlertAction.PENDING): 6,
+        (AlertType.LOW, AlertAction.PENDING): 2,
+        (AlertType.LOW, AlertAction.SUPPRESSED): 4,
+        (AlertType.LOW_PRED, AlertAction.PENDING): 2,
+        (AlertType.LOW_PRED, AlertAction.SUPPRESSED): 6,
         (AlertType.STALE_COUNT, AlertAction.PENDING): 2,
         (AlertType.RARE_TAKEOUT, AlertAction.PENDING): 1,
         (AlertType.COUNT_ACTION, AlertAction.PENDING): 2,
@@ -464,61 +428,35 @@ def _assert_prediction_details(alerts: list[AlertRecords]) -> None:
     _check(fallback.details_json.get("confidence_percent") is None, "fallback confidence is blank")
 
 
-def _assert_schedules(alerts: list[AlertRecords]) -> None:
-    hourly = _one(alerts, AlertType.STOCKOUT, "Stockout Negative").scheduled
-    daily = _one(alerts, AlertType.LOW, "Low Crossing").scheduled
-    action = _one(alerts, AlertType.COUNT_ACTION, "Scan Count").scheduled
-    _check(hourly == datetime(2026, 5, 10, 7, 0), "stockout schedules next UTC hour")
-    _check(daily == datetime(2026, 5, 10, 12, 0), "warning schedules 8am agency local")
-    _check(action == datetime(2026, 5, 10, 12, 0), "scan activity waits for 8am local")
-
-
-def _assert_no_email_before_due(initial_files: set[Path]) -> None:
-    _set_clock(datetime(2026, 5, 10, 6, 59, tzinfo=UTC))
-    result = process_all_alerts()
-    _check(result == {"processed": 0, "sent": 0}, "no email before first due alert")
-    _check(_alert_files() == initial_files, "no files written before due time")
-
-
-def _assert_early_stockout_email(initial_files: set[Path]) -> set[Path]:
+def _assert_hourly_email(initial_files: set[Path]) -> set[Path]:
     _set_clock(datetime(2026, 5, 10, 7, 0, tzinfo=UTC))
     result = process_all_alerts()
     html_files = _new_html_files(initial_files)
-    _check(result == {"processed": 1, "sent": 1}, "early stockout batch processed")
-    _check(len(html_files) == 2, "two early recipient files written")
+    _check(result == {"processed": 2, "sent": 2, "failed": 0}, "hourly batches processed")
+    _check(len(html_files) == 2, "two hourly recipient files written")
     contents = [_read(path) for path in html_files]
-    _check(any("Stockouts" in text for text in contents), "early email includes stockouts")
-    _check(
-        any("Predicted Stockouts" in text for text in contents),
-        "early email includes predictions",
-    )
-    _check(any("Low Stock" in text for text in contents), "early email includes low stock")
-    _check(any("Predicted Low Stock" in text for text in contents), "early email includes low pred")
-    _check(any("Stale Counts" in text for text in contents), "early email includes stale counts")
-    _check(any("Rare Takeouts" in text for text in contents), "early email includes rare takeouts")
-    _check(all("Scan Activity" not in text for text in contents), "scan activity is not early")
-    _check(any("14 days" in text for text in contents), "email shows item lead-time override")
-    _check(any("21 days" in text for text in contents), "email shows agency lead-time fallback")
-    _check(
-        any("Fallback Pred Stockout" in text for text in contents),
-        "email includes fallback prediction",
-    )
-    _check(not any("Cleared Stockout" in text for text in contents), "cleared alert not emailed")
+    _check(any("Stockouts" in text for text in contents), "hourly email includes stockouts")
+    _check(any("Scan Activity" in text for text in contents), "hourly email includes scan activity")
+    _check(all("Predicted Stockouts" not in text for text in contents), "predictions wait daily")
+    _check(all("Low Stock" not in text for text in contents), "low stock waits daily")
     return html_files
 
 
-def _assert_daily_scan_email(previous_files: set[Path]) -> None:
+def _assert_daily_email(previous_files: set[Path]) -> None:
     _set_clock(datetime(2026, 5, 10, 12, 0, tzinfo=UTC))
     result = process_all_alerts()
     html_files = _new_html_files(previous_files)
-    _check(result == {"processed": 1, "sent": 1}, "daily scan batch processed")
-    _check(len(html_files) == 1, "one daily scan recipient file written")
-    text = _read(next(iter(html_files)))
-    _check("🟢 Inventory Alert Report" in text, "scan-only subject is green")
-    _check("Scan Activity" in text, "daily email includes scan activity")
-    for label in ("Count", "Restock", "Takeout", "Transfer"):
-        _check(label in text, f"daily scan email includes {label}")
-    _check("Stockouts" not in text, "daily scan email does not resend stock sections")
+    _check(result == {"processed": 2, "sent": 2, "failed": 0}, "daily warning batches processed")
+    _check(len(html_files) == 2, "two daily recipient files written")
+    contents = [_read(path) for path in html_files]
+    _check(any("Predicted Stockouts" in text for text in contents), "daily email has predictions")
+    _check(any("Low Stock" in text for text in contents), "daily email has low stock")
+    _check(any("Stale Counts" in text for text in contents), "daily email has stale counts")
+    _check(any("Rare Takeouts" in text for text in contents), "daily email has rare takeouts")
+    _check(
+        all("Scan Activity" not in text for text in contents),
+        "hourly scans do not resend daily",
+    )
 
 
 def _assert_final_state() -> None:
@@ -539,6 +477,42 @@ def _assert_final_state() -> None:
         ]
         _check(not pending, "no pending alerts remain after due sends")
         _check(len(sent_actions) == 8, "all scan activity rows sent at daily cadence")
+
+
+def _assert_resolved_condition_can_alert_again(ctx: AlertTestContext) -> None:
+    _set_clock(datetime(2026, 5, 10, 13, 0, tzinfo=UTC))
+    with get_session() as session:
+        _scan(session, ctx, "Low Crossing", OperationType.TAKEOUT, 1, from_id=ctx.main_storage_id)
+        session.commit()
+    with get_session() as session:
+        _assert_alert_identity(
+            _alerts(session), AlertType.LOW, AlertAction.SUPPRESSED, "Low Crossing"
+        )
+
+    _set_clock(datetime(2026, 5, 10, 13, 30, tzinfo=UTC))
+    with get_session() as session:
+        _scan(session, ctx, "Low Crossing", OperationType.COUNT, 9, to_id=ctx.main_storage_id)
+        session.commit()
+    with get_session() as session:
+        _assert_alert_identity(
+            _alerts(session), AlertType.LOW, AlertAction.SUPPRESSED, "Low Crossing"
+        )
+
+    _set_clock(datetime(2026, 5, 10, 14, 0, tzinfo=UTC))
+    with get_session() as session:
+        _scan(session, ctx, "Low Crossing", OperationType.COUNT, 15, to_id=ctx.main_storage_id)
+        session.commit()
+    with get_session() as session:
+        _assert_alert_identity(
+            _alerts(session), AlertType.LOW, AlertAction.RESOLVED, "Low Crossing"
+        )
+
+    _set_clock(datetime(2026, 5, 10, 15, 0, tzinfo=UTC))
+    with get_session() as session:
+        _scan(session, ctx, "Low Crossing", OperationType.TAKEOUT, 6, from_id=ctx.main_storage_id)
+        session.commit()
+    with get_session() as session:
+        _assert_alert_identity(_alerts(session), AlertType.LOW, AlertAction.PENDING, "Low Crossing")
 
 
 def _print_alert_counts(alerts: list[AlertRecords]) -> None:
@@ -591,7 +565,7 @@ def _one(alerts: list[AlertRecords], alert_type: AlertType, item_name: str) -> A
         for alert in alerts
         if alert.type == alert_type and alert.details_json.get("item_name") == item_name
     ]
-    _check(len(matches) == 1, f"exactly one {alert_type.value} for {item_name}")
+    _check(bool(matches), f"at least one {alert_type.value} for {item_name}")
     return matches[0]
 
 
@@ -616,9 +590,9 @@ def _reset_clock() -> None:
 
 
 def _alert_files() -> set[Path]:
-    alerts_dir = Path("instance/alerts")
-    alerts_dir.mkdir(parents=True, exist_ok=True)
-    return set(alerts_dir.glob("*_alert.html"))
+    logs_dir = Path("instance/logs")
+    logs_dir.mkdir(parents=True, exist_ok=True)
+    return set(logs_dir.glob("*_alert.html"))
 
 
 def _new_html_files(previous_files: set[Path]) -> set[Path]:

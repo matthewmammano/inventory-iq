@@ -26,6 +26,7 @@ from app.shared.database import get_session
 
 STATE_FILE = Path(__file__).resolve().parents[2] / "instance" / "scheduler_state.json"
 INVENTORY_AUDIT_LOCAL_HOUR = 7
+INVENTORY_AUDIT_LOCAL_MINUTE = 45
 
 _started = False
 
@@ -79,10 +80,10 @@ def _run_daily_inventory_job(now: datetime, state: dict[str, Any]) -> None:
         for agency in agencies:
             local_now = now.astimezone(ZoneInfo(agency.timezone or "UTC"))
             day_key = local_now.strftime("%Y-%m-%d")
-            if (
-                local_now.hour < INVENTORY_AUDIT_LOCAL_HOUR
-                or inventory_days.get(str(agency.id)) == day_key
-            ):
+            if (local_now.hour, local_now.minute) < (
+                INVENTORY_AUDIT_LOCAL_HOUR,
+                INVENTORY_AUDIT_LOCAL_MINUTE,
+            ) or inventory_days.get(str(agency.id)) == day_key:
                 continue
             total += generate_scheduled_alerts(session, agency.id)
             inventory_days[str(agency.id)] = day_key

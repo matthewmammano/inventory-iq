@@ -19,14 +19,14 @@ class AlertRecords(Base):
     __tablename__ = "alert_records"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    agency_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("agencies.id", ondelete="CASCADE"), index=True
+    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
+    agency_email_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("agency_emails.id", ondelete="CASCADE"), index=True
     )
     type: Mapped[AlertType] = mapped_column(SAEnum(AlertType), index=True)
     action: Mapped[AlertAction] = mapped_column(
         SAEnum(AlertAction), default=AlertAction.PENDING, index=True
     )
-    scheduled: Mapped[datetime] = mapped_column(DateTime, index=True)
     details_json: Mapped[dict[str, Any]] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, index=True)
     action_at: Mapped[datetime] = mapped_column(
@@ -36,6 +36,7 @@ class AlertRecords(Base):
     )
 
     agency = relationship("Agencies", back_populates="alert_records")
+    agency_email = relationship("AgencyEmails", lazy="selectin")
 
     def __repr__(self) -> str:
         return f"<AlertRecord {self.id}: {self.type.value} {self.action.value}>"

@@ -12,7 +12,6 @@ from app.auth.queries import list_tags, list_top_locations
 from app.inventory import admin_bp as bp
 from app.inventory.bulk_location_service import (
     empty_quantity_grid,
-    item_ids,
     item_names_requiring_count,
     load_location_quantity_grid,
     save_bulk_location_count,
@@ -24,7 +23,7 @@ from app.inventory.location_operations import (
     get_location_storages,
     parse_quantity_grid,
 )
-from app.inventory.models import ActionLogs, Items
+from app.inventory.models import ActionLogs
 from app.inventory.scan_flow import (
     handle_scan_item_get,
     handle_scan_item_post,
@@ -290,7 +289,7 @@ def count_location(squad: str, agency_location_id: int) -> Any:
         counts = grid.quantities
         original_counts = dict(counts)
         if request.method == "POST":
-            response = _handle_count_post(s, squad, location, items, counts)
+            response = _handle_count_post(s, squad, location, counts)
             if response:
                 return response
     return render_template(
@@ -342,7 +341,7 @@ def receive_location_restock(squad: str, agency_location_id: int) -> Any:
                 )
             )
         if request.method == "POST":
-            response = _handle_restock_post(s, squad, location, items, values)
+            response = _handle_restock_post(s, squad, location, values)
             if response:
                 return response
     return render_template(
@@ -361,7 +360,6 @@ def _handle_count_post(
     session,
     squad: str,
     location: AgencyLocations,
-    items: list[Items],
     counts: dict[tuple[int, int], int],
 ) -> Any | None:
     submitted_counts = parse_quantity_grid(request.form)
@@ -371,7 +369,6 @@ def _handle_count_post(
             current_user.id,
             location.id,
             submitted_counts,
-            item_ids(items),
         )
         session.commit()
         _log_bulk_save("Bulk count saved", squad, location.id, count)
@@ -389,7 +386,6 @@ def _handle_restock_post(
     session,
     squad: str,
     location: AgencyLocations,
-    items: list[Items],
     values: dict[tuple[int, int], int],
 ) -> Any | None:
     values.update(parse_quantity_grid(request.form))
@@ -399,7 +395,6 @@ def _handle_restock_post(
             current_user.id,
             location.id,
             values,
-            item_ids(items),
         )
         session.commit()
         _log_bulk_save("Bulk restock saved", squad, location.id, count)

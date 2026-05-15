@@ -95,19 +95,14 @@
     td {
       font-size: 13px;
     }
-    @media (max-width: 560px) {
-      .summary {
-        grid-template-columns: 1fr;
-      }
-    }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="panel header">
       <p class="eyebrow" style="background: {{ batch.severity_color }}14; border: 1px solid {{ batch.severity_color }}33; color: {{ batch.severity_color }};">{{ batch.severity_label }} Inventory Email</p>
-      <h1>{{ batch.subject }}</h1>
-      <p class="meta">Generated {{ batch.generated_at }}</p>
+      <h1>{{ batch.title }}</h1>
+      <p class="meta">{{ batch.generated_at }}</p>
       <div class="summary">
         {% for item in batch.summary %}
           <div class="summary-box" style="background: {{ batch.severity_color }}14; border-color: {{ batch.severity_color }}33; color: {{ batch.severity_color }};">

@@ -33,6 +33,7 @@ class EmailBatch(BaseModel):
     agency_name: str
     generated_at: str
     subject: str
+    title: str
     severity_label: str
     severity_color: str
     summary: list[AlertSummaryItem] = Field(default_factory=list)

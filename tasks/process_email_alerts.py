@@ -1,5 +1,6 @@
-"""Send batched pending email alerts.
-Cron: 0 * * * * python tasks/process_email_alerts.py
+"""Manually send all currently pending alert emails.
+
+Manual: python -m tasks.process_email_alerts
 """
 
 from loguru import logger
@@ -9,11 +10,14 @@ from app.alerts.email_service import process_all_alerts
 
 
 def run() -> None:
-    """Send all due pending alert emails."""
+    """Manually send all pending alert emails."""
     app = create_app()
     with app.app_context():
-        result = process_all_alerts()
-        logger.info(f"Alert batch: processed={result['processed']} sent={result['sent']}")
+        result = process_all_alerts(force=True)
+        logger.info(
+            "Alert batch: "
+            f"processed={result['processed']} sent={result['sent']} failed={result['failed']}"
+        )
 
 
 if __name__ == "__main__":

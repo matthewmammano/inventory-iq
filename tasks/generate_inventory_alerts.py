@@ -1,6 +1,6 @@
-"""Generate scheduled inventory alerts.
+"""Run the full inventory alert safety audit.
 
-Cron: 0 7 * * * python tasks/generate_inventory_alerts.py
+Manual: python -m tasks.generate_inventory_alerts
 """
 
 from loguru import logger
@@ -11,12 +11,12 @@ from app.shared.database import get_session
 
 
 def run() -> None:
-    """Generate daily scheduled inventory alert rows."""
+    """Generate safety-audit alert rows for all active agencies."""
     app = create_app()
     with app.app_context(), get_session() as session:
         count = generate_scheduled_alerts(session)
         session.commit()
-        logger.info("Scheduled inventory alerts generated", extra={"rows_checked": count})
+        logger.info("Inventory safety audit generated alerts", extra={"rows_checked": count})
 
 
 if __name__ == "__main__":

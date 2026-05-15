@@ -4,7 +4,6 @@ from loguru import logger
 from sqlalchemy.orm import Session
 
 from app.auth.queries import get_storage
-from app.prediction.estimator import get_location_item_quantity
 from app.prediction.validation import validate_restock
 from app.shared.clock import utc_now
 from app.shared.database import get_session
@@ -31,7 +30,6 @@ def inventory_operation(
         _validate_operation(
             db, agency_id, item_id, quantity, operation_type, from_location, to_location
         )
-        quantity_snapshots = _quantity_snapshots(db, agency_id, item_id, from_location, to_location)
         _touch_item_last_accessed(db, item_id)
         action = _add_action_log(
             db,
@@ -43,11 +41,7 @@ def inventory_operation(
             to_location,
             admin_action,
         )
-        record_action_log_alerts(
-            db,
-            [action],
-            _updated_snapshots(db, agency_id, item_id, quantity_snapshots),
-        )
+        record_action_log_alerts(db, [action])
         db.commit()
 
         logger.info("{}: item={} qty={}", operation_type.value, item_id, quantity)
@@ -131,42 +125,6 @@ def _touch_item_last_accessed(session: Session, item_id: int) -> None:
     item = get_item(item_id, session)
     if item:
         item.last_accessed = utc_now()
-
-
-def _quantity_snapshots(
-    session: Session,
-    agency_id: int,
-    item_id: int,
-    from_location: int | None,
-    to_location: int | None,
-) -> dict[int, int]:
-    location_ids = {
-        storage.location_id
-        for storage in (
-            get_storage(from_location, agency_id, session) if from_location else None,
-            get_storage(to_location, agency_id, session) if to_location else None,
-        )
-        if storage is not None
-    }
-    return {
-        location_id: get_location_item_quantity(session, agency_id, item_id, location_id)
-        for location_id in location_ids
-    }
-
-
-def _updated_snapshots(
-    session: Session,
-    agency_id: int,
-    item_id: int,
-    previous_totals: dict[int, int],
-) -> dict[tuple[int, int, int], tuple[int, int]]:
-    return {
-        (agency_id, item_id, location_id): (
-            before_total,
-            get_location_item_quantity(session, agency_id, item_id, location_id),
-        )
-        for location_id, before_total in previous_totals.items()
-    }
 
 
 def _add_action_log(
