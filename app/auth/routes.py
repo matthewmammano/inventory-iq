@@ -93,10 +93,13 @@ def forgot_password():
             sent = create_password_reset_pin(s, email)
         if not sent:
             flash("Reset PIN email could not be sent. Please try again shortly.", "error")
-            return redirect(url_for("auth.forgot_password"))
+            return redirect(url_for("auth.forgot_password", email=email))
         flash("If that agency email is active, enter the reset PIN sent to that email.", "info")
-        return redirect(url_for("auth.reset_password"))
-    return render_template("forgot_password.html")
+        return redirect(url_for("auth.reset_password", email=email))
+    return render_template(
+        "forgot_password.html",
+        email_value=request.args.get("email", "").strip(),
+    )
 
 
 @bp.route("/reset-password", methods=["GET", "POST"])
@@ -107,14 +110,17 @@ def reset_password():
         new_password = request.form.get("password", "").strip()
         if len(new_password) < 8:
             flash("Password must be at least 8 characters.", "error")
-            return redirect(url_for("auth.reset_password"))
+            return redirect(url_for("auth.reset_password", email=email))
         with get_session() as s:
             if reset_password_with_pin(s, email, pin, new_password):
                 flash("Password reset successfully. Please log in.", "success")
                 return redirect(url_for("auth.login"))
         flash("Reset PIN is invalid or expired.", "error")
-        return redirect(url_for("auth.reset_password"))
-    return render_template("reset_password.html")
+        return redirect(url_for("auth.reset_password", email=email))
+    return render_template(
+        "reset_password.html",
+        email_value=request.args.get("email", "").strip(),
+    )
 
 
 @bp.route("/logout")
