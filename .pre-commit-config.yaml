@@ -1,4 +1,5 @@
-# Pre-commit hooks for automatic code formatting and linting
+# Pre-commit hooks for automatic code formatting and linting.
+# Some hooks edit files; rerun the same command after fixes before committing.
 
 repos:
   # Ruff - Fast Python linter (replaces flake8, isort, pyupgrade)

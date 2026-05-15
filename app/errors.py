@@ -1,10 +1,12 @@
-"""Error handlers."""
+"""Register shared HTML error pages for Flask."""
 
 from flask import Flask, render_template, request
 from loguru import logger
 
 
 def register_error_handlers(app: Flask) -> None:
+    """Attach app-level error handlers."""
+
     def _err(title: str, message: str, description: str, code: int) -> tuple[str, int]:
         return render_template(
             "error.html",

@@ -1,3 +1,4 @@
+# Normalize text line endings so hooks do not rewrite the repo differently per OS.
 * text=auto eol=lf
 
 *.ico binary

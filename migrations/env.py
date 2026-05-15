@@ -1,4 +1,8 @@
-"""Alembic environment for Inventory IQ."""
+"""Alembic runtime environment.
+
+Alembic runs this file for every migration command. The model imports below are
+intentional: they register ORM metadata before autogenerate/create_all logic.
+"""
 
 from logging.config import fileConfig
 

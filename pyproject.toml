@@ -1,20 +1,23 @@
+# Packaging metadata and shared tool config.
+# Railway currently installs from requirements.txt; keep this in sync anyway.
+
 [project]
 name = "inventory-iq"
 version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
+    "alembic",
     "Flask",
     "Flask-Login",
+    "gunicorn",
+    "psycopg[binary]",
     "SQLAlchemy",
     "pydantic",
     "pydantic-settings",
     "email-validator",
     "python-dotenv",
     "loguru",
-    "numpy",
-    "pandas",
-    "xgboost",
-    "scikit-learn",
+    "tzdata",
 ]
 
 [build-system]
