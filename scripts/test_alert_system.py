@@ -36,7 +36,7 @@ from app.alerts.models import AlertRecords  # noqa: E402
 from app.auth.models import Agencies, AgencyEmails, AgencyLocations, AgencyStorages  # noqa: E402
 from app.inventory.constants import OperationType  # noqa: E402
 from app.inventory.models import ActionLogs, Items  # noqa: E402
-from app.prediction.estimator import get_location_item_quantity  # noqa: E402
+from app.prediction.estimator import get_location_item_quantity, project_location_item  # noqa: E402
 from app.prediction.models import InventoryTrend  # noqa: E402
 from app.shared.clock import CLOCK_FILE, utc_now  # noqa: E402
 from app.shared.database import create_all, get_session  # noqa: E402
@@ -281,7 +281,7 @@ def _seed_trends(
     items: dict[str, Items],
 ) -> None:
     trend_specs = {
-        "Pred Stockout Override": (-1.0, 80, "override"),
+        "Pred Stockout Override": (-150.0, 80, "override"),
         "Pred Low Default": (-1.0, 70, "default-low"),
         "Pred Both Suppression": (-1.0, 90, "both"),
         "Healthy No Alert": (0.25, 60, "healthy"),
@@ -426,6 +426,18 @@ def _assert_prediction_details(alerts: list[AlertRecords]) -> None:
     _check(override.details_json["lead_time_days"] == 14, "item lead-time override used")
     _check(default.details_json["lead_time_days"] == 21, "agency lead-time default used")
     _check(fallback.details_json.get("confidence_percent") is None, "fallback confidence is blank")
+    with get_session() as session:
+        item = session.scalar(select(Items).where(Items.name == "Pred Stockout Override"))
+        _check(item is not None, "override item exists for trend cap check")
+        assert item is not None
+        projection = project_location_item(
+            session,
+            item.agency_id,
+            item,
+            int(override.details_json["agency_location_id"]),
+        )
+        _check(projection.daily_usage == 99.0, "daily usage is capped at 99")
+        _check(-projection.daily_usage == -99.0, "effective trend is capped at -99")
 
 
 def _assert_hourly_email(initial_files: set[Path]) -> set[Path]:

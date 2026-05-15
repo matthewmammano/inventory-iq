@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.inventory.models import Items
 from app.inventory.quantity_service import calculate_item_quantities
+from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
 from app.prediction.segments import get_location_storage_ids
 from app.prediction.usage_model import get_inventory_trend
 
@@ -25,7 +26,8 @@ class LocationProjection:
 
     @property
     def daily_usage(self) -> float:
-        return max(0.0, -self.trend_per_day)
+        usage = max(0.0, -float(self.trend_per_day))
+        return min(max(usage, MIN_EFFECTIVE_DAILY_USAGE), MAX_EFFECTIVE_DAILY_USAGE)
 
 
 def project_location_item(

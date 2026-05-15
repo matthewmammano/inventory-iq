@@ -254,10 +254,9 @@ def _add_prediction_alerts(
     min_quantity: int,
     lead_time_days: int,
 ) -> None:
-    days_stockout = days_to_threshold(projection.current_quantity, projection.trend_per_day, 0)
-    days_low = days_to_threshold(
-        projection.current_quantity, projection.trend_per_day, min_quantity
-    )
+    effective_trend = -projection.daily_usage
+    days_stockout = days_to_threshold(projection.current_quantity, effective_trend, 0)
+    days_low = days_to_threshold(projection.current_quantity, effective_trend, min_quantity)
     if days_stockout is not None and 0 < days_stockout <= lead_time_days:
         alerts[AlertType.STOCKOUT_PRED] = {
             **base,

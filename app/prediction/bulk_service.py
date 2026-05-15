@@ -91,9 +91,10 @@ class BulkService:
             item.restock_delivery_days,
         )
         projection = project_location_item(session, agency_id, item, agency_location_id)
+        effective_trend = -projection.daily_usage
 
-        days_low = days_to_threshold(projection.current_quantity, projection.trend_per_day, min_qty)
-        days_out = days_to_threshold(projection.current_quantity, projection.trend_per_day, 0)
+        days_low = days_to_threshold(projection.current_quantity, effective_trend, min_qty)
+        days_out = days_to_threshold(projection.current_quantity, effective_trend, 0)
         order_amount = BulkService._calculate_order_amount(
             current_total=projection.current_quantity,
             max_qty=max_qty,
@@ -107,7 +108,7 @@ class BulkService:
             "item": item,
             "current_total": projection.current_quantity,
             "projected_lead_time_total": round(
-                max(projection.current_quantity + projection.trend_per_day * lead_time_days, 0)
+                max(projection.current_quantity + effective_trend * lead_time_days, 0)
             ),
             "min_quantity": min_qty,
             "max_quantity": max_qty,
