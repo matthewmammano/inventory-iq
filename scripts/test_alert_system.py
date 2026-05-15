@@ -20,8 +20,8 @@ TEST_DB = Path("instance/alert_system_test.db")
 START_AT = datetime(2026, 5, 10, 6, 0, tzinfo=UTC)
 
 settings.database_url = f"sqlite:///{TEST_DB.as_posix()}"
-settings.brevo_api_key = ""
-settings.brevo_sender_email = ""
+settings.email_api_key = ""
+settings.email_sender_email = ""
 settings.dev_clock_enabled = True
 settings.scheduler_enabled = False
 
@@ -44,6 +44,8 @@ from app.shared.database import create_all, get_session  # noqa: E402
 
 @dataclass(frozen=True)
 class AlertTestContext:
+    """IDs needed across the end-to-end alert QA script."""
+
     agency_id: int
     hq_location_id: int
     main_storage_id: int

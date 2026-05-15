@@ -1,5 +1,6 @@
 """Rebuild local SQLite DB with deterministic EMS demo data."""
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -33,10 +34,15 @@ MAIN_PASSWORD = "Passw0rd!Point"
 MAIN_PIN = "1111"
 LAST_COUNT_AT = datetime(2026, 5, 9, 12, 0, tzinfo=UTC)
 SEGMENT_DAYS = 14
+POINT_BORO = "Point Boro EMS"
+POINT_BEACH = "Point Beach EMS"
+STORAGES = ("Back Closet", "Shelf")
 
 
 @dataclass(frozen=True)
 class ItemSeed:
+    """Demo item definition for the main agency."""
+
     name: str
     min_quantity: int
     max_quantity: int
@@ -49,6 +55,8 @@ class ItemSeed:
 
 @dataclass(frozen=True)
 class TrendSeed:
+    """Count-history shape used to train one item/location trend."""
+
     item_name: str
     location_name: str
     first_total: int
@@ -71,17 +79,19 @@ ITEMS = (
 )
 
 TREND_SEEDS = (
-    TrendSeed("Nitrile Gloves - Large Box", "Station 75", 500, -1.3, 8, after_count_takeout=18),
-    TrendSeed("Nitrile Gloves - Large Box", "Bay Head Substation", 260, -0.8, 5),
-    TrendSeed("Trauma Dressing 5x9", "Station 75", 190, -2.2, 6, after_count_takeout=12),
-    TrendSeed("Trauma Dressing 5x9", "Logistics Cache", 110, 1.0, 4, after_count_restock=24),
-    TrendSeed("Epinephrine Auto-Injector", "Station 75", 55, -0.6, 5),
-    TrendSeed("Adult AED Pads", "Station 75", 42, -0.35, 5),
-    TrendSeed("Oxygen Nasal Cannula", "Bay Head Substation", 140, -2.1, 4),
-    TrendSeed("Glucometer Test Strips", "Station 75", 44, -0.1, 3),
-    TrendSeed("SAM Splint Roll", "Logistics Cache", 34, 0.0, 4),
-    TrendSeed("Saline Flush 10ml", "Station 75", 760, -6.0, 7, after_count_takeout=75),
-    TrendSeed("Saline Flush 10ml", "Bay Head Substation", 210, -2.8, 4),
+    TrendSeed("Nitrile Gloves - Large Box", POINT_BORO, 620, -1.4, 16, after_count_takeout=18),
+    TrendSeed("Nitrile Gloves - Large Box", POINT_BEACH, 360, -0.7, 12),
+    TrendSeed("Trauma Dressing 5x9", POINT_BORO, 560, -2.2, 14, after_count_takeout=12),
+    TrendSeed("Trauma Dressing 5x9", POINT_BEACH, 260, -1.1, 10, after_count_restock=24),
+    TrendSeed("Epinephrine Auto-Injector", POINT_BORO, 130, -0.45, 12),
+    TrendSeed("Epinephrine Auto-Injector", POINT_BEACH, 36, -0.2, 8),
+    TrendSeed("Adult AED Pads", POINT_BORO, 48, -0.25, 10),
+    TrendSeed("Oxygen Nasal Cannula", POINT_BORO, 220, -1.2, 8),
+    TrendSeed("Oxygen Nasal Cannula", POINT_BEACH, 420, -1.8, 10),
+    TrendSeed("Glucometer Test Strips", POINT_BORO, 52, -0.1, 8),
+    TrendSeed("SAM Splint Roll", POINT_BEACH, 34, 0.0, 8),
+    TrendSeed("Saline Flush 10ml", POINT_BORO, 900, -5.2, 18, after_count_takeout=75),
+    TrendSeed("Saline Flush 10ml", POINT_BEACH, 420, -2.4, 12),
 )
 
 SEED_TABLES = (
@@ -210,15 +220,14 @@ def _create_tags(session: Session, agency_id: int) -> dict[str, AgencyItemTags]:
 
 def _create_main_locations(session: Session, agency_id: int) -> dict[str, list[AgencyStorages]]:
     layout = {
-        "Station 75": ("Supply Room", "Ambulance 7501", "Ambulance 7502", "Med Fridge"),
-        "Bay Head Substation": ("Supply Closet", "Ambulance 7511"),
-        "Logistics Cache": ("Receiving Shelf", "Overflow Cage"),
+        POINT_BORO: STORAGES,
+        POINT_BEACH: STORAGES,
     }
     return _create_locations(session, agency_id, layout)
 
 
 def _create_locations(
-    session: Session, agency_id: int, layout: dict[str, tuple[str, ...]]
+    session: Session, agency_id: int, layout: Mapping[str, Sequence[str]]
 ) -> dict[str, list[AgencyStorages]]:
     locations: dict[str, list[AgencyStorages]] = {}
     for location_name, storage_names in layout.items():
@@ -230,7 +239,7 @@ def _create_locations(
                 agency_id=agency_id,
                 location_id=location.id,
                 name=storage_name,
-                user_access_from=storage_name != "Med Fridge",
+                user_access_from=True,
                 user_access_to=True,
             )
             for storage_name in storage_names
@@ -274,14 +283,14 @@ def _create_main_history(
     for trend in TREND_SEEDS:
         _add_trend_history(session, agency_id, items[trend.item_name], locations, trend)
 
-    _add_current_stockout(session, agency_id, items["Trauma Dressing 5x9"], locations["Station 75"])
-    _add_current_low(session, agency_id, items["Oxygen Nasal Cannula"], locations["Station 75"])
-    _add_sparse_fallback(session, agency_id, items["SAM Splint Roll"], locations["Station 75"])
+    _add_current_stockout(session, agency_id, items["Trauma Dressing 5x9"], locations[POINT_BORO])
+    _add_current_low(session, agency_id, items["Oxygen Nasal Cannula"], locations[POINT_BORO])
+    _add_sparse_fallback(session, agency_id, items["SAM Splint Roll"], locations[POINT_BORO])
     _add_stale_count_case(
-        session, agency_id, items["Glucometer Test Strips"], locations["Bay Head Substation"]
+        session, agency_id, items["Glucometer Test Strips"], locations[POINT_BEACH]
     )
     _add_rare_takeout_case(
-        session, agency_id, items["Glucometer Test Strips"], locations["Station 75"]
+        session, agency_id, items["Glucometer Test Strips"], locations[POINT_BORO]
     )
     _add_transfer_case(session, agency_id, items["Nitrile Gloves - Large Box"], locations)
     _add_missing_safe_counts(session, agency_id, items, locations)
@@ -398,8 +407,8 @@ def _add_transfer_case(
         agency_id,
         item.id,
         OperationType.TRANSFER,
-        locations["Logistics Cache"][0].id,
-        locations["Station 75"][1].id,
+        locations[POINT_BEACH][0].id,
+        locations[POINT_BORO][1].id,
         20,
         LAST_COUNT_AT + timedelta(hours=5),
         admin=True,
