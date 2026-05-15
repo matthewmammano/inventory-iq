@@ -14,6 +14,7 @@ from app.shared.database import get_session
 
 
 def run() -> None:
+    """Retrain changed location-level inventory trends for every active agency."""
     app = create_app()
     with app.app_context(), get_session() as session:
         agencies = list(

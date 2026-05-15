@@ -9,6 +9,7 @@ from app.alerts.email_service import process_all_alerts
 
 
 def run() -> None:
+    """Send all due pending alert emails."""
     app = create_app()
     with app.app_context():
         result = process_all_alerts()

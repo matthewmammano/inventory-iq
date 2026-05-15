@@ -11,6 +11,7 @@ from app.shared.database import get_session
 
 
 def run() -> None:
+    """Generate daily scheduled inventory alert rows."""
     app = create_app()
     with app.app_context(), get_session() as session:
         count = generate_scheduled_alerts(session)
