@@ -22,7 +22,7 @@ from app.shared.validators import (
     validate_timezone,
 )
 
-from .constants import BLACK_HEX, WHITE_HEX
+from .constants import BLACK_HEX, PASSWORD_MIN_LENGTH, PASSWORD_REQUIREMENTS_MESSAGE, WHITE_HEX
 from .location_filters import normalize_location_filter_ids
 
 
@@ -64,6 +64,7 @@ class Agencies(Base, UserMixin):
 
     def set_password(self, password: str) -> None:
         """Set the password hash."""
+        validate_password_strength(password)
         self.password = generate_password_hash(password)
 
     def check_password(self, password: str) -> bool:
@@ -288,3 +289,14 @@ class AgencyItemTags(Base):
         if not re.match(r"^#[0-9A-Fa-f]{6}$", value):
             raise ValueError("Color must be valid hex format: #rrggbb")
         return value.upper()
+
+
+def validate_password_strength(password: str) -> str:
+    if (
+        len(password) < PASSWORD_MIN_LENGTH
+        or not any(char.isalpha() for char in password)
+        or not any(char.isdigit() for char in password)
+        or not any(char in string.punctuation for char in password)
+    ):
+        raise ValueError(PASSWORD_REQUIREMENTS_MESSAGE)
+    return password

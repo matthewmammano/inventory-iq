@@ -7,6 +7,8 @@ from loguru import logger
 from app.shared.database import get_session
 
 from . import bp
+from .constants import PASSWORD_REQUIREMENTS_MESSAGE
+from .models import validate_password_strength
 from .password_reset_service import create_password_reset_pin, reset_password_with_pin
 from .queries import get_agency_by_email
 
@@ -57,6 +59,10 @@ def set_password():
 def forgot_password():
     if request.method == "POST":
         email = request.form.get("email", "").strip()
+        if not email:
+            logger.warning("Password reset PIN rejected: missing email")
+            flash("Email is required.", "error")
+            return redirect(url_for("auth.forgot_password"))
         with get_session() as s:
             sent = create_password_reset_pin(s, email)
         if not sent:
@@ -76,8 +82,11 @@ def reset_password():
         email = request.form.get("email", "").strip()
         pin = request.form.get("pin", "").strip()
         new_password = request.form.get("password", "").strip()
-        if len(new_password) < 8:
-            flash("Password must be at least 8 characters.", "error")
+        try:
+            validate_password_strength(new_password)
+        except ValueError:
+            logger.warning("Password reset rejected: weak password")
+            flash(PASSWORD_REQUIREMENTS_MESSAGE, "error")
             return redirect(url_for("auth.reset_password", email=email))
         with get_session() as s:
             if reset_password_with_pin(s, email, pin, new_password):

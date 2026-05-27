@@ -4,9 +4,11 @@ from datetime import datetime
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from .constants import PASSWORD_MIN_LENGTH
 from .models import (
     validate_email_format,
     validate_image_url,
+    validate_password_strength,
     validate_pin,
     validate_string_length,
     validate_timezone,
@@ -23,7 +25,12 @@ class LoginRequest(BaseModel):
 class SetPasswordRequest(BaseModel):
     """Set password request payload."""
 
-    password: str = Field(min_length=8)
+    password: str = Field(min_length=PASSWORD_MIN_LENGTH)
+
+    @field_validator("password")
+    @classmethod
+    def validate_password(cls, value: str) -> str:
+        return validate_password_strength(value)
 
 
 class AgencyResponse(BaseModel):
