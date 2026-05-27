@@ -43,9 +43,48 @@
             <div class="section-label">Alert Thresholds</div>
             <p>These values control when inventory warnings appear in alert emails.</p>
             <div class="settings-options">
-                <div class="setting-row"><div><div class="setting-name">Lead Time Days</div><p>Used for predicted low stock and stockout warnings</p></div><input class="small-input" type="number" name="lead_time_days" min="1" value="{{ current_user.lead_time_days }}" data-label="Lead Time Days" data-original="{{ current_user.lead_time_days }}"></div>
-                <div class="setting-row"><div><div class="setting-name">Stale Count Days</div><p>Warn when a location has not been counted recently</p></div><input class="small-input" type="number" name="count_last_days" min="1" value="{{ current_user.count_last_days }}" data-label="Stale Count Days" data-original="{{ current_user.count_last_days }}"></div>
-                <div class="setting-row"><div><div class="setting-name">Rare Takeout Days</div><p>Warn when takeout activity is unusual for a location</p></div><input class="small-input" type="number" name="alert_rare_scan_days" min="1" value="{{ current_user.alert_rare_scan_days }}" data-label="Rare Takeout Days" data-original="{{ current_user.alert_rare_scan_days }}"></div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-name">Lead Time Days</div>
+                        <p>Used for predicted low stock and stockout warnings</p>
+                    </div>
+                    <input
+                        class="small-input"
+                        type="number"
+                        name="lead_time_days"
+                        min="1"
+                        value="{{ current_user.lead_time_days }}"
+                        data-label="Lead Time Days"
+                        data-original="{{ current_user.lead_time_days }}">
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-name">Stale Count Days</div>
+                        <p>Warn when a location has not been counted recently</p>
+                    </div>
+                    <input
+                        class="small-input"
+                        type="number"
+                        name="count_last_days"
+                        min="1"
+                        value="{{ current_user.count_last_days }}"
+                        data-label="Stale Count Days"
+                        data-original="{{ current_user.count_last_days }}">
+                </div>
+                <div class="setting-row">
+                    <div>
+                        <div class="setting-name">Rare Takeout Days</div>
+                        <p>Warn when takeout activity is unusual for a location</p>
+                    </div>
+                    <input
+                        class="small-input"
+                        type="number"
+                        name="alert_rare_scan_days"
+                        min="1"
+                        value="{{ current_user.alert_rare_scan_days }}"
+                        data-label="Rare Takeout Days"
+                        data-original="{{ current_user.alert_rare_scan_days }}">
+                </div>
             </div>
         </section>
 

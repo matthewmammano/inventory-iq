@@ -538,7 +538,7 @@ def settings_page(squad: str) -> Any:
             (location for location in locations if location.id == current_location_id), None
         )
     return render_template(
-        "admin_help.html",
+        "admin_settings.html",
         squad=squad,
         contact_phone=current_app.config.get("CONTACT_PHONE", ""),
         locations=locations,

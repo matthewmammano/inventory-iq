@@ -25,13 +25,13 @@ document.addEventListener("DOMContentLoaded", () => {
             changed: field.dataset.original !== valueOf(field),
         }))
         .filter((change) => change.changed);
-    const invalidFields = () => fields.filter((field) => field.dataset.requiredOption !== undefined && !valueOf(field));
+    const invalidFields = () => fields.filter((field) => !field.checkValidity());
 
     function renderDirtyState() {
         const pending = changes();
         saveButton.classList.toggle("hidden", pending.length === 0);
         fields.forEach((field) => field.classList.toggle("changed", field.dataset.original !== valueOf(field)));
-        fields.forEach((field) => field.classList.toggle("invalid", field.dataset.requiredOption !== undefined && !valueOf(field)));
+        fields.forEach((field) => field.classList.toggle("invalid", !field.checkValidity()));
     }
 
     function openModal(mode) {
@@ -55,9 +55,7 @@ document.addEventListener("DOMContentLoaded", () => {
         confirmButton.textContent = mode === "back" ? "Leave Without Saving" : "Yes, Save";
         confirmButton.classList.toggle("danger-button", mode === "back");
         confirmButton.classList.toggle("success-button", mode !== "back");
-        changeList.innerHTML = pending.map((change) =>
-            `<div class="change-item">${change.label}: ${change.from} to ${change.to}</div>`
-        ).join("");
+        changeList.replaceChildren(...pending.map(changeItem));
         modal.classList.remove("hidden");
     }
 
@@ -89,4 +87,11 @@ function bindField(field, renderDirtyState) {
         if (input) input.value = field.textContent.trim() === "On" ? "1" : "0";
         renderDirtyState();
     });
+}
+
+function changeItem(change) {
+    const item = document.createElement("div");
+    item.className = "change-item";
+    item.textContent = `${change.label}: ${change.from} to ${change.to}`;
+    return item;
 }
