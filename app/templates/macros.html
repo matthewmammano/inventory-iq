@@ -1,19 +1,20 @@
 {% macro header_logo(src) %}
     <img src="{{ src }}"
-         class="header-logo"
+         class="logo"
+         alt="Inventory IQ logo"
          loading="lazy"
          decoding="async"
-         onerror="this.src='{{ url_for('static', filename='images/not-found.jpg') }}'">
+         data-fallback-src="{{ url_for('static', filename='images/not-found.jpg') }}">
 {% endmacro %}
 
 {% macro header_button(url, text) %}
-    <a href="{{ url }}" class="header-button">{{ text }}</a>
+    <a href="{{ url }}" class="header-action">{{ text }}</a>
 {% endmacro %}
 
 {% macro bulk_quantity_table(items, storages, values, submit_text, original_values=None) %}
     {% set originals = original_values if original_values is not none else values %}
-    <div class="bulk-table-wrap">
-        <table class="bulk-quantity-table">
+    <div class="table-wrap">
+        <table>
             <thead>
                 <tr>
                     <th>Item</th>
@@ -29,6 +30,7 @@
                     {% for storage in storages %}
                     <td>
                         <input
+                            class="table-input"
                             type="number"
                             min="0"
                             aria-label="{{ item.name }} in {{ storage.name }}"
@@ -43,7 +45,7 @@
             </tbody>
         </table>
     </div>
-    <div class="bulk-form-actions">
-        <button class="positive-button" type="submit">{{ submit_text }}</button>
+    <div class="button-row">
+        <button class="success-button" type="submit">{{ submit_text }}</button>
     </div>
 {% endmacro %}

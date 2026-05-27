@@ -32,8 +32,8 @@ def login():
 
         if not agency.password:
             logger.info("Login requires password setup", extra={"agency_id": agency.id})
-            flash("Please set your password first.", "info")
-            return redirect(url_for("auth.set_password"))
+            flash("Please use the emailed PIN flow to set your password.", "info")
+            return redirect(url_for("auth.forgot_password", email=email))
 
         if agency.check_password(password):
             login_user(agency)
@@ -49,40 +49,8 @@ def login():
 
 @bp.route("/set-password", methods=["GET", "POST"])
 def set_password():
-    if request.method == "POST":
-        email = request.form.get("email", "").strip()
-        new_password = request.form.get("password", "").strip()
-        if len(new_password) < 8:
-            logger.warning("Password setup rejected: password too short")
-            flash("Password must be at least 8 characters.", "error")
-            return redirect(url_for("auth.set_password"))
-
-        with get_session() as s:
-            agency = get_agency_by_email(email, s)
-
-        if agency is None or not agency.active:
-            logger.warning("Password setup rejected: invalid or inactive agency")
-            flash("Invalid email.", "error")
-            return redirect(url_for("auth.set_password"))
-
-        if agency.password:
-            logger.info(
-                "Password setup skipped: password already set",
-                extra={"agency_id": agency.id},
-            )
-            flash("Password already set. Please log in.", "info")
-            return redirect(url_for("auth.login"))
-
-        with get_session() as s:
-            s.add(agency)
-            agency.set_password(new_password)
-            s.commit()
-
-        logger.info("Password set", extra={"agency_id": agency.id})
-        flash("Password set successfully. Please log in.", "success")
-        return redirect(url_for("auth.login"))
-
-    return render_template("set_password.html")
+    flash("Use the reset PIN flow to set your password.", "info")
+    return redirect(url_for("auth.forgot_password"))
 
 
 @bp.route("/forgot-password", methods=["GET", "POST"])

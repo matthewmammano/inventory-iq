@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Panel{% endblock %}
+{% block header_title %}Admin Panel{% endblock %}
+{% block sub_title %}{{ squad }}{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('guest.index', squad=squad) }}">Exit Admin</a>{% endblock %}
+
+{% block content %}
+<section class="grid admin-menu">
+    <a class="card" href="{{ url_for('admin.admin_panel_views', squad=squad) }}">
+        <h2>View</h2>
+        <p>Access item, location, and tag views.</p>
+    </a>
+    <a class="card" href="{{ url_for('admin.admin_scan_items', squad=squad) }}">
+        <h2>Move / Count</h2>
+        <p>Move inventory or correct counts.</p>
+    </a>
+    <a class="card" href="{{ url_for('admin.restock', squad=squad) }}">
+        <h2>Restock</h2>
+        <p>Generate reorder recommendations.</p>
+    </a>
+    <a class="card" href="{{ url_for('admin.bulk_actions', squad=squad) }}">
+        <h2>Bulk Action</h2>
+        <p>Count or receive stock by location.</p>
+    </a>
+    <a class="card" href="{{ url_for('admin.inventory_counts', squad=squad) }}">
+        <h2>Inventory Levels</h2>
+        <p>Review counts across locations.</p>
+    </a>
+    <a class="card" href="{{ url_for('admin.admin_history', squad=squad) }}">
+        <h2>View History</h2>
+        <p>See all inventory changes.</p>
+    </a>
+    <a class="card" href="{{ url_for('admin.settings_page', squad=squad) }}">
+        <h2>Settings</h2>
+        <p>Device defaults, support, and future admin options.</p>
+    </a>
+</section>
+<section class="footer-actions">
+    <div class="support">
+        Need help or seeing errors?
+        {% if contact_phone %}
+            Call or text Priority One Technologies support at {{ contact_phone }}.
+        {% else %}
+            Contact Priority One Technologies support.
+        {% endif %}
+    </div>
+    <a class="danger-button" href="{{ url_for('auth.logout') }}">Logout of Squad Account</a>
+</section>
+{% endblock %}

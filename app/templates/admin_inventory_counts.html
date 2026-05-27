@@ -1,0 +1,81 @@
+{% extends "base.html" %}
+
+{% block title %}Inventory Levels{% endblock %}
+{% block header_title %}Inventory Levels{% endblock %}
+{% block sub_title %}Compare current stock across locations{% endblock %}
+{% block header_right %}
+    <button class="success-button" id="open-report-email" type="button">Send Report to Email</button>
+    <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>
+{% endblock %}
+
+{% block content %}
+<div class="tabbed-panel">
+    <section class="tab-strip">
+        {% for tab in location_tabs %}
+        <a class="tab-button{% if (active_location_id and tab.location.id == active_location_id) or (not active_location_id and loop.first) %} active{% endif %}" href="#location-{{ tab.location.id }}" data-tab="location-{{ tab.location.id }}">{{ tab.location.name }}</a>
+        {% endfor %}
+    </section>
+    {% for tab in location_tabs %}
+    <section class="panel tab-panel{% if not ((active_location_id and tab.location.id == active_location_id) or (not active_location_id and loop.first)) %} hidden{% endif %}" id="location-{{ tab.location.id }}">
+        {% if tab.inventory_data|length == 0 %}
+        <div class="empty-state"><h2>No items found</h2></div>
+        {% else %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Item</th>{% for storage in tab.storages %}<th>{{ storage.name }}</th>{% endfor %}<th>Total</th></tr></thead>
+                <tbody>
+                    {% for row in tab.inventory_data %}
+                    <tr>
+                        <td>{{ row.item.name }}</td>
+                        {% for storage in tab.storages %}
+                        <td class="{{ row.storage_classes[storage.id] }}">{{ row.storage_counts[storage.id] }}</td>
+                        {% endfor %}
+                        <td class="{{ row.total_class }}">{{ row.total }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </section>
+    {% endfor %}
+</div>
+
+<div class="modal-backdrop hidden" id="report-email-modal">
+    <div class="modal">
+        <h2>Send Inventory Report</h2>
+        <p>Select who should receive the current inventory levels report.</p>
+        {% if agency_emails %}
+        <form method="POST" action="{{ url_for('admin.send_inventory_counts_email', squad=squad) }}" class="stack">
+            <label class="setting-row">
+                <span class="setting-name">Select All</span>
+                <input type="checkbox" id="select-all-report-emails">
+            </label>
+            <div class="settings-options">
+                {% for agency_email in agency_emails %}
+                <label class="setting-row">
+                    <span>{{ agency_email.email }}</span>
+                    <input class="report-email-option" type="checkbox" name="agency_email_ids" value="{{ agency_email.id }}">
+                </label>
+                {% endfor %}
+            </div>
+            <div class="button-row">
+                <button class="success-button" id="send-report-email" type="submit" disabled>Send Report</button>
+                <button class="quiet-button" id="close-report-email" type="button">Cancel</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="empty-state">
+            <h2>No notification emails found</h2>
+            <p>Add agency emails before sending reports.</p>
+        </div>
+        <button class="quiet-button" id="close-report-email" type="button">Close</button>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/tabs.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/inventory-report-email.js') }}" defer></script>
+{% endblock %}

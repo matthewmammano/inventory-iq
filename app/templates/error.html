@@ -1,34 +1,33 @@
 {% extends "base.html" %}
 
 {% block title %}{{ error_title | default("Error") }}{% endblock %}
-{% block header_title %}{{ error_title | default("Error") }}{% endblock %}
-{% block sub_title %}{{ error_subtitle | default("Something went wrong") }}{% endblock %}
-
-{% block extra_css %}
-<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/errors.css') }}">
+{% block header_title %}{{ error_message | default("Error") }}{% endblock %}
+{% block sub_title %}{{ error_title | default("Inventory IQ") }}{% endblock %}
+{% block header_right %}
+    {% if current_user.is_authenticated %}
+        <a class="header-action" href="{{ url_for('guest.index', squad=current_user.display_name) }}">Home</a>
+    {% else %}
+        <a class="header-action" href="{{ url_for('auth.login') }}">Home</a>
+    {% endif %}
 {% endblock %}
 
 {% block content %}
-<div class="error-container">
-    <h1>{{ error_message | default("An error occurred") }}</h1>
-
-    <div class="error-details">
+<section class="panel">
+    <div class="empty-state">
+        <div class="error-code">{{ error_code | default("!") }}</div>
+        <h2>{{ error_message | default("An error occurred") }}</h2>
         <p>{{ error_description | default("Please try again or contact support.") }}</p>
+        <div class="button-row">
+            <a class="quiet-button" href="{{ url_for('auth.login') }}" data-history-back>Go Back</a>
+            {% if current_user.is_authenticated %}
+                <a class="success-button" href="{{ url_for('guest.index', squad=current_user.display_name) }}">Go Home</a>
+            {% else %}
+                <a class="success-button" href="{{ url_for('auth.login') }}">Go Home</a>
+            {% endif %}
+        </div>
+        {% if error_help %}<p>{{ error_help }}</p>{% endif %}
     </div>
-
-    <div class="error-actions">
-        <a href="#" onclick="history.back(); return false;">Go Back</a>
-        {% if current_user.is_authenticated %}
-        <a href="{{ url_for('guest.index', squad=current_user.display_name) }}">Go Home</a>
-        {% else %}
-        <a href="{{ url_for('auth.login') }}">Go Home</a>
-        {% endif %}
-    </div>
-
-    {% if error_help %}
-    <div class="error-help">
-        <p>{{ error_help }}</p>
-    </div>
-    {% endif %}
-</div>
+</section>
 {% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/history-back.js') }}" defer></script>{% endblock %}

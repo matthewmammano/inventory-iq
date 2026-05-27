@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block title %}Scanning{% endblock %}
+{% block header_title %}Select Quantity{% endblock %}
+{% block sub_title %}{{ item.name }}{% endblock %}
+{% block main_class %}quantity-main{% endblock %}
+{% block header_right %}
+    <a class="cancel" href="{{ url_for('admin.admin_scan_items' if admin else 'guest.index', squad=squad) }}">Cancel</a>
+{% endblock %}
+
+{% block content %}
+<section class="quantity-panel">
+    <div class="top">
+        <div class="photo">
+            <img src="{{ item.image|image_src }}"
+                 alt="{{ item.name }}"
+                 loading="lazy"
+                 decoding="async"
+                 data-fallback-src="{{ url_for('static', filename='images/not-found.jpg') }}">
+        </div>
+        <div>
+            <div class="unit">{{ item.increments }}</div>
+            <div class="name">{{ item.name }}</div>
+        </div>
+    </div>
+
+    <div class="controls">
+        {% if admin or item.guest_quick_adjust %}
+        <div class="step-column admin-stack">
+            <button class="step minus" type="button" data-value="-1">-1</button>
+            <button class="step minus" type="button" data-value="-5">-5</button>
+            <button class="step minus" type="button" data-value="-10">-10</button>
+        </div>
+        {% else %}
+        <button class="step minus" type="button" data-value="-1">-</button>
+        {% endif %}
+
+        <div class="count counter-value">1</div>
+
+        {% if admin or item.guest_quick_adjust %}
+        <div class="step-column admin-stack">
+            <button class="step plus" type="button" data-value="1">+1</button>
+            <button class="step plus" type="button" data-value="5">+5</button>
+            <button class="step plus" type="button" data-value="10">+10</button>
+        </div>
+        {% else %}
+        <button class="step plus" type="button" data-value="1">+</button>
+        {% endif %}
+    </div>
+    <div class="quantity-actions">
+        <button class="reset" type="button" data-value="reset">Reset</button>
+        <button class="submit submit-btn" type="button">Submit</button>
+    </div>
+</section>
+
+<form id="hidden-form" method="POST" class="hidden">
+    <input type="hidden" name="item_id" id="item_id" value="{{ item.id }}">
+    <input type="hidden" name="counter_value" id="counter_value" value="1">
+    <input type="hidden" name="from_location_id" id="from_location_id" value="{{ from_location if from_location in [-1, -2] else from_location.id }}">
+    <input type="hidden" name="to_location_id" id="to_location_id" value="{{ "-1" if to_location == -1 else to_location.id }}">
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/counter.js') }}" defer></script>
+{% endblock %}

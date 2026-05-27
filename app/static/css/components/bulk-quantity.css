@@ -14,7 +14,6 @@
 
 .bulk-quantity-table {
     width: 100%;
-    table-layout: fixed;
     border-collapse: collapse;
     background: var(--most-white);
     box-shadow: 0 1px 7px var(--shadow-color);

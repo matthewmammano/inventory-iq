@@ -13,6 +13,7 @@ from app.alerts import models as _alert_models  # noqa: F401
 from app.auth import models as _auth_models  # noqa: F401
 from app.inventory import models as _inventory_models  # noqa: F401
 from app.prediction import models as _prediction_models  # noqa: F401
+from app.shared import models as _shared_models  # noqa: F401
 from app.shared.config import settings
 from app.shared.database import Base, normalize_database_url
 

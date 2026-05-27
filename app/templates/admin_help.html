@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Settings{% endblock %}
+{% block header_title %}Settings{% endblock %}
+{% block sub_title %}Manage device, alert, and account options{% endblock %}
+{% block header_right %}
+    <button class="success-button hidden" id="save-button" type="button" form="settings-form">Save</button>
+    <a class="header-action" id="back-link" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>
+{% endblock %}
+
+{% block content %}
+<form id="settings-form" method="POST" action="{{ url_for('admin.settings_page', squad=squad) }}" class="panel">
+    <div class="panel-header">
+        <div>
+            <h2>Device Defaults</h2>
+            <p>Review and update this kiosk's scan behavior.</p>
+        </div>
+    </div>
+    <div class="panel-body settings-groups">
+        <section class="settings-section">
+            <div class="section-label">Default Device Location</div>
+            <div class="inline-default">
+                <div><p>Current device location</p><div class="current-location">{{ current_location.name if current_location else "Not selected" }}</div></div>
+                <select class="small-select" required name="agency_location_id" data-required-option data-label="Default Device Location" data-original="{{ current_location.id if current_location else '' }}" data-original-display="{{ current_location.name if current_location else 'Not selected' }}">
+                    <option value="" disabled {% if not current_location %}selected{% endif %}>Select a location</option>
+                    {% for location in locations %}
+                    <option value="{{ location.id }}" {% if current_location and location.id == current_location.id %}selected{% endif %}>{{ location.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <div class="section-label">Guest Permissions</div>
+            <p>Choose which scan actions regular users can complete without entering the admin PIN.</p>
+            <div class="settings-options">
+                <div class="setting-row"><div><div class="setting-name">Guest Count</div><p>Allow crews to submit count scans</p></div><button class="switch{% if not current_user.user_count_allow %} off{% endif %}" type="button" data-input="user_count_allow" data-label="Guest Count" data-original="{{ 'On' if current_user.user_count_allow else 'Off' }}">{{ 'On' if current_user.user_count_allow else 'Off' }}</button><input type="hidden" name="user_count_allow" value="{{ '1' if current_user.user_count_allow else '0' }}"></div>
+                <div class="setting-row"><div><div class="setting-name">Guest Restock</div><p>Allow crews to add stock during scan flow</p></div><button class="switch{% if not current_user.user_restock_allow %} off{% endif %}" type="button" data-input="user_restock_allow" data-label="Guest Restock" data-original="{{ 'On' if current_user.user_restock_allow else 'Off' }}">{{ 'On' if current_user.user_restock_allow else 'Off' }}</button><input type="hidden" name="user_restock_allow" value="{{ '1' if current_user.user_restock_allow else '0' }}"></div>
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <div class="section-label">Alert Thresholds</div>
+            <p>These values control when inventory warnings appear in alert emails.</p>
+            <div class="settings-options">
+                <div class="setting-row"><div><div class="setting-name">Lead Time Days</div><p>Used for predicted low stock and stockout warnings</p></div><input class="small-input" type="number" name="lead_time_days" min="1" value="{{ current_user.lead_time_days }}" data-label="Lead Time Days" data-original="{{ current_user.lead_time_days }}"></div>
+                <div class="setting-row"><div><div class="setting-name">Stale Count Days</div><p>Warn when a location has not been counted recently</p></div><input class="small-input" type="number" name="count_last_days" min="1" value="{{ current_user.count_last_days }}" data-label="Stale Count Days" data-original="{{ current_user.count_last_days }}"></div>
+                <div class="setting-row"><div><div class="setting-name">Rare Takeout Days</div><p>Warn when takeout activity is unusual for a location</p></div><input class="small-input" type="number" name="alert_rare_scan_days" min="1" value="{{ current_user.alert_rare_scan_days }}" data-label="Rare Takeout Days" data-original="{{ current_user.alert_rare_scan_days }}"></div>
+            </div>
+        </section>
+
+        <div class="support">
+            <p>
+                Need help or seeing errors?
+                {% if contact_phone %}
+                    Call or text Priority One Technologies support at <strong>{{ contact_phone }}</strong>.
+                {% else %}
+                    Contact Priority One Technologies support.
+                {% endif %}
+            </p>
+        </div>
+    </div>
+</form>
+
+<div class="modal-backdrop hidden" id="confirm-modal">
+    <div class="modal">
+        <h2 id="modal-title">Review Changes</h2>
+        <p id="modal-message">Confirm these settings before saving.</p>
+        <div class="change-list" id="change-list"></div>
+        <div class="button-row">
+            <button class="success-button" id="confirm-button" type="button">Yes, Save</button>
+            <button class="quiet-button" id="cancel-modal" type="button">Keep Editing</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin-settings.js') }}" defer></script>
+{% endblock %}

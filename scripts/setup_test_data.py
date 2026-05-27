@@ -51,6 +51,7 @@ class ItemSeed:
     restock_days: int | None = None
     increments: str = "unit"
     tags: tuple[str, ...] = ()
+    guest_quick_adjust: bool = False
 
 
 @dataclass(frozen=True)
@@ -67,14 +68,22 @@ class TrendSeed:
 
 
 ITEMS = (
-    ItemSeed("Nitrile Gloves - Large Box", 40, 240, 10, 7.0, tags=("PPE",)),
+    ItemSeed(
+        "Nitrile Gloves - Large Box",
+        40,
+        240,
+        10,
+        7.0,
+        tags=("PPE",),
+        guest_quick_adjust=True,
+    ),
     ItemSeed("Trauma Dressing 5x9", 24, 144, 12, 3.0, tags=("Trauma", "Critical")),
     ItemSeed("Epinephrine Auto-Injector", 8, 40, 2, 0.35, 35, tags=("Medication", "Critical")),
     ItemSeed("Adult AED Pads", 4, 24, 2, 0.12, 45, tags=("Cardiac", "Critical")),
     ItemSeed("Oxygen Nasal Cannula", 30, 180, 10, 2.5, tags=("Airway",)),
     ItemSeed("Glucometer Test Strips", 12, 72, 6, 0.6, tags=("Medication",)),
     ItemSeed("SAM Splint Roll", 6, 36, 3, 0.05, tags=("Trauma",)),
-    ItemSeed("Saline Flush 10ml", 50, 300, 25, 6.5, tags=("Medication",)),
+    ItemSeed("Saline Flush 10ml", 50, 300, 25, 6.5, tags=("Medication",), guest_quick_adjust=True),
     ItemSeed("Demo Disabled Legacy Item", 1, 10, 1, 0.1),
 )
 
@@ -264,6 +273,7 @@ def _create_items(
             batch_size=seed.batch_size,
             restock_delivery_days=seed.restock_days,
             prior_daily_usage=seed.prior_daily_usage,
+            guest_quick_adjust=seed.guest_quick_adjust,
             increments=seed.increments,
             tag_ids=[tags[tag].id for tag in seed.tags],
             last_accessed=LAST_COUNT_AT,

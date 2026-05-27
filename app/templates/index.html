@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Inventory{% endblock %}
+{% block header_title %}Scan Inventory{% endblock %}
+{% block sub_title %}{{ squad }}{% endblock %}
+{% block main_class %}search-main{% endblock %}
+{% block header_right %}
+    {% if admin %}
+        <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>
+    {% else %}
+        <a class="admin" href="{{ url_for('guest.admin_login', squad=squad) }}">Admin</a>
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+<section class="search">
+    <div class="status">Ready to scan UPC. Recent items shown below.</div>
+    <input
+        type="search"
+        id="search"
+        name="search"
+        placeholder="Scan item barcode or search inventory"
+        autocomplete="off"
+        autofocus>
+    <ul
+        id="results"
+        data-squad="{{ squad }}"
+        data-admin="{{ 'true' if admin else 'false' }}"
+        data-items="{{ items_payload|tojson|forceescape }}"></ul>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"
+        crossorigin="anonymous"
+        defer></script>
+<script src="{{ url_for('static', filename='js/inventory-search.js') }}" defer></script>
+{% endblock %}

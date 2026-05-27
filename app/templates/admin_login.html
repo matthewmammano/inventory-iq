@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}Admin Login{% endblock %}
+{% block header_title %}Admin Login{% endblock %}
+{% block sub_title %}{{ squad }}{% endblock %}
+{% block header_right %}<a class="exit" href="{{ url_for('guest.index', squad=squad) }}">Exit Admin</a>{% endblock %}
+{% block main_class %}pin-shell{% endblock %}
+
+{% block content %}
+<form method="POST" class="login-panel">
+    <p class="helper">Enter the admin PIN to continue.</p>
+    <input id="pin-value" type="hidden" name="password" value="">
+    <div id="pin-display" class="pin-display" aria-label="PIN entry">----</div>
+    <div class="keypad" aria-label="Admin PIN keypad">
+        {% for digit in ["1", "2", "3", "4", "5", "6", "7", "8", "9"] %}
+        <button class="key" type="button" data-digit="{{ digit }}">{{ digit }}</button>
+        {% endfor %}
+        <button class="clear" type="button">Clear</button>
+        <button class="key" type="button" data-digit="0">0</button>
+        <button class="login" type="submit">Login</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin-pin.js') }}" defer></script>
+{% endblock %}

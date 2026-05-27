@@ -1,6 +1,7 @@
 """SQLAlchemy ORM models for inventory domain."""
 
 from datetime import datetime
+from typing import Any
 
 from loguru import logger
 from sqlalchemy import (
@@ -13,10 +14,13 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    event,
+    update,
 )
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Mapped, mapped_column, object_session, relationship, validates
+from sqlalchemy.orm.attributes import set_committed_value
 
 from app.shared.clock import utc_now
 from app.shared.database import Base
@@ -28,7 +32,11 @@ from app.shared.validators import (
     validate_string_length,
 )
 
-from .constants import UPC_GENERATION_START, OperationType
+from .constants import (
+    UPC_GENERATION_PREFIX,
+    UPC_PAYLOAD_LENGTH,
+    OperationType,
+)
 
 
 class Items(Base):
@@ -40,6 +48,7 @@ class Items(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     upc: Mapped[str | None] = mapped_column(String(12))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    guest_quick_adjust: Mapped[bool] = mapped_column(Boolean, default=False)
 
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"))
     tag_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
@@ -56,7 +65,7 @@ class Items(Base):
     prior_daily_usage: Mapped[float] = mapped_column(Float)
 
     action_logs = relationship("ActionLogs", back_populates="item", lazy="selectin")
-    tags: list[object]
+    tags: Any
 
     __table_args__ = (
         UniqueConstraint("agency_id", "upc", name="uq_items_agency_upc"),
@@ -131,25 +140,9 @@ class Items(Base):
         return str((10 - total % 10) % 10)
 
     @staticmethod
-    def generate_upc(db_session, agency_id: int) -> str:
-        stmt = (
-            db_session.query(Items)
-            .filter(Items.agency_id == agency_id)
-            .filter(Items.upc >= UPC_GENERATION_START)
-            .order_by(Items.upc.desc())
-        )
-        largest_upc = stmt.first()
-        if largest_upc:
-            base_11 = largest_upc.upc[:11]
-            next_number = int(base_11) + 1
-            next_base = str(next_number).zfill(11)
-        else:
-            next_base = UPC_GENERATION_START[:11]
-        new_upc = next_base + Items.calculate_upc_check_digit(next_base)
-        stmt_check = db_session.query(Items).filter(Items.upc == new_upc)
-        if stmt_check.first():
-            raise ValueError("Generated UPC already exists")
-        return new_upc
+    def generated_upc_from_id(item_id: int) -> str:
+        base = f"{UPC_GENERATION_PREFIX}{item_id:0>{UPC_PAYLOAD_LENGTH - 1}}"
+        return base + Items.calculate_upc_check_digit(base)
 
     @validates("upc")
     def validate_upc(self, _key: str, value: str | None) -> str | None:
@@ -230,3 +223,12 @@ class ActionLogs(Base):
     def get_time_scanned_local(self, user_timezone: str) -> datetime | None:
         """Return time_scanned converted from UTC to the user's local timezone."""
         return convert_utc_to_local(self.time_scanned, user_timezone)
+
+
+@event.listens_for(Items, "after_insert")
+def auto_assign_generated_upc(_mapper, connection, item: Items) -> None:
+    if item.upc or item.id is None:
+        return
+    upc = Items.generated_upc_from_id(item.id)
+    connection.execute(update(Items).where(Items.id == item.id).values(upc=upc))
+    set_committed_value(item, "upc", upc)

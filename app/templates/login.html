@@ -1,23 +1,25 @@
 {% extends "base.html" %}
 
 {% block title %}Login{% endblock %}
-
-{% block sub_title %}Login{% endblock %}
+{% block header_title %}Agency Login{% endblock %}
+{% block sub_title %}Inventory IQ{% endblock %}
+{% block main_class %}auth-shell{% endblock %}
 
 {% block content %}
-
 <section class="auth-panel">
-    <h2>Agency Login</h2>
+    <h2>Sign in</h2>
+    <p>Use your agency email and password to access inventory.</p>
     <form method="POST" class="auth-form">
-        <label>Email</label>
-        <input type="email" name="email" autocomplete="username" required>
+        <label for="email">Email</label>
+        <input id="email" type="email" name="email" autocomplete="username" required>
 
-        <label>Password</label>
-        <input type="password" name="password" autocomplete="current-password" required>
+        <label for="password">Password</label>
+        <input id="password" type="password" name="password" autocomplete="current-password" required>
 
-        <button type="submit" class="auth-submit">Login</button>
+        <button type="submit" class="success-button full-button">Login</button>
     </form>
-    <a class="auth-link" href="{{ url_for('auth.forgot_password') }}">Forgot password?</a>
+    <div class="link-row single-link-row">
+        <a class="text-link" href="{{ url_for('auth.forgot_password') }}">Forgot password?</a>
+    </div>
 </section>
-
 {% endblock %}

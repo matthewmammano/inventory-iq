@@ -1,118 +1,64 @@
 {% from "macros.html" import header_logo %}
 
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Inventory IQ{% endblock %}</title>
-
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
-
-    <!-- Preconnect for performance -->
-    <link rel="preconnect" href="https://cdn.jsdelivr.net">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <title>{% block title %}Inventory IQ{% endblock %}</title>
 
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
-
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,100..900;1,14..32,100..900&display=swap" rel="stylesheet">
-
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">
-
     {% block extra_css %}{% endblock %}
 </head>
-<body class="{% if admin %}admin-border{% endif %}">
-    {% block header %}{% endblock %}
-    <!-- Header section -->
-    <div class="header">
-        <div class="main-title">
-            {% block header_title %}Inventory IQ{% endblock %}:
-        </div>
-        {% if self.sub_title()|trim %}
-            <div class="sub-title">&nbsp;{% block sub_title %} {% endblock %}</div>
-        {% endif %}
-        <div class="header-right">
-            {% block header_right %}
-                {{ header_logo( logo_img|image_src ) }}
-            {% endblock %}
-        </div>
-    </div>
-
-    <!-- Main content area -->
-    <div class="content">
-        {% block content %}{% endblock %}
-    </div>
-
-    <!-- Flash message container (hidden by default) -->
-    <div id="flash-container" class="flash-container">
-        <img id="flash-image" class="flash-image" src="" />
-        <div id="flash-message" class="flash-message"></div>
-        <div class="timer-container">
-            <div class="timer-circle">
-                <div id="timer" class="timer"></div>
+<body class="{% if admin %}admin-screen{% endif %}">
+    {% block header %}
+    {% set default_logo = 'images/logos/me.svg' %}
+    {% set header_logo_src = current_user.image if current_user.is_authenticated and current_user.image else logo_img|default(default_logo) %}
+    <header>
+        <div class="brand">
+            {{ header_logo(header_logo_src|image_src) }}
+            <div>
+                <h1>{% block header_title %}Inventory IQ{% endblock %}</h1>
+                {% if self.sub_title()|trim %}
+                    <div class="subtitle">{% block sub_title %}{% endblock %}</div>
+                {% endif %}
             </div>
         </div>
+        <div class="header-actions">
+            {% block header_right %}{% endblock %}
+        </div>
+    </header>
+    {% endblock header %}
+
+    <main class="{% block main_class %}stack{% endblock %}">
+        {% block content %}{% endblock %}
+    </main>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% set flash_category = messages[0][0] if messages else "" %}
+        {% set flash_message = messages[0][1] if messages else "" %}
+        {% if flash_category == flash_message %}{% set flash_category = "info" %}{% endif %}
+    <div
+        id="flash-container"
+        class="flash-container"
+        aria-live="polite"
+        data-category="{{ flash_category }}"
+        data-message="{{ flash_message }}">
+        <div id="flash-icon" class="flash-icon">i</div>
+        <div id="flash-message" class="flash-message"></div>
+        <div class="timer-container">
+            <div class="timer-circle"><div id="timer" class="timer"></div></div>
+        </div>
     </div>
+    {% endwith %}
 
-
-    <!-- JavaScript for flash messages and timer -->
-    <script>
-        document.addEventListener('DOMContentLoaded', function() {
-            {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    const flashContainer = document.getElementById('flash-container');
-                    const flashMessage = document.getElementById('flash-message');
-                    const flashImage = document.getElementById('flash-image');
-                    const timer = document.getElementById('timer');
-
-                    {% set category = messages[0][0] %}
-                    {% set message = messages[0][1] %}
-
-                    {% if category == message %}
-                        {% set category = "info" %}
-                    {% endif %}
-
-                    // Update content
-                    flashMessage.textContent = "{{ message }}";
-                    flashImage.src = "{{ url_for('static', filename='images/flash/' + category + '.svg') }}";
-
-                    // Show the flash message
-                    flashContainer.classList.add('show');
-                    flashContainer.classList.add('flash-{{ category }}');
-
-                    // Duration in milliseconds
-                    const duration = 7000; // 7 seconds
-                    const startTime = Date.now();
-
-                    // Update function to animate the timer
-                    function updateTimer() {
-                        const elapsedTime = Date.now() - startTime;
-                        const progress = Math.min(elapsedTime / duration, 1);
-
-                        // Update the conic gradient
-                        const progressPercent = progress * 100;
-                        timer.style.setProperty('--progress', `${progressPercent}%`);
-
-                        if (progress < 1) {
-                            // Continue updating if not complete
-                            requestAnimationFrame(updateTimer);
-                        } else {
-                            // Hide the flash message
-                            flashContainer.classList.remove('show');
-                        }
-                    }
-
-                    // Start the animation
-                    requestAnimationFrame(updateTimer);
-                {% endif %}
-            {% endwith %}
-        });
-    </script>
-
+    <script src="{{ url_for('static', filename='js/image-fallback.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/flash.js') }}" defer></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

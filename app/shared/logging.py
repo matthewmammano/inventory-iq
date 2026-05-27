@@ -8,6 +8,10 @@ from flask import has_request_context
 from flask_login import current_user
 from loguru import logger
 
+from app.shared.file_retention import keep_newest_files
+
+LOG_FILE_RETENTION_COUNT = 10
+
 FILE_LOG_FORMAT = (
     "{time:YYYY-MM-DD HH:mm:ss} | {level} | "
     "{extra[agency_id]} | {name}:{function}:{line} | {message}"
@@ -66,10 +70,11 @@ def setup_logging(*, debug: bool = False, log_file: str = "instance/logs/app.log
             format=FILE_LOG_FORMAT,
             colorize=False,
             rotation="10 MB",
-            retention="30 days",
+            retention=LOG_FILE_RETENTION_COUNT,
             compression="gz",
             backtrace=True,
             diagnose=False,
         )
+        keep_newest_files(log_path.parent, "*.log*", LOG_FILE_RETENTION_COUNT)
     except OSError as exc:
         logger.warning("File logging disabled for {}: {}", log_file, exc)

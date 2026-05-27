@@ -9,6 +9,7 @@ from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.auth.location_filters import alert_matches_location_filter, validate_location_filter_ids
 from app.auth.models import Agencies, AgencyEmails
 from app.inventory.models import ActionLogs
 from app.prediction.formatting import rounded_confidence_percent
@@ -73,7 +74,7 @@ def process_all_alerts(*, force: bool = False) -> dict[str, int]:
     with get_session() as session:
         recipients = _pending_recipients(session)
         if not recipients:
-            logger.info("Alert email processing complete: no pending recipients")
+            logger.info("Hourly alert email check finished: no pending recipients")
             return stats
 
         for recipient in recipients:
@@ -86,8 +87,8 @@ def process_all_alerts(*, force: bool = False) -> dict[str, int]:
                 continue
             alerts = _alerts_for_recipient(session, recipient, agency, now, force=force)
             type_counts = _alert_type_counts(alerts)
-            logger.info(
-                "Alert email recipient checked: "
+            logger.debug(
+                "Alert email recipient evaluated: "
                 f"agency_email_id={recipient.id} sendable={len(alerts)} "
                 f"force={force} types={_format_counts(type_counts)}",
                 extra={
@@ -125,8 +126,8 @@ def process_all_alerts(*, force: bool = False) -> dict[str, int]:
                 )
 
     logger.info(
-        "Alert email batch complete: "
-        f"processed={stats['processed']} sent={stats['sent']} failed={stats['failed']}",
+        "Hourly alert email check finished: "
+        f"recipients_with_email={stats['processed']} sent={stats['sent']} failed={stats['failed']}",
         extra=stats,
     )
     return stats
@@ -193,6 +194,7 @@ def _alerts_for_recipient(
         .scalars()
         .all()
     )
+    alerts = [alert for alert in alerts if _recipient_allows_alert(session, recipient, alert)]
     if force or _is_daily_email_window(agency.timezone, now):
         return alerts
     return [alert for alert in alerts if alert.type in HOURLY_TYPES]
@@ -536,6 +538,31 @@ def _mark_sent(alerts: list[AlertRecords], now: datetime) -> None:
     for alert in alerts:
         alert.action = AlertAction.SENT
         alert.action_at = now
+
+
+def _recipient_allows_alert(
+    session: Session,
+    recipient: AgencyEmails,
+    alert: AlertRecords,
+) -> bool:
+    if not bool(getattr(recipient, PREFERENCE_BY_TYPE[alert.type])):
+        return False
+    try:
+        location_ids = validate_location_filter_ids(
+            session, recipient.agency_id, recipient.location_filter_ids
+        )
+    except ValueError as exc:
+        logger.warning(
+            f"Alert email skipped invalid location filter: agency_email_id={recipient.id}",
+            extra={
+                "agency_id": recipient.agency_id,
+                "agency_email_id": recipient.id,
+                "alert_id": alert.id,
+                "error": str(exc),
+            },
+        )
+        return False
+    return alert_matches_location_filter(location_ids, alert.details_json)
 
 
 def _display_now(timezone: str, now: datetime) -> str:

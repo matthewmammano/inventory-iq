@@ -14,13 +14,32 @@ def get_item(item_id: int, session: Session | None = None) -> Items | None:
         return db.execute(select(Items).where(Items.id == item_id)).scalars().first()
 
 
-def get_item_by_upc(agency_id: int, upc: str, session: Session | None = None) -> Items | None:
+def get_agency_item(
+    agency_id: int,
+    item_id: int,
+    *,
+    include_inactive: bool = False,
+    session: Session | None = None,
+) -> Items | None:
     with managed_session(session) as db:
-        return (
-            db.execute(select(Items).where(Items.agency_id == agency_id, Items.upc == upc))
-            .scalars()
-            .first()
-        )
+        stmt = select(Items).where(Items.id == item_id, Items.agency_id == agency_id)
+        if not include_inactive:
+            stmt = stmt.where(Items.active.is_(True))
+        return db.execute(stmt).scalars().first()
+
+
+def get_item_by_upc(
+    agency_id: int,
+    upc: str,
+    *,
+    include_inactive: bool = False,
+    session: Session | None = None,
+) -> Items | None:
+    with managed_session(session) as db:
+        stmt = select(Items).where(Items.agency_id == agency_id, Items.upc == upc)
+        if not include_inactive:
+            stmt = stmt.where(Items.active.is_(True))
+        return db.execute(stmt).scalars().first()
 
 
 def list_items(

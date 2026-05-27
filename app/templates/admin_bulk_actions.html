@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% from "macros.html" import bulk_quantity_table %}
+
+{% block title %}Bulk Action{% endblock %}
+{% block header_title %}Bulk Action{% endblock %}
+{% block sub_title %}{{ location.name }}{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.bulk_actions', squad=squad) }}" data-bulk-back>Back</a>{% endblock %}
+
+{% block content %}
+<div class="tabbed-panel">
+    <section class="tab-strip">
+        <a class="tab-button active" href="#bulk-count" data-tab="bulk-count" data-manual-tab>Bulk Count</a>
+        <a class="tab-button" href="#bulk-restock" data-tab="bulk-restock" data-manual-tab>Bulk Restock</a>
+    </section>
+    <section class="panel tab-panel" id="bulk-count">
+        <form method="POST" action="{{ url_for('admin.count_location', squad=squad, agency_location_id=location.id) }}" class="panel-body stack" data-bulk-form>
+            {{ bulk_quantity_table(items, storages, counts, 'Save Count', original_counts) }}
+        </form>
+    </section>
+    <section class="panel tab-panel hidden" id="bulk-restock">
+        {% if stale_items %}
+        <div class="panel-body stack">
+            <div class="alert warning">
+                Count required before receiving restock: these items have not been counted in
+                {{ stale_count_days }}+ days: {{ stale_items|join(', ') }}.
+            </div>
+        </div>
+        {% else %}
+        <form method="POST" action="{{ url_for('admin.receive_location_restock', squad=squad, agency_location_id=location.id) }}" class="panel-body stack" data-bulk-form>
+            {{ bulk_quantity_table(items, storages, restock_values, 'Save Received Stock', original_restock_values) }}
+        </form>
+        {% endif %}
+    </section>
+</div>
+
+<div class="modal-backdrop hidden" id="tab-confirm-modal">
+    <div class="modal">
+        <h2>Unsaved Changes</h2>
+        <p id="tab-confirm-message">This table has unsaved changes. Switch tabs without saving?</p>
+        <div class="change-list" id="tab-change-list"></div>
+        <div class="button-row">
+            <button class="danger-button" id="confirm-tab-switch" type="button">Switch Without Saving</button>
+            <button class="quiet-button" id="cancel-tab-switch" type="button">Keep Editing</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/quantity-dirty-fields.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/tabs.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/bulk-actions.js') }}" defer></script>
+{% endblock %}

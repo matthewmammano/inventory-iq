@@ -83,6 +83,7 @@ def _seed_database() -> AlertTestContext:
     with get_session() as session:
         agency = _create_agency(session)
         hq = _create_location(session, agency.id, "Alert HQ")
+        _add_recipients(session, agency.id, hq.id)
         storages = {
             "main": _create_storage(session, agency.id, hq.id, "Main Shelf"),
             "shelf": _create_storage(session, agency.id, hq.id, "Overflow Shelf"),
@@ -117,19 +118,34 @@ def _create_agency(session: Session) -> Agencies:
     agency.set_password("Passw0rd!Alerts")
     session.add(agency)
     session.flush()
-    session.add_all(
-        [
-            _recipient(agency.id, "all.alert.qa@gmail.com", include_all=True),
-            _recipient(agency.id, "stock.alert.qa@gmail.com", include_all=False),
-        ]
-    )
     return agency
 
 
-def _recipient(agency_id: int, email: str, *, include_all: bool) -> AgencyEmails:
+def _add_recipients(session: Session, agency_id: int, hq_location_id: int) -> None:
+    session.add_all(
+        [
+            _recipient(agency_id, "all.alert.qa@gmail.com", include_all=True),
+            _recipient(
+                agency_id,
+                "stock.alert.qa@gmail.com",
+                include_all=False,
+                location_filter_ids=[hq_location_id],
+            ),
+        ]
+    )
+
+
+def _recipient(
+    agency_id: int,
+    email: str,
+    *,
+    include_all: bool,
+    location_filter_ids: list[int] | None = None,
+) -> AgencyEmails:
     return AgencyEmails(
         agency_id=agency_id,
         email=email,
+        location_filter_ids=location_filter_ids,
         alert_for_stockout=True,
         alert_for_stockout_pred=True,
         alert_for_low=True,
@@ -602,9 +618,9 @@ def _reset_clock() -> None:
 
 
 def _alert_files() -> set[Path]:
-    logs_dir = Path("instance/logs")
-    logs_dir.mkdir(parents=True, exist_ok=True)
-    return set(logs_dir.glob("*_alert.html"))
+    alerts_dir = Path("instance/alerts")
+    alerts_dir.mkdir(parents=True, exist_ok=True)
+    return set(alerts_dir.glob("*_alert.html"))
 
 
 def _new_html_files(previous_files: set[Path]) -> set[Path]:

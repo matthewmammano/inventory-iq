@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Location{% endblock %}
+{% block header_title %}Scan Location{% endblock %}
+{% block sub_title %}Choose this device location{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('guest.index', squad=squad) }}">Back</a>{% endblock %}
+
+{% block content %}
+{% if locations|length == 0 %}
+<section class="panel">
+    <div class="empty-state">
+        <h2>No locations found</h2>
+        <p>Ask an admin to add one.</p>
+    </div>
+</section>
+{% else %}
+<section class="panel">
+    <div class="panel-header">
+        <div>
+            <h2>Where is this device being used?</h2>
+            <p>This appears when the browser forgets the saved location. Pick the current location, then continue to storage selection.</p>
+        </div>
+    </div>
+    <form method="POST" class="panel-body stack">
+        <input type="hidden" name="item_id" value="{{ item_id }}">
+        <div class="choice-grid">
+            {% for location in locations %}
+            <label class="radio-card">
+                <input type="radio" name="agency_location_id" value="{{ location.id }}" required>
+                <span class="choice-card"><h2>{{ location.name }}</h2></span>
+            </label>
+            {% endfor %}
+        </div>
+        <button type="submit" class="success-button">Continue</button>
+    </form>
+</section>
+{% endif %}
+{% endblock %}

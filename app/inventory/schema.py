@@ -60,6 +60,7 @@ class ItemResponse(BaseModel):
     agency_id: int
     upc: str | None
     active: bool
+    guest_quick_adjust: bool
     tag_ids: list[int]
     increments: str | None
     name: str

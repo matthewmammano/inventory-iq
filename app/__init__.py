@@ -17,6 +17,7 @@ from app.inventory import admin_bp, guest_bp
 from app.inventory.routes import admin as _admin_routes  # noqa: F401 - register routes
 from app.inventory.routes import guest as _guest_routes  # noqa: F401 - register routes
 from app.prediction import models as _prediction_models  # noqa: F401 - register ORM models
+from app.shared import models as _shared_models  # noqa: F401 - register ORM models
 from app.shared.config import settings
 from app.shared.database import init_db
 from app.shared.logging import setup_logging
@@ -37,7 +38,10 @@ def create_app() -> Flask:
     _register_health_check(app)
 
     db_type = _database_type()
-    logger.info("App started", extra={"database": db_type, "debug": settings.debug})
+    logger.info(
+        "Flask app configured",
+        extra={"database": db_type, "debug": settings.debug, "app_env": settings.app_env},
+    )
     return app
 
 
@@ -54,8 +58,6 @@ def _configure_app(app: Flask) -> None:
     app.config.update(
         SECRET_KEY=settings.secret_key,
         SQLALCHEMY_DATABASE_URI=settings.database_url,
-        SESSION_PERMANENT=False,
-        PERMANENT_SESSION_LIFETIME=settings.session_lifetime,
         CONTACT_PHONE=settings.contact_phone,
         DEBUG=settings.debug,
         EMAIL_API_URL=settings.email_api_url,

@@ -1,21 +1,15 @@
-"""Small in-process scheduler for demo/runtime jobs.
+"""Small in-process scheduler for demo/runtime jobs."""
 
-It writes instance/scheduler_state.json so hourly/daily jobs do not repeat every
-poll or every restart. Delete that file in local dev to force jobs to run again.
-"""
-
-import json
 import os
 import threading
 import time
 from datetime import datetime
-from pathlib import Path
-from typing import Any
 from zoneinfo import ZoneInfo
 
 from flask import Flask
 from loguru import logger
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 
 from app.alerts.alert_service import generate_scheduled_alerts
 from app.alerts.email_service import process_all_alerts
@@ -23,8 +17,14 @@ from app.auth.models import Agencies
 from app.shared.clock import current_speed, utc_now
 from app.shared.config import settings
 from app.shared.database import get_session
+from app.shared.models import SchedulerRun
 
-STATE_FILE = Path(__file__).resolve().parents[2] / "instance" / "scheduler_state.json"
+GLOBAL_SCHEDULER_AGENCY_ID = 0
+EMAIL_JOB_NAME = "process_alert_emails"
+INVENTORY_AUDIT_JOB_NAME = "generate_inventory_alerts"
+JOB_STARTED = "started"
+JOB_SUCCESS = "success"
+JOB_FAILED = "failed"
 INVENTORY_AUDIT_LOCAL_HOUR = 7
 INVENTORY_AUDIT_LOCAL_MINUTE = 45
 
@@ -36,11 +36,17 @@ def start_scheduler(app: Flask) -> None:
     global _started
     if _started or not settings.scheduler_enabled or _is_reloader_parent(app):
         return
+    if settings.is_prod:
+        logger.warning("In-process scheduler disabled in prod; use Railway cron")
+        return
 
     _started = True
     thread = threading.Thread(target=_run_loop, args=(app,), daemon=True)
     thread.start()
-    logger.info("Scheduler started", extra={"poll_seconds": settings.scheduler_poll_seconds})
+    logger.info(
+        "Development background scheduler started",
+        extra={"poll_seconds": settings.scheduler_poll_seconds},
+    )
 
 
 def _run_loop(app: Flask) -> None:
@@ -55,57 +61,106 @@ def _run_loop(app: Flask) -> None:
 
 def _run_due_jobs() -> None:
     now = utc_now()
-    state = _read_state()
-    _run_daily_inventory_job(now, state)
-    _run_hourly_email_job(now, state)
-    _write_state(state)
+    _run_daily_inventory_job(now)
+    _run_hourly_email_job(now)
 
 
-def _run_hourly_email_job(now: datetime, state: dict[str, Any]) -> None:
+def _run_hourly_email_job(now: datetime) -> None:
     hour_key = now.strftime("%Y-%m-%dT%H")
-    if state.get("email_hour") == hour_key:
+    run_id = _claim_scheduler_run(EMAIL_JOB_NAME, hour_key)
+    if run_id is None:
         return
-    result = process_all_alerts()
-    state["email_hour"] = hour_key
-    logger.info("Scheduler email job complete", extra=result)
 
-
-def _run_daily_inventory_job(now: datetime, state: dict[str, Any]) -> None:
-    inventory_days = state.setdefault("inventory_days", {})
-    with get_session() as session:
-        agencies = list(
-            session.execute(select(Agencies).where(Agencies.active.is_(True))).scalars().all()
-        )
-        total = 0
-        for agency in agencies:
-            local_now = now.astimezone(ZoneInfo(agency.timezone or "UTC"))
-            day_key = local_now.strftime("%Y-%m-%d")
-            if (local_now.hour, local_now.minute) < (
-                INVENTORY_AUDIT_LOCAL_HOUR,
-                INVENTORY_AUDIT_LOCAL_MINUTE,
-            ) or inventory_days.get(str(agency.id)) == day_key:
-                continue
-            total += generate_scheduled_alerts(session, agency.id)
-            inventory_days[str(agency.id)] = day_key
-        session.commit()
-
-    if total:
-        logger.info("Scheduler inventory audit complete", extra={"rows": total})
-
-
-def _read_state() -> dict[str, Any]:
-    if not STATE_FILE.exists():
-        return {}
     try:
-        return json.loads(STATE_FILE.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        logger.warning("Scheduler state reset: {}", exc)
-        return {}
+        result = process_all_alerts()
+    except Exception as exc:
+        _finish_scheduler_run(run_id, JOB_FAILED, str(exc))
+        raise
+
+    _finish_scheduler_run(run_id, JOB_SUCCESS)
+    logger.info("Hourly alert email job complete", extra=result)
 
 
-def _write_state(state: dict[str, Any]) -> None:
-    STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-    STATE_FILE.write_text(json.dumps(state, indent=2), encoding="utf-8")
+def _run_daily_inventory_job(now: datetime) -> None:
+    total = 0
+    for agency_id, timezone in _active_agency_schedules():
+        period_key = _inventory_audit_period_key(now, timezone)
+        if period_key is None:
+            continue
+
+        run_id = _claim_scheduler_run(INVENTORY_AUDIT_JOB_NAME, period_key, agency_id)
+        if run_id is None:
+            continue
+
+        try:
+            total += _generate_agency_inventory_alerts(agency_id)
+            _finish_scheduler_run(run_id, JOB_SUCCESS)
+        except Exception as exc:
+            _finish_scheduler_run(run_id, JOB_FAILED, str(exc))
+            logger.exception(
+                "Scheduler inventory audit failed",
+                extra={"agency_id": agency_id, "period_key": period_key},
+            )
+    if total:
+        logger.info("Daily inventory alert audit job complete", extra={"rows_checked": total})
+
+
+def _active_agency_schedules() -> list[tuple[int, str]]:
+    with get_session() as session:
+        rows = session.execute(
+            select(Agencies.id, Agencies.timezone).where(Agencies.active.is_(True))
+        ).all()
+        return [(agency_id, timezone or "UTC") for agency_id, timezone in rows]
+
+
+def _inventory_audit_period_key(now: datetime, timezone: str) -> str | None:
+    local_now = now.astimezone(ZoneInfo(timezone))
+    if (local_now.hour, local_now.minute) < (
+        INVENTORY_AUDIT_LOCAL_HOUR,
+        INVENTORY_AUDIT_LOCAL_MINUTE,
+    ):
+        return None
+    return local_now.strftime("%Y-%m-%d")
+
+
+def _generate_agency_inventory_alerts(agency_id: int) -> int:
+    with get_session() as session:
+        count = generate_scheduled_alerts(session, agency_id)
+        session.commit()
+        return count
+
+
+def _claim_scheduler_run(
+    job_name: str,
+    period_key: str,
+    agency_id: int = GLOBAL_SCHEDULER_AGENCY_ID,
+) -> int | None:
+    with get_session() as session:
+        run = SchedulerRun(
+            job_name=job_name,
+            agency_id=agency_id,
+            period_key=period_key,
+            status=JOB_STARTED,
+        )
+        session.add(run)
+        try:
+            session.commit()
+        except IntegrityError:
+            session.rollback()
+            return None
+        return run.id
+
+
+def _finish_scheduler_run(run_id: int, status: str, error: str | None = None) -> None:
+    with get_session() as session:
+        run = session.get(SchedulerRun, run_id)
+        if run is None:
+            logger.warning("Scheduler run marker missing", extra={"scheduler_run_id": run_id})
+            return
+        run.status = status
+        run.finished_at = utc_now().replace(tzinfo=None)
+        run.error = error[:1000] if error else None
+        session.commit()
 
 
 def _is_reloader_parent(app: Flask) -> bool:

@@ -5,7 +5,8 @@ import string
 from datetime import UTC, datetime
 
 from flask_login import UserMixin
-from sqlalchemy import Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from werkzeug.security import check_password_hash, generate_password_hash
 
@@ -16,11 +17,13 @@ from app.shared.validators import (
     validate_email_format,
     validate_image_url,
     validate_pin,
+    validate_positive_integer,
     validate_string_length,
     validate_timezone,
 )
 
 from .constants import BLACK_HEX, WHITE_HEX
+from .location_filters import normalize_location_filter_ids
 
 
 class Agencies(Base, UserMixin):
@@ -101,6 +104,13 @@ class Agencies(Base, UserMixin):
     def validate_timezone_field(self, _key: str, value: str) -> str:
         return validate_timezone(value)
 
+    @validates("lead_time_days", "alert_rare_scan_days", "count_last_days")
+    def validate_positive_day_setting(self, key: str, value: int | None) -> int:
+        validated = validate_positive_integer(value, key, allow_none=False)
+        if validated is None:
+            raise ValueError(f"{key} cannot be None")
+        return validated
+
 
 class PasswordResetPins(Base):
     """Hashed short-lived password reset PIN for kiosk-friendly reset flow."""
@@ -132,6 +142,9 @@ class AgencyEmails(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
     email: Mapped[str] = mapped_column(String(128), unique=True)
+    location_filter_ids: Mapped[list[int] | None] = mapped_column(
+        MutableList.as_mutable(JSON), nullable=True
+    )
 
     alert_for_stockout: Mapped[bool] = mapped_column(Boolean, default=True)
     alert_for_stockout_pred: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -152,6 +165,10 @@ class AgencyEmails(Base):
     @validates("email")
     def validate_email(self, _key: str, value: str | None) -> str | None:
         return validate_email_format(value, max_length=255, allow_none=False)
+
+    @validates("location_filter_ids")
+    def validate_location_filter_ids(self, _key: str, value: list[int] | None) -> list[int] | None:
+        return normalize_location_filter_ids(value)
 
 
 class AgencyLocations(Base):

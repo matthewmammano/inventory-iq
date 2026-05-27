@@ -24,6 +24,7 @@ from app.inventory.scan_flow import (
     handle_scan_storages_get,
     handle_scan_storages_post,
 )
+from app.inventory.search_payload import build_item_search_payload
 from app.shared.database import get_session
 from app.shared.utils import (
     get_squad_from_request,
@@ -87,7 +88,12 @@ def index(squad: str) -> Any:
         )
         flash("Error loading inventory.", "error")
         items = []
-    return render_template("index.html", items=items, squad=squad, logo_img=current_user.image)
+    return render_template(
+        "index.html",
+        items_payload=build_item_search_payload(items),
+        squad=squad,
+        logo_img=current_user.image,
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -99,34 +105,6 @@ def index(squad: str) -> Any:
 def admin_login(squad: str) -> Any:
     token = current_device_token()
     if request.method == "POST":
-        if request.form.get("form_name") == "device_location":
-            location_id = parse_optional_int(request.form.get("agency_location_id"))
-            try:
-                with get_session() as s:
-                    save_device_location(current_user.id, token, location_id, s)
-                    s.commit()
-                logger.info(
-                    "Device default location saved from admin login page",
-                    extra={
-                        "agency_id": current_user.id,
-                        "squad": squad,
-                        "agency_location_id": location_id,
-                    },
-                )
-                flash("Default location saved for this device.", "success")
-            except ValueError as exc:
-                logger.error(
-                    "Device default location rejected from admin login page",
-                    extra={
-                        "agency_id": current_user.id,
-                        "squad": squad,
-                        "agency_location_id": location_id,
-                        "error": str(exc),
-                    },
-                )
-                flash(str(exc), "error")
-            return _admin_login_response(squad, token)
-
         pin = request.form.get("password", "")
         with get_session() as s:
             agency = get_agency_by_display_name(squad, s)
@@ -183,7 +161,12 @@ def scan_start(squad: str) -> Any:
         return redirect(
             url_for("guest.scan_location", squad=squad, item_id=request.args.get("item_id"))
         )
-    return handle_scan_start(squad, parse_optional_int(request.args.get("item_id")), is_admin=False)
+    return handle_scan_start(
+        squad,
+        parse_optional_int(request.args.get("item_id")),
+        upc=request.args.get("upc"),
+        is_admin=False,
+    )
 
 
 @bp.route("/<squad>/scan/location", methods=["GET", "POST"])

@@ -1,6 +1,7 @@
 """Restock analysis for one agency location."""
 
 from datetime import datetime
+from math import floor
 
 from loguru import logger
 from sqlalchemy import select
@@ -108,18 +109,18 @@ class BulkService:
             "item": item,
             "current_total": projection.current_quantity,
             "projected_lead_time_total": round(
-                max(projection.current_quantity + effective_trend * lead_time_days, 0)
+                projection.current_quantity + effective_trend * lead_time_days
             ),
             "min_quantity": min_qty,
             "max_quantity": max_qty,
-            "gap_to_min": projection.current_quantity - min_qty,
+            "gap_to_min": max(min_qty - projection.current_quantity, 0),
             "lead_time_days": lead_time_days,
             "suggested_reorder_date": reorder_date(days_low, lead_time_days),
             "last_counted_at": BulkService._get_last_counted_at(
                 session, agency_id, item.id, agency_location_id, agency_timezone
             ),
             "days_until_low": days_low,
-            "days_until_stockout": days_out,
+            "days_until_stockout": floor(days_out) if days_out is not None else None,
             "order_amount": order_amount,
             "order_amount_display": BulkService._format_order_amount_display(
                 order_amount, days_low

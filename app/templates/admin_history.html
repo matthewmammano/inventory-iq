@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+
+{% block title %}Action History{% endblock %}
+{% block header_title %}View History{% endblock %}
+{% block sub_title %}Audit recent changes and inventory risk{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>{% endblock %}
+
+{% block content %}
+<div class="tabbed-panel">
+    <section class="tab-strip">
+        <a class="tab-button{% if not active_location_id or active_location_id == 0 %} active{% endif %}" href="#location-all" data-tab="location-all">All Locations</a>
+        {% for tab in location_tabs if tab.location %}
+        <a class="tab-button{% if active_location_id and tab.location.id == active_location_id %} active{% endif %}" href="#location-{{ tab.location.id }}" data-tab="location-{{ tab.location.id }}">{{ tab.location.name }}</a>
+        {% endfor %}
+    </section>
+    {% for tab in location_tabs %}
+    {% set panel_id = 'location-' ~ (tab.location.id if tab.location else 'all') %}
+    {% set is_active = (not tab.location and (not active_location_id or active_location_id == 0)) or (tab.location and active_location_id and tab.location.id == active_location_id) %}
+    <section class="panel tab-panel{% if not is_active %} hidden{% endif %}" id="{{ panel_id }}">
+        {% if tab.action_logs|length == 0 %}
+        <div class="empty-state"><h2>No action history found</h2></div>
+        {% else %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Time{% if timezone_hint %} ({{ timezone_hint }}){% endif %}</th><th>Item</th><th>Type</th><th>Qty</th><th>From</th><th>To</th><th>Admin?</th></tr></thead>
+                <tbody>
+                    {% for log in tab.action_logs %}
+                    <tr>
+                        <td>{{ log.get_time_scanned_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if log.time_scanned else 'Unknown' }}</td>
+                        <td>{{ log.item.name if log.item else 'None' }}</td>
+                        <td>{{ log.operation_type.value }}</td>
+                        <td>{{ log.quantity_delta }}</td>
+                        <td>{{ log.from_location.history_name if log.from_location else log.operation_type.value }}</td>
+                        <td>{{ log.to_location.history_name if log.to_location else 'TAKE' }}</td>
+                        <td>{{ 'Yes' if log.admin_action else 'No' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </section>
+    {% endfor %}
+</div>
+{% endblock %}
+
+{% block extra_js %}<script src="{{ url_for('static', filename='js/tabs.js') }}" defer></script>{% endblock %}

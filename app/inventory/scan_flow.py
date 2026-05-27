@@ -9,9 +9,10 @@ from app.auth.device_locations import get_device_location_id
 from app.shared.database import get_session
 
 from .errors import InventoryError
-from .item_queries import get_item
+from .item_queries import get_agency_item, get_item_by_upc
 from .mutation_service import inventory_operation
 from .scan_support import (
+    ScanPermissions,
     can_skip_storage_selection,
     get_scan_permissions,
     operation_from_storage_ids,
@@ -19,18 +20,26 @@ from .scan_support import (
     resolve_scan_location,
     scan_fallback_endpoint,
     scan_success_message,
+    single_scan_from_id,
+    single_scan_to_id,
     storages_for_scan,
 )
 from .schema import ScanItemRequest, ScanStoragesRequest
 
 
-def handle_scan_start(squad: str, item_id: int | None, *, is_admin: bool = False):
+def handle_scan_start(
+    squad: str,
+    item_id: int | None,
+    *,
+    upc: str | None = None,
+    is_admin: bool = False,
+):
     """Redirect to quantity entry or storage selection for one item."""
     route = "admin" if is_admin else "guest"
     fallback = scan_fallback_endpoint(route)
 
     with get_session() as db:
-        item = get_item(item_id, db) if item_id else None
+        item = _get_scan_item(db, item_id, upc, is_admin=is_admin)
     if not item:
         logger.error(
             "Scan start rejected: item not found",
@@ -38,10 +47,11 @@ def handle_scan_start(squad: str, item_id: int | None, *, is_admin: bool = False
                 "agency_id": current_user.id,
                 "squad": squad,
                 "item_id": item_id,
+                "upc": upc,
                 "admin": is_admin,
             },
         )
-        flash("Item not found.", "error")
+        flash("Item not found for this squad.", "warning")
         return redirect(url_for(fallback, squad=squad))
 
     permissions = get_scan_permissions(squad, is_admin=is_admin)
@@ -85,7 +95,7 @@ def handle_scan_storages_get(
     fallback = scan_fallback_endpoint(route)
 
     with get_session() as db:
-        item = get_item(item_id, db) if item_id else None
+        item = _get_scan_item(db, item_id, None, is_admin=is_admin)
         if not item:
             logger.error(
                 "Storage selection rejected: item not found",
@@ -96,13 +106,18 @@ def handle_scan_storages_get(
                     "admin": is_admin,
                 },
             )
-            flash("Item not found.", "error")
+            flash("Item not found for this squad.", "warning")
             return redirect(url_for(fallback, squad=squad))
 
         from_storages = storages_for_scan(current_user.id, "from", is_admin, db)
         to_storages = storages_for_scan(current_user.id, "to", is_admin, db)
         default_location_id = None if is_admin else get_device_location_id(current_user.id, db)
 
+    permissions = ScanPermissions(count=user_count_allow, restock=user_restock_allow)
+    if can_skip_storage_selection(from_storages, to_storages, permissions):
+        return redirect_to_scan_item(route, squad, item.id, from_storages, to_storages, permissions)
+
+    auto_from_id = single_scan_from_id(from_storages, permissions)
     return render_template(
         "scan_storages.html",
         squad=squad,
@@ -112,6 +127,8 @@ def handle_scan_storages_get(
         show_storage_only=default_location_id is not None,
         user_count_allow=user_count_allow,
         user_restock_allow=user_restock_allow,
+        auto_from_id=auto_from_id,
+        auto_to_id=single_scan_to_id(to_storages, auto_from_id),
         logo_img=current_user.image,
         admin=is_admin,
     )
@@ -178,7 +195,8 @@ def handle_scan_item_get(
     from_location = resolve_scan_location(from_location_id, current_user.id)
     to_location = resolve_scan_location(to_location_id, current_user.id, takeout_allowed=True)
 
-    item = get_item(item_id) if item_id else None
+    with get_session() as db:
+        item = _get_scan_item(db, item_id, None, is_admin=is_admin)
     if not item or not from_location:
         logger.error(
             "Scan item page rejected: invalid item or storage",
@@ -191,7 +209,7 @@ def handle_scan_item_get(
                 "admin": is_admin,
             },
         )
-        flash("Invalid item or storage.", "error")
+        flash("Invalid item or storage for this squad.", "warning")
         return redirect(url_for(fallback, squad=squad))
 
     return render_template(
@@ -226,7 +244,8 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         flash("Invalid form data.", "error")
         return redirect(url_for(fallback, squad=squad))
 
-    item = get_item(request_data.item_id)
+    with get_session() as db:
+        item = _get_scan_item(db, request_data.item_id, None, is_admin=is_admin)
     if not item:
         logger.error(
             "Scan item rejected: item not found",
@@ -237,7 +256,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
                 "admin": is_admin,
             },
         )
-        flash("Item not found.", "error")
+        flash("Item not found for this squad.", "warning")
         return redirect(url_for(fallback, squad=squad))
 
     try:
@@ -303,3 +322,14 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
     )
     flash(message, "success")
     return redirect(url_for(f"{route}.{'admin_panel' if is_admin else 'index'}", squad=squad))
+
+
+def _get_scan_item(db, item_id: int | None, upc: str | None, *, is_admin: bool):
+    include_inactive = is_admin
+    if upc:
+        return get_item_by_upc(
+            current_user.id, upc.strip(), include_inactive=include_inactive, session=db
+        )
+    if item_id is None:
+        return None
+    return get_agency_item(current_user.id, item_id, include_inactive=include_inactive, session=db)

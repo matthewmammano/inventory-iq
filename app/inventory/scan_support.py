@@ -61,6 +61,8 @@ def operation_from_storage_ids(
         return OperationType.RESTOCK, None, to_storage_id
     if from_storage_id == VIRTUAL_LOCATION_COUNT:
         return OperationType.COUNT, None, to_storage_id
+    if from_storage_id == to_storage_id:
+        raise ValueError("Invalid operation parameters")
     if from_storage_id and from_storage_id > 0 and to_storage_id and to_storage_id > 0:
         return OperationType.TRANSFER, from_storage_id, to_storage_id
     if from_storage_id and from_storage_id > 0 and to_storage_id == VIRTUAL_LOCATION_TAKEOUT:
@@ -114,9 +116,7 @@ def can_skip_storage_selection(
     to_storages: list[AgencyStorages],
     permissions: ScanPermissions,
 ) -> bool:
-    from_count = len(from_storages) + int(permissions.count) + int(permissions.restock)
-    to_count = len(to_storages) + 1
-    return from_count == to_count == 1
+    return _single_scan_pair(from_storages, to_storages, permissions) is not None
 
 
 def redirect_to_scan_item(
@@ -127,17 +127,87 @@ def redirect_to_scan_item(
     to_storages: list[AgencyStorages],
     permissions: ScanPermissions,
 ):
+    from_id, to_id = _single_scan_pair(from_storages, to_storages, permissions) or (None, None)
     return redirect(
         url_for(
             f"{route}.scan_item",
             squad=squad,
             item_id=item_id,
-            from_location_id=from_storages[0].id if from_storages else None,
-            to_location_id=to_storages[0].id if to_storages else None,
+            from_location_id=from_id,
+            to_location_id=to_id,
             user_count_allow=permissions.count,
             user_restock_allow=permissions.restock,
         )
     )
+
+
+def single_scan_from_id(
+    from_storages: list[AgencyStorages],
+    permissions: ScanPermissions,
+) -> int | None:
+    """Return the only available FROM choice, including virtual choices."""
+    return _single_from_id(from_storages, permissions)
+
+
+def single_scan_to_id(
+    to_storages: list[AgencyStorages],
+    from_storage_id: int | None = None,
+) -> int | None:
+    """Return the only available TO choice, including TAKE."""
+    choices = _valid_to_ids(to_storages, from_storage_id)
+    return choices[0] if len(choices) == 1 else None
+
+
+def _single_from_id(
+    from_storages: list[AgencyStorages],
+    permissions: ScanPermissions,
+) -> int | None:
+    choices = [storage.id for storage in from_storages]
+    if permissions.restock:
+        choices.append(VIRTUAL_LOCATION_RESTOCK)
+    if permissions.count:
+        choices.append(VIRTUAL_LOCATION_COUNT)
+    return choices[0] if len(choices) == 1 else None
+
+
+def _single_to_id(to_storages: list[AgencyStorages]) -> int | None:
+    choices = _valid_to_ids(to_storages, None)
+    return choices[0] if len(choices) == 1 else None
+
+
+def _single_scan_pair(
+    from_storages: list[AgencyStorages],
+    to_storages: list[AgencyStorages],
+    permissions: ScanPermissions,
+) -> tuple[int, int] | None:
+    pairs = [
+        (from_id, to_id)
+        for from_id in _valid_from_ids(from_storages, to_storages, permissions)
+        for to_id in _valid_to_ids(to_storages, from_id)
+    ]
+    return pairs[0] if len(pairs) == 1 else None
+
+
+def _valid_from_ids(
+    from_storages: list[AgencyStorages],
+    to_storages: list[AgencyStorages],
+    permissions: ScanPermissions,
+) -> list[int]:
+    choices = [storage.id for storage in from_storages]
+    if permissions.restock and to_storages:
+        choices.append(VIRTUAL_LOCATION_RESTOCK)
+    if permissions.count and to_storages:
+        choices.append(VIRTUAL_LOCATION_COUNT)
+    return choices
+
+
+def _valid_to_ids(to_storages: list[AgencyStorages], from_storage_id: int | None) -> list[int]:
+    if from_storage_id in (VIRTUAL_LOCATION_RESTOCK, VIRTUAL_LOCATION_COUNT):
+        return [storage.id for storage in to_storages]
+    return [
+        VIRTUAL_LOCATION_TAKEOUT,
+        *(storage.id for storage in to_storages if storage.id != from_storage_id),
+    ]
 
 
 def scan_fallback_endpoint(route: str) -> str:

@@ -8,6 +8,7 @@ from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
+from app.auth.location_filters import alert_matches_location_filter, validate_location_filter_ids
 from app.auth.models import Agencies, AgencyEmails, AgencyLocations, AgencyStorages
 from app.inventory.constants import OperationType
 from app.inventory.item_queries import list_items
@@ -105,9 +106,10 @@ def generate_scheduled_alerts(session: Session, agency_id: int | None = None) ->
         action_counts = _alert_action_counts(session, agency.id)
         pending_type_counts = _pending_alert_type_counts(session, agency.id)
         logger.info(
-            "Scheduled alert audit agency complete: "
-            f"checked={agency_count} actions={_format_counts(action_counts)} "
-            f"pending_types={_format_counts(pending_type_counts)}",
+            "Daily inventory alert audit checked agency: "
+            f"item_location_checks={agency_count} "
+            f"alert_record_actions={_format_counts(action_counts)} "
+            f"pending_alert_types={_format_counts(pending_type_counts)}",
             extra={
                 "agency_id": agency.id,
                 "agency_name": agency.display_name,
@@ -117,7 +119,10 @@ def generate_scheduled_alerts(session: Session, agency_id: int | None = None) ->
             },
         )
 
-    logger.info("Scheduled alert audit complete", extra={"agency_id": agency_id, "rows": count})
+    logger.info(
+        "Daily inventory alert audit finished",
+        extra={"agency_id": agency_id, "item_location_checks": count},
+    )
     return count
 
 
@@ -134,6 +139,8 @@ def _record_scan_activity(session: Session, action: ActionLogs, now: datetime) -
         "operation_type": action.operation_type.value,
         "quantity": action.quantity_delta,
         "admin_action": bool(action.admin_action),
+        "from_agency_location_id": _storage_location_id(session, action.from_location_id),
+        "to_agency_location_id": _storage_location_id(session, action.to_location_id),
         "from_location_name": _storage_history_name(session, action.from_location_id),
         "to_location_name": _storage_history_name(session, action.to_location_id),
         "time_scanned": _iso(action.time_scanned),
@@ -188,7 +195,7 @@ def _sync_stock_alerts(
     for alert_type in STOCK_PRIORITY:
         if alert_type not in active_types:
             _resolve_matching_condition(session, agency.id, alert_type, identity, now)
-    for recipient in _stock_alert_recipients(session, agency.id):
+    for recipient in _stock_alert_recipients(session, agency.id, location.id):
         top_type = next(
             (
                 alert_type
@@ -352,7 +359,7 @@ def _upsert_alert(
     desired_action: AlertAction = AlertAction.PENDING,
 ) -> list[AlertRecords]:
     rows: list[AlertRecords] = []
-    for recipient in _enabled_recipients(session, agency_id, alert_type):
+    for recipient in _enabled_recipients(session, agency_id, alert_type, details):
         rows.append(
             _upsert_recipient_alert(
                 session,
@@ -567,15 +574,24 @@ def _enabled_recipients(
     session: Session,
     agency_id: int,
     alert_type: AlertType,
+    details: dict[str, Any],
 ) -> list[AgencyEmails]:
     preference = PREFERENCE_BY_TYPE[alert_type]
     recipients = session.execute(
         select(AgencyEmails).where(AgencyEmails.agency_id == agency_id).order_by(AgencyEmails.id)
     ).scalars()
-    return [recipient for recipient in recipients if bool(getattr(recipient, preference))]
+    return [
+        recipient
+        for recipient in recipients
+        if bool(getattr(recipient, preference))
+        and _recipient_allows_alert(session, recipient, details)
+    ]
 
 
-def _stock_alert_recipients(session: Session, agency_id: int) -> list[AgencyEmails]:
+def _stock_alert_recipients(
+    session: Session, agency_id: int, agency_location_id: int
+) -> list[AgencyEmails]:
+    details = {"agency_location_id": agency_location_id}
     recipients = session.execute(
         select(AgencyEmails).where(AgencyEmails.agency_id == agency_id).order_by(AgencyEmails.id)
     ).scalars()
@@ -583,11 +599,34 @@ def _stock_alert_recipients(session: Session, agency_id: int) -> list[AgencyEmai
         recipient
         for recipient in recipients
         if any(_recipient_enabled(recipient, alert_type) for alert_type in STOCK_PRIORITY)
+        and _recipient_allows_alert(session, recipient, details)
     ]
 
 
 def _recipient_enabled(recipient: AgencyEmails, alert_type: AlertType) -> bool:
     return bool(getattr(recipient, PREFERENCE_BY_TYPE[alert_type]))
+
+
+def _recipient_allows_alert(
+    session: Session,
+    recipient: AgencyEmails,
+    details: dict[str, Any],
+) -> bool:
+    try:
+        location_ids = validate_location_filter_ids(
+            session, recipient.agency_id, recipient.location_filter_ids
+        )
+    except ValueError as exc:
+        logger.warning(
+            f"Alert recipient has invalid location filter: agency_email_id={recipient.id}",
+            extra={
+                "agency_id": recipient.agency_id,
+                "agency_email_id": recipient.id,
+                "error": str(exc),
+            },
+        )
+        return False
+    return alert_matches_location_filter(location_ids, details)
 
 
 def _alert_action_counts(session: Session, agency_id: int) -> Counter[str]:
@@ -620,6 +659,11 @@ def _format_counts(counts: Counter[str]) -> str:
 def _storage_history_name(session: Session, storage_id: int | None) -> str | None:
     storage = session.get(AgencyStorages, storage_id) if storage_id else None
     return storage.history_name if storage else None
+
+
+def _storage_location_id(session: Session, storage_id: int | None) -> int | None:
+    storage = session.get(AgencyStorages, storage_id) if storage_id else None
+    return storage.location_id if storage else None
 
 
 def _iso(value: datetime | None) -> str | None:
