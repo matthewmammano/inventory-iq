@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.auth.location_filters import alert_matches_location_filter, validate_location_filter_ids
 from app.auth.models import Agencies, AgencyEmails, AgencyLocations, AgencyStorages
 from app.inventory.constants import OperationType
-from app.inventory.item_queries import list_items
+from app.inventory.item_queries import get_agency_item, list_items
 from app.inventory.models import ActionLogs, Items
 from app.prediction.estimator import (
     days_to_threshold,
@@ -71,8 +71,8 @@ def record_action_log_alerts(
 
     for agency_id, item_id, location_id in _affected_item_locations(session, action_logs):
         agency = session.get(Agencies, agency_id)
-        item = session.get(Items, item_id)
-        if agency and item:
+        item = get_agency_item(agency_id, item_id, session=session)
+        if agency and agency.active and item:
             _sync_stock_alerts(session, agency, item, location_id, now, include_predictions=True)
 
 
@@ -131,18 +131,26 @@ def _record_scan_activity(session: Session, action: ActionLogs, now: datetime) -
     if alert_type is None or action.item_id is None:
         return
 
-    item = action.item or session.get(Items, action.item_id)
+    item = _action_item(session, action)
+    if item is None:
+        return
     details = {
         "action_log_id": action.id,
-        "item_id": action.item_id,
-        "item_name": item.name if item else "Unknown item",
+        "item_id": item.id,
+        "item_name": item.name,
         "operation_type": action.operation_type.value,
         "quantity": action.quantity_delta,
         "admin_action": bool(action.admin_action),
-        "from_agency_location_id": _storage_location_id(session, action.from_location_id),
-        "to_agency_location_id": _storage_location_id(session, action.to_location_id),
-        "from_location_name": _storage_history_name(session, action.from_location_id),
-        "to_location_name": _storage_history_name(session, action.to_location_id),
+        "from_agency_location_id": _storage_location_id(
+            session, action.agency_id, action.from_location_id
+        ),
+        "to_agency_location_id": _storage_location_id(
+            session, action.agency_id, action.to_location_id
+        ),
+        "from_location_name": _storage_history_name(
+            session, action.agency_id, action.from_location_id
+        ),
+        "to_location_name": _storage_history_name(session, action.agency_id, action.to_location_id),
         "time_scanned": _iso(action.time_scanned),
     }
     _upsert_alert(session, action.agency_id, alert_type, details, now)
@@ -159,8 +167,16 @@ def _sync_action_rare_takeout_alert(
         session.get(AgencyStorages, action.from_location_id) if action.from_location_id else None
     )
     agency = session.get(Agencies, action.agency_id)
-    item = session.get(Items, action.item_id)
-    if not storage or not storage.location or not agency or not item or not action.time_scanned:
+    item = _action_item(session, action)
+    if (
+        not storage
+        or storage.agency_id != action.agency_id
+        or not storage.location
+        or not agency
+        or not agency.active
+        or not item
+        or not action.time_scanned
+    ):
         return
     _sync_rare_takeout_alert(
         session,
@@ -536,7 +552,7 @@ def _affected_item_locations(
             continue
         for storage_id in (action.from_location_id, action.to_location_id):
             storage = session.get(AgencyStorages, storage_id) if storage_id else None
-            if storage:
+            if storage and storage.agency_id == action.agency_id:
                 pairs.add((action.agency_id, action.item_id, storage.location_id))
     return pairs
 
@@ -656,14 +672,22 @@ def _format_counts(counts: Counter[str]) -> str:
     return ", ".join(f"{key}={counts[key]}" for key in sorted(counts))
 
 
-def _storage_history_name(session: Session, storage_id: int | None) -> str | None:
-    storage = session.get(AgencyStorages, storage_id) if storage_id else None
-    return storage.history_name if storage else None
+def _action_item(session: Session, action: ActionLogs) -> Items | None:
+    if action.item and action.item.agency_id == action.agency_id and action.item.active:
+        return action.item
+    if action.item_id is None:
+        return None
+    return get_agency_item(action.agency_id, action.item_id, session=session)
 
 
-def _storage_location_id(session: Session, storage_id: int | None) -> int | None:
+def _storage_history_name(session: Session, agency_id: int, storage_id: int | None) -> str | None:
     storage = session.get(AgencyStorages, storage_id) if storage_id else None
-    return storage.location_id if storage else None
+    return storage.history_name if storage and storage.agency_id == agency_id else None
+
+
+def _storage_location_id(session: Session, agency_id: int, storage_id: int | None) -> int | None:
+    storage = session.get(AgencyStorages, storage_id) if storage_id else None
+    return storage.location_id if storage and storage.agency_id == agency_id else None
 
 
 def _iso(value: datetime | None) -> str | None:

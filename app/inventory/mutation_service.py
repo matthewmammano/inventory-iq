@@ -10,8 +10,8 @@ from app.shared.database import get_session
 
 from .constants import OperationType
 from .errors import InventoryError
-from .item_queries import get_item
-from .models import ActionLogs
+from .item_queries import get_agency_item
+from .models import ActionLogs, Items
 
 
 def inventory_operation(
@@ -27,10 +27,10 @@ def inventory_operation(
     from app.alerts.alert_service import record_action_log_alerts
 
     with get_session() as db:
-        _validate_operation(
+        item = _validate_operation(
             db, agency_id, item_id, quantity, operation_type, from_location, to_location
         )
-        _touch_item_last_accessed(db, item_id)
+        _touch_item_last_accessed(item)
         action = _add_action_log(
             db,
             agency_id,
@@ -55,21 +55,22 @@ def _validate_operation(
     operation_type: OperationType,
     from_location: int | None,
     to_location: int | None,
-) -> None:
+) -> Items:
     if not isinstance(quantity, int) or quantity < 0:
         raise InventoryError("Quantity must be a non-negative number")
     if operation_type in (OperationType.TRANSFER, OperationType.TAKEOUT) and quantity == 0:
         raise InventoryError("Cannot transfer or remove zero items")
 
+    item = _validate_item(session, agency_id, item_id)
     _validate_operation_locations(
         session, agency_id, item_id, operation_type, from_location, to_location
     )
-    _validate_item(session, agency_id, item_id)
 
     if from_location is not None and not get_storage(from_location, agency_id, session):
         raise InventoryError("Source storage not found")
     if to_location is not None and not get_storage(to_location, agency_id, session):
         raise InventoryError("Destination storage not found")
+    return item
 
 
 def _validate_operation_locations(
@@ -113,18 +114,15 @@ def _validate_transfer_locations(from_location: int | None, to_location: int | N
         raise InventoryError("Cannot transfer to the same storage")
 
 
-def _validate_item(session: Session, agency_id: int, item_id: int) -> None:
-    item = get_item(item_id, session)
-    if not item or item.agency_id != agency_id:
+def _validate_item(session: Session, agency_id: int, item_id: int) -> Items:
+    item = get_agency_item(agency_id, item_id, session=session)
+    if not item:
         raise InventoryError("Item not found")
-    if not item.active:
-        raise InventoryError("Item is inactive")
+    return item
 
 
-def _touch_item_last_accessed(session: Session, item_id: int) -> None:
-    item = get_item(item_id, session)
-    if item:
-        item.last_accessed = utc_now()
+def _touch_item_last_accessed(item: Items) -> None:
+    item.last_accessed = utc_now()
 
 
 def _add_action_log(

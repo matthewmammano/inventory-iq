@@ -9,11 +9,6 @@ from app.shared.database import managed_session
 from .models import Items
 
 
-def get_item(item_id: int, session: Session | None = None) -> Items | None:
-    with managed_session(session) as db:
-        return db.execute(select(Items).where(Items.id == item_id)).scalars().first()
-
-
 def get_agency_item(
     agency_id: int,
     item_id: int,

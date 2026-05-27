@@ -54,6 +54,7 @@ def save_location_count(
 ) -> list[ActionLogs]:
     storages = get_location_storages(session, agency_id, agency_location_id)
     storage_ids = {storage.id for storage in storages}
+    item_ids = _active_item_ids(session, agency_id)
     now = utc_now()
     logs = [
         ActionLogs(
@@ -67,7 +68,7 @@ def save_location_count(
             time_scanned=now,
         )
         for (item_id, storage_id), quantity in quantities.items()
-        if storage_id in storage_ids
+        if item_id in item_ids and storage_id in storage_ids
     ]
     session.add_all(logs)
     session.flush()
@@ -82,6 +83,7 @@ def save_location_restock(
 ) -> list[ActionLogs]:
     storages = get_location_storages(session, agency_id, agency_location_id)
     storage_ids = {storage.id for storage in storages}
+    item_ids = _active_item_ids(session, agency_id)
     now = utc_now()
     logs = [
         ActionLogs(
@@ -95,7 +97,7 @@ def save_location_restock(
             time_scanned=now,
         )
         for (item_id, storage_id), quantity in quantities.items()
-        if storage_id in storage_ids and quantity > 0
+        if item_id in item_ids and storage_id in storage_ids and quantity > 0
     ]
     session.add_all(logs)
     session.flush()
@@ -113,3 +115,11 @@ def parse_quantity_grid(form) -> dict[tuple[int, int], int]:
         except (TypeError, ValueError):
             continue
     return quantities
+
+
+def _active_item_ids(session: Session, agency_id: int) -> set[int]:
+    return set(
+        session.execute(
+            select(Items.id).where(Items.agency_id == agency_id, Items.active.is_(True))
+        ).scalars()
+    )
