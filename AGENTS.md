@@ -101,6 +101,7 @@ Before writing code, verify:
 - Prefer composition over inheritance.
 - Prefer pure functions where practical.
 - Minimize shared mutable state. Keep side effects at edges.
+- Use f-strings for Python string interpolation; do not use Loguru `{}` placeholders or `.format()`.
 - Make invalid states hard to represent.
 - Use clear, literal names. Favor domain language.
 - Avoid filler names like `data`, `item`, `manager`, `helper`, `misc`.

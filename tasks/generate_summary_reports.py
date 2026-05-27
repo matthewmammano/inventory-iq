@@ -13,7 +13,7 @@ from app import create_app
 from app.auth.models import Agencies, AgencyEmails
 from app.inventory.models import ActionLogs
 from app.shared.database import get_session
-from app.shared.email_client import OutboundEmail, send_email
+from app.shared.email_client import EMAIL_RETRY_DELAYS_SECONDS, OutboundEmail, send_email
 
 
 def generate_summary_reports(report_type: str) -> None:
@@ -76,7 +76,8 @@ def _send_report(email: str, name: str, report_type: str, count: int, cutoff: da
             subject=f"{report_type.title()} Inventory Summary",
             text_body=body,
             to_email=email,
-        )
+        ),
+        retry_delays_seconds=EMAIL_RETRY_DELAYS_SECONDS,
     )
 
 

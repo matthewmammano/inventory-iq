@@ -44,7 +44,7 @@ def inventory_operation(
         record_action_log_alerts(db, [action])
         db.commit()
 
-        logger.info("{}: item={} qty={}", operation_type.value, item_id, quantity)
+        logger.info(f"{operation_type.value}: item={item_id} qty={quantity}")
 
 
 def _validate_operation(

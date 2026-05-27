@@ -170,7 +170,7 @@ class Items(Base):
                 if existing:
                     raise ValueError("UPC must be unique per agency")
         except SQLAlchemyError as db_error:
-            logger.warning("Database error during UPC uniqueness check: %s", db_error)
+            logger.warning(f"Database error during UPC uniqueness check: {db_error}")
         return value
 
 

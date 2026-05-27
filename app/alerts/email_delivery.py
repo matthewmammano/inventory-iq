@@ -6,7 +6,12 @@ from flask import current_app, render_template
 from loguru import logger
 
 from app.shared.clock import utc_now
-from app.shared.email_client import OutboundEmail, email_configured, send_email
+from app.shared.email_client import (
+    EMAIL_RETRY_DELAYS_SECONDS,
+    OutboundEmail,
+    email_configured,
+    send_email,
+)
 from app.shared.file_retention import keep_newest_files
 
 from .schema import EmailBatch
@@ -27,7 +32,8 @@ def deliver_batch(batch: EmailBatch) -> bool:
             text_body=text_body,
             html_body=html_body,
             to_email=batch.agency_email,
-        )
+        ),
+        retry_delays_seconds=EMAIL_RETRY_DELAYS_SECONDS,
     )
     if sent:
         logger.info("Alert email sent")

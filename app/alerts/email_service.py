@@ -118,11 +118,11 @@ def process_all_alerts(*, force: bool = False) -> dict[str, int]:
                     },
                 )
             else:
-                session.rollback()
                 stats["failed"] += 1
                 logger.critical(
-                    f"Alert email failed after retries: agency_email_id={recipient.id}",
-                    extra={"agency_id": agency.id, "agency_email_id": recipient.id},
+                    "Alert email failed after provider retries: "
+                    f"agency_id={agency.id} agency_email_id={recipient.id} "
+                    f"pending_alerts={len(alerts)} types={_format_counts(type_counts)}",
                 )
 
     logger.info(

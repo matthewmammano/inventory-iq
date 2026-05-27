@@ -120,7 +120,7 @@ SEED_TABLES = (
 def run() -> None:
     """Rebuild and populate the local SQLite demo database."""
     db_path = _reset_sqlite_database()
-    logger.info("Preparing fresh demo database: {}", db_path)
+    logger.info(f"Preparing fresh demo database: {db_path}")
     init_db(settings.database_url)
     create_all()
     _verify_empty()

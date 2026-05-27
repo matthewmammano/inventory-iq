@@ -1,6 +1,6 @@
 """Run the full inventory alert safety audit.
 
-Manual: python -m tasks.generate_inventory_alerts
+Production task: python -m tasks.generate_inventory_alerts
 """
 
 from loguru import logger

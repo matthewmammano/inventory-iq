@@ -77,4 +77,4 @@ def setup_logging(*, debug: bool = False, log_file: str = "instance/logs/app.log
         )
         keep_newest_files(log_path.parent, "*.log*", LOG_FILE_RETENTION_COUNT)
     except OSError as exc:
-        logger.warning("File logging disabled for {}: {}", log_file, exc)
+        logger.warning(f"File logging disabled for {log_file}: {exc}")

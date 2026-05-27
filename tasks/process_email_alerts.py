@@ -1,6 +1,6 @@
-"""Manually send all currently pending alert emails.
+"""Send all currently pending alert emails.
 
-Manual: python -m tasks.process_email_alerts
+Production task: python -m tasks.process_email_alerts
 """
 
 from loguru import logger
@@ -10,7 +10,7 @@ from app.alerts.email_service import process_all_alerts
 
 
 def run() -> None:
-    """Manually send all pending alert emails."""
+    """Send all pending alert emails."""
     app = create_app()
     with app.app_context():
         result = process_all_alerts(force=True)

@@ -20,6 +20,7 @@ from app.prediction import models as _prediction_models  # noqa: F401 - register
 from app.shared import models as _shared_models  # noqa: F401 - register ORM models
 from app.shared.config import settings
 from app.shared.database import init_db
+from app.shared.email_client import log_email_config_status
 from app.shared.logging import setup_logging
 
 login_manager = LoginManager()
@@ -42,6 +43,7 @@ def create_app() -> Flask:
         "Flask app configured",
         extra={"database": db_type, "debug": settings.debug, "app_env": settings.app_env},
     )
+    log_email_config_status(app.config)
     return app
 
 
