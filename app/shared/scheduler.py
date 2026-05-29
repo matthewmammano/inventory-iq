@@ -136,6 +136,16 @@ def _claim_scheduler_run(
     agency_id: int = GLOBAL_SCHEDULER_AGENCY_ID,
 ) -> int | None:
     with get_session() as session:
+        existing_id = session.scalar(
+            select(SchedulerRun.id).where(
+                SchedulerRun.job_name == job_name,
+                SchedulerRun.agency_id == agency_id,
+                SchedulerRun.period_key == period_key,
+            )
+        )
+        if existing_id is not None:
+            return None
+
         run = SchedulerRun(
             job_name=job_name,
             agency_id=agency_id,

@@ -161,12 +161,24 @@ def _send_recipient_alerts(
 
 
 def _pending_recipients(session: Session) -> list[AgencyEmails]:
+    recipient_ids = list(
+        session.execute(
+            select(AlertRecords.agency_email_id)
+            .where(
+                AlertRecords.action == AlertAction.PENDING,
+                AlertRecords.agency_email_id.is_not(None),
+            )
+            .distinct()
+        )
+        .scalars()
+        .all()
+    )
+    if not recipient_ids:
+        return []
     return list(
         session.execute(
             select(AgencyEmails)
-            .join(AlertRecords, AlertRecords.agency_email_id == AgencyEmails.id)
-            .where(AlertRecords.action == AlertAction.PENDING)
-            .distinct()
+            .where(AgencyEmails.id.in_(recipient_ids))
             .order_by(AgencyEmails.agency_id, AgencyEmails.id)
         )
         .scalars()
