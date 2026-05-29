@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+    const MAX_MODAL_CHANGES = 5;
     const fields = [...document.querySelectorAll("[data-label]")];
     const form = document.querySelector("#settings-form");
     const saveButton = document.querySelector("#save-button");
@@ -55,7 +56,7 @@ document.addEventListener("DOMContentLoaded", () => {
         confirmButton.textContent = mode === "back" ? "Leave Without Saving" : "Yes, Save";
         confirmButton.classList.toggle("danger-button", mode === "back");
         confirmButton.classList.toggle("success-button", mode !== "back");
-        changeList.replaceChildren(...pending.map(changeItem));
+        changeList.replaceChildren(...limitedChangeItems(pending, MAX_MODAL_CHANGES));
         modal.classList.remove("hidden");
     }
 
@@ -94,4 +95,16 @@ function changeItem(change) {
     item.className = "change-item";
     item.textContent = `${change.label}: ${change.from} to ${change.to}`;
     return item;
+}
+
+function limitedChangeItems(changes, maxVisible) {
+    const items = changes.slice(0, maxVisible).map(changeItem);
+    const hiddenCount = changes.length - items.length;
+    if (hiddenCount > 0) {
+        const summary = document.createElement("div");
+        summary.className = "change-item";
+        summary.textContent = `...and ${hiddenCount} more change${hiddenCount === 1 ? "" : "s"}`;
+        items.push(summary);
+    }
+    return items;
 }

@@ -5,10 +5,10 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.models import AgencyStorages
+from app.auth.models import Agencies, AgencyStorages
 from app.inventory.constants import OperationType
 from app.inventory.models import ActionLogs
-from app.prediction.constants import RESTOCK_VALIDATION_HOURS
+from app.prediction.constants import RESTOCK_VALIDATION_DAYS
 from app.prediction.segments import get_location_storage_ids
 from app.shared.clock import utc_now
 
@@ -54,7 +54,8 @@ def validate_location_restock(
 
     msg = (
         "RESTOCK requires a full location count first. Count every storage in this "
-        f"location within {RESTOCK_VALIDATION_HOURS} hours, then try the restock again."
+        f"location within {_restock_validation_days(agency_id, session)} days, "
+        "then try the restock again."
     )
     return False, msg
 
@@ -70,7 +71,7 @@ def get_stale_count_storage_ids(
     if not storage_ids:
         return []
 
-    cutoff = utc_now() - timedelta(hours=RESTOCK_VALIDATION_HOURS)
+    cutoff = utc_now() - timedelta(days=_restock_validation_days(agency_id, session))
     fresh_rows = session.execute(
         select(ActionLogs.to_location_id)
         .where(
@@ -84,3 +85,10 @@ def get_stale_count_storage_ids(
     ).all()
     fresh_storage_ids = {row[0] for row in fresh_rows}
     return [storage_id for storage_id in storage_ids if storage_id not in fresh_storage_ids]
+
+
+def _restock_validation_days(agency_id: int, session: Session) -> int:
+    agency = session.get(Agencies, agency_id)
+    return int(
+        agency.count_last_days if agency and agency.count_last_days else RESTOCK_VALIDATION_DAYS
+    )

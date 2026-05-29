@@ -13,7 +13,7 @@ from app.inventory.location_operations import (
 )
 from app.inventory.models import Items
 from app.prediction.bulk_service import BulkService
-from app.prediction.validation import validate_location_restock
+from app.prediction.validation import get_stale_count_storage_ids
 
 type QuantityGrid = dict[tuple[int, int], int]
 
@@ -65,20 +65,14 @@ def save_bulk_location_restock(
     return len(logs)
 
 
-def item_names_requiring_count(
+def required_count_storage_ids(
     session: Session,
     agency_id: int,
     agency_location_id: int,
     items: list[Items],
-) -> list[str]:
-    """Return item names blocked from vendor restock until counted."""
-    return [
-        item.name
+) -> dict[int, set[int]]:
+    """Return stale storage IDs per item before restock is allowed."""
+    return {
+        item.id: set(get_stale_count_storage_ids(agency_id, item.id, agency_location_id, session))
         for item in items
-        if not validate_location_restock(agency_id, item.id, agency_location_id, session)[0]
-    ]
-
-
-def empty_quantity_grid(items: list[Items], storages: list[AgencyStorages]) -> QuantityGrid:
-    """Build a zero-filled quantity grid for restock receipt forms."""
-    return {(item.id, storage.id): 0 for item in items for storage in storages}
+    }

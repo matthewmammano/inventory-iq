@@ -104,13 +104,18 @@ def save_location_restock(
     return logs
 
 
-def parse_quantity_grid(form) -> dict[tuple[int, int], int]:
+def parse_quantity_grid(
+    form,
+    *,
+    prefix: str = "qty_",
+    skip_blank: bool = False,
+) -> dict[tuple[int, int], int]:
     quantities: dict[tuple[int, int], int] = {}
     for key, value in form.items():
-        if not key.startswith("qty_"):
+        if not key.startswith(prefix) or (skip_blank and value == ""):
             continue
         try:
-            _, item_id, storage_id = key.split("_", maxsplit=2)
+            item_id, storage_id = key.removeprefix(prefix).split("_", maxsplit=1)
             quantities[(int(item_id), int(storage_id))] = max(int(value or 0), 0)
         except (TypeError, ValueError):
             continue

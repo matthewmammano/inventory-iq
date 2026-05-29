@@ -71,13 +71,12 @@ def check_guest_auth() -> Any:
 @bp.route("/<squad>/")
 @login_required
 def index(squad: str) -> Any:
-    upc_error = request.args.get("upc_error")
-    if upc_error:
+    if request.args.get("scan_error") == "not_found":
         logger.error(
-            "Guest inventory search failed: UPC not found",
-            extra={"agency_id": current_user.id, "upc": upc_error},
+            "Guest inventory search failed: scanned barcode not found",
+            extra={"agency_id": current_user.id},
         )
-        flash(f"UPC {upc_error} not found in inventory.", "error")
+        flash("Scanned barcode not found in inventory.", "error")
     try:
         with get_session() as s:
             items = list_items(current_user.id, order_by_last_accessed=True, session=s)
@@ -164,7 +163,6 @@ def scan_start(squad: str) -> Any:
     return handle_scan_start(
         squad,
         parse_optional_int(request.args.get("item_id")),
-        upc=request.args.get("upc"),
         is_admin=False,
     )
 

@@ -11,13 +11,14 @@ from app.auth.models import Agencies, AgencyLocations
 from app.inventory.constants import OperationType
 from app.inventory.item_queries import list_items
 from app.inventory.models import ActionLogs, Items
+from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
 from app.prediction.estimator import (
     days_to_threshold,
     effective_lead_time_days,
-    project_location_item,
     reorder_date,
 )
 from app.prediction.formatting import rounded_confidence_percent
+from app.prediction.models import InventoryTrend
 from app.prediction.segments import get_location_storage_ids
 from app.shared.timezone_utils import convert_utc_to_local
 
@@ -38,8 +39,21 @@ class BulkService:
             items = list_items(
                 agency_id, include_inactive=False, order_by_last_accessed=True, session=session
             )
+            item_ids = [item.id for item in items]
+            storage_ids = get_location_storage_ids(session, agency_id, agency_location_id)
+            quantities = BulkService._location_quantities(session, agency_id, item_ids, storage_ids)
+            trends = BulkService._location_trends(session, agency_id, agency_location_id, item_ids)
+            last_counts = BulkService._last_counted_dates(
+                session, agency_id, storage_ids, agency.timezone if agency else "UTC"
+            )
             rows = [
-                BulkService._analyze_item(session, agency_id, agency_location_id, item, agency)
+                BulkService._analyze_item(
+                    item,
+                    agency,
+                    quantities.get(item.id, 0),
+                    trends.get(item.id),
+                    last_counts.get(item.id),
+                )
                 for item in items
             ]
             rows.sort(
@@ -77,13 +91,12 @@ class BulkService:
 
     @staticmethod
     def _analyze_item(
-        session: Session,
-        agency_id: int,
-        agency_location_id: int,
         item: Items,
         agency: Agencies | None,
+        current_quantity: int,
+        trend: InventoryTrend | None,
+        last_counted_at: datetime | None,
     ) -> dict:
-        agency_timezone = agency.timezone if agency else "UTC"
         min_qty = int(item.min_quantity or 0)
         max_qty = int(item.max_quantity or 0)
         batch_size = int(item.batch_size or 0)
@@ -91,15 +104,18 @@ class BulkService:
             agency.lead_time_days if agency else None,
             item.restock_delivery_days,
         )
-        projection = project_location_item(session, agency_id, item, agency_location_id)
-        effective_trend = -projection.daily_usage
+        trend_per_day = trend.trend_per_day if trend else -float(item.prior_daily_usage or 0)
+        daily_usage = min(
+            max(max(0.0, -float(trend_per_day)), MIN_EFFECTIVE_DAILY_USAGE),
+            MAX_EFFECTIVE_DAILY_USAGE,
+        )
 
-        days_low = days_to_threshold(projection.current_quantity, effective_trend, min_qty)
-        days_out = days_to_threshold(projection.current_quantity, effective_trend, 0)
+        days_low = days_to_threshold(current_quantity, -daily_usage, min_qty)
+        days_out = days_to_threshold(current_quantity, -daily_usage, 0)
         order_amount = BulkService._calculate_order_amount(
-            current_total=projection.current_quantity,
+            current_total=current_quantity,
             max_qty=max_qty,
-            daily_usage=projection.daily_usage,
+            daily_usage=daily_usage,
             delivery_days=lead_time_days,
             batch_size=batch_size,
             days_until_low=days_low,
@@ -107,57 +123,119 @@ class BulkService:
 
         return {
             "item": item,
-            "current_total": projection.current_quantity,
-            "projected_lead_time_total": round(
-                projection.current_quantity + effective_trend * lead_time_days
-            ),
+            "current_total": current_quantity,
+            "projected_lead_time_total": round(current_quantity - daily_usage * lead_time_days),
             "min_quantity": min_qty,
             "max_quantity": max_qty,
-            "gap_to_min": max(min_qty - projection.current_quantity, 0),
+            "gap_to_min": max(min_qty - current_quantity, 0),
             "lead_time_days": lead_time_days,
             "suggested_reorder_date": reorder_date(days_low, lead_time_days),
-            "last_counted_at": BulkService._get_last_counted_at(
-                session, agency_id, item.id, agency_location_id, agency_timezone
-            ),
+            "last_counted_at": last_counted_at,
             "days_until_low": days_low,
             "days_until_stockout": floor(days_out) if days_out is not None else None,
             "order_amount": order_amount,
             "order_amount_display": BulkService._format_order_amount_display(
                 order_amount, days_low
             ),
-            "confidence_percent": projection.confidence_percent,
-            "confidence_display": rounded_confidence_percent(projection.confidence_percent),
-            "daily_usage_rate": projection.daily_usage,
-            "used_fallback": projection.used_fallback,
+            "confidence_percent": trend.confidence_percent if trend else None,
+            "confidence_display": rounded_confidence_percent(
+                trend.confidence_percent if trend else None
+            ),
+            "daily_usage_rate": daily_usage,
+            "used_fallback": trend is None,
         }
 
     @staticmethod
-    def _get_last_counted_at(
+    def _location_quantities(
         session: Session,
         agency_id: int,
-        item_id: int,
-        agency_location_id: int,
-        agency_timezone: str,
-    ) -> datetime | None:
-        storage_ids = get_location_storage_ids(session, agency_id, agency_location_id)
-        if not storage_ids:
-            return None
-        row = (
-            session.execute(
-                select(ActionLogs)
-                .where(
-                    ActionLogs.agency_id == agency_id,
-                    ActionLogs.item_id == item_id,
-                    ActionLogs.operation_type == OperationType.COUNT,
-                    ActionLogs.to_location_id.in_(storage_ids),
-                )
-                .order_by(ActionLogs.time_scanned.desc())
-                .limit(1)
+        item_ids: list[int],
+        storage_ids: list[int],
+    ) -> dict[int, int]:
+        if not item_ids or not storage_ids:
+            return {}
+
+        rows = session.execute(
+            select(
+                ActionLogs.item_id,
+                ActionLogs.operation_type,
+                ActionLogs.from_location_id,
+                ActionLogs.to_location_id,
+                ActionLogs.quantity_delta,
             )
-            .scalars()
-            .first()
+            .where(
+                ActionLogs.agency_id == agency_id,
+                ActionLogs.item_id.in_(item_ids),
+                (
+                    ActionLogs.from_location_id.in_(storage_ids)
+                    | ActionLogs.to_location_id.in_(storage_ids)
+                ),
+            )
+            .order_by(ActionLogs.time_scanned, ActionLogs.id)
         )
-        return convert_utc_to_local(row.time_scanned, agency_timezone) if row else None
+
+        by_item_storage: dict[int, dict[int, int]] = {}
+        storage_set = set(storage_ids)
+        for item_id, operation, from_storage_id, to_storage_id, quantity in rows:
+            if item_id is None:
+                continue
+            quantities = by_item_storage.setdefault(item_id, {})
+            if operation == OperationType.COUNT and to_storage_id in storage_set:
+                quantities[to_storage_id] = quantity
+                continue
+            if to_storage_id in storage_set:
+                quantities[to_storage_id] = quantities.get(to_storage_id, 0) + quantity
+            if from_storage_id in storage_set:
+                quantities[from_storage_id] = quantities.get(from_storage_id, 0) - quantity
+
+        return {
+            item_id: sum(quantities.values()) for item_id, quantities in by_item_storage.items()
+        }
+
+    @staticmethod
+    def _location_trends(
+        session: Session,
+        agency_id: int,
+        agency_location_id: int,
+        item_ids: list[int],
+    ) -> dict[int, InventoryTrend]:
+        if not item_ids:
+            return {}
+        rows = session.execute(
+            select(InventoryTrend).where(
+                InventoryTrend.agency_id == agency_id,
+                InventoryTrend.agency_location_id == agency_location_id,
+                InventoryTrend.item_id.in_(item_ids),
+            )
+        ).scalars()
+        return {trend.item_id: trend for trend in rows}
+
+    @staticmethod
+    def _last_counted_dates(
+        session: Session,
+        agency_id: int,
+        storage_ids: list[int],
+        agency_timezone: str,
+    ) -> dict[int, datetime]:
+        if not storage_ids:
+            return {}
+
+        rows = session.execute(
+            select(ActionLogs.item_id, ActionLogs.time_scanned)
+            .where(
+                ActionLogs.agency_id == agency_id,
+                ActionLogs.operation_type == OperationType.COUNT,
+                ActionLogs.to_location_id.in_(storage_ids),
+            )
+            .order_by(ActionLogs.time_scanned)
+        )
+        latest: dict[int, datetime] = {}
+        for item_id, scanned_at in rows:
+            if item_id is not None and scanned_at is not None:
+                local_time = convert_utc_to_local(scanned_at, agency_timezone)
+                if local_time is not None:
+                    latest[item_id] = local_time
+        return latest
 
     @staticmethod
     def _calculate_order_amount(

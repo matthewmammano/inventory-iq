@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+
+{% block title %}Bulk Action{% endblock %}
+{% block header_title %}Bulk Action{% endblock %}
+{% block sub_title %}{{ location.name }}{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.bulk_actions', squad=squad) }}">Back</a>{% endblock %}
+
+{% block content %}
+<section class="grid admin-menu">
+    <a class="card" href="{{ url_for('admin.bulk_edit', squad=squad, agency_location_id=location.id) }}">
+        <h2>All Items</h2>
+        <p>Count or restock every active item at this location</p>
+    </a>
+    <a class="card" href="{{ url_for('admin.bulk_select_items', squad=squad, agency_location_id=location.id) }}">
+        <h2>Certain Items</h2>
+        <p>Select specific items before opening the bulk grid</p>
+    </a>
+</section>
+<p class="muted-note">{{ item_count }} active items available</p>
+{% endblock %}

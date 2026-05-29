@@ -23,12 +23,15 @@
                 <thead>
                     <tr>
                         <th>Item Name</th>
+                        <th>Unit</th>
                         <th>Current Total</th>
                         <th>Projected At Lead Time <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
                         <th>Daily Usage <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
                         <th>Min Quantity</th>
                         <th>Gap to Min</th>
                         <th>Max Quantity</th>
+                        <th>Batch Size</th>
+                        <th>Lead Time Days</th>
                         <th>Days Until Stockout <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
                         <th>Suggested Reorder Date <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
                         <th>Last Counted At</th>
@@ -40,12 +43,15 @@
                     {% for row in tab.restock_data %}
                     <tr>
                         <td>{{ row['item'].name }}</td>
+                        <td>{{ row['item'].increments }}</td>
                         <td class="{{ row.get('current_total_class', '') }}">{{ row['current_total'] }}</td>
                         <td class="{{ row.get('projected_total_class', '') }}">{{ row['projected_lead_time_total'] }}</td>
                         <td>{{ "%.1f"|format(row['daily_usage_rate']) if row['daily_usage_rate'] >= 0 else 'N/A' }}</td>
                         <td class="{{ row.get('min_quantity_class', '') }}">{{ row['min_quantity'] if row['min_quantity'] > 0 else '-' }}</td>
                         <td>{{ row['gap_to_min'] if row['gap_to_min'] > 0 else '' }}</td>
                         <td>{{ row['max_quantity'] if row['max_quantity'] > 0 else '-' }}</td>
+                        <td>{{ row['item'].batch_size if row['item'].batch_size else '-' }}</td>
+                        <td>{{ row['lead_time_days'] }}</td>
                         <td class="{{ row.get('days_class', '') }}">{% if row['days_until_stockout'] is not none %}{{ row['days_until_stockout'] if row['days_until_stockout'] <= 365 else 365 }}{% else %}N/A{% endif %}</td>
                         <td>{{ row['suggested_reorder_date'].strftime('%Y-%m-%d') if row['suggested_reorder_date'] else 'N/A' }}</td>
                         <td>{{ row['last_counted_at'].strftime('%Y-%m-%d') if row['last_counted_at'] else 'N/A' }}</td>

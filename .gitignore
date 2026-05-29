@@ -46,6 +46,7 @@ logs/
 *.log
 *.log.*
 *.db
+!seed/*.db
 *.db-*
 *.sqlite
 *.sqlite-*

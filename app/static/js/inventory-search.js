@@ -13,10 +13,14 @@ document.addEventListener("DOMContentLoaded", () => {
         return isAdmin ? `${base}/admin-panel/scan?item_id=${itemId}` : `${base}/scan?item_id=${itemId}`;
     }
 
-    function upcUrl(upc) {
-        const base = `/inventory/${encodeURIComponent(squad)}`;
-        return isAdmin ? `${base}/admin-panel/scan?upc=${upc}` : `${base}/scan?upc=${upc}`;
-    }
+    const scanUpc = (upc) => {
+        const item = items.find((candidate) => candidate.upc === upc);
+        if (item) {
+            window.location.href = itemUrl(item.id);
+            return;
+        }
+        window.location.href = `${window.location.pathname}?scan_error=not_found`;
+    };
 
     function showResults(query) {
         const results = query.trim() ? fuse.search(query) : items.map((item) => ({ item, score: 0 }));
@@ -33,13 +37,13 @@ document.addEventListener("DOMContentLoaded", () => {
     search.addEventListener("input", (event) => {
         const value = event.target.value.trim();
         if (/^\d{12}$/.test(value)) {
-            window.location.href = upcUrl(value);
+            scanUpc(value);
             return;
         }
         showResults(value);
     });
     showResults("");
-    bindUpcScanner(upcUrl);
+    bindUpcScanner(scanUpc);
 });
 
 function buildSearch(items) {
@@ -67,28 +71,27 @@ function resultRow(item, itemUrl) {
     return row;
 }
 
-function bindUpcScanner(upcUrl) {
+function bindUpcScanner(scanUpc) {
     let buffer = "";
     let timeout;
-    const redirect = (upc) => { window.location.href = upcUrl(upc); };
 
     document.addEventListener("paste", (event) => {
         const text = event.clipboardData?.getData("text")?.trim();
-        if (/^\d{12}$/.test(text)) redirect(text);
+        if (/^\d{12}$/.test(text)) scanUpc(text);
     });
 
     document.addEventListener("keydown", (event) => {
         clearTimeout(timeout);
         if (event.key === "Enter" && buffer.length === 12) {
             event.preventDefault();
-            redirect(buffer);
+            scanUpc(buffer);
             buffer = "";
             return;
         }
         if (/^\d$/.test(event.key)) {
             buffer = (buffer + event.key).slice(-12);
             timeout = setTimeout(() => {
-                if (buffer.length === 12) redirect(buffer);
+                if (buffer.length === 12) scanUpc(buffer);
                 buffer = "";
             }, 100);
             return;
