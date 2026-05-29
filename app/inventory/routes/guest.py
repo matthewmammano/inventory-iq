@@ -72,7 +72,7 @@ def check_guest_auth() -> Any:
 @login_required
 def index(squad: str) -> Any:
     if request.args.get("scan_error") == "not_found":
-        logger.error(
+        logger.warning(
             "Guest inventory search failed: scanned barcode not found",
             extra={"agency_id": current_user.id},
         )
@@ -157,9 +157,7 @@ def _admin_login_response(squad: str, token: str) -> Any:
 @login_required
 def scan_start(squad: str) -> Any:
     if get_device_location_id(current_user.id) is None:
-        return redirect(
-            url_for("guest.scan_location", squad=squad, item_id=request.args.get("item_id"))
-        )
+        return redirect(url_for("guest.scan_location", squad=squad, item_id=request.args.get("item_id")))
     return handle_scan_start(
         squad,
         parse_optional_int(request.args.get("item_id")),
@@ -207,9 +205,7 @@ def scan_location(squad: str) -> Any:
                 "agency_location_id": location_id,
             },
         )
-        response = make_response(
-            redirect(url_for("guest.scan_storages", squad=squad, item_id=item_id))
-        )
+        response = make_response(redirect(url_for("guest.scan_storages", squad=squad, item_id=item_id)))
         set_device_cookie(response, token)
         return response
 
@@ -222,9 +218,7 @@ def scan_location(squad: str) -> Any:
 @login_required
 def scan_storages(squad: str) -> Any:
     if get_device_location_id(current_user.id) is None:
-        return redirect(
-            url_for("guest.scan_location", squad=squad, item_id=request.values.get("item_id"))
-        )
+        return redirect(url_for("guest.scan_location", squad=squad, item_id=request.values.get("item_id")))
     if request.method == "POST":
         return handle_scan_storages_post(squad, request.form, is_admin=False)
     item_id = parse_optional_int(request.args.get("item_id"))
@@ -245,6 +239,4 @@ def scan_item(squad: str) -> Any:
     user_restock_allow = request.args.get("user_restock_allow", "false").lower() == "true"
     if to_location_id is None and not user_count_allow and not user_restock_allow:
         to_location_id = "-1"
-    return handle_scan_item_get(
-        squad, item_id, from_location_id, to_location_id, user_count_allow, user_restock_allow
-    )
+    return handle_scan_item_get(squad, item_id, from_location_id, to_location_id, user_count_allow, user_restock_allow)
