@@ -79,9 +79,7 @@ def validate_pin(value: str) -> str:
     return value
 
 
-def validate_positive_integer(
-    value: int | None, field_name: str, *, allow_none: bool = True
-) -> int | None:
+def validate_positive_integer(value: int | None, field_name: str, *, allow_none: bool = True) -> int | None:
     """Validate positive integer constraints."""
     if value is None:
         if allow_none:
@@ -92,9 +90,7 @@ def validate_positive_integer(
     return value
 
 
-def validate_non_negative_integer(
-    value: int | None, field_name: str, *, allow_none: bool = True
-) -> int | None:
+def validate_non_negative_integer(value: int | None, field_name: str, *, allow_none: bool = True) -> int | None:
     """Validate non-negative integer constraints."""
     if value is None:
         if allow_none:

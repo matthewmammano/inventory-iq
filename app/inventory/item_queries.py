@@ -48,9 +48,7 @@ def list_items(
         stmt = select(Items).where(Items.agency_id == agency_id)
         if not include_inactive:
             stmt = stmt.where(Items.active.is_(True))
-        order_column = (
-            Items.last_accessed.desc().nulls_last() if order_by_last_accessed else Items.name
-        )
+        order_column = Items.last_accessed.desc().nulls_last() if order_by_last_accessed else Items.name
         items = list(db.execute(stmt.order_by(order_column)).scalars().all())
         _attach_tags(agency_id, items, db)
         return items

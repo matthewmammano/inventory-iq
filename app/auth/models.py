@@ -55,9 +55,7 @@ class Agencies(Base, UserMixin):
     logs = relationship("ActionLogs", backref="agency", lazy="selectin")
     emails = relationship("AgencyEmails", backref="agency", lazy="selectin")
     alert_records = relationship(AlertRecords, back_populates="agency", lazy="selectin")
-    password_reset_pins = relationship(
-        "PasswordResetPins", back_populates="agency", lazy="selectin"
-    )
+    password_reset_pins = relationship("PasswordResetPins", back_populates="agency", lazy="selectin")
     item_tags = relationship("AgencyItemTags", backref="agency", lazy="selectin")
     locations = relationship("AgencyLocations", back_populates="agency", lazy="selectin")
     storages = relationship("AgencyStorages", back_populates="agency", lazy="selectin")
@@ -85,9 +83,7 @@ class Agencies(Base, UserMixin):
 
     @validates("display_name")
     def validate_display_name(self, _key: str, value: str) -> str | None:
-        return validate_string_length(
-            value, "display_name", 50, allow_none=False, allow_empty=False
-        )
+        return validate_string_length(value, "display_name", 50, allow_none=False, allow_empty=False)
 
     @validates("email")
     def validate_email(self, _key: str, value: str | None) -> str | None:
@@ -143,9 +139,7 @@ class AgencyEmails(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
     email: Mapped[str] = mapped_column(String(128), unique=True)
-    location_filter_ids: Mapped[list[int] | None] = mapped_column(
-        MutableList.as_mutable(JSON), nullable=True
-    )
+    location_filter_ids: Mapped[list[int] | None] = mapped_column(MutableList.as_mutable(JSON), nullable=True)
 
     alert_for_stockout: Mapped[bool] = mapped_column(Boolean, default=True)
     alert_for_stockout_pred: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -189,9 +183,7 @@ class AgencyLocations(Base):
         order_by="AgencyStorages.name",
     )
 
-    __table_args__ = (
-        UniqueConstraint("agency_id", "name", name="uq_agency_locations_agency_name"),
-    )
+    __table_args__ = (UniqueConstraint("agency_id", "name", name="uq_agency_locations_agency_name"),)
 
     @validates("name")
     def validate_name(self, _key: str, value: str) -> str | None:
@@ -206,9 +198,7 @@ class AgencyDevices(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
     device_token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
-    agency_location_id: Mapped[int | None] = mapped_column(
-        Integer, ForeignKey("agency_locations.id"), nullable=True
-    )
+    agency_location_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("agency_locations.id"), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
@@ -232,9 +222,7 @@ class AgencyStorages(Base):
     agency = relationship("Agencies", back_populates="storages", lazy="selectin")
     location = relationship("AgencyLocations", back_populates="storages", lazy="selectin")
 
-    __table_args__ = (
-        UniqueConstraint("location_id", "name", name="uq_agency_storages_location_name"),
-    )
+    __table_args__ = (UniqueConstraint("location_id", "name", name="uq_agency_storages_location_name"),)
 
     @validates("name")
     def validate_name(self, _key: str, value: str) -> str | None:
@@ -263,9 +251,7 @@ class AgencyItemTags(Base):
     tag_name: Mapped[str] = mapped_column(String(50))
     color: Mapped[str] = mapped_column(String(7))
 
-    __table_args__ = (
-        UniqueConstraint("agency_id", "tag_name", name="uq_agency_item_tags_agency_tag"),
-    )
+    __table_args__ = (UniqueConstraint("agency_id", "tag_name", name="uq_agency_item_tags_agency_tag"),)
 
     @property
     def text_color(self) -> str:

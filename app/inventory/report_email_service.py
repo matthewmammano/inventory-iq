@@ -45,9 +45,7 @@ def _selected_recipients(
         return []
     return list(
         session.execute(
-            select(AgencyEmails)
-            .where(AgencyEmails.agency_id == agency_id, AgencyEmails.id.in_(agency_email_ids))
-            .order_by(AgencyEmails.email)
+            select(AgencyEmails).where(AgencyEmails.agency_id == agency_id, AgencyEmails.id.in_(agency_email_ids)).order_by(AgencyEmails.email)
         )
         .scalars()
         .all()
@@ -95,12 +93,7 @@ def _inventory_sections(
                 "minimum": item.min_quantity,
                 "total": total,
             }
-            row.update(
-                {
-                    f"storage_{storage.id}": counts.get((item.id, storage.id), 0)
-                    for storage in storages
-                }
-            )
+            row.update({f"storage_{storage.id}": counts.get((item.id, storage.id), 0) for storage in storages})
             rows.append(row)
         if rows:
             sections.append(
@@ -109,10 +102,7 @@ def _inventory_sections(
                     note="Current inventory counts by storage.",
                     columns=[
                         AlertTableColumn(key="item", label="Item"),
-                        *[
-                            AlertTableColumn(key=f"storage_{storage.id}", label=storage.name)
-                            for storage in storages
-                        ],
+                        *[AlertTableColumn(key=f"storage_{storage.id}", label=storage.name) for storage in storages],
                         AlertTableColumn(key="minimum", label="Min"),
                         AlertTableColumn(key="total", label="Total"),
                     ],

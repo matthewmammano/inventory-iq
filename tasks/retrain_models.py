@@ -17,9 +17,7 @@ def run() -> None:
     """Retrain changed location-level inventory trends for every active agency."""
     app = create_app()
     with app.app_context(), get_session() as session:
-        agencies = list(
-            session.execute(select(Agencies).where(Agencies.active.is_(True))).scalars().all()
-        )
+        agencies = list(session.execute(select(Agencies).where(Agencies.active.is_(True))).scalars().all())
         total = 0
         for agency in agencies:
             total += _retrain_agency(session, agency.id)
@@ -28,16 +26,8 @@ def run() -> None:
 
 
 def _retrain_agency(session, agency_id: int) -> int:
-    items = list(
-        session.execute(select(Items).where(Items.agency_id == agency_id, Items.active.is_(True)))
-        .scalars()
-        .all()
-    )
-    locations = list(
-        session.execute(select(AgencyLocations).where(AgencyLocations.agency_id == agency_id))
-        .scalars()
-        .all()
-    )
+    items = list(session.execute(select(Items).where(Items.agency_id == agency_id, Items.active.is_(True))).scalars().all())
+    locations = list(session.execute(select(AgencyLocations).where(AgencyLocations.agency_id == agency_id)).scalars().all())
 
     count = 0
     for item in items:

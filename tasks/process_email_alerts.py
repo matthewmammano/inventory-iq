@@ -16,11 +16,7 @@ def run(*, force: bool = False) -> None:
     app = create_app()
     with app.app_context():
         result = process_all_alerts(force=force)
-        logger.info(
-            "Alert batch: "
-            f"force={force} processed={result['processed']} "
-            f"sent={result['sent']} failed={result['failed']}"
-        )
+        logger.info("Alert batch: " f"force={force} processed={result['processed']} " f"sent={result['sent']} failed={result['failed']}")
 
 
 if __name__ == "__main__":

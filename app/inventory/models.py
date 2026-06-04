@@ -159,11 +159,7 @@ class Items(Base):
             sess = object_session(self)
             agency_id_val = getattr(self, "agency_id", None)
             if sess is not None and agency_id_val is not None:
-                stmt = (
-                    sess.query(Items.id)
-                    .filter(Items.agency_id == agency_id_val)
-                    .filter(Items.upc == value)
-                )
+                stmt = sess.query(Items.id).filter(Items.agency_id == agency_id_val).filter(Items.upc == value)
                 if getattr(self, "id", None) is not None:
                     stmt = stmt.filter(Items.id != self.id)
                 existing = stmt.first()

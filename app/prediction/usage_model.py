@@ -111,9 +111,7 @@ def _weighted_linear_intercept(
     if variance_x == 0:
         return y_bar
 
-    covariance = sum(
-        w * (x - x_bar) * (y - y_bar) for x, y, w in zip(x_values, y_values, weights, strict=True)
-    )
+    covariance = sum(w * (x - x_bar) * (y - y_bar) for x, y, w in zip(x_values, y_values, weights, strict=True))
     slope = covariance / variance_x
     return y_bar - slope * x_bar
 
@@ -129,10 +127,7 @@ def _confidence_percent(
         return 0.0
 
     mean = sum(w * trend for trend, w in zip(trends, weights, strict=True)) / weight_total
-    variance = (
-        sum(w * (trend - mean) ** 2 for trend, w in zip(trends, weights, strict=True))
-        / weight_total
-    )
+    variance = sum(w * (trend - mean) ** 2 for trend, w in zip(trends, weights, strict=True)) / weight_total
     spread = variance**0.5
     agreement = 1.0 if spread == 0 else abs(fitted_trend) / (abs(fitted_trend) + spread)
     volume = min(segment_count / CONFIDENCE_FULL_SEGMENTS, 1.0)

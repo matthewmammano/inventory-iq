@@ -27,9 +27,7 @@ def inventory_operation(
     from app.alerts.alert_service import record_action_log_alerts
 
     with get_session() as db:
-        item = _validate_operation(
-            db, agency_id, item_id, quantity, operation_type, from_location, to_location
-        )
+        item = _validate_operation(db, agency_id, item_id, quantity, operation_type, from_location, to_location)
         _touch_item_last_accessed(item)
         action = _add_action_log(
             db,
@@ -62,9 +60,7 @@ def _validate_operation(
         raise InventoryError("Cannot transfer or remove zero items")
 
     item = _validate_item(session, agency_id, item_id)
-    _validate_operation_locations(
-        session, agency_id, item_id, operation_type, from_location, to_location
-    )
+    _validate_operation_locations(session, agency_id, item_id, operation_type, from_location, to_location)
 
     if from_location is not None and not get_storage(from_location, agency_id, session):
         raise InventoryError("Source storage not found")
@@ -87,9 +83,7 @@ def _validate_operation_locations(
         _validate_restock_location(session, agency_id, item_id, from_location, to_location)
     if operation_type == OperationType.TRANSFER:
         _validate_transfer_locations(from_location, to_location)
-    if operation_type == OperationType.TAKEOUT and (
-        from_location is None or to_location is not None
-    ):
+    if operation_type == OperationType.TAKEOUT and (from_location is None or to_location is not None):
         raise InventoryError("TAKEOUT requires one source storage")
 
 

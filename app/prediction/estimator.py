@@ -41,9 +41,7 @@ def project_location_item(
     return LocationProjection(
         item_id=item.id,
         agency_location_id=agency_location_id,
-        current_quantity=get_location_item_quantity(
-            session, agency_id, item.id, agency_location_id
-        ),
+        current_quantity=get_location_item_quantity(session, agency_id, item.id, agency_location_id),
         trend_per_day=trend.trend_per_day if trend else -float(item.prior_daily_usage or 0),
         confidence_percent=trend.confidence_percent if trend else None,
         segment_count=trend.segment_count if trend else 0,
@@ -70,11 +68,7 @@ def effective_lead_time_days(
     item_restock_delivery_days: int | None,
 ) -> int:
     """Item restock days override agency lead time when set."""
-    value = (
-        item_restock_delivery_days
-        if item_restock_delivery_days is not None
-        else agency_lead_time_days
-    )
+    value = item_restock_delivery_days if item_restock_delivery_days is not None else agency_lead_time_days
     return int(value or 0)
 
 
@@ -83,9 +77,7 @@ def projected_quantity(current_quantity: int, trend_per_day: float, days: float)
     return max(float(current_quantity) + trend_per_day * days, 0.0)
 
 
-def days_to_threshold(
-    current_quantity: int, trend_per_day: float, threshold: float
-) -> float | None:
+def days_to_threshold(current_quantity: int, trend_per_day: float, threshold: float) -> float | None:
     """Return days until a quantity threshold is reached, if usage is trending down."""
     if current_quantity <= threshold:
         return 0.0

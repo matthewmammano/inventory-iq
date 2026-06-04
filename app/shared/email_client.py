@@ -29,9 +29,7 @@ class OutboundEmail:
 
 def email_configured() -> bool:
     """Return whether real email delivery is configured."""
-    return bool(
-        _config("EMAIL_API_URL") and _config("EMAIL_API_KEY") and _config("EMAIL_SENDER_EMAIL")
-    )
+    return bool(_config("EMAIL_API_URL") and _config("EMAIL_API_KEY") and _config("EMAIL_SENDER_EMAIL"))
 
 
 def log_email_config_status(config) -> None:
@@ -83,9 +81,7 @@ def send_email(
     max_attempts = len(retry_delays_seconds) + 1
     recipient_domain = _recipient_domain(email.to_email)
     for attempt in range(1, max_attempts + 1):
-        result = _send_request(
-            request, attempt, max_attempts, recipient_domain, retry_delays_seconds
-        )
+        result = _send_request(request, attempt, max_attempts, recipient_domain, retry_delays_seconds)
         if result is not None:
             return result
         time.sleep(retry_delays_seconds[attempt - 1])
@@ -118,10 +114,7 @@ def _send_request(
     except HTTPError as exc:
         message = _http_error_message(exc)
         if exc.code != 429 and 400 <= exc.code < 500:
-            logger.error(
-                f"Email rejected: domain={recipient_domain} status={exc.code} "
-                f"provider_message={message}"
-            )
+            logger.error(f"Email rejected: domain={recipient_domain} status={exc.code} " f"provider_message={message}")
             return False
         if attempt < max_attempts:
             _log_retry(
@@ -132,10 +125,7 @@ def _send_request(
                 f"status={exc.code} provider_message={message}",
             )
             return None
-        logger.error(
-            f"Email rejected: domain={recipient_domain} status={exc.code} "
-            f"provider_message={message}"
-        )
+        logger.error(f"Email rejected: domain={recipient_domain} status={exc.code} " f"provider_message={message}")
         return False
     except (TimeoutError, URLError, OSError) as exc:
         if attempt < max_attempts:
@@ -147,9 +137,7 @@ def _send_request(
                 f"error={type(exc).__name__}",
             )
             return None
-        logger.exception(
-            f"Email request failed: domain={recipient_domain} error={type(exc).__name__}"
-        )
+        logger.exception(f"Email request failed: domain={recipient_domain} error={type(exc).__name__}")
         return False
 
 
@@ -165,10 +153,7 @@ def _log_retry(
     delay_seconds: int,
     reason: str,
 ) -> None:
-    logger.warning(
-        f"Email retry: domain={recipient_domain} {reason} "
-        f"attempt={attempt}/{max_attempts} delay={delay_seconds}s"
-    )
+    logger.warning(f"Email retry: domain={recipient_domain} {reason} " f"attempt={attempt}/{max_attempts} delay={delay_seconds}s")
 
 
 def _http_error_message(exc: HTTPError) -> str:

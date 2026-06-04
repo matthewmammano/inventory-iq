@@ -126,8 +126,7 @@ def process_all_alerts(*, force: bool = False) -> dict[str, int]:
                 )
 
     logger.info(
-        "Hourly alert email check finished: "
-        f"recipients_with_email={stats['processed']} sent={stats['sent']} failed={stats['failed']}",
+        "Hourly alert email check finished: " f"recipients_with_email={stats['processed']} sent={stats['sent']} failed={stats['failed']}",
         extra=stats,
     )
     return stats
@@ -176,11 +175,7 @@ def _pending_recipients(session: Session) -> list[AgencyEmails]:
     if not recipient_ids:
         return []
     return list(
-        session.execute(
-            select(AgencyEmails)
-            .where(AgencyEmails.id.in_(recipient_ids))
-            .order_by(AgencyEmails.agency_id, AgencyEmails.id)
-        )
+        session.execute(select(AgencyEmails).where(AgencyEmails.id.in_(recipient_ids)).order_by(AgencyEmails.agency_id, AgencyEmails.id))
         .scalars()
         .all()
     )
@@ -242,11 +237,7 @@ def _build_batch(
 
 def _summary(alerts: list[AlertRecords]) -> list[AlertSummaryItem]:
     counts = Counter(alert.type for alert in alerts)
-    return [
-        AlertSummaryItem(label=LABEL_BY_TYPE[alert_type], count=count)
-        for alert_type, count in counts.items()
-        if count > 0
-    ]
+    return [AlertSummaryItem(label=LABEL_BY_TYPE[alert_type], count=count) for alert_type, count in counts.items() if count > 0]
 
 
 def _build_sections(alerts: list[AlertRecords], timezone: str) -> list[AlertTableSection]:
@@ -518,10 +509,7 @@ def _simple_section(
 ) -> AlertTableSection | None:
     if not rows:
         return None
-    columns = [
-        AlertTableColumn(key=spec.split(":", 1)[0], label=spec.split(":", 1)[1])
-        for spec in column_specs
-    ]
+    columns = [AlertTableColumn(key=spec.split(":", 1)[0], label=spec.split(":", 1)[1]) for spec in column_specs]
     return AlertTableSection(title=title, note=note, columns=columns, rows=rows)
 
 
@@ -560,9 +548,7 @@ def _recipient_allows_alert(
     if not bool(getattr(recipient, PREFERENCE_BY_TYPE[alert.type])):
         return False
     try:
-        location_ids = validate_location_filter_ids(
-            session, recipient.agency_id, recipient.location_filter_ids
-        )
+        location_ids = validate_location_filter_ids(session, recipient.agency_id, recipient.location_filter_ids)
     except ValueError as exc:
         logger.warning(
             f"Alert email skipped invalid location filter: agency_email_id={recipient.id}",
@@ -661,9 +647,7 @@ def _prior_day_bounds(local_now: datetime) -> tuple[datetime, datetime]:
 
 
 def _prior_week_bounds(local_now: datetime) -> tuple[datetime, datetime]:
-    end_local = (local_now - timedelta(days=local_now.weekday())).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    )
+    end_local = (local_now - timedelta(days=local_now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
     return _utc_naive(end_local - timedelta(days=7)), _utc_naive(end_local)
 
 

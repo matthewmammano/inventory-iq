@@ -48,7 +48,7 @@ def create_app() -> Flask:
 
 
 def _setup_process_logging() -> None:
-    setup_logging(debug=settings.debug)
+    setup_logging(debug=settings.debug, json_logs=settings.is_prod)
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 
@@ -92,17 +92,11 @@ def _register_template_filters(app: Flask) -> None:
     def image_src(image_path: str | None) -> str:
         if not image_path:
             return url_for("static", filename="images/not-found.jpg")
-        if re.match(
-            r"^(https?://|file://|[a-zA-Z]:|\.\.?/)", str(image_path)
-        ):  # keep absolute/URL inputs untouched
+        if re.match(r"^(https?://|file://|[a-zA-Z]:|\.\.?/)", str(image_path)):  # keep absolute/URL inputs untouched
             return image_path
-        filename = (
-            str(image_path).replace("\\", "/").lstrip("/").removeprefix("static/")
-        )  # normalize to static-relative path
+        filename = str(image_path).replace("\\", "/").lstrip("/").removeprefix("static/")  # normalize to static-relative path
         static_folder = app.static_folder or ""
-        if (
-            static_folder and (Path(static_folder) / filename.replace("/", "\\")).exists()
-        ):  # local file exists under /static
+        if static_folder and (Path(static_folder) / filename.replace("/", "\\")).exists():  # local file exists under /static
             return url_for("static", filename=filename)
         return url_for("static", filename="images/not-found.jpg")
 

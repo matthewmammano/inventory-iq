@@ -123,8 +123,4 @@ def parse_quantity_grid(
 
 
 def _active_item_ids(session: Session, agency_id: int) -> set[int]:
-    return set(
-        session.execute(
-            select(Items.id).where(Items.agency_id == agency_id, Items.active.is_(True))
-        ).scalars()
-    )
+    return set(session.execute(select(Items.id).where(Items.agency_id == agency_id, Items.active.is_(True))).scalars())

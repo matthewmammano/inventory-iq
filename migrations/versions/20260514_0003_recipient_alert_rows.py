@@ -63,8 +63,4 @@ def _columns() -> set[str]:
 
 def _indexes() -> set[str]:
     inspector = sa.inspect(op.get_bind())
-    return {
-        name
-        for index in inspector.get_indexes("alert_records")
-        if (name := index["name"]) is not None
-    }
+    return {name for index in inspector.get_indexes("alert_records") if (name := index["name"]) is not None}

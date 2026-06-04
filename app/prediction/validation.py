@@ -89,6 +89,4 @@ def get_stale_count_storage_ids(
 
 def _restock_validation_days(agency_id: int, session: Session) -> int:
     agency = session.get(Agencies, agency_id)
-    return int(
-        agency.count_last_days if agency and agency.count_last_days else RESTOCK_VALIDATION_DAYS
-    )
+    return int(agency.count_last_days if agency and agency.count_last_days else RESTOCK_VALIDATION_DAYS)

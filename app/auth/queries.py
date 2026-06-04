@@ -22,15 +22,9 @@ def get_agency_by_email(email: str, session: Session | None = None) -> Agencies 
         return s.execute(select(Agencies).where(Agencies.email == email)).scalars().first()
 
 
-def get_agency_by_display_name(
-    display_name: str, session: Session | None = None
-) -> Agencies | None:
+def get_agency_by_display_name(display_name: str, session: Session | None = None) -> Agencies | None:
     with managed_session(session) as s:
-        return (
-            s.execute(select(Agencies).where(Agencies.display_name == display_name))
-            .scalars()
-            .first()
-        )
+        return s.execute(select(Agencies).where(Agencies.display_name == display_name)).scalars().first()
 
 
 def list_agencies(*, active: bool, session: Session | None = None) -> list[Agencies]:
@@ -39,16 +33,10 @@ def list_agencies(*, active: bool, session: Session | None = None) -> list[Agenc
         return list(s.execute(stmt).scalars().all())
 
 
-def get_agency_permissions(
-    display_name: str, session: Session | None = None
-) -> tuple[bool, bool] | None:
+def get_agency_permissions(display_name: str, session: Session | None = None) -> tuple[bool, bool] | None:
     """Return (count_allow, restock_allow) or None if agency not found."""
     with managed_session(session) as s:
-        row = s.execute(
-            select(Agencies.user_count_allow, Agencies.user_restock_allow).where(
-                Agencies.display_name == display_name
-            )
-        ).first()
+        row = s.execute(select(Agencies.user_count_allow, Agencies.user_restock_allow).where(Agencies.display_name == display_name)).first()
         return tuple(row) if row else None  # type: ignore[return-value]
 
 
@@ -78,9 +66,7 @@ def list_locations(
         return list(s.execute(stmt).scalars().all())
 
 
-def get_storage(
-    storage_id: int, agency_id: int, session: Session | None = None
-) -> AgencyStorages | None:
+def get_storage(storage_id: int, agency_id: int, session: Session | None = None) -> AgencyStorages | None:
     """Get a storage by ID, validating it belongs to the agency."""
     with managed_session(session) as s:
         return (
@@ -97,11 +83,7 @@ def get_storage(
 
 def list_top_locations(agency_id: int, session: Session | None = None) -> list[AgencyLocations]:
     with managed_session(session) as s:
-        stmt = (
-            select(AgencyLocations)
-            .where(AgencyLocations.agency_id == agency_id)
-            .order_by(AgencyLocations.name)
-        )
+        stmt = select(AgencyLocations).where(AgencyLocations.agency_id == agency_id).order_by(AgencyLocations.name)
         return list(s.execute(stmt).scalars().all())
 
 
@@ -112,17 +94,11 @@ def list_top_locations(agency_id: int, session: Session | None = None) -> list[A
 
 def list_tags(agency_id: int, session: Session | None = None) -> list[AgencyItemTags]:
     with managed_session(session) as s:
-        stmt = (
-            select(AgencyItemTags)
-            .where(AgencyItemTags.agency_id == agency_id)
-            .order_by(AgencyItemTags.tag_name)
-        )
+        stmt = select(AgencyItemTags).where(AgencyItemTags.agency_id == agency_id).order_by(AgencyItemTags.tag_name)
         return list(s.execute(stmt).scalars().all())
 
 
-def get_tags_by_ids(
-    agency_id: int, tag_ids: list[int], session: Session | None = None
-) -> list[AgencyItemTags]:
+def get_tags_by_ids(agency_id: int, tag_ids: list[int], session: Session | None = None) -> list[AgencyItemTags]:
     with managed_session(session) as s:
         stmt = select(AgencyItemTags).where(
             AgencyItemTags.id.in_(tag_ids),

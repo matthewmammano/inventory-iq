@@ -364,9 +364,7 @@ def _scan(
     to_id: int | None = None,
 ) -> None:
     item_id = ctx.items[item_name]
-    action = _add_log(
-        session, ctx.agency_id, item_id, operation_type, quantity, utc_now(), from_id, to_id
-    )
+    action = _add_log(session, ctx.agency_id, item_id, operation_type, quantity, utc_now(), from_id, to_id)
     record_action_log_alerts(session, [action])
 
 
@@ -405,9 +403,7 @@ def _assert_generated_alerts(ctx: AlertTestContext) -> None:
         _assert_alert_identity(alerts, AlertType.LOW, AlertAction.PENDING, "Low Crossing")
         _assert_alert_identity(alerts, AlertType.STOCKOUT, AlertAction.CLEARED, "Cleared Stockout")
         _assert_alert_identity(alerts, AlertType.LOW, AlertAction.SUPPRESSED, "Stockout Negative")
-        _assert_alert_identity(
-            alerts, AlertType.LOW_PRED, AlertAction.SUPPRESSED, "Pred Both Suppression"
-        )
+        _assert_alert_identity(alerts, AlertType.LOW_PRED, AlertAction.SUPPRESSED, "Pred Both Suppression")
         _assert_absent(alerts, AlertType.RARE_TAKEOUT, "Old Transfer Only")
         _assert_absent(alerts, AlertType.RARE_TAKEOUT, "Recent Takeout")
         _assert_prediction_details(alerts)
@@ -513,27 +509,21 @@ def _assert_resolved_condition_can_alert_again(ctx: AlertTestContext) -> None:
         _scan(session, ctx, "Low Crossing", OperationType.TAKEOUT, 1, from_id=ctx.main_storage_id)
         session.commit()
     with get_session() as session:
-        _assert_alert_identity(
-            _alerts(session), AlertType.LOW, AlertAction.SUPPRESSED, "Low Crossing"
-        )
+        _assert_alert_identity(_alerts(session), AlertType.LOW, AlertAction.SUPPRESSED, "Low Crossing")
 
     _set_clock(datetime(2026, 5, 10, 13, 30, tzinfo=UTC))
     with get_session() as session:
         _scan(session, ctx, "Low Crossing", OperationType.COUNT, 9, to_id=ctx.main_storage_id)
         session.commit()
     with get_session() as session:
-        _assert_alert_identity(
-            _alerts(session), AlertType.LOW, AlertAction.SUPPRESSED, "Low Crossing"
-        )
+        _assert_alert_identity(_alerts(session), AlertType.LOW, AlertAction.SUPPRESSED, "Low Crossing")
 
     _set_clock(datetime(2026, 5, 10, 14, 0, tzinfo=UTC))
     with get_session() as session:
         _scan(session, ctx, "Low Crossing", OperationType.COUNT, 15, to_id=ctx.main_storage_id)
         session.commit()
     with get_session() as session:
-        _assert_alert_identity(
-            _alerts(session), AlertType.LOW, AlertAction.RESOLVED, "Low Crossing"
-        )
+        _assert_alert_identity(_alerts(session), AlertType.LOW, AlertAction.RESOLVED, "Low Crossing")
 
     _set_clock(datetime(2026, 5, 10, 15, 0, tzinfo=UTC))
     with get_session() as session:
@@ -558,20 +548,12 @@ def _assert_alert_identity(
     action: AlertAction,
     item_name: str,
 ) -> None:
-    found = any(
-        alert.type == alert_type
-        and alert.action == action
-        and alert.details_json.get("item_name") == item_name
-        for alert in alerts
-    )
+    found = any(alert.type == alert_type and alert.action == action and alert.details_json.get("item_name") == item_name for alert in alerts)
     _check(found, f"{item_name} has {alert_type.value}/{action.value}")
 
 
 def _assert_absent(alerts: list[AlertRecords], alert_type: AlertType, item_name: str) -> None:
-    found = any(
-        alert.type == alert_type and alert.details_json.get("item_name") == item_name
-        for alert in alerts
-    )
+    found = any(alert.type == alert_type and alert.details_json.get("item_name") == item_name for alert in alerts)
     _check(not found, f"{item_name} has no {alert_type.value}")
 
 
@@ -581,28 +563,18 @@ def _assert_current_total(
     item_name: str,
     expected: int,
 ) -> None:
-    total = get_location_item_quantity(
-        session, ctx.agency_id, ctx.items[item_name], ctx.hq_location_id
-    )
+    total = get_location_item_quantity(session, ctx.agency_id, ctx.items[item_name], ctx.hq_location_id)
     _check(total == expected, f"{item_name} current total is {expected}")
 
 
 def _one(alerts: list[AlertRecords], alert_type: AlertType, item_name: str) -> AlertRecords:
-    matches = [
-        alert
-        for alert in alerts
-        if alert.type == alert_type and alert.details_json.get("item_name") == item_name
-    ]
+    matches = [alert for alert in alerts if alert.type == alert_type and alert.details_json.get("item_name") == item_name]
     _check(bool(matches), f"at least one {alert_type.value} for {item_name}")
     return matches[0]
 
 
 def _alerts(session: Session) -> list[AlertRecords]:
-    return list(
-        session.execute(select(AlertRecords).order_by(AlertRecords.type, AlertRecords.id))
-        .scalars()
-        .all()
-    )
+    return list(session.execute(select(AlertRecords).order_by(AlertRecords.type, AlertRecords.id)).scalars().all())
 
 
 def _set_clock(value: datetime) -> None:

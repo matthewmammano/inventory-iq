@@ -43,9 +43,7 @@ class TrendSegment:
     weight: float
 
 
-def get_location_storage_ids(
-    session: Session, agency_id: int, agency_location_id: int
-) -> list[int]:
+def get_location_storage_ids(session: Session, agency_id: int, agency_location_id: int) -> list[int]:
     """Return storage IDs inside an agency location."""
     rows = session.execute(
         select(AgencyStorages.id)
@@ -99,11 +97,7 @@ def extract_segments(
 ) -> list[TrendSegment]:
     """Build completed location-level trend segments from fresh full-location counts."""
     anchors = _extract_count_anchors(session, agency_id, item_id, agency_location_id)
-    return [
-        segment
-        for start, end in pairwise(anchors)
-        if (segment := _build_segment(start, end)) is not None
-    ]
+    return [segment for start, end in pairwise(anchors) if (segment := _build_segment(start, end)) is not None]
 
 
 def _extract_count_anchors(

@@ -33,19 +33,13 @@ class BulkService:
         agency_location_id: int,
     ) -> list[dict]:
         try:
-            agency = (
-                session.execute(select(Agencies).where(Agencies.id == agency_id)).scalars().first()
-            )
-            items = list_items(
-                agency_id, include_inactive=False, order_by_last_accessed=True, session=session
-            )
+            agency = session.execute(select(Agencies).where(Agencies.id == agency_id)).scalars().first()
+            items = list_items(agency_id, include_inactive=False, order_by_last_accessed=True, session=session)
             item_ids = [item.id for item in items]
             storage_ids = get_location_storage_ids(session, agency_id, agency_location_id)
             quantities = BulkService._location_quantities(session, agency_id, item_ids, storage_ids)
             trends = BulkService._location_trends(session, agency_id, agency_location_id, item_ids)
-            last_counts = BulkService._last_counted_dates(
-                session, agency_id, storage_ids, agency.timezone if agency else "UTC"
-            )
+            last_counts = BulkService._last_counted_dates(session, agency_id, storage_ids, agency.timezone if agency else "UTC")
             rows = [
                 BulkService._analyze_item(
                     item,
@@ -58,9 +52,7 @@ class BulkService:
             ]
             rows.sort(
                 key=lambda row: (
-                    float("inf")
-                    if row["days_until_stockout"] is None
-                    else row["days_until_stockout"],
+                    float("inf") if row["days_until_stockout"] is None else row["days_until_stockout"],
                     -(row["order_amount"] or 0),
                     row["current_total"],
                     row["item"].name,
@@ -75,9 +67,7 @@ class BulkService:
             raise
 
     @staticmethod
-    def get_location(
-        session: Session, agency_id: int, agency_location_id: int
-    ) -> AgencyLocations | None:
+    def get_location(session: Session, agency_id: int, agency_location_id: int) -> AgencyLocations | None:
         return (
             session.execute(
                 select(AgencyLocations).where(
@@ -134,13 +124,9 @@ class BulkService:
             "days_until_low": days_low,
             "days_until_stockout": floor(days_out) if days_out is not None else None,
             "order_amount": order_amount,
-            "order_amount_display": BulkService._format_order_amount_display(
-                order_amount, days_low
-            ),
+            "order_amount_display": BulkService._format_order_amount_display(order_amount, days_low),
             "confidence_percent": trend.confidence_percent if trend else None,
-            "confidence_display": rounded_confidence_percent(
-                trend.confidence_percent if trend else None
-            ),
+            "confidence_display": rounded_confidence_percent(trend.confidence_percent if trend else None),
             "daily_usage_rate": daily_usage,
             "used_fallback": trend is None,
         }
@@ -166,10 +152,7 @@ class BulkService:
             .where(
                 ActionLogs.agency_id == agency_id,
                 ActionLogs.item_id.in_(item_ids),
-                (
-                    ActionLogs.from_location_id.in_(storage_ids)
-                    | ActionLogs.to_location_id.in_(storage_ids)
-                ),
+                (ActionLogs.from_location_id.in_(storage_ids) | ActionLogs.to_location_id.in_(storage_ids)),
             )
             .order_by(ActionLogs.time_scanned, ActionLogs.id)
         )
@@ -188,9 +171,7 @@ class BulkService:
             if from_storage_id in storage_set:
                 quantities[from_storage_id] = quantities.get(from_storage_id, 0) - quantity
 
-        return {
-            item_id: sum(quantities.values()) for item_id, quantities in by_item_storage.items()
-        }
+        return {item_id: sum(quantities.values()) for item_id, quantities in by_item_storage.items()}
 
     @staticmethod
     def _location_trends(

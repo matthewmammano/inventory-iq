@@ -19,9 +19,7 @@ def upgrade() -> None:
     connection = op.get_bind()
     rows = connection.execute(sa.select(items.c.id).where(items.c.upc.is_(None))).all()
     for (item_id,) in rows:
-        connection.execute(
-            items.update().where(items.c.id == item_id).values(upc=_generated_upc_from_id(item_id))
-        )
+        connection.execute(items.update().where(items.c.id == item_id).values(upc=_generated_upc_from_id(item_id)))
 
 
 def downgrade() -> None:

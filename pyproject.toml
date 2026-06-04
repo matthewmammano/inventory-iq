@@ -17,6 +17,7 @@ dependencies = [
     "email-validator",
     "python-dotenv",
     "loguru",
+    "python-json-logger",
     "tzdata",
 ]
 

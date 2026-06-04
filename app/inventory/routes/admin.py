@@ -138,13 +138,7 @@ def inventory_counts(squad: str, agency_location_id: int | None = None) -> Any:
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
         agency_emails = list(
-            s.execute(
-                select(AgencyEmails)
-                .where(AgencyEmails.agency_id == current_user.id)
-                .order_by(AgencyEmails.email)
-            )
-            .scalars()
-            .all()
+            s.execute(select(AgencyEmails).where(AgencyEmails.agency_id == current_user.id).order_by(AgencyEmails.email)).scalars().all()
         )
         location_tabs = [
             {
@@ -166,9 +160,7 @@ def inventory_counts(squad: str, agency_location_id: int | None = None) -> Any:
 
 @bp.route("/<squad>/admin-panel/inventory-count-levels/email", methods=["POST"])
 def send_inventory_counts_email(squad: str) -> Any:
-    selected_ids = [
-        int(value) for value in request.form.getlist("agency_email_ids") if value.isdigit()
-    ]
+    selected_ids = [int(value) for value in request.form.getlist("agency_email_ids") if value.isdigit()]
     with get_session() as s:
         sent, total = send_inventory_count_report(s, current_user.id, selected_ids)
     if total == 0:
@@ -374,9 +366,7 @@ def bulk_edit(squad: str, agency_location_id: int) -> Any:
         required = required_count_storage_ids(s, current_user.id, agency_location_id, grid.items)
         submitted_counts = parse_quantity_grid(request.form, prefix="count_", skip_blank=True)
         submitted_restocks = parse_quantity_grid(request.form, prefix="restock_", skip_blank=True)
-        invalid_cells = _missing_required_count_cells(
-            required, submitted_counts, submitted_restocks
-        )
+        invalid_cells = _missing_required_count_cells(required, submitted_counts, submitted_restocks)
         if request.method == "POST" and invalid_cells:
             logger.warning(
                 "Bulk action rejected: required counts missing before restock",
@@ -449,14 +439,8 @@ def _save_bulk_edit(
         flash("No count or restock changes entered.", "warning")
         return redirect(_bulk_edit_url(squad, location.id, item_ids))
     try:
-        count_logs = (
-            save_bulk_location_count(session, current_user.id, location.id, counts) if counts else 0
-        )
-        restock_logs = (
-            save_bulk_location_restock(session, current_user.id, location.id, restocks)
-            if restocks
-            else 0
-        )
+        count_logs = save_bulk_location_count(session, current_user.id, location.id, counts) if counts else 0
+        restock_logs = save_bulk_location_restock(session, current_user.id, location.id, restocks) if restocks else 0
         session.commit()
         _log_bulk_save("Bulk action saved", squad, location.id, count_logs + restock_logs)
         flash(
@@ -516,10 +500,7 @@ def _missing_required_count_cells(
 ) -> set[tuple[int, int]]:
     restocked_item_ids = {item_id for (item_id, _), quantity in restocks.items() if quantity > 0}
     return {
-        (item_id, storage_id)
-        for item_id in restocked_item_ids
-        for storage_id in required.get(item_id, set())
-        if (item_id, storage_id) not in counts
+        (item_id, storage_id) for item_id in restocked_item_ids for storage_id in required.get(item_id, set()) if (item_id, storage_id) not in counts
     }
 
 
@@ -584,9 +565,7 @@ def _log_bulk_location_missing(squad: str, agency_location_id: int) -> None:
 def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
-        location_tabs: list[dict[str, Any]] = [
-            {"location": None, "action_logs": _history_logs(s, None)}
-        ]
+        location_tabs: list[dict[str, Any]] = [{"location": None, "action_logs": _history_logs(s, None)}]
         location_tabs.extend(
             {
                 "location": location,
@@ -608,10 +587,7 @@ def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
 def _history_logs(session, agency_location_id: int | None) -> list[ActionLogs]:
     stmt = select(ActionLogs).where(ActionLogs.agency_id == current_user.id)
     if agency_location_id is not None:
-        storage_ids = [
-            storage.id
-            for storage in get_location_storages(session, current_user.id, agency_location_id)
-        ]
+        storage_ids = [storage.id for storage in get_location_storages(session, current_user.id, agency_location_id)]
         stmt = stmt.where(
             or_(
                 ActionLogs.from_location_id.in_(storage_ids),
@@ -631,9 +607,7 @@ def settings_page(squad: str) -> Any:
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
         current_location_id = get_device_location_id(current_user.id, s)
-        current_location = next(
-            (location for location in locations if location.id == current_location_id), None
-        )
+        current_location = next((location for location in locations if location.id == current_location_id), None)
     return render_template(
         "admin_settings.html",
         squad=squad,
@@ -659,9 +633,7 @@ def _save_settings(squad: str) -> Any:
             agency.user_restock_allow = request.form.get("user_restock_allow") == "1"
             agency.lead_time_days = _positive_setting("lead_time_days", "Lead Time Days")
             agency.count_last_days = _positive_setting("count_last_days", "Stale Count Days")
-            agency.alert_rare_scan_days = _positive_setting(
-                "alert_rare_scan_days", "Rare Takeout Days"
-            )
+            agency.alert_rare_scan_days = _positive_setting("alert_rare_scan_days", "Rare Takeout Days")
             s.commit()
         logger.info(
             "Admin settings saved",
@@ -703,15 +675,13 @@ def _positive_setting(field: str, label: str) -> int:
 @bp.route("/<squad>/admin-panel/scan-items")
 def admin_scan_items(squad: str) -> Any:
     if request.args.get("scan_error") == "not_found":
-        logger.error(
+        logger.warning(
             "Admin inventory search failed: scanned barcode not found",
             extra={"agency_id": current_user.id, "squad": squad},
         )
         flash("Scanned barcode not found in inventory.", "error")
     with get_session() as s:
-        items = list_items(
-            current_user.id, include_inactive=True, order_by_last_accessed=True, session=s
-        )
+        items = list_items(current_user.id, include_inactive=True, order_by_last_accessed=True, session=s)
     return render_template(
         "index.html",
         items_payload=build_item_search_payload(items),
@@ -737,9 +707,7 @@ def scan_storages(squad: str) -> Any:
     item_id = parse_optional_int(request.args.get("item_id"))
     user_count_allow = request.args.get("user_count_allow", "true").lower() != "false"
     user_restock_allow = request.args.get("user_restock_allow", "true").lower() != "false"
-    return handle_scan_storages_get(
-        squad, item_id, user_count_allow, user_restock_allow, is_admin=True
-    )
+    return handle_scan_storages_get(squad, item_id, user_count_allow, user_restock_allow, is_admin=True)
 
 
 @bp.route("/<squad>/admin-panel/scan/item", methods=["GET", "POST"])

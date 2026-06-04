@@ -17,9 +17,7 @@ class InventoryTrend(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
     item_id: Mapped[int] = mapped_column(Integer, ForeignKey("items.id"), index=True)
-    agency_location_id: Mapped[int] = mapped_column(
-        Integer, ForeignKey("agency_locations.id"), index=True
-    )
+    agency_location_id: Mapped[int] = mapped_column(Integer, ForeignKey("agency_locations.id"), index=True)
     trend_per_day: Mapped[float] = mapped_column(Float)
     confidence_percent: Mapped[float | None] = mapped_column(Float)
     segment_count: Mapped[int] = mapped_column(Integer, default=0)

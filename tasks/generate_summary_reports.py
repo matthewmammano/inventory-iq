@@ -24,16 +24,12 @@ def generate_summary_reports(report_type: str) -> None:
     app = create_app()
     with app.app_context():
         days = 1 if report_type == "daily" else 7
-        flag_col = (
-            AgencyEmails.daily_summary if report_type == "daily" else AgencyEmails.weekly_summary
-        )
+        flag_col = AgencyEmails.daily_summary if report_type == "daily" else AgencyEmails.weekly_summary
         cutoff = datetime.now(UTC) - timedelta(days=days)
 
         with get_session() as s:
             # Find all agency emails opted into this report type
-            opted_in = list(
-                s.execute(select(AgencyEmails).where(flag_col.is_(True))).scalars().all()
-            )
+            opted_in = list(s.execute(select(AgencyEmails).where(flag_col.is_(True))).scalars().all())
 
         sent = 0
         for ae in opted_in:
@@ -53,11 +49,7 @@ def generate_summary_reports(report_type: str) -> None:
                 )
                 agency = s.get(Agencies, ae.agency_id)
 
-            if (
-                count > 0
-                and agency
-                and _send_report(ae.email, agency.display_name, report_type, count, cutoff)
-            ):
+            if count > 0 and agency and _send_report(ae.email, agency.display_name, report_type, count, cutoff):
                 sent += 1
 
         logger.info(f"Sent {sent} {report_type} summary reports")

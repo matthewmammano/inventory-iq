@@ -3,6 +3,8 @@
 from flask import Flask, render_template, request
 from loguru import logger
 
+from app.shared.request_logging import log_missing_route
+
 
 def register_error_handlers(app: Flask) -> None:
     """Attach app-level error handlers."""
@@ -17,18 +19,22 @@ def register_error_handlers(app: Flask) -> None:
 
     @app.errorhandler(404)
     def not_found(error):
-        if not request.path.startswith("/.well-known/"):
-            logger.warning(f"404: {request.path}")
+        log_missing_route(request.path, request.method)
         return _err("Error", "Page Not Found", "The page you're looking for doesn't exist.", 404)
 
     @app.errorhandler(403)
     def forbidden(error):
-        logger.warning(f"403: {request.path}")
+        logger.warning(
+            "Access denied",
+            extra={"path": request.path, "method": request.method},
+        )
         return _err("Error", "Access Denied", "You don't have permission to access this page.", 403)
 
     @app.errorhandler(500)
     def internal(error):
-        logger.error(f"500: {error}")
-        return _err(
-            "Error", "System Error", "The system encountered a problem. Your data is safe.", 500
+        source_error = getattr(error, "original_exception", None) or error
+        logger.opt(exception=source_error).error(
+            "Unhandled request error",
+            extra={"path": request.path, "method": request.method},
         )
+        return _err("Error", "System Error", "The system encountered a problem. Your data is safe.", 500)

@@ -31,26 +31,18 @@ def get_scan_permissions(squad: str, *, is_admin: bool = False) -> ScanPermissio
         return ScanPermissions(count=True, restock=True)
     try:
         row = get_agency_permissions(squad)
-        return (
-            ScanPermissions(count=bool(row[0]), restock=bool(row[1]))
-            if row
-            else ScanPermissions(False, False)
-        )
+        return ScanPermissions(count=bool(row[0]), restock=bool(row[1])) if row else ScanPermissions(False, False)
     except Exception:
         logger.exception("Error fetching scan permissions")
         return ScanPermissions(count=False, restock=False)
 
 
-def storages_for_scan(
-    agency_id: int, direction: str, is_admin: bool, session: Session
-) -> list[AgencyStorages]:
+def storages_for_scan(agency_id: int, direction: str, is_admin: bool, session: Session) -> list[AgencyStorages]:
     if is_admin:
         return list_locations(agency_id, session=session)
     default_location_id = get_device_location_id(agency_id, session)
     access_filter = {"user_access_from": True} if direction == "from" else {"user_access_to": True}
-    return list_locations(
-        agency_id, agency_location_id=default_location_id, session=session, **access_filter
-    )
+    return list_locations(agency_id, agency_location_id=default_location_id, session=session, **access_filter)
 
 
 def operation_from_storage_ids(
@@ -181,9 +173,7 @@ def _single_scan_pair(
     permissions: ScanPermissions,
 ) -> tuple[int, int] | None:
     pairs = [
-        (from_id, to_id)
-        for from_id in _valid_from_ids(from_storages, to_storages, permissions)
-        for to_id in _valid_to_ids(to_storages, from_id)
+        (from_id, to_id) for from_id in _valid_from_ids(from_storages, to_storages, permissions) for to_id in _valid_to_ids(to_storages, from_id)
     ]
     return pairs[0] if len(pairs) == 1 else None
 

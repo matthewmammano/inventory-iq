@@ -74,7 +74,7 @@ def index(squad: str) -> Any:
     if request.args.get("scan_error") == "not_found":
         logger.warning(
             "Guest inventory search failed: scanned barcode not found",
-            extra={"agency_id": current_user.id},
+            extra={"agency_id": current_user.id, "squad": squad},
         )
         flash("Scanned barcode not found in inventory.", "error")
     try:

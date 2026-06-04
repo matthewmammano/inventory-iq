@@ -27,9 +27,7 @@ def init_db(database_url: str, *, pool_size: int = 10, max_overflow: int = 20) -
         pool_recycle=3600,
         pool_pre_ping=True,
     )
-    _SessionLocal = scoped_session(
-        sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False, future=True)
-    )
+    _SessionLocal = scoped_session(sessionmaker(bind=_engine, autoflush=False, expire_on_commit=False, future=True))
 
 
 def normalize_database_url(database_url: str) -> str:

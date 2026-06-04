@@ -72,7 +72,4 @@ def required_count_storage_ids(
     items: list[Items],
 ) -> dict[int, set[int]]:
     """Return stale storage IDs per item before restock is allowed."""
-    return {
-        item.id: set(get_stale_count_storage_ids(agency_id, item.id, agency_location_id, session))
-        for item in items
-    }
+    return {item.id: set(get_stale_count_storage_ids(agency_id, item.id, agency_location_id, session)) for item in items}

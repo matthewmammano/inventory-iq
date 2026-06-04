@@ -147,11 +147,7 @@ def _resolve_sqlite_path(database_url: str) -> Path:
 
 def _verify_empty() -> None:
     with get_session() as session:
-        non_empty = {
-            table.__tablename__: count
-            for table in SEED_TABLES
-            if (count := session.scalar(select(table.id).limit(1))) is not None
-        }
+        non_empty = {table.__tablename__: count for table in SEED_TABLES if (count := session.scalar(select(table.id).limit(1))) is not None}
     if non_empty:
         raise RuntimeError(f"Expected empty seed tables, found rows: {non_empty}")
 
@@ -218,10 +214,7 @@ def _create_tags(session: Session, agency_id: int) -> dict[str, AgencyItemTags]:
         "PPE": "#15803D",
         "Trauma": "#C2410C",
     }
-    tags = {
-        name: AgencyItemTags(agency_id=agency_id, tag_name=name, color=color)
-        for name, color in tag_specs.items()
-    }
+    tags = {name: AgencyItemTags(agency_id=agency_id, tag_name=name, color=color) for name, color in tag_specs.items()}
     session.add_all(tags.values())
     session.flush()
     return tags
@@ -235,9 +228,7 @@ def _create_main_locations(session: Session, agency_id: int) -> dict[str, list[A
     return _create_locations(session, agency_id, layout)
 
 
-def _create_locations(
-    session: Session, agency_id: int, layout: Mapping[str, Sequence[str]]
-) -> dict[str, list[AgencyStorages]]:
+def _create_locations(session: Session, agency_id: int, layout: Mapping[str, Sequence[str]]) -> dict[str, list[AgencyStorages]]:
     locations: dict[str, list[AgencyStorages]] = {}
     for location_name, storage_names in layout.items():
         location = AgencyLocations(agency_id=agency_id, name=location_name)
@@ -259,9 +250,7 @@ def _create_locations(
     return locations
 
 
-def _create_items(
-    session: Session, agency_id: int, tags: dict[str, AgencyItemTags]
-) -> dict[str, Items]:
+def _create_items(session: Session, agency_id: int, tags: dict[str, AgencyItemTags]) -> dict[str, Items]:
     items: dict[str, Items] = {}
     for seed in ITEMS:
         item = Items(
@@ -296,12 +285,8 @@ def _create_main_history(
     _add_current_stockout(session, agency_id, items["Trauma Dressing 5x9"], locations[POINT_BORO])
     _add_current_low(session, agency_id, items["Oxygen Nasal Cannula"], locations[POINT_BORO])
     _add_sparse_fallback(session, agency_id, items["SAM Splint Roll"], locations[POINT_BORO])
-    _add_stale_count_case(
-        session, agency_id, items["Glucometer Test Strips"], locations[POINT_BEACH]
-    )
-    _add_rare_takeout_case(
-        session, agency_id, items["Glucometer Test Strips"], locations[POINT_BORO]
-    )
+    _add_stale_count_case(session, agency_id, items["Glucometer Test Strips"], locations[POINT_BEACH])
+    _add_rare_takeout_case(session, agency_id, items["Glucometer Test Strips"], locations[POINT_BORO])
     _add_transfer_case(session, agency_id, items["Nitrile Gloves - Large Box"], locations)
     _add_missing_safe_counts(session, agency_id, items, locations)
 
@@ -345,9 +330,7 @@ def _add_trend_history(
         )
 
 
-def _add_current_stockout(
-    session: Session, agency_id: int, item: Items, storages: list[AgencyStorages]
-) -> None:
+def _add_current_stockout(session: Session, agency_id: int, item: Items, storages: list[AgencyStorages]) -> None:
     _add_location_count(session, agency_id, item.id, storages, 8, LAST_COUNT_AT)
     _add_action(
         session,
@@ -362,23 +345,17 @@ def _add_current_stockout(
     )
 
 
-def _add_current_low(
-    session: Session, agency_id: int, item: Items, storages: list[AgencyStorages]
-) -> None:
+def _add_current_low(session: Session, agency_id: int, item: Items, storages: list[AgencyStorages]) -> None:
     _add_location_count(session, agency_id, item.id, storages, 18, LAST_COUNT_AT)
 
 
-def _add_sparse_fallback(
-    session: Session, agency_id: int, item: Items, storages: list[AgencyStorages]
-) -> None:
+def _add_sparse_fallback(session: Session, agency_id: int, item: Items, storages: list[AgencyStorages]) -> None:
     old_at = LAST_COUNT_AT - timedelta(days=28)
     _add_location_count(session, agency_id, item.id, storages, 56, old_at)
     _add_location_count(session, agency_id, item.id, storages, 35, LAST_COUNT_AT)
 
 
-def _add_stale_count_case(
-    session: Session, agency_id: int, item: Items, storages: list[AgencyStorages]
-) -> None:
+def _add_stale_count_case(session: Session, agency_id: int, item: Items, storages: list[AgencyStorages]) -> None:
     _add_location_count(
         session,
         agency_id,
@@ -389,9 +366,7 @@ def _add_stale_count_case(
     )
 
 
-def _add_rare_takeout_case(
-    session: Session, agency_id: int, item: Items, storages: list[AgencyStorages]
-) -> None:
+def _add_rare_takeout_case(session: Session, agency_id: int, item: Items, storages: list[AgencyStorages]) -> None:
     _add_location_count(session, agency_id, item.id, storages, 30, LAST_COUNT_AT)
     _add_action(
         session,
@@ -438,9 +413,7 @@ def _add_missing_safe_counts(
         safe_total = max(item.min_quantity * 2, item.max_quantity // 2)
         for storages in locations.values():
             if not _has_location_count(session, agency_id, item.id, storages):
-                _add_location_count(
-                    session, agency_id, item.id, storages, safe_total, LAST_COUNT_AT
-                )
+                _add_location_count(session, agency_id, item.id, storages, safe_total, LAST_COUNT_AT)
 
 
 def _has_location_count(
@@ -588,9 +561,7 @@ def _create_scan_activity_alerts(session: Session, agency_id: int) -> None:
     }
     selected: dict[OperationType, ActionLogs] = {}
     actions = session.execute(
-        select(ActionLogs)
-        .where(ActionLogs.agency_id == agency_id)
-        .order_by(ActionLogs.time_scanned.desc(), ActionLogs.id.desc())
+        select(ActionLogs).where(ActionLogs.agency_id == agency_id).order_by(ActionLogs.time_scanned.desc(), ActionLogs.id.desc())
     ).scalars()
     for action in actions:
         if action.operation_type in wanted and action.operation_type not in selected:

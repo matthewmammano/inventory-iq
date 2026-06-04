@@ -95,9 +95,7 @@ def generate_scheduled_alerts(session: Session, agency_id: int | None = None) ->
         agency_count = 0
         for location in agency.locations:
             for item in list_items(agency.id, session=session):
-                _sync_stock_alerts(
-                    session, agency, item, location.id, now, include_predictions=True
-                )
+                _sync_stock_alerts(session, agency, item, location.id, now, include_predictions=True)
                 _sync_stale_count_alert(session, agency, item, location, now)
                 _sync_rare_takeout_alert(session, agency, item, location, now)
                 count += 1
@@ -141,15 +139,9 @@ def _record_scan_activity(session: Session, action: ActionLogs, now: datetime) -
         "operation_type": action.operation_type.value,
         "quantity": action.quantity_delta,
         "admin_action": bool(action.admin_action),
-        "from_agency_location_id": _storage_location_id(
-            session, action.agency_id, action.from_location_id
-        ),
-        "to_agency_location_id": _storage_location_id(
-            session, action.agency_id, action.to_location_id
-        ),
-        "from_location_name": _storage_history_name(
-            session, action.agency_id, action.from_location_id
-        ),
+        "from_agency_location_id": _storage_location_id(session, action.agency_id, action.from_location_id),
+        "to_agency_location_id": _storage_location_id(session, action.agency_id, action.to_location_id),
+        "from_location_name": _storage_history_name(session, action.agency_id, action.from_location_id),
         "to_location_name": _storage_history_name(session, action.agency_id, action.to_location_id),
         "time_scanned": _iso(action.time_scanned),
     }
@@ -163,9 +155,7 @@ def _sync_action_rare_takeout_alert(
 ) -> None:
     if action.operation_type != OperationType.TAKEOUT or action.item_id is None:
         return
-    storage = (
-        session.get(AgencyStorages, action.from_location_id) if action.from_location_id else None
-    )
+    storage = session.get(AgencyStorages, action.from_location_id) if action.from_location_id else None
     agency = session.get(Agencies, action.agency_id)
     item = _action_item(session, action)
     if (
@@ -213,11 +203,7 @@ def _sync_stock_alerts(
             _resolve_matching_condition(session, agency.id, alert_type, identity, now)
     for recipient in _stock_alert_recipients(session, agency.id, location.id):
         top_type = next(
-            (
-                alert_type
-                for alert_type in STOCK_PRIORITY
-                if alert_type in active_types and _recipient_enabled(recipient, alert_type)
-            ),
+            (alert_type for alert_type in STOCK_PRIORITY if alert_type in active_types and _recipient_enabled(recipient, alert_type)),
             None,
         )
         if top_type is None:
@@ -307,9 +293,7 @@ def _sync_stale_count_alert(
         _resolve_matching_condition(session, agency.id, AlertType.STALE_COUNT, identity, now)
         return
 
-    last_counted = _last_location_action_at(
-        session, agency.id, item.id, location.id, OperationType.COUNT
-    )
+    last_counted = _last_location_action_at(session, agency.id, item.id, location.id, OperationType.COUNT)
     days_since = None if last_counted is None else (now.date() - last_counted.date()).days
     if days_since is not None and days_since < days:
         _resolve_matching_condition(session, agency.id, AlertType.STALE_COUNT, identity, now)
@@ -341,9 +325,7 @@ def _sync_rare_takeout_alert(
         _resolve_matching_condition(session, agency.id, AlertType.RARE_TAKEOUT, identity, now)
         return
 
-    last_takeout = _last_location_action_at(
-        session, agency.id, item.id, location.id, OperationType.TAKEOUT, before_time=before_time
-    )
+    last_takeout = _last_location_action_at(session, agency.id, item.id, location.id, OperationType.TAKEOUT, before_time=before_time)
     if last_takeout is None:
         _resolve_matching_condition(session, agency.id, AlertType.RARE_TAKEOUT, identity, now)
         return
@@ -402,9 +384,7 @@ def _upsert_recipient_alert(
 ) -> AlertRecords:
     identity = _identity(alert_type, details)
     existing = _find_open_alert(session, agency_id, agency_email_id, alert_type, identity)
-    action = _dedupe_action(
-        session, agency_id, agency_email_id, alert_type, identity, desired_action, now
-    )
+    action = _dedupe_action(session, agency_id, agency_email_id, alert_type, identity, desired_action, now)
     if existing is None:
         alert = AlertRecords(
             agency_id=agency_id,
@@ -462,11 +442,7 @@ def _recently_sent(
         .order_by(AlertRecords.action_at.desc())
     )
     sent = next(
-        (
-            alert
-            for alert in session.execute(stmt).scalars()
-            if _identity(alert_type, alert.details_json) == identity
-        ),
+        (alert for alert in session.execute(stmt).scalars() if _identity(alert_type, alert.details_json) == identity),
         None,
     )
     return sent is not None
@@ -543,9 +519,7 @@ def _stock_identity(item_id: int | None, agency_location_id: int | None) -> dict
     return {"item_id": item_id, "agency_location_id": agency_location_id}
 
 
-def _affected_item_locations(
-    session: Session, action_logs: list[ActionLogs]
-) -> set[tuple[int, int, int]]:
+def _affected_item_locations(session: Session, action_logs: list[ActionLogs]) -> set[tuple[int, int, int]]:
     pairs: set[tuple[int, int, int]] = set()
     for action in action_logs:
         if action.item_id is None:
@@ -569,11 +543,7 @@ def _last_location_action_at(
     storage_ids = get_location_storage_ids(session, agency_id, agency_location_id)
     if not storage_ids:
         return None
-    column = (
-        ActionLogs.from_location_id
-        if operation_type == OperationType.TAKEOUT
-        else ActionLogs.to_location_id
-    )
+    column = ActionLogs.from_location_id if operation_type == OperationType.TAKEOUT else ActionLogs.to_location_id
     stmt = select(ActionLogs.time_scanned).where(
         ActionLogs.agency_id == agency_id,
         ActionLogs.item_id == item_id,
@@ -593,29 +563,17 @@ def _enabled_recipients(
     details: dict[str, Any],
 ) -> list[AgencyEmails]:
     preference = PREFERENCE_BY_TYPE[alert_type]
-    recipients = session.execute(
-        select(AgencyEmails).where(AgencyEmails.agency_id == agency_id).order_by(AgencyEmails.id)
-    ).scalars()
-    return [
-        recipient
-        for recipient in recipients
-        if bool(getattr(recipient, preference))
-        and _recipient_allows_alert(session, recipient, details)
-    ]
+    recipients = session.execute(select(AgencyEmails).where(AgencyEmails.agency_id == agency_id).order_by(AgencyEmails.id)).scalars()
+    return [recipient for recipient in recipients if bool(getattr(recipient, preference)) and _recipient_allows_alert(session, recipient, details)]
 
 
-def _stock_alert_recipients(
-    session: Session, agency_id: int, agency_location_id: int
-) -> list[AgencyEmails]:
+def _stock_alert_recipients(session: Session, agency_id: int, agency_location_id: int) -> list[AgencyEmails]:
     details = {"agency_location_id": agency_location_id}
-    recipients = session.execute(
-        select(AgencyEmails).where(AgencyEmails.agency_id == agency_id).order_by(AgencyEmails.id)
-    ).scalars()
+    recipients = session.execute(select(AgencyEmails).where(AgencyEmails.agency_id == agency_id).order_by(AgencyEmails.id)).scalars()
     return [
         recipient
         for recipient in recipients
-        if any(_recipient_enabled(recipient, alert_type) for alert_type in STOCK_PRIORITY)
-        and _recipient_allows_alert(session, recipient, details)
+        if any(_recipient_enabled(recipient, alert_type) for alert_type in STOCK_PRIORITY) and _recipient_allows_alert(session, recipient, details)
     ]
 
 
@@ -629,9 +587,7 @@ def _recipient_allows_alert(
     details: dict[str, Any],
 ) -> bool:
     try:
-        location_ids = validate_location_filter_ids(
-            session, recipient.agency_id, recipient.location_filter_ids
-        )
+        location_ids = validate_location_filter_ids(session, recipient.agency_id, recipient.location_filter_ids)
     except ValueError as exc:
         logger.warning(
             f"Alert recipient has invalid location filter: agency_email_id={recipient.id}",
@@ -646,11 +602,7 @@ def _recipient_allows_alert(
 
 
 def _alert_action_counts(session: Session, agency_id: int) -> Counter[str]:
-    rows = session.execute(
-        select(AlertRecords.action, func.count())
-        .where(AlertRecords.agency_id == agency_id)
-        .group_by(AlertRecords.action)
-    ).all()
+    rows = session.execute(select(AlertRecords.action, func.count()).where(AlertRecords.agency_id == agency_id).group_by(AlertRecords.action)).all()
     return Counter({action.value: count for action, count in rows})
 
 

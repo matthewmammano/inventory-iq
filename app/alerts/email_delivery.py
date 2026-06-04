@@ -44,9 +44,7 @@ def _write_batch_file(batch: EmailBatch) -> bool:
     try:
         html_path = _alert_file_path()
         html_path.write_text(render_template("batch_email.html", batch=batch), encoding="utf-8")
-        html_path.with_suffix(".txt").write_text(
-            render_template("batch_email.txt", batch=batch), encoding="utf-8"
-        )
+        html_path.with_suffix(".txt").write_text(render_template("batch_email.txt", batch=batch), encoding="utf-8")
         _prune_alert_files(html_path.parent)
         logger.info("Alert email written to file", extra={"path": str(html_path)})
         return True

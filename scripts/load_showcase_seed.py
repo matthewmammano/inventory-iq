@@ -67,17 +67,12 @@ def _load_seed_rows(seed_db: Path, database_url: str) -> None:
                     target.execute(table.insert(), rows)
                 _reset_postgres_sequence(target, table)
                 logger.info(f"Seed table loaded: table={table.name} rows={len(rows)}")
-    logger.info(
-        f"Seed DB loaded into configured database: seed={seed_db} dialect={engine.dialect.name}"
-    )
+    logger.info(f"Seed DB loaded into configured database: seed={seed_db} dialect={engine.dialect.name}")
 
 
 def _seed_rows(source: sqlite3.Connection, table: Table) -> list[dict[str, Any]]:
     rows = source.execute(f'SELECT * FROM "{table.name}"').fetchall()
-    return [
-        {column.name: _column_value(column, row[column.name]) for column in table.columns}
-        for row in rows
-    ]
+    return [{column.name: _column_value(column, row[column.name]) for column in table.columns} for row in rows]
 
 
 def _column_value(column: Column[Any], value: Any) -> Any:

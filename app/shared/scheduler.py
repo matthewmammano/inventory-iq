@@ -107,9 +107,7 @@ def _run_daily_inventory_job(now: datetime) -> None:
 
 def _active_agency_schedules() -> list[tuple[int, str]]:
     with get_session() as session:
-        rows = session.execute(
-            select(Agencies.id, Agencies.timezone).where(Agencies.active.is_(True))
-        ).all()
+        rows = session.execute(select(Agencies.id, Agencies.timezone).where(Agencies.active.is_(True))).all()
         return [(agency_id, timezone or "UTC") for agency_id, timezone in rows]
 
 

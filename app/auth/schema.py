@@ -47,10 +47,7 @@ class AgencyResponse(BaseModel):
     @field_validator("display_name")
     @classmethod
     def validate_display_name(cls, value: str) -> str:
-        return (
-            validate_string_length(value, "display_name", 50, allow_none=False, allow_empty=False)
-            or ""
-        )
+        return validate_string_length(value, "display_name", 50, allow_none=False, allow_empty=False) or ""
 
     @field_validator("email")
     @classmethod
@@ -78,9 +75,7 @@ class AgencyTagResponse(BaseModel):
     @field_validator("tag_name")
     @classmethod
     def validate_tag_name(cls, value: str) -> str:
-        return (
-            validate_string_length(value, "tag_name", 50, allow_none=False, allow_empty=False) or ""
-        )
+        return validate_string_length(value, "tag_name", 50, allow_none=False, allow_empty=False) or ""
 
 
 class AgencyLocationResponse(BaseModel):

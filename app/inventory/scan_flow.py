@@ -166,9 +166,7 @@ def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = Fals
             },
         )
         flash("Invalid storage combination.", "error")
-        return redirect(
-            url_for(f"{route}.scan_storages", squad=squad, item_id=request_data.item_id)
-        )
+        return redirect(url_for(f"{route}.scan_storages", squad=squad, item_id=request_data.item_id))
 
     return redirect(
         url_for(
@@ -327,9 +325,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
 def _get_scan_item(db, item_id: int | None, upc: str | None, *, is_admin: bool):
     include_inactive = is_admin
     if upc:
-        return get_item_by_upc(
-            current_user.id, upc.strip(), include_inactive=include_inactive, session=db
-        )
+        return get_item_by_upc(current_user.id, upc.strip(), include_inactive=include_inactive, session=db)
     if item_id is None:
         return None
     return get_agency_item(current_user.id, item_id, include_inactive=include_inactive, session=db)

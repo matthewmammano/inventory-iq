@@ -79,13 +79,7 @@ def reset_password_with_pin(
 
 
 def _active_agency_by_email(session: Session, email: str) -> Agencies | None:
-    return (
-        session.execute(
-            select(Agencies).where(Agencies.email == email.strip(), Agencies.active.is_(True))
-        )
-        .scalars()
-        .first()
-    )
+    return session.execute(select(Agencies).where(Agencies.email == email.strip(), Agencies.active.is_(True))).scalars().first()
 
 
 def _clear_open_pins(session: Session, agency_id: int, now) -> None:
@@ -115,11 +109,7 @@ def _latest_open_pin(session: Session, agency_id: int) -> PasswordResetPins | No
 
 
 def _send_reset_pin(email: str, pin: str) -> bool:
-    body = (
-        "Inventory IQ password reset\n\n"
-        f"Your reset PIN is: {pin}\n\n"
-        f"This PIN expires in {RESET_PIN_TTL_MINUTES} minutes."
-    )
+    body = "Inventory IQ password reset\n\n" f"Your reset PIN is: {pin}\n\n" f"This PIN expires in {RESET_PIN_TTL_MINUTES} minutes."
     sent = send_email(
         OutboundEmail(
             subject="Inventory IQ Password Reset PIN",
