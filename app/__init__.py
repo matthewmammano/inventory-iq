@@ -48,7 +48,7 @@ def create_app() -> Flask:
 
 
 def _setup_process_logging() -> None:
-    setup_logging(debug=settings.debug, json_logs=settings.is_prod)
+    setup_logging(debug=settings.debug, json_logs=settings.use_json_logs)
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 
