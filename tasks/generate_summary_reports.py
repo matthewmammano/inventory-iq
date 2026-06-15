@@ -18,7 +18,7 @@ from app.shared.email_client import EMAIL_RETRY_DELAYS_SECONDS, OutboundEmail, s
 
 def generate_summary_reports(report_type: str) -> None:
     if report_type not in ("daily", "weekly"):
-        logger.error(f"Unknown report type: {report_type}")
+        logger.error(f"Summary report task rejected unknown report type: {report_type}")
         return
 
     app = create_app()
@@ -52,7 +52,7 @@ def generate_summary_reports(report_type: str) -> None:
             if count > 0 and agency and _send_report(ae.email, agency.display_name, report_type, count, cutoff):
                 sent += 1
 
-        logger.info(f"Sent {sent} {report_type} summary reports")
+        logger.info(f"Summary report task finished: report_type={report_type} sent={sent}")
 
 
 def _send_report(email: str, name: str, report_type: str, count: int, cutoff: datetime) -> bool:
@@ -77,4 +77,4 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         generate_summary_reports(sys.argv[1])
     else:
-        logger.error("Usage: python generate_summary_reports.py <daily|weekly>")
+        logger.error("Summary report task requires an argument: <daily|weekly>")

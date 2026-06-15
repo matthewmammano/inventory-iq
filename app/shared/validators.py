@@ -43,7 +43,7 @@ def validate_email_format(
     try:
         normalized = validate_email(email).email
     except EmailNotValidError as exc:
-        logger.exception(f"Email validation failed: {exc}")
+        logger.debug(f"Email validation rejected input: {exc}")
         raise ValueError("Invalid email format") from exc
     validate_string_length(normalized, "email", max_length, allow_none=False, allow_empty=False)
     return normalized
@@ -55,7 +55,7 @@ def validate_timezone(value: str) -> str:
     try:
         ZoneInfo(value)
     except ZoneInfoNotFoundError as exc:
-        logger.error(f"Timezone validation failed: {exc}")
+        logger.warning(f"Timezone validation rejected input: {exc}")
         raise ValueError(f"Invalid timezone: {value}") from exc
     return value
 

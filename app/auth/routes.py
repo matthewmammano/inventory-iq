@@ -33,7 +33,7 @@ def login():
             return redirect(url_for("auth.login"))
 
         if not agency.password:
-            logger.info("Login requires password setup", extra={"agency_id": agency.id})
+            logger.warning("Login blocked: password has not been set yet", extra={"agency_id": agency.id})
             flash("Please use the emailed PIN flow to set your password.", "info")
             return redirect(url_for("auth.forgot_password", email=email))
 
@@ -106,6 +106,6 @@ def logout():
     session.pop("admin_last_active", None)
     agency_id = current_user.id if current_user.is_authenticated else None
     logout_user()
-    logger.info("Logout", extra={"agency_id": agency_id})
+    logger.info("User logged out", extra={"agency_id": agency_id})
     flash("Logged out successfully!", "success")
     return redirect(url_for("auth.login"))

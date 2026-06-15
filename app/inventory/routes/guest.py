@@ -73,10 +73,10 @@ def check_guest_auth() -> Any:
 def index(squad: str) -> Any:
     if request.args.get("scan_error") == "not_found":
         logger.warning(
-            "Guest inventory search failed: scanned barcode not found",
+            "Guest scan search could not find the scanned barcode",
             extra={"agency_id": current_user.id, "squad": squad},
         )
-        flash("Scanned barcode not found in inventory.", "error")
+        flash("Item not found. Please try again.", "error")
     try:
         with get_session() as s:
             items = list_items(current_user.id, order_by_last_accessed=True, session=s)
@@ -108,14 +108,14 @@ def admin_login(squad: str) -> Any:
         with get_session() as s:
             agency = get_agency_by_display_name(squad, s)
         if not agency:
-            logger.error("Admin PIN login rejected: invalid squad", extra={"squad": squad})
+            logger.warning("Admin PIN login rejected: squad name was not found", extra={"squad": squad})
             flash("Invalid squad name.", "error")
             return _admin_login_response(squad, token)
         if agency.pin and pin == agency.pin:
             session["admin"] = True
             session["admin_last_active"] = datetime.now(UTC).timestamp()
             logger.info(
-                "Admin PIN login granted",
+                "Admin PIN login succeeded",
                 extra={"agency_id": current_user.id, "squad": squad},
             )
             flash("Admin access granted.", "success")
@@ -185,7 +185,7 @@ def scan_location(squad: str) -> Any:
                 save_device_location(current_user.id, token, location_id, s)
                 s.commit()
         except ValueError as exc:
-            logger.error(
+            logger.warning(
                 "Device location selection rejected",
                 extra={
                     "agency_id": current_user.id,
@@ -196,8 +196,8 @@ def scan_location(squad: str) -> Any:
             )
             flash(str(exc), "error")
             return redirect(url_for("guest.scan_location", squad=squad, item_id=item_id))
-        logger.info(
-            "Device location selected during guest scan",
+        logger.debug(
+            "Device location saved for guest scan flow",
             extra={
                 "agency_id": current_user.id,
                 "squad": squad,

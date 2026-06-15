@@ -121,4 +121,4 @@ def _add_file_logging(*, level: str, log_file: str) -> None:
         )
         keep_newest_files(log_path.parent, "*.log*", LOG_FILE_RETENTION_COUNT)
     except OSError as exc:
-        logger.warning(f"File logging disabled: {exc}")
+        logger.warning(f"File logging disabled for this process: {exc}")

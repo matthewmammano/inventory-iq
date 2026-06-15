@@ -87,7 +87,7 @@ def generate_scheduled_alerts(session: Session, agency_id: int | None = None) ->
     agencies = list(session.execute(stmt).scalars().all())
     if agency_id is not None and not agencies:
         logger.warning(
-            "Scheduled alert audit found no active agency",
+            "Scheduled alert audit could not find an active agency for the requested id",
             extra={"agency_id": agency_id},
         )
 
@@ -103,8 +103,8 @@ def generate_scheduled_alerts(session: Session, agency_id: int | None = None) ->
         session.flush()
         action_counts = _alert_action_counts(session, agency.id)
         pending_type_counts = _pending_alert_type_counts(session, agency.id)
-        logger.info(
-            "Daily inventory alert audit checked agency: "
+        logger.debug(
+            "Daily inventory alert audit checked one agency: "
             f"item_location_checks={agency_count} "
             f"alert_record_actions={_format_counts(action_counts)} "
             f"pending_alert_types={_format_counts(pending_type_counts)}",
@@ -590,7 +590,7 @@ def _recipient_allows_alert(
         location_ids = validate_location_filter_ids(session, recipient.agency_id, recipient.location_filter_ids)
     except ValueError as exc:
         logger.warning(
-            f"Alert recipient has invalid location filter: agency_email_id={recipient.id}",
+            f"Alert recipient skipped because of an invalid location filter: agency_email_id={recipient.id}",
             extra={
                 "agency_id": recipient.agency_id,
                 "agency_email_id": recipient.id,

@@ -50,7 +50,7 @@ def _copy_sqlite_seed(seed_db: Path, database_url: str) -> bool:
     target_path = Path(url.database)
     target_path.parent.mkdir(parents=True, exist_ok=True)
     shutil.copy2(seed_db, target_path)
-    logger.info(f"Seed DB copied to SQLite database: seed={seed_db} target={target_path}")
+    logger.info(f"Showcase seed copied into SQLite database: seed={seed_db} target={target_path}")
     return True
 
 
@@ -66,8 +66,8 @@ def _load_seed_rows(seed_db: Path, database_url: str) -> None:
                 if rows:
                     target.execute(table.insert(), rows)
                 _reset_postgres_sequence(target, table)
-                logger.info(f"Seed table loaded: table={table.name} rows={len(rows)}")
-    logger.info(f"Seed DB loaded into configured database: seed={seed_db} dialect={engine.dialect.name}")
+                logger.debug(f"Showcase seed table loaded: table={table.name} rows={len(rows)}")
+    logger.info(f"Showcase seed load finished: seed={seed_db} dialect={engine.dialect.name}")
 
 
 def _seed_rows(source: sqlite3.Connection, table: Table) -> list[dict[str, Any]]:
@@ -95,8 +95,7 @@ def _reset_postgres_sequence(target: Any, table: Table) -> None:
         return
     target.execute(
         text(
-            "SELECT setval(pg_get_serial_sequence(:table_name, :column_name), "
-            f"COALESCE((SELECT MAX({primary_key.name}) FROM {table.name}), 1), true)"
+            f"SELECT setval(pg_get_serial_sequence(:table_name, :column_name), COALESCE((SELECT MAX({primary_key.name}) FROM {table.name}), 1), true)"
         ),
         {"table_name": table.name, "column_name": primary_key.name},
     )

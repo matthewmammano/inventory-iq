@@ -33,7 +33,7 @@ def get_scan_permissions(squad: str, *, is_admin: bool = False) -> ScanPermissio
         row = get_agency_permissions(squad)
         return ScanPermissions(count=bool(row[0]), restock=bool(row[1])) if row else ScanPermissions(False, False)
     except Exception:
-        logger.exception("Error fetching scan permissions")
+        logger.exception("Scan permissions lookup failed")
         return ScanPermissions(count=False, restock=False)
 
 

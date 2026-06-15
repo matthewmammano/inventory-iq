@@ -44,7 +44,7 @@ def start_scheduler(app: Flask) -> None:
     thread = threading.Thread(target=_run_loop, args=(app,), daemon=True)
     thread.start()
     logger.info(
-        "Development background scheduler started",
+        "Development scheduler started",
         extra={"poll_seconds": settings.scheduler_poll_seconds},
     )
 
@@ -55,7 +55,7 @@ def _run_loop(app: Flask) -> None:
             with app.app_context():
                 _run_due_jobs()
         except Exception:
-            logger.exception("Scheduler job failed")
+            logger.exception("Scheduler loop failed while running due jobs")
         time.sleep(_poll_seconds())
 
 
@@ -78,7 +78,7 @@ def _run_hourly_email_job(now: datetime) -> None:
         raise
 
     _finish_scheduler_run(run_id, JOB_SUCCESS)
-    logger.info("Hourly alert email job complete", extra=result)
+    logger.info("Scheduled alert email job finished", extra=result)
 
 
 def _run_daily_inventory_job(now: datetime) -> None:
@@ -98,11 +98,11 @@ def _run_daily_inventory_job(now: datetime) -> None:
         except Exception as exc:
             _finish_scheduler_run(run_id, JOB_FAILED, str(exc))
             logger.exception(
-                "Scheduler inventory audit failed",
+                "Scheduled inventory alert audit failed",
                 extra={"agency_id": agency_id, "period_key": period_key},
             )
     if total:
-        logger.info("Daily inventory alert audit job complete", extra={"rows_checked": total})
+        logger.info("Scheduled inventory alert audit finished", extra={"rows_checked": total})
 
 
 def _active_agency_schedules() -> list[tuple[int, str]]:

@@ -42,7 +42,7 @@ def inventory_operation(
         record_action_log_alerts(db, [action])
         db.commit()
 
-        logger.info(f"{operation_type.value}: item={item_id} qty={quantity}")
+        logger.debug(f"Inventory mutation committed: operation={operation_type.value} item_id={item_id} quantity={quantity}")
 
 
 def _validate_operation(

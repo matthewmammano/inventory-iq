@@ -16,7 +16,7 @@ def run() -> None:
     with app.app_context(), get_session() as session:
         count = generate_scheduled_alerts(session)
         session.commit()
-        logger.info("Inventory safety audit generated alerts", extra={"rows_checked": count})
+        logger.info("Inventory alert audit task finished", extra={"rows_checked": count})
 
 
 if __name__ == "__main__":

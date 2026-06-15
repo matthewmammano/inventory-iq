@@ -37,7 +37,7 @@ def validate_squad_access(squad: str) -> str | None:
     with get_session() as s:
         agency = get_agency_by_display_name(squad, s)
     if not agency:
-        logger.error("Squad access rejected: unknown squad", extra={"squad": squad})
+        logger.warning("Squad access rejected: squad name was not found", extra={"squad": squad})
         flash("Invalid squad name.", "error")
         return url_for("auth.login")
     if not agency.active:

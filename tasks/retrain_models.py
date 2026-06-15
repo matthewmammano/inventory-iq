@@ -22,7 +22,7 @@ def run() -> None:
         for agency in agencies:
             total += _retrain_agency(session, agency.id)
         session.commit()
-    logger.info("Retrained inventory trends", extra={"trend_count": total})
+    logger.info("Inventory trend retraining task finished", extra={"trend_count": total})
 
 
 def _retrain_agency(session, agency_id: int) -> int:

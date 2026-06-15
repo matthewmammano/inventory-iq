@@ -74,14 +74,14 @@ def process_all_alerts(*, force: bool = False) -> dict[str, int]:
     with get_session() as session:
         recipients = _pending_recipients(session)
         if not recipients:
-            logger.info("Hourly alert email check finished: no pending recipients")
+            logger.debug("Alert email run skipped: no recipients have pending alerts")
             return stats
 
         for recipient in recipients:
             agency = session.get(Agencies, recipient.agency_id)
             if agency is None or not agency.active:
                 logger.warning(
-                    "Alert email skipped: agency missing or inactive",
+                    "Alert email skipped: recipient belongs to a missing or inactive agency",
                     extra={"agency_id": recipient.agency_id, "agency_email_id": recipient.id},
                 )
                 continue
@@ -106,8 +106,8 @@ def process_all_alerts(*, force: bool = False) -> dict[str, int]:
                 _mark_sent(alerts, now)
                 session.commit()
                 stats["sent"] += 1
-                logger.info(
-                    "Alert email recipient sent: "
+                logger.debug(
+                    "Alert email batch delivered for recipient: "
                     f"agency_email_id={recipient.id} sent_alerts={len(alerts)} "
                     f"types={_format_counts(type_counts)}",
                     extra={
@@ -119,14 +119,14 @@ def process_all_alerts(*, force: bool = False) -> dict[str, int]:
                 )
             else:
                 stats["failed"] += 1
-                logger.critical(
-                    "Alert email failed after provider retries: "
+                logger.error(
+                    "Alert email batch failed after provider retries: "
                     f"agency_id={agency.id} agency_email_id={recipient.id} "
                     f"pending_alerts={len(alerts)} types={_format_counts(type_counts)}",
                 )
 
     logger.info(
-        "Hourly alert email check finished: " f"recipients_with_email={stats['processed']} sent={stats['sent']} failed={stats['failed']}",
+        f"Alert email run finished: recipients_with_pending_alerts={stats['processed']} sent={stats['sent']} failed={stats['failed']}",
         extra=stats,
     )
     return stats
@@ -150,8 +150,8 @@ def _send_recipient_alerts(
         now=now,
     )
     if batch is None or not batch.sections:
-        logger.info(
-            "Alert email recipient skipped: no matching sections",
+        logger.debug(
+            "Alert email skipped: recipient had no sections to send",
             extra={"agency_id": agency.id, "agency_email_id": recipient.id},
         )
         return True
@@ -551,7 +551,7 @@ def _recipient_allows_alert(
         location_ids = validate_location_filter_ids(session, recipient.agency_id, recipient.location_filter_ids)
     except ValueError as exc:
         logger.warning(
-            f"Alert email skipped invalid location filter: agency_email_id={recipient.id}",
+            f"Alert email skipped because recipient has an invalid location filter: agency_email_id={recipient.id}",
             extra={
                 "agency_id": recipient.agency_id,
                 "agency_email_id": recipient.id,

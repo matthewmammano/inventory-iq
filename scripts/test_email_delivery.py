@@ -23,7 +23,7 @@ def run(to_email: str) -> bool:
     with app.app_context():
         recipient_domain = to_email.partition("@")[2] or "unknown"
         if not email_configured():
-            logger.error("Email smoke test aborted: provider config incomplete")
+            logger.error("Email smoke test aborted: email provider configuration is incomplete")
             return False
         sent = send_email(
             OutboundEmail(
@@ -34,9 +34,9 @@ def run(to_email: str) -> bool:
             retry_delays_seconds=EMAIL_RETRY_DELAYS_SECONDS,
         )
         if sent:
-            logger.info(f"Email smoke test sent: domain={recipient_domain}")
+            logger.info(f"Email smoke test succeeded: recipient_domain={recipient_domain}")
         else:
-            logger.error(f"Email smoke test failed: domain={recipient_domain}")
+            logger.error(f"Email smoke test failed: recipient_domain={recipient_domain}")
         return sent
 
 

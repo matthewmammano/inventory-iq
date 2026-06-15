@@ -25,7 +25,7 @@ def register_error_handlers(app: Flask) -> None:
     @app.errorhandler(403)
     def forbidden(error):
         logger.warning(
-            "Access denied",
+            "Request denied with 403 access error",
             extra={"path": request.path, "method": request.method},
         )
         return _err("Error", "Access Denied", "You don't have permission to access this page.", 403)
@@ -34,7 +34,7 @@ def register_error_handlers(app: Flask) -> None:
     def internal(error):
         source_error = getattr(error, "original_exception", None) or error
         logger.opt(exception=source_error).error(
-            "Unhandled request error",
+            "Request failed with an unhandled server error",
             extra={"path": request.path, "method": request.method},
         )
         return _err("Error", "System Error", "The system encountered a problem. Your data is safe.", 500)

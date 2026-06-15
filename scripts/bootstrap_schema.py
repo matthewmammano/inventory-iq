@@ -25,7 +25,7 @@ def run() -> None:
 
     init_db(settings.database_url)
     create_all()
-    logger.info("Database schema ready", extra={"database_url": settings.database_url})
+    logger.info("Database schema bootstrap finished", extra={"database_url": settings.database_url})
 
 
 if __name__ == "__main__":

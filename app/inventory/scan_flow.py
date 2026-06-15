@@ -41,8 +41,8 @@ def handle_scan_start(
     with get_session() as db:
         item = _get_scan_item(db, item_id, upc, is_admin=is_admin)
     if not item:
-        logger.error(
-            "Scan start rejected: item not found",
+        logger.warning(
+            "Scan start rejected: item was not found",
             extra={
                 "agency_id": current_user.id,
                 "squad": squad,
@@ -61,7 +61,7 @@ def handle_scan_start(
 
     if not from_storages:
         logger.error(
-            "Scan start rejected: no valid source storages",
+            "Scan start failed: no valid source storages are available",
             extra={
                 "agency_id": current_user.id,
                 "squad": squad,
@@ -97,8 +97,8 @@ def handle_scan_storages_get(
     with get_session() as db:
         item = _get_scan_item(db, item_id, None, is_admin=is_admin)
         if not item:
-            logger.error(
-                "Storage selection rejected: item not found",
+            logger.warning(
+                "Storage selection rejected: item was not found",
                 extra={
                     "agency_id": current_user.id,
                     "squad": squad,
@@ -142,8 +142,8 @@ def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = Fals
     try:
         request_data = ScanStoragesRequest(**form_data)
     except ValidationError as exc:
-        logger.error(
-            "Storage selection rejected: invalid form data",
+        logger.warning(
+            "Storage selection rejected: submitted form data was invalid",
             extra={
                 "agency_id": current_user.id,
                 "squad": squad,
@@ -155,8 +155,8 @@ def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = Fals
         return redirect(url_for(fallback, squad=squad))
 
     if request_data.same_location_error == "1":
-        logger.error(
-            "Storage selection rejected: invalid storage combination",
+        logger.warning(
+            "Storage selection rejected: source and destination combination is not allowed",
             extra={
                 "agency_id": current_user.id,
                 "squad": squad,
@@ -199,7 +199,7 @@ def handle_scan_item_get(
     if not item:
         if is_admin:
             logger.warning(
-                "Scan item page rejected: item not found",
+                "Admin scan quantity page redirected because the item was not found",
                 extra={
                     "agency_id": current_user.id,
                     "squad": squad,
@@ -217,8 +217,8 @@ def handle_scan_item_get(
                     scan_error="not_found",
                 )
             )
-        logger.error(
-            "Scan item page rejected: invalid item or storage",
+        logger.warning(
+            "Scan quantity page rejected: item was not found",
             extra={
                 "agency_id": current_user.id,
                 "squad": squad,
@@ -232,8 +232,8 @@ def handle_scan_item_get(
         return redirect(url_for(fallback, squad=squad))
 
     if not from_location:
-        logger.error(
-            "Scan item page rejected: invalid item or storage",
+        logger.warning(
+            "Scan quantity page rejected: selected route is invalid for this item",
             extra={
                 "agency_id": current_user.id,
                 "squad": squad,
@@ -268,8 +268,8 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
     try:
         request_data = ScanItemRequest(**form_data)
     except ValidationError as exc:
-        logger.error(
-            "Scan item rejected: invalid form data",
+        logger.warning(
+            "Scan submit rejected: submitted quantity form data was invalid",
             extra={
                 "agency_id": current_user.id,
                 "squad": squad,
@@ -285,7 +285,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
     if not item:
         if is_admin:
             logger.warning(
-                "Scan item rejected: item not found",
+                "Admin scan submit redirected because the item was not found",
                 extra={
                     "agency_id": current_user.id,
                     "squad": squad,
@@ -303,8 +303,8 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
                     scan_error="not_found",
                 )
             )
-        logger.error(
-            "Scan item rejected: item not found",
+        logger.warning(
+            "Scan submit rejected: item was not found",
             extra={
                 "agency_id": current_user.id,
                 "squad": squad,
@@ -330,8 +330,8 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
             admin_action=is_admin,
         )
     except (InventoryError, ValueError) as exc:
-        logger.error(
-            "Inventory operation rejected",
+        logger.warning(
+            "Inventory update rejected by validation rules",
             extra={
                 "agency_id": current_user.id,
                 "squad": squad,
@@ -351,7 +351,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         )
     except Exception:
         logger.exception(
-            "Unexpected error during inventory operation",
+            "Inventory update crashed unexpectedly",
             extra={
                 "agency_id": current_user.id,
                 "squad": squad,
@@ -378,7 +378,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         is_admin=is_admin,
     )
     logger.info(
-        "Inventory operation completed",
+        "Inventory update completed",
         extra={
             "agency_id": current_user.id,
             "squad": squad,
