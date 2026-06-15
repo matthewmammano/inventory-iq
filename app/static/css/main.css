@@ -1480,8 +1480,6 @@ button:disabled {
   gap: clamp(10px, 2vw, 18px);
   align-items: center;
   padding: clamp(10px, 2vw, 18px);
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-md) var(--radius-md) 0 0;
   background: var(--color-panel);
 }
 
