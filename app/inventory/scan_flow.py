@@ -130,6 +130,7 @@ def handle_scan_storages_get(
         auto_from_id=auto_from_id,
         auto_to_id=single_scan_to_id(to_storages, auto_from_id),
         logo_img=current_user.image,
+        page_subtitle=f"Choose FROM and TO for {item.name}",
         admin=is_admin,
     )
 
@@ -195,7 +196,42 @@ def handle_scan_item_get(
 
     with get_session() as db:
         item = _get_scan_item(db, item_id, None, is_admin=is_admin)
-    if not item or not from_location:
+    if not item:
+        if is_admin:
+            logger.warning(
+                "Scan item page rejected: item not found",
+                extra={
+                    "agency_id": current_user.id,
+                    "squad": squad,
+                    "item_id": item_id,
+                    "from_storage_id": from_location_id,
+                    "to_storage_id": to_location_id,
+                    "admin": is_admin,
+                },
+            )
+            return redirect(
+                _admin_scan_items_url(
+                    squad,
+                    from_location_id=from_location_id,
+                    to_location_id=to_location_id,
+                    scan_error="not_found",
+                )
+            )
+        logger.error(
+            "Scan item page rejected: invalid item or storage",
+            extra={
+                "agency_id": current_user.id,
+                "squad": squad,
+                "item_id": item_id,
+                "from_storage_id": from_location_id,
+                "to_storage_id": to_location_id,
+                "admin": is_admin,
+            },
+        )
+        flash("Invalid item or storage for this squad.", "warning")
+        return redirect(url_for(fallback, squad=squad))
+
+    if not from_location:
         logger.error(
             "Scan item page rejected: invalid item or storage",
             extra={
@@ -220,6 +256,8 @@ def handle_scan_item_get(
         user_restock_allow=user_restock_allow,
         logo_img=current_user.image,
         admin=is_admin,
+        page_subtitle=_scan_route_subtitle(from_location, to_location),
+        cancel_url=_scan_item_cancel_url(route, squad, from_location_id, to_location_id),
     )
 
 
@@ -240,11 +278,31 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
             },
         )
         flash("Invalid form data.", "error")
-        return redirect(url_for(fallback, squad=squad))
+        return redirect(_scan_item_error_url(route, squad, None, None))
 
     with get_session() as db:
         item = _get_scan_item(db, request_data.item_id, None, is_admin=is_admin)
     if not item:
+        if is_admin:
+            logger.warning(
+                "Scan item rejected: item not found",
+                extra={
+                    "agency_id": current_user.id,
+                    "squad": squad,
+                    "item_id": request_data.item_id,
+                    "from_storage_id": request_data.from_location_id,
+                    "to_storage_id": request_data.to_location_id,
+                    "admin": is_admin,
+                },
+            )
+            return redirect(
+                _admin_scan_items_url(
+                    squad,
+                    from_location_id=request_data.from_location_id,
+                    to_location_id=request_data.to_location_id,
+                    scan_error="not_found",
+                )
+            )
         logger.error(
             "Scan item rejected: item not found",
             extra={
@@ -283,7 +341,14 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
             },
         )
         flash(str(exc), "error")
-        return redirect(url_for(fallback, squad=squad, item_id=request_data.item_id))
+        return redirect(
+            _scan_item_error_url(
+                route,
+                squad,
+                request_data.from_location_id,
+                request_data.to_location_id,
+            )
+        )
     except Exception:
         logger.exception(
             "Unexpected error during inventory operation",
@@ -295,7 +360,14 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
             },
         )
         flash("System error - please try again.", "error")
-        return redirect(url_for(fallback, squad=squad, item_id=request_data.item_id))
+        return redirect(
+            _scan_item_error_url(
+                route,
+                squad,
+                request_data.from_location_id,
+                request_data.to_location_id,
+            )
+        )
 
     message = scan_success_message(
         operation_type,
@@ -319,7 +391,15 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         },
     )
     flash(message, "success")
-    return redirect(url_for(f"{route}.{'admin_panel' if is_admin else 'index'}", squad=squad))
+    if is_admin:
+        return redirect(
+            _admin_scan_items_url(
+                squad,
+                from_location_id=request_data.from_location_id,
+                to_location_id=request_data.to_location_id,
+            )
+        )
+    return redirect(url_for(f"{route}.index", squad=squad))
 
 
 def _get_scan_item(db, item_id: int | None, upc: str | None, *, is_admin: bool):
@@ -329,3 +409,59 @@ def _get_scan_item(db, item_id: int | None, upc: str | None, *, is_admin: bool):
     if item_id is None:
         return None
     return get_agency_item(current_user.id, item_id, include_inactive=include_inactive, session=db)
+
+
+def _scan_item_error_url(
+    route: str,
+    squad: str,
+    from_location_id: int | None,
+    to_location_id: int | None,
+) -> str:
+    if route == "admin":
+        return url_for("admin.admin_panel", squad=squad)
+    return url_for("guest.index", squad=squad)
+
+
+def _scan_item_cancel_url(
+    route: str,
+    squad: str,
+    from_location_id,
+    to_location_id,
+) -> str:
+    if route == "admin":
+        return _admin_scan_items_url(
+            squad,
+            from_location_id=from_location_id,
+            to_location_id=to_location_id,
+        )
+    return url_for("guest.index", squad=squad)
+
+
+def _admin_scan_items_url(
+    squad: str,
+    *,
+    from_location_id,
+    to_location_id,
+    scan_error: str | None = None,
+) -> str:
+    return url_for(
+        "admin.admin_scan_items",
+        squad=squad,
+        from_location_id=from_location_id,
+        to_location_id=to_location_id,
+        scan_error=scan_error,
+    )
+
+
+def _scan_route_subtitle(from_location, to_location) -> str:
+    from_label = _scan_location_label(from_location, takeout_allowed=False)
+    to_label = _scan_location_label(to_location, takeout_allowed=True)
+    return f"Route: {from_label} -> {to_label}"
+
+
+def _scan_location_label(location, *, takeout_allowed: bool) -> str:
+    if location == -1:
+        return "TAKE" if takeout_allowed else "RESTOCK"
+    if location == -2:
+        return "COUNT"
+    return location if isinstance(location, str) else location.full_name

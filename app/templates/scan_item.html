@@ -2,10 +2,12 @@
 
 {% block title %}Scanning{% endblock %}
 {% block header_title %}Select Quantity{% endblock %}
-{% block sub_title %}{{ item.name }}{% endblock %}
+{% block sub_title %}{{ page_subtitle }}{% endblock %}
 {% block main_class %}quantity-main{% endblock %}
 {% block header_right %}
-    <a class="cancel" href="{{ url_for('admin.admin_scan_items' if admin else 'guest.index', squad=squad) }}">Cancel</a>
+    <a
+        class="cancel"
+        href="{{ cancel_url or url_for('admin.admin_scan_items' if admin else 'guest.index', squad=squad) }}">Cancel</a>
 {% endblock %}
 
 {% block content %}

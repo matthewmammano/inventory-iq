@@ -2,11 +2,15 @@
 
 {% block title %}Scan Inventory{% endblock %}
 {% block header_title %}Scan Inventory{% endblock %}
-{% block sub_title %}{{ squad }}{% endblock %}
+{% block sub_title %}{{ page_subtitle if page_subtitle is defined else "Ready for barcode scan or item search" }}{% endblock %}
 {% block main_class %}search-main{% endblock %}
 {% block header_right %}
     {% if admin %}
+        {% if selected_scan_route %}
+        <a class="header-action" href="{{ url_for('admin.admin_scan_items', squad=squad) }}">Change Route</a>
+        {% else %}
         <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>
+        {% endif %}
     {% else %}
         <a class="admin" href="{{ url_for('guest.admin_login', squad=squad) }}">Admin</a>
     {% endif %}
@@ -14,7 +18,13 @@
 
 {% block content %}
 <section class="search">
-    <div class="status">Ready to scan UPC. Recent items shown below.</div>
+    <div class="status">
+        {% if admin and selected_scan_route %}
+            Scan UPC or search inventory below.
+        {% else %}
+            Ready to scan UPC. Recent items shown below.
+        {% endif %}
+    </div>
     <input
         type="search"
         id="search"
@@ -26,6 +36,10 @@
         id="results"
         data-squad="{{ squad }}"
         data-admin="{{ 'true' if admin else 'false' }}"
+        data-scan-item-base="{{ scan_item_url_base|default('', true) }}"
+        data-scan-error-url="{{ scan_error_url|default('', true) }}"
+        data-from-location-id="{{ selected_from_location_id|default('', true) }}"
+        data-to-location-id="{{ selected_to_location_id|default('', true) }}"
         data-items="{{ items_payload|tojson|forceescape }}"></ul>
 </section>
 {% endblock %}

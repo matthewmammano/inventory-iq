@@ -28,6 +28,19 @@ class ScanStoragesRequest(BaseModel):
         return parse_optional_int(value)
 
 
+class AdminScanRouteRequest(BaseModel):
+    """Admin scan route-selection payload."""
+
+    from_location_id: int | None = None
+    to_location_id: int | None = None
+    same_location_error: str | None = None
+
+    @field_validator("from_location_id", "to_location_id", mode="before")
+    @classmethod
+    def parse_location_id(cls, value: int | str | None) -> int | None:
+        return parse_optional_int(value)
+
+
 class ScanItemRequest(BaseModel):
     """Scan item request payload."""
 

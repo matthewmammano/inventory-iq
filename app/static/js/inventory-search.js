@@ -6,9 +6,21 @@ document.addEventListener("DOMContentLoaded", () => {
     const items = JSON.parse(list.dataset.items || "[]");
     const squad = list.dataset.squad;
     const isAdmin = list.dataset.admin === "true";
+    const scanItemBase = list.dataset.scanItemBase;
+    const scanErrorUrl = list.dataset.scanErrorUrl;
+    const fromLocationId = list.dataset.fromLocationId;
+    const toLocationId = list.dataset.toLocationId;
     const fuse = buildSearch(items);
 
     function itemUrl(itemId) {
+        if (scanItemBase && fromLocationId && toLocationId) {
+            const params = new URLSearchParams({
+                item_id: String(itemId),
+                from_location_id: fromLocationId,
+                to_location_id: toLocationId,
+            });
+            return `${scanItemBase}?${params.toString()}`;
+        }
         const base = `/inventory/${encodeURIComponent(squad)}`;
         return isAdmin ? `${base}/admin-panel/scan?item_id=${itemId}` : `${base}/scan?item_id=${itemId}`;
     }
@@ -19,7 +31,7 @@ document.addEventListener("DOMContentLoaded", () => {
             window.location.href = itemUrl(item.id);
             return;
         }
-        window.location.href = `${window.location.pathname}?scan_error=not_found`;
+        window.location.href = scanErrorUrl || `${window.location.pathname}?scan_error=not_found`;
     };
 
     function showResults(query) {

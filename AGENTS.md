@@ -178,6 +178,7 @@ Look for duplicated logic, oversized functions/files, weak typing, route handler
 - Mention rejected alternatives only if relevant.
 - Keep explanations compact.
 - Prefer concrete diffs over broad theory.
+- If the user asks for a commit name, commit string, or commit message, first scan the relevant uncommitted changes and then provide a commit message that accurately reflects the full diff the user intends to include.
 - Do not pad responses.
 
 ## Default Quality Bar

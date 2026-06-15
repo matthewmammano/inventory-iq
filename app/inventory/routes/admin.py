@@ -5,6 +5,7 @@ from typing import Any
 from flask import current_app, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user
 from loguru import logger
+from pydantic import ValidationError
 from sqlalchemy import or_, select
 
 from app.auth.device_locations import (
@@ -14,7 +15,7 @@ from app.auth.device_locations import (
     set_device_cookie,
 )
 from app.auth.models import Agencies, AgencyEmails, AgencyLocations
-from app.auth.queries import list_tags, list_top_locations
+from app.auth.queries import get_storage, list_tags, list_top_locations
 from app.inventory import admin_bp as bp
 from app.inventory.bulk_location_service import (
     LocationQuantityGrid,
@@ -22,6 +23,11 @@ from app.inventory.bulk_location_service import (
     required_count_storage_ids,
     save_bulk_location_count,
     save_bulk_location_restock,
+)
+from app.inventory.constants import (
+    VIRTUAL_LOCATION_COUNT,
+    VIRTUAL_LOCATION_RESTOCK,
+    VIRTUAL_LOCATION_TAKEOUT,
 )
 from app.inventory.item_queries import list_items
 from app.inventory.location_operations import (
@@ -38,6 +44,8 @@ from app.inventory.scan_flow import (
     handle_scan_storages_get,
     handle_scan_storages_post,
 )
+from app.inventory.scan_support import storages_for_scan
+from app.inventory.schema import AdminScanRouteRequest
 from app.inventory.search_payload import build_item_search_payload
 from app.inventory.ui import (
     get_days_until_low_class,
@@ -105,6 +113,7 @@ def admin_panel(squad: str) -> Any:
         "admin_panel.html",
         squad=squad,
         contact_phone=current_app.config.get("CONTACT_PHONE", ""),
+        panel_subtitle=f"{squad} inventory controls",
         admin=True,
     )
 
@@ -672,14 +681,26 @@ def _positive_setting(field: str, label: str) -> int:
 # ---------------------------------------------------------------------------
 
 
-@bp.route("/<squad>/admin-panel/scan-items")
+@bp.route("/<squad>/admin-panel/scan-items", methods=["GET", "POST"])
 def admin_scan_items(squad: str) -> Any:
+    if request.method == "POST":
+        return _save_admin_scan_route(squad)
+
+    scan_route = _selected_admin_scan_route()
+    if scan_route is None:
+        return _render_admin_scan_setup(squad)
+
     if request.args.get("scan_error") == "not_found":
         logger.warning(
             "Admin inventory search failed: scanned barcode not found",
-            extra={"agency_id": current_user.id, "squad": squad},
+            extra={
+                "agency_id": current_user.id,
+                "squad": squad,
+                "from_storage_id": scan_route["from_location_id"],
+                "to_storage_id": scan_route["to_location_id"],
+            },
         )
-        flash("Scanned barcode not found in inventory.", "error")
+        flash("Item not found. Please try again.", "error")
     with get_session() as s:
         items = list_items(current_user.id, include_inactive=True, order_by_last_accessed=True, session=s)
     return render_template(
@@ -688,6 +709,18 @@ def admin_scan_items(squad: str) -> Any:
         squad=squad,
         logo_img=current_user.image,
         admin=True,
+        page_subtitle=f"Route: {scan_route['label']}",
+        selected_scan_route=scan_route["label"],
+        selected_from_location_id=scan_route["from_location_id"],
+        selected_to_location_id=scan_route["to_location_id"],
+        scan_item_url_base=url_for("admin.scan_item", squad=squad),
+        scan_error_url=url_for(
+            "admin.admin_scan_items",
+            squad=squad,
+            from_location_id=scan_route["from_location_id"],
+            to_location_id=scan_route["to_location_id"],
+            scan_error="not_found",
+        ),
     )
 
 
@@ -730,3 +763,139 @@ def scan_item(squad: str) -> Any:
         user_restock_allow,
         is_admin=True,
     )
+
+
+def _render_admin_scan_setup(squad: str) -> Any:
+    with get_session() as s:
+        from_locations = storages_for_scan(current_user.id, "from", True, s)
+        to_locations = storages_for_scan(current_user.id, "to", True, s)
+
+    if not from_locations:
+        logger.error(
+            "Admin scan setup rejected: no valid source storages",
+            extra={"agency_id": current_user.id, "squad": squad},
+        )
+        flash("No valid storages found. Please check your location setup.", "error")
+        return redirect(url_for("admin.admin_panel", squad=squad))
+
+    selected_from_id = parse_optional_int(request.args.get("from_location_id"))
+    selected_to_id = parse_optional_int(request.args.get("to_location_id"))
+    return render_template(
+        "admin_scan_setup.html",
+        squad=squad,
+        from_locations=from_locations,
+        to_locations=to_locations,
+        selected_from_id=selected_from_id,
+        selected_to_id=selected_to_id,
+        setup_subtitle="Choose the FROM and TO locations for the next scans",
+        admin=True,
+    )
+
+
+def _save_admin_scan_route(squad: str) -> Any:
+    try:
+        route_request = AdminScanRouteRequest.model_validate(request.form.to_dict())
+    except ValidationError as exc:
+        logger.error(
+            "Admin scan setup rejected: invalid form data",
+            extra={"agency_id": current_user.id, "squad": squad, "error": str(exc)},
+        )
+        flash("Invalid form data. Please try again.", "error")
+        return redirect(url_for("admin.admin_panel", squad=squad))
+
+    if route_request.same_location_error == "1":
+        logger.warning(
+            "Admin scan setup rejected: invalid storage combination",
+            extra={
+                "agency_id": current_user.id,
+                "squad": squad,
+                "from_storage_id": route_request.from_location_id,
+                "to_storage_id": route_request.to_location_id,
+            },
+        )
+        flash("Invalid storage combination.", "error")
+        return redirect(
+            url_for(
+                "admin.admin_scan_items",
+                squad=squad,
+                from_location_id=route_request.from_location_id,
+                to_location_id=route_request.to_location_id,
+            )
+        )
+
+    if not _is_valid_admin_scan_route(route_request.from_location_id, route_request.to_location_id):
+        logger.warning(
+            "Admin scan setup rejected: storage selection not allowed",
+            extra={
+                "agency_id": current_user.id,
+                "squad": squad,
+                "from_storage_id": route_request.from_location_id,
+                "to_storage_id": route_request.to_location_id,
+            },
+        )
+        flash("Please choose valid scan locations.", "error")
+        return redirect(url_for("admin.admin_scan_items", squad=squad))
+
+    return redirect(
+        url_for(
+            "admin.admin_scan_items",
+            squad=squad,
+            from_location_id=route_request.from_location_id,
+            to_location_id=route_request.to_location_id,
+        )
+    )
+
+
+def _selected_admin_scan_route() -> dict[str, int | str] | None:
+    from_location_id = parse_optional_int(request.args.get("from_location_id"))
+    to_location_id = parse_optional_int(request.args.get("to_location_id"))
+    if not _is_valid_admin_scan_route(from_location_id, to_location_id):
+        return None
+
+    return {
+        "from_location_id": from_location_id or 0,
+        "to_location_id": to_location_id or 0,
+        "label": f"{_admin_scan_location_label(from_location_id)} -> {_admin_scan_location_label(to_location_id, takeout=True)}",
+    }
+
+
+def _is_valid_admin_scan_route(
+    from_location_id: int | None,
+    to_location_id: int | None,
+) -> bool:
+    if from_location_id is None or to_location_id is None:
+        return False
+
+    with get_session() as s:
+        from_locations = storages_for_scan(current_user.id, "from", True, s)
+        to_locations = storages_for_scan(current_user.id, "to", True, s)
+
+    valid_from_ids = {location.id for location in from_locations}
+    valid_to_ids = {location.id for location in to_locations}
+    if to_locations:
+        valid_from_ids.update({VIRTUAL_LOCATION_RESTOCK, VIRTUAL_LOCATION_COUNT})
+    valid_to_ids.add(VIRTUAL_LOCATION_TAKEOUT)
+
+    return (
+        from_location_id in valid_from_ids
+        and to_location_id in valid_to_ids
+        and not (
+            from_location_id == to_location_id
+            or (from_location_id == VIRTUAL_LOCATION_COUNT and to_location_id == VIRTUAL_LOCATION_TAKEOUT)
+            or (from_location_id == VIRTUAL_LOCATION_RESTOCK and to_location_id == VIRTUAL_LOCATION_TAKEOUT)
+        )
+    )
+
+
+def _admin_scan_location_label(location_id: int | None, *, takeout: bool = False) -> str:
+    if location_id == VIRTUAL_LOCATION_RESTOCK:
+        return "RESTOCK"
+    if location_id == VIRTUAL_LOCATION_COUNT:
+        return "COUNT"
+    if takeout and location_id == VIRTUAL_LOCATION_TAKEOUT:
+        return "TAKE"
+    if location_id is None:
+        return "Unknown"
+
+    storage = get_storage(location_id, current_user.id)
+    return storage.full_name if storage else "Unknown"

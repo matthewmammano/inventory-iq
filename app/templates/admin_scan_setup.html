@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}Scan Setup{% endblock %}
+{% block header_title %}Scan Setup{% endblock %}
+{% block sub_title %}{{ setup_subtitle }}{% endblock %}
+{% block main_class %}kiosk-main{% endblock %}
+{% block header_right %}
+    <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>
+{% endblock %}
+
+{% block content %}
+<form
+    id="scan-form"
+    method="POST"
+    action="{{ url_for('admin.admin_scan_items', squad=squad) }}"
+    class="stack">
+    <input type="hidden" name="same_location_error" id="same_location_error" value="0">
+
+    <section class="selector">
+        <div class="group">
+            <h2>From</h2>
+            <label class="radio-card">
+                <input
+                    type="radio"
+                    name="from_location_id"
+                    value="-1"
+                    {% if selected_from_id == -1 %}checked{% endif %}
+                    required>
+                <span class="choice">RESTOCK</span>
+            </label>
+            <label class="radio-card">
+                <input
+                    type="radio"
+                    name="from_location_id"
+                    value="-2"
+                    {% if selected_from_id == -2 %}checked{% endif %}
+                    required>
+                <span class="choice">COUNT</span>
+            </label>
+            {% for location in from_locations %}
+            <label class="radio-card">
+                <input
+                    type="radio"
+                    name="from_location_id"
+                    value="{{ location.id }}"
+                    {% if selected_from_id == location.id %}checked{% endif %}
+                    required>
+                <span class="choice">{{ location.full_name }}</span>
+            </label>
+            {% endfor %}
+        </div>
+
+        <div class="group" id="to-storage-options">
+            <h2>To</h2>
+            <label class="radio-card">
+                <input
+                    type="radio"
+                    name="to_location_id"
+                    value="-1"
+                    {% if selected_to_id == -1 %}checked{% endif %}
+                    required>
+                <span class="choice">TAKE</span>
+            </label>
+            {% for location in to_locations %}
+            <label class="radio-card">
+                <input
+                    type="radio"
+                    name="to_location_id"
+                    value="{{ location.id }}"
+                    {% if selected_to_id == location.id %}checked{% endif %}
+                    required>
+                <span class="choice">{{ location.full_name }}</span>
+            </label>
+            {% endfor %}
+        </div>
+    </section>
+
+    <section class="continue" id="continue-panel">
+        <div>
+            <strong id="route-status">Choose storages</strong><br>
+            <span id="route-label">This route will stay active until you change it</span>
+        </div>
+        <button type="submit" class="success-button" id="continue-button">Continue to Item Scan</button>
+    </section>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/storage-validation.js') }}" defer></script>
+{% endblock %}
