@@ -125,10 +125,7 @@ def process_all_alerts(*, force: bool = False) -> dict[str, int]:
                     f"pending_alerts={len(alerts)} types={_format_counts(type_counts)}",
                 )
 
-    logger.info(
-        f"Alert email run finished: recipients_with_pending_alerts={stats['processed']} sent={stats['sent']} failed={stats['failed']}",
-        extra=stats,
-    )
+    logger.info("Alert email run finished", extra=stats)
     return stats
 
 

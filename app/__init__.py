@@ -40,7 +40,7 @@ def create_app() -> Flask:
 
     db_type = _database_type()
     logger.info(
-        "Flask app started",
+        "Flask app startup completed",
         extra={"database": db_type, "debug": settings.debug, "app_env": settings.app_env},
     )
     log_email_config_status(app.config)

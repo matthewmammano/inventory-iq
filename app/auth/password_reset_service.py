@@ -35,7 +35,10 @@ def create_password_reset_pin(session: Session, email: str) -> bool:
 
     sent = _send_reset_pin(agency.email, pin)
     if sent:
-        logger.info("Password reset PIN created and delivered", extra={"agency_id": agency.id})
+        logger.info(
+            "Password reset PIN created and delivered to agency email",
+            extra={"agency_id": agency.id},
+        )
     else:
         logger.warning("Password reset PIN created but email delivery failed", extra={"agency_id": agency.id})
     return sent
@@ -74,7 +77,7 @@ def reset_password_with_pin(
     agency.set_password(new_password)
     reset_pin.used_at = now
     session.commit()
-    logger.info("Password reset completed", extra={"agency_id": agency.id})
+    logger.info("Password reset completed for agency account", extra={"agency_id": agency.id})
     return True
 
 

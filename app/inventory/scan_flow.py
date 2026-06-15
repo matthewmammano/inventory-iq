@@ -378,11 +378,12 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         is_admin=is_admin,
     )
     logger.info(
-        "Inventory update completed",
+        f"Inventory {operation_type.value.lower()} completed for {'admin' if is_admin else 'guest'} scan",
         extra={
             "agency_id": current_user.id,
             "squad": squad,
             "item_id": item.id,
+            "item_name": item.name,
             "operation_type": operation_type.value,
             "quantity": request_data.counter_value,
             "from_storage_id": from_storage_id,

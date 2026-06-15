@@ -115,7 +115,7 @@ def admin_login(squad: str) -> Any:
             session["admin"] = True
             session["admin_last_active"] = datetime.now(UTC).timestamp()
             logger.info(
-                "Admin PIN login succeeded",
+                "Admin PIN login succeeded for guest device session",
                 extra={"agency_id": current_user.id, "squad": squad},
             )
             flash("Admin access granted.", "success")

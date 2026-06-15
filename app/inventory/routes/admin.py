@@ -180,7 +180,7 @@ def send_inventory_counts_email(squad: str) -> Any:
         flash("Select at least one email recipient.", "warning")
     elif sent == total:
         logger.info(
-            "Inventory report email sent",
+            "Inventory report email sent successfully",
             extra={"agency_id": current_user.id, "recipient_count": sent},
         )
         flash(f"Sent inventory report to {sent} email recipient(s).", "success")
@@ -532,7 +532,7 @@ def _bulk_edit_url(squad: str, agency_location_id: int, item_ids: set[int]) -> s
 
 def _log_bulk_save(message: str, squad: str, agency_location_id: int, entry_count: int) -> None:
     logger.info(
-        f"{message}: inventory changes were saved",
+        f"{message}: bulk inventory changes saved",
         extra={
             "agency_id": current_user.id,
             "squad": squad,
@@ -645,7 +645,7 @@ def _save_settings(squad: str) -> Any:
             agency.alert_rare_scan_days = _positive_setting("alert_rare_scan_days", "Rare Takeout Days")
             s.commit()
         logger.info(
-            "Admin settings saved",
+            "Admin settings saved successfully",
             extra={"agency_id": current_user.id, "squad": squad, "agency_location_id": location_id},
         )
         flash("Settings saved.", "success")
