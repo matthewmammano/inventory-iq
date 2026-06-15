@@ -71,6 +71,75 @@ def resolve_scan_location(storage_id, agency_id: int, *, takeout_allowed: bool =
     return get_storage(parsed_id, agency_id) if parsed_id is not None else None
 
 
+def validate_scan_route(
+    agency_id: int,
+    from_storage_id: int | None,
+    to_storage_id: int | None,
+    permissions: ScanPermissions,
+    *,
+    is_admin: bool,
+    session: Session,
+) -> str | None:
+    if from_storage_id is None or to_storage_id is None:
+        return "Invalid storage combination."
+
+    if from_storage_id == VIRTUAL_LOCATION_RESTOCK and not permissions.restock:
+        return "RESTOCK is not allowed for this scan."
+    if from_storage_id == VIRTUAL_LOCATION_COUNT and not permissions.count:
+        return "COUNT is not allowed for this scan."
+
+    from_storages = storages_for_scan(agency_id, "from", is_admin, session)
+    to_storages = storages_for_scan(agency_id, "to", is_admin, session)
+    valid_from_ids = set(_valid_from_ids(from_storages, to_storages, permissions))
+    if from_storage_id not in valid_from_ids:
+        return "Selected source storage is not available for this scan."
+
+    valid_to_ids = set(_valid_to_ids(to_storages, from_storage_id))
+    if to_storage_id not in valid_to_ids:
+        return "Selected destination storage is not available for this scan."
+    return None
+
+
+def is_scan_route_allowed(
+    agency_id: int,
+    from_storage_id: int | None,
+    to_storage_id: int | None,
+    permissions: ScanPermissions,
+    *,
+    is_admin: bool,
+    session: Session,
+) -> bool:
+    return (
+        validate_scan_route(
+            agency_id,
+            from_storage_id,
+            to_storage_id,
+            permissions,
+            is_admin=is_admin,
+            session=session,
+        )
+        is None
+    )
+
+
+def format_scan_route_label(from_location, to_location, *, is_admin: bool) -> str:
+    from_label = format_scan_location_label(from_location, is_admin=is_admin)
+    to_label = format_scan_location_label(to_location, is_admin=is_admin, takeout_allowed=True)
+    return f"{from_label} -> {to_label}"
+
+
+def format_scan_location_label(location, *, is_admin: bool, takeout_allowed: bool = False) -> str:
+    if location == VIRTUAL_LOCATION_RESTOCK:
+        return "RESTOCK"
+    if location == VIRTUAL_LOCATION_COUNT:
+        return "COUNT"
+    if takeout_allowed and location == VIRTUAL_LOCATION_TAKEOUT:
+        return "TAKE"
+    if not isinstance(location, AgencyStorages):
+        return "Unknown"
+    return _scan_route_storage_name(location, is_admin)
+
+
 def scan_success_message(
     operation_type: OperationType,
     item_name: str,
@@ -101,6 +170,15 @@ def _scan_storage_name(storage: AgencyStorages | None, is_admin: bool) -> str | 
     if storage is None:
         return None
     return storage.full_name if is_admin else storage.name
+
+
+def _scan_route_storage_name(storage: AgencyStorages, is_admin: bool) -> str:
+    location_name = storage.location.name if storage.location else ""
+    if not location_name:
+        return storage.name
+    if is_admin:
+        return f"{storage.name} ({location_name})"
+    return f"{location_name}: {storage.name}"
 
 
 def can_skip_storage_selection(

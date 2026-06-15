@@ -7,13 +7,14 @@ from pydantic import ValidationError
 
 from app.auth.device_locations import get_device_location_id
 from app.shared.database import get_session
+from app.shared.validators import parse_optional_int
 
 from .errors import InventoryError
 from .item_queries import get_agency_item, get_item_by_upc
 from .mutation_service import inventory_operation
 from .scan_support import (
-    ScanPermissions,
     can_skip_storage_selection,
+    format_scan_route_label,
     get_scan_permissions,
     operation_from_storage_ids,
     redirect_to_scan_item,
@@ -23,6 +24,7 @@ from .scan_support import (
     single_scan_from_id,
     single_scan_to_id,
     storages_for_scan,
+    validate_scan_route,
 )
 from .schema import ScanItemRequest, ScanStoragesRequest
 
@@ -93,6 +95,7 @@ def handle_scan_storages_get(
 ):
     route = "admin" if is_admin else "guest"
     fallback = scan_fallback_endpoint(route)
+    permissions = get_scan_permissions(squad, is_admin=is_admin)
 
     with get_session() as db:
         item = _get_scan_item(db, item_id, None, is_admin=is_admin)
@@ -113,7 +116,6 @@ def handle_scan_storages_get(
         to_storages = storages_for_scan(current_user.id, "to", is_admin, db)
         default_location_id = None if is_admin else get_device_location_id(current_user.id, db)
 
-    permissions = ScanPermissions(count=user_count_allow, restock=user_restock_allow)
     if can_skip_storage_selection(from_storages, to_storages, permissions):
         return redirect_to_scan_item(route, squad, item.id, from_storages, to_storages, permissions)
 
@@ -125,8 +127,8 @@ def handle_scan_storages_get(
         from_locations=from_storages,
         to_locations=to_storages,
         show_storage_only=default_location_id is not None,
-        user_count_allow=user_count_allow,
-        user_restock_allow=user_restock_allow,
+        user_count_allow=permissions.count,
+        user_restock_allow=permissions.restock,
         auto_from_id=auto_from_id,
         auto_to_id=single_scan_to_id(to_storages, auto_from_id),
         logo_img=current_user.image,
@@ -138,6 +140,7 @@ def handle_scan_storages_get(
 def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = False):
     route = "admin" if is_admin else "guest"
     fallback = scan_fallback_endpoint(route)
+    permissions = get_scan_permissions(squad, is_admin=is_admin)
 
     try:
         request_data = ScanStoragesRequest(**form_data)
@@ -154,7 +157,17 @@ def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = Fals
         flash("Invalid form data. Please try again.", "error")
         return redirect(url_for(fallback, squad=squad))
 
-    if request_data.same_location_error == "1":
+    with get_session() as db:
+        route_error = validate_scan_route(
+            current_user.id,
+            request_data.from_location_id,
+            request_data.to_location_id,
+            permissions,
+            is_admin=is_admin,
+            session=db,
+        )
+
+    if request_data.same_location_error == "1" or route_error:
         logger.warning(
             "Storage selection rejected: source and destination combination is not allowed",
             extra={
@@ -164,9 +177,10 @@ def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = Fals
                 "from_storage_id": request_data.from_location_id,
                 "to_storage_id": request_data.to_location_id,
                 "admin": is_admin,
+                "error": route_error,
             },
         )
-        flash("Invalid storage combination.", "error")
+        flash(route_error or "Invalid storage combination.", "error")
         return redirect(url_for(f"{route}.scan_storages", squad=squad, item_id=request_data.item_id))
 
     return redirect(
@@ -191,11 +205,35 @@ def handle_scan_item_get(
 ):
     route = "admin" if is_admin else "guest"
     fallback = scan_fallback_endpoint(route)
-    from_location = resolve_scan_location(from_location_id, current_user.id)
-    to_location = resolve_scan_location(to_location_id, current_user.id, takeout_allowed=True)
+    permissions = get_scan_permissions(squad, is_admin=is_admin)
+    from_storage_id = parse_optional_int(from_location_id)
+    to_storage_id = parse_optional_int(to_location_id)
 
     with get_session() as db:
+        route_error = validate_scan_route(
+            current_user.id,
+            from_storage_id,
+            to_storage_id,
+            permissions,
+            is_admin=is_admin,
+            session=db,
+        )
         item = _get_scan_item(db, item_id, None, is_admin=is_admin)
+    if route_error:
+        logger.warning(
+            "Scan quantity page rejected: selected route is not allowed",
+            extra={
+                "agency_id": current_user.id,
+                "squad": squad,
+                "item_id": item_id,
+                "from_storage_id": from_storage_id,
+                "to_storage_id": to_storage_id,
+                "admin": is_admin,
+                "error": route_error,
+            },
+        )
+        flash(route_error, "error")
+        return redirect(url_for(fallback, squad=squad))
     if not item:
         if is_admin:
             logger.warning(
@@ -231,6 +269,8 @@ def handle_scan_item_get(
         flash("Invalid item or storage for this squad.", "warning")
         return redirect(url_for(fallback, squad=squad))
 
+    from_location = resolve_scan_location(from_storage_id, current_user.id)
+    to_location = resolve_scan_location(to_storage_id, current_user.id, takeout_allowed=True)
     if not from_location:
         logger.warning(
             "Scan quantity page rejected: selected route is invalid for this item",
@@ -252,11 +292,11 @@ def handle_scan_item_get(
         item=item,
         from_location=from_location,
         to_location=to_location,
-        user_count_allow=user_count_allow,
-        user_restock_allow=user_restock_allow,
+        user_count_allow=permissions.count,
+        user_restock_allow=permissions.restock,
         logo_img=current_user.image,
         admin=is_admin,
-        page_subtitle=_scan_route_subtitle(from_location, to_location),
+        page_subtitle=format_scan_route_label(from_location, to_location, is_admin=is_admin),
         cancel_url=_scan_item_cancel_url(route, squad, from_location_id, to_location_id),
     )
 
@@ -264,6 +304,7 @@ def handle_scan_item_get(
 def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
     route = "admin" if is_admin else "guest"
     fallback = scan_fallback_endpoint(route)
+    permissions = get_scan_permissions(squad, is_admin=is_admin)
 
     try:
         request_data = ScanItemRequest(**form_data)
@@ -281,7 +322,37 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         return redirect(_scan_item_error_url(route, squad, None, None))
 
     with get_session() as db:
+        route_error = validate_scan_route(
+            current_user.id,
+            request_data.from_location_id,
+            request_data.to_location_id,
+            permissions,
+            is_admin=is_admin,
+            session=db,
+        )
         item = _get_scan_item(db, request_data.item_id, None, is_admin=is_admin)
+    if route_error:
+        logger.warning(
+            "Scan submit rejected: selected route is not allowed",
+            extra={
+                "agency_id": current_user.id,
+                "squad": squad,
+                "item_id": request_data.item_id,
+                "from_storage_id": request_data.from_location_id,
+                "to_storage_id": request_data.to_location_id,
+                "admin": is_admin,
+                "error": route_error,
+            },
+        )
+        flash(route_error, "error")
+        return redirect(
+            _scan_item_error_url(
+                route,
+                squad,
+                request_data.from_location_id,
+                request_data.to_location_id,
+            )
+        )
     if not item:
         if is_admin:
             logger.warning(
@@ -452,17 +523,3 @@ def _admin_scan_items_url(
         to_location_id=to_location_id,
         scan_error=scan_error,
     )
-
-
-def _scan_route_subtitle(from_location, to_location) -> str:
-    from_label = _scan_location_label(from_location, takeout_allowed=False)
-    to_label = _scan_location_label(to_location, takeout_allowed=True)
-    return f"Route: {from_label} -> {to_label}"
-
-
-def _scan_location_label(location, *, takeout_allowed: bool) -> str:
-    if location == -1:
-        return "TAKE" if takeout_allowed else "RESTOCK"
-    if location == -2:
-        return "COUNT"
-    return location if isinstance(location, str) else location.full_name

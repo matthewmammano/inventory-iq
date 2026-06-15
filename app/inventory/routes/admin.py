@@ -15,7 +15,7 @@ from app.auth.device_locations import (
     set_device_cookie,
 )
 from app.auth.models import Agencies, AgencyEmails, AgencyLocations
-from app.auth.queries import get_storage, list_tags, list_top_locations
+from app.auth.queries import list_tags, list_top_locations
 from app.inventory import admin_bp as bp
 from app.inventory.bulk_location_service import (
     LocationQuantityGrid,
@@ -23,11 +23,6 @@ from app.inventory.bulk_location_service import (
     required_count_storage_ids,
     save_bulk_location_count,
     save_bulk_location_restock,
-)
-from app.inventory.constants import (
-    VIRTUAL_LOCATION_COUNT,
-    VIRTUAL_LOCATION_RESTOCK,
-    VIRTUAL_LOCATION_TAKEOUT,
 )
 from app.inventory.item_queries import list_items
 from app.inventory.location_operations import (
@@ -44,7 +39,13 @@ from app.inventory.scan_flow import (
     handle_scan_storages_get,
     handle_scan_storages_post,
 )
-from app.inventory.scan_support import storages_for_scan
+from app.inventory.scan_support import (
+    ScanPermissions,
+    format_scan_route_label,
+    is_scan_route_allowed,
+    resolve_scan_location,
+    storages_for_scan,
+)
 from app.inventory.schema import AdminScanRouteRequest
 from app.inventory.search_payload import build_item_search_payload
 from app.inventory.ui import (
@@ -709,7 +710,7 @@ def admin_scan_items(squad: str) -> Any:
         squad=squad,
         logo_img=current_user.image,
         admin=True,
-        page_subtitle=f"Route: {scan_route['label']}",
+        page_subtitle=scan_route["label"],
         selected_scan_route=scan_route["label"],
         selected_from_location_id=scan_route["from_location_id"],
         selected_to_location_id=scan_route["to_location_id"],
@@ -852,10 +853,13 @@ def _selected_admin_scan_route() -> dict[str, int | str] | None:
     if not _is_valid_admin_scan_route(from_location_id, to_location_id):
         return None
 
+    from_location = resolve_scan_location(from_location_id, current_user.id)
+    to_location = resolve_scan_location(to_location_id, current_user.id, takeout_allowed=True)
+
     return {
         "from_location_id": from_location_id or 0,
         "to_location_id": to_location_id or 0,
-        "label": f"{_admin_scan_location_label(from_location_id)} -> {_admin_scan_location_label(to_location_id, takeout=True)}",
+        "label": format_scan_route_label(from_location, to_location, is_admin=True),
     }
 
 
@@ -863,39 +867,13 @@ def _is_valid_admin_scan_route(
     from_location_id: int | None,
     to_location_id: int | None,
 ) -> bool:
-    if from_location_id is None or to_location_id is None:
-        return False
-
+    permissions = ScanPermissions(count=True, restock=True)
     with get_session() as s:
-        from_locations = storages_for_scan(current_user.id, "from", True, s)
-        to_locations = storages_for_scan(current_user.id, "to", True, s)
-
-    valid_from_ids = {location.id for location in from_locations}
-    valid_to_ids = {location.id for location in to_locations}
-    if to_locations:
-        valid_from_ids.update({VIRTUAL_LOCATION_RESTOCK, VIRTUAL_LOCATION_COUNT})
-    valid_to_ids.add(VIRTUAL_LOCATION_TAKEOUT)
-
-    return (
-        from_location_id in valid_from_ids
-        and to_location_id in valid_to_ids
-        and not (
-            from_location_id == to_location_id
-            or (from_location_id == VIRTUAL_LOCATION_COUNT and to_location_id == VIRTUAL_LOCATION_TAKEOUT)
-            or (from_location_id == VIRTUAL_LOCATION_RESTOCK and to_location_id == VIRTUAL_LOCATION_TAKEOUT)
+        return is_scan_route_allowed(
+            current_user.id,
+            from_location_id,
+            to_location_id,
+            permissions,
+            is_admin=True,
+            session=s,
         )
-    )
-
-
-def _admin_scan_location_label(location_id: int | None, *, takeout: bool = False) -> str:
-    if location_id == VIRTUAL_LOCATION_RESTOCK:
-        return "RESTOCK"
-    if location_id == VIRTUAL_LOCATION_COUNT:
-        return "COUNT"
-    if takeout and location_id == VIRTUAL_LOCATION_TAKEOUT:
-        return "TAKE"
-    if location_id is None:
-        return "Unknown"
-
-    storage = get_storage(location_id, current_user.id)
-    return storage.full_name if storage else "Unknown"
