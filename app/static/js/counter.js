@@ -1,6 +1,7 @@
 const counterValue = document.querySelector('.counter-value');
 const counterInput = document.getElementById('counter_value');
 const submitBtn = document.querySelector('.submit-btn');
+const hiddenForm = document.getElementById('hidden-form');
 
 // Handle all buttons with data-value (works for both guest and admin)
 document.querySelectorAll('[data-value]').forEach(btn => {
@@ -26,6 +27,10 @@ submitBtn.addEventListener('click', function() {
     // Update the counter_value before submitting
     counterInput.value = counterValue.textContent;
 
-    // Submit the form
-    document.getElementById('hidden-form').submit();
+    if (!hiddenForm) return;
+    if (typeof hiddenForm.requestSubmit === 'function') {
+        hiddenForm.requestSubmit();
+        return;
+    }
+    hiddenForm.submit();
 });

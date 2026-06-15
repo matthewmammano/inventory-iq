@@ -11,6 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const modalMessage = document.querySelector("#modal-message");
     const changeList = document.querySelector("#change-list");
     const confirmButton = document.querySelector("#confirm-button");
+    const loadingOverlay = window.InventoryLoadingOverlay;
     let modalMode = "save";
 
     const valueOf = (field) => field.classList.contains("switch") ? field.textContent.trim() : field.value;
@@ -70,6 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
     document.querySelector("#cancel-modal").addEventListener("click", () => modal.classList.add("hidden"));
     confirmButton.addEventListener("click", () => {
         if (modalMode === "back") {
+            loadingOverlay?.show({ immediate: true });
             window.location.href = backLink.href;
             return;
         }

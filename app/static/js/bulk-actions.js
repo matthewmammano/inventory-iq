@@ -3,6 +3,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const modal = document.querySelector("#tab-confirm-modal");
     const changeList = document.querySelector("#tab-change-list");
     const back = document.querySelector("[data-bulk-back]");
+    const loadingOverlay = window.InventoryLoadingOverlay;
     if (!modal || !changeList || !back) return;
 
     const requiredCells = [...document.querySelectorAll("[data-count-required='1']")];
@@ -42,6 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     document.querySelector("#confirm-tab-switch")?.addEventListener("click", () => {
+        loadingOverlay?.show({ immediate: true });
         window.location.href = back.href;
     });
 

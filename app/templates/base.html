@@ -57,8 +57,16 @@
     </div>
     {% endwith %}
 
+    <div id="loading-overlay" class="loading-overlay hidden" aria-hidden="true">
+        <div class="loading-overlay__panel" role="status" aria-live="polite" aria-label="Loading">
+            <div class="loading-overlay__spinner"></div>
+            <div class="loading-overlay__label">Loading...</div>
+        </div>
+    </div>
+
     <script src="{{ url_for('static', filename='js/image-fallback.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/flash.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/loading-overlay.js') }}" defer></script>
     {% block extra_js %}{% endblock %}
 </body>
 </html>

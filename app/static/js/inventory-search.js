@@ -28,10 +28,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const scanUpc = (upc) => {
         const item = items.find((candidate) => candidate.upc === upc);
         if (item) {
-            window.location.href = itemUrl(item.id);
+            navigateTo(itemUrl(item.id));
             return;
         }
-        window.location.href = scanErrorUrl || `${window.location.pathname}?scan_error=not_found`;
+        navigateTo(scanErrorUrl || `${window.location.pathname}?scan_error=not_found`);
     };
 
     function showResults(query) {
@@ -73,13 +73,20 @@ function searchableText(item) {
     return `${item.name} ${item.upc} ${item.tags.join(" ")}`.toLowerCase();
 }
 
+function navigateTo(url) {
+    window.InventoryLoadingOverlay?.show({ immediate: true });
+    window.location.href = url;
+}
+
 function resultRow(item, itemUrl) {
     const row = document.createElement("li");
     const tags = item.tag_data.map((tag) =>
         `<span class="tag" style="background-color: ${tag.color}; color: ${tag.text_color}; border-color: ${tag.text_color};">${tag.name}</span>`
     ).join("");
     row.innerHTML = `<div class="result-title"><strong>${item.name}</strong><div class="tags">${tags}</div></div>`;
-    row.addEventListener("click", () => { window.location.href = itemUrl(item.id); });
+    row.addEventListener("click", () => {
+        navigateTo(itemUrl(item.id));
+    });
     return row;
 }
 

@@ -1014,6 +1014,62 @@ th {
   box-shadow: 0 16px 40px rgba(17, 24, 32, 0.28);
 }
 
+.loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(17, 24, 32, 0.38);
+}
+
+.loading-overlay.hidden {
+  display: none;
+}
+
+.loading-overlay__panel {
+  min-width: min(260px, 100%);
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 22px 24px;
+  border: 3px solid var(--color-ink);
+  border-radius: var(--radius-lg);
+  background: var(--color-panel);
+  box-shadow: 0 16px 40px rgba(17, 24, 32, 0.28);
+}
+
+.loading-overlay__spinner {
+  width: 56px;
+  height: 56px;
+  border: 6px solid rgba(165, 114, 16, 0.22);
+  border-top-color: var(--color-primary-dark);
+  border-radius: 50%;
+  animation: loading-spin 0.85s linear infinite;
+}
+
+.loading-overlay__label {
+  color: var(--color-ink);
+  font-family: var(--font-heading);
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+body.loading-active {
+  cursor: progress;
+}
+
+body.loading-active > *:not(.loading-overlay) {
+  pointer-events: none;
+}
+
+@keyframes loading-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .login-panel {
   width: min(640px, 100%);
   margin: 0 auto;
