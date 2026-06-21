@@ -1,0 +1,18 @@
+{% from "macros.html" import history_table %}
+
+<section class="print-title">
+    <h1>Inventory History</h1>
+    <p>{{ agency_name }}</p>
+    <p>{{ location_name }}</p>
+    <p>{{ start_date or "Beginning" }} to {{ end_date or "Today" }}</p>
+</section>
+
+{% if action_logs|length == 0 %}
+<section class="panel">
+    <div class="empty-state"><h2>No action history found</h2></div>
+</section>
+{% else %}
+<section class="panel">
+    {{ history_table(action_logs, user_timezone, timezone_hint) }}
+</section>
+{% endif %}

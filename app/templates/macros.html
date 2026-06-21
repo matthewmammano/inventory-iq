@@ -10,3 +10,24 @@
 {% macro header_button(url, text) %}
     <a href="{{ url }}" class="header-action">{{ text }}</a>
 {% endmacro %}
+
+{% macro history_table(action_logs, user_timezone, timezone_hint) %}
+    <div class="table-wrap">
+        <table>
+            <thead><tr><th>Time{% if timezone_hint %} ({{ timezone_hint }}){% endif %}</th><th>Item</th><th>Type</th><th>Qty</th><th>From</th><th>To</th><th>Admin?</th></tr></thead>
+            <tbody>
+                {% for log in action_logs %}
+                <tr>
+                    <td>{{ log.get_time_scanned_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if log.time_scanned else 'Unknown' }}</td>
+                    <td>{{ log.item.name if log.item else 'None' }}</td>
+                    <td>{{ log.operation_type.value }}</td>
+                    <td>{{ log.quantity_delta }}</td>
+                    <td>{{ log.from_location.history_name if log.from_location else log.operation_type.value }}</td>
+                    <td>{{ log.to_location.history_name if log.to_location else 'TAKE' }}</td>
+                    <td>{{ 'Yes' if log.admin_action else 'No' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+{% endmacro %}

@@ -1,9 +1,13 @@
 {% extends "base.html" %}
+{% from "macros.html" import history_table %}
 
 {% block title %}Action History{% endblock %}
 {% block header_title %}View History{% endblock %}
 {% block sub_title %}Review recent scan activity across locations{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>{% endblock %}
+{% block header_right %}
+    <button class="success-button" id="open-history-print" type="button">Print History</button>
+    <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>
+{% endblock %}
 
 {% block content %}
 <div class="tabbed-panel">
@@ -20,24 +24,7 @@
     </section>
     {% else %}
     <section class="panel">
-        <div class="table-wrap">
-            <table>
-                <thead><tr><th>Time{% if timezone_hint %} ({{ timezone_hint }}){% endif %}</th><th>Item</th><th>Type</th><th>Qty</th><th>From</th><th>To</th><th>Admin?</th></tr></thead>
-                <tbody>
-                    {% for log in action_logs %}
-                    <tr>
-                        <td>{{ log.get_time_scanned_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if log.time_scanned else 'Unknown' }}</td>
-                        <td>{{ log.item.name if log.item else 'None' }}</td>
-                        <td>{{ log.operation_type.value }}</td>
-                        <td>{{ log.quantity_delta }}</td>
-                        <td>{{ log.from_location.history_name if log.from_location else log.operation_type.value }}</td>
-                        <td>{{ log.to_location.history_name if log.to_location else 'TAKE' }}</td>
-                        <td>{{ 'Yes' if log.admin_action else 'No' }}</td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
-        </div>
+        {{ history_table(action_logs, user_timezone, timezone_hint) }}
 
         <div class="button-row">
             {% if page > 1 %}
@@ -60,4 +47,35 @@
     </section>
     {% endif %}
 </div>
+
+<div class="modal-backdrop hidden" id="history-print-modal">
+    <div class="modal history-print-modal">
+        <h2>Print History</h2>
+        <p>Leave either date blank to print without that limit.</p>
+        {% if active_location_id %}
+            {% set print_action = url_for('admin.admin_history_print', squad=squad, agency_location_id=active_location_id) %}
+        {% else %}
+            {% set print_action = url_for('admin.admin_history_print', squad=squad) %}
+        {% endif %}
+        <form method="GET" action="{{ print_action }}" class="stack" data-history-print-form>
+            <label class="setting-row">
+                <span class="setting-name">Start Date</span>
+                <input id="history-print-start" type="date" name="start_date" min="2000-01-01" max="{{ today_date }}">
+            </label>
+            <label class="setting-row">
+                <span class="setting-name">End Date</span>
+                <input id="history-print-end" type="date" name="end_date" min="2000-01-01" max="{{ today_date }}">
+            </label>
+            <div class="button-row">
+                <button class="success-button" type="submit">Print</button>
+                <button class="quiet-button" id="close-history-print" type="button">Cancel</button>
+            </div>
+        </form>
+    </div>
+</div>
+<section id="history-print-area" class="print-only" aria-hidden="true"></section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/history-print.js') }}" defer></script>
 {% endblock %}

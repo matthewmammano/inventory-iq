@@ -1,7 +1,9 @@
 """Admin blueprint routes for inventory management."""
 
 from collections.abc import Mapping
+from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from flask import current_app, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user
@@ -71,6 +73,7 @@ from app.shared.utils import (
 )
 
 HISTORY_PAGE_SIZE = 250
+HISTORY_PRINT_LIMIT = 5000
 
 
 @bp.before_request
@@ -633,6 +636,38 @@ def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
         admin=True,
         user_timezone=current_user.timezone,
         timezone_hint=get_timezone_hint(current_user.timezone),
+        today_date=_local_today(current_user.timezone).isoformat(),
+    )
+
+
+@bp.route("/<squad>/admin-panel/history/print")
+@bp.route("/<squad>/admin-panel/history/<int:agency_location_id>/print")
+def admin_history_print(squad: str, agency_location_id: int | None = None) -> Any:
+    start_date = request.args.get("start_date", "")
+    end_date = request.args.get("end_date", "")
+    try:
+        start_utc, end_utc = _history_date_bounds(start_date, end_date, current_user.timezone)
+    except ValueError as exc:
+        if request.headers.get("X-Requested-With") == "fetch":
+            return str(exc), 400
+        flash(str(exc), "error")
+        return redirect(_history_url(squad, agency_location_id))
+    with get_session() as s:
+        locations = list_top_locations(current_user.id, s)
+        agency = s.get(Agencies, current_user.id)
+        active_location = _active_location(locations, agency_location_id) if agency_location_id else None
+        action_logs, _ = _history_logs(s, agency_location_id, 1, HISTORY_PRINT_LIMIT, start_utc, end_utc)
+    return render_template(
+        "admin_history_print_partial.html",
+        squad=squad,
+        action_logs=action_logs,
+        agency_name=agency.display_name if agency else squad,
+        location_name=active_location.name if active_location else "All Locations",
+        start_date=start_date,
+        end_date=end_date,
+        admin=True,
+        user_timezone=current_user.timezone,
+        timezone_hint=get_timezone_hint(current_user.timezone),
     )
 
 
@@ -641,6 +676,8 @@ def _history_logs(
     agency_location_id: int | None,
     page: int,
     page_size: int,
+    start_utc: datetime | None = None,
+    end_utc: datetime | None = None,
 ) -> tuple[list[ActionLogs], bool]:
     stmt = (
         select(ActionLogs)
@@ -661,8 +698,60 @@ def _history_logs(
             if storage_ids
             else ActionLogs.id == -1
         )
+    if start_utc is not None:
+        stmt = stmt.where(ActionLogs.time_scanned >= start_utc)
+    if end_utc is not None:
+        stmt = stmt.where(ActionLogs.time_scanned < end_utc)
     rows = list(session.execute(stmt.order_by(ActionLogs.id.desc()).offset((page - 1) * page_size).limit(page_size + 1)).scalars().all())
     return rows[:page_size], len(rows) > page_size
+
+
+def _history_url(squad: str, agency_location_id: int | None) -> str:
+    if agency_location_id:
+        return url_for("admin.admin_history", squad=squad, agency_location_id=agency_location_id)
+    return url_for("admin.admin_history", squad=squad)
+
+
+def _history_date_bounds(start_value: str, end_value: str, timezone: str) -> tuple[datetime | None, datetime | None]:
+    start_date = _parse_history_date(start_value, "Start date")
+    end_date = _parse_history_date(end_value, "End date")
+    today = _local_today(timezone)
+    if start_date and start_date > today:
+        raise ValueError("Start date cannot be in the future.")
+    if end_date and end_date > today:
+        raise ValueError("End date cannot be in the future.")
+    if start_date and end_date and start_date > end_date:
+        raise ValueError("Start date must be before end date.")
+    local_timezone = _timezone_or_utc(timezone)
+    start_utc = _local_midnight_utc(start_date, local_timezone) if start_date else None
+    end_utc = _local_midnight_utc(end_date + timedelta(days=1), local_timezone) if end_date else None
+    return start_utc, end_utc
+
+
+def _parse_history_date(value: str, label: str) -> date | None:
+    if not value:
+        return None
+    if len(value) != 10:
+        raise ValueError(f"{label} must use YYYY-MM-DD.")
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(f"{label} must be a valid date.") from exc
+
+
+def _local_today(timezone: str) -> date:
+    return datetime.now(_timezone_or_utc(timezone)).date()
+
+
+def _local_midnight_utc(day: date, local_timezone: tzinfo) -> datetime:
+    return datetime.combine(day, time.min, tzinfo=local_timezone).astimezone(UTC).replace(tzinfo=None)
+
+
+def _timezone_or_utc(timezone: str) -> tzinfo:
+    try:
+        return ZoneInfo(timezone)
+    except Exception:
+        return UTC
 
 
 def _active_location(locations: list[AgencyLocations], agency_location_id: int | None) -> AgencyLocations | None:

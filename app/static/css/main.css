@@ -467,6 +467,7 @@ td.danger-text {
 .full-button { width: 100%; }
 .single-link-row { justify-content: center; }
 .hidden { display: none !important; }
+.print-only { display: none; }
 
 .choice-grid {
   display: grid;
@@ -1027,6 +1028,15 @@ td.sorted-cell {
   box-shadow: 0 16px 40px rgba(17, 24, 32, 0.28);
 }
 
+.history-print-modal {
+  display: grid;
+  gap: 16px;
+}
+
+.history-print-modal form {
+  gap: 16px;
+}
+
 .loading-overlay {
   position: fixed;
   inset: 0;
@@ -1196,6 +1206,73 @@ body.loading-active > *:not(.loading-overlay) {
   th,
   td {
     overflow-wrap: anywhere;
+  }
+}
+
+@media print {
+  body.printing-history > *:not(main),
+  body.printing-history > main > *:not(#history-print-area),
+  body.printing-history .flash-container,
+  body.printing-history .loading-overlay {
+    display: none !important;
+  }
+
+  body.printing-history #history-print-area {
+    display: block;
+  }
+
+  body.printing-history {
+    background: white;
+  }
+
+  body.printing-history.admin-screen {
+    border: 0;
+  }
+
+  body.printing-history > main {
+    width: 100%;
+    padding: 0;
+  }
+
+  body.printing-history .table-wrap {
+    overflow: visible;
+  }
+
+  body.printing-history table {
+    width: 100%;
+    table-layout: fixed;
+  }
+
+  body.printing-history .panel {
+    border: 0;
+    box-shadow: none;
+  }
+
+  body.printing-history th,
+  body.printing-history td {
+    padding: 4px;
+    color: black;
+    font-size: 8pt;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+    white-space: normal;
+  }
+
+  body.printing-history .print-title {
+    margin-bottom: 18px;
+    color: black;
+  }
+
+  body.printing-history .print-title h1 {
+    margin-bottom: 8px;
+    color: black;
+    font-size: 18pt;
+  }
+
+  body.printing-history .print-title p {
+    margin: 2px 0;
+    color: black;
+    font-size: 11pt;
   }
 }
 
