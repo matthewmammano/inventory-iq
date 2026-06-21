@@ -6,11 +6,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const loadingOverlay = window.InventoryLoadingOverlay;
     if (!modal || !changeList || !back) return;
 
-    const requiredCells = [...document.querySelectorAll("[data-count-required='1']")];
+    const quantityInputs = [...document.querySelectorAll("[data-count-input], [data-restock-input]")];
     const changedInputs = () => [...document.querySelectorAll("[data-original-value]")]
         .filter((input) => input.value !== input.dataset.originalValue);
 
     function updateRequiredCounts() {
+        document.querySelectorAll("[data-count-cell]").forEach((cell) => {
+            const input = cell.querySelector("[data-count-input]");
+            const invalid = isInvalidQuantity(input);
+            cell.classList.toggle("invalid-cell", invalid);
+            input?.classList.toggle("invalid", invalid);
+        });
         document.querySelectorAll("tbody tr").forEach((row) => {
             const rowRequiresCounts = [...row.querySelectorAll("[data-count-required='1']")];
             const hasRestock = [...row.querySelectorAll("[data-restock-input]")]
@@ -18,17 +24,18 @@ document.addEventListener("DOMContentLoaded", () => {
             rowRequiresCounts.forEach((cell) => {
                 const countInput = cell.querySelector("[data-count-input]");
                 const hasCount = Boolean(countInput && countInput.value !== "");
-                cell.classList.toggle("invalid-cell", hasRestock && !hasCount);
+                cell.classList.toggle("invalid-cell", isInvalidQuantity(countInput) || (hasRestock && !hasCount));
             });
+        });
+        document.querySelectorAll("[data-restock-cell]").forEach((cell) => {
+            const input = cell.querySelector("[data-restock-input]");
+            const invalid = isInvalidQuantity(input);
+            cell.classList.toggle("invalid-cell", invalid);
+            input?.classList.toggle("invalid", invalid);
         });
     }
 
-    requiredCells.forEach((cell) => {
-        cell.querySelector("[data-count-input]")?.addEventListener("input", updateRequiredCounts);
-        cell.nextElementSibling
-            ?.querySelector("[data-restock-input]")
-            ?.addEventListener("input", updateRequiredCounts);
-    });
+    quantityInputs.forEach((input) => input.addEventListener("input", updateRequiredCounts));
 
     back.addEventListener("click", (event) => {
         const inputs = changedInputs();
@@ -64,6 +71,11 @@ document.addEventListener("DOMContentLoaded", () => {
             items.push(summary);
         }
         return items;
+    }
+
+    function isInvalidQuantity(input) {
+        if (!input || input.value === "") return false;
+        return !/^\d+$/.test(input.value);
     }
 
     updateRequiredCounts();

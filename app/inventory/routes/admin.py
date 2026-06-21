@@ -1,5 +1,6 @@
 """Admin blueprint routes for inventory management."""
 
+from collections.abc import Mapping
 from typing import Any
 
 from flask import current_app, flash, make_response, redirect, render_template, request, url_for
@@ -368,8 +369,33 @@ def bulk_edit(squad: str, agency_location_id: int) -> Any:
             )
 
         required = required_count_storage_ids(s, current_user.id, agency_location_id, grid.items)
-        submitted_counts = parse_quantity_grid(request.form, prefix="count_", skip_blank=True)
-        submitted_restocks = parse_quantity_grid(request.form, prefix="restock_", skip_blank=True)
+        raw_counts = _quantity_values(request.form, "count_")
+        raw_restocks = _quantity_values(request.form, "restock_")
+        invalid_count_cells = _invalid_quantity_cells(raw_counts)
+        invalid_restock_cells = _invalid_quantity_cells(raw_restocks)
+        if request.method == "POST" and (invalid_count_cells or invalid_restock_cells):
+            logger.warning(
+                "Bulk action rejected: quantity values must be non-negative whole numbers",
+                extra={
+                    "agency_id": current_user.id,
+                    "squad": squad,
+                    "agency_location_id": agency_location_id,
+                    "invalid_count_cell_count": len(invalid_count_cells),
+                    "invalid_restock_cell_count": len(invalid_restock_cells),
+                },
+            )
+            flash("Counts and restocks must be 0 or higher.", "warning")
+            return _render_bulk_edit(
+                squad,
+                grid,
+                required,
+                raw_counts,
+                raw_restocks,
+                invalid_count_cells,
+                invalid_restock_cells,
+            )
+        submitted_counts = _non_negative_quantities(raw_counts)
+        submitted_restocks = _non_negative_quantities(raw_restocks)
         invalid_cells = _missing_required_count_cells(required, submitted_counts, submitted_restocks)
         if request.method == "POST" and invalid_cells:
             logger.warning(
@@ -389,6 +415,7 @@ def bulk_edit(squad: str, agency_location_id: int) -> Any:
                 submitted_counts,
                 submitted_restocks,
                 invalid_cells,
+                set(),
             )
         if request.method == "POST":
             return _save_bulk_edit(
@@ -407,9 +434,10 @@ def _render_bulk_edit(
     squad: str,
     grid,
     required: dict[int, set[int]],
-    submitted_counts: dict[tuple[int, int], int] | None = None,
-    submitted_restocks: dict[tuple[int, int], int] | None = None,
+    submitted_counts: Mapping[tuple[int, int], int | str] | None = None,
+    submitted_restocks: Mapping[tuple[int, int], int | str] | None = None,
     invalid_cells: set[tuple[int, int]] | None = None,
+    invalid_restock_cells: set[tuple[int, int]] | None = None,
 ) -> Any:
     return render_template(
         "admin_bulk_actions.html",
@@ -423,6 +451,7 @@ def _render_bulk_edit(
             submitted_counts or {},
             submitted_restocks or {},
             invalid_cells or set(),
+            invalid_restock_cells or set(),
         ),
         storages=grid.storages,
         item_ids=[item.id for item in grid.items],
@@ -464,9 +493,10 @@ def _bulk_rows(
     storages,
     counts: dict[tuple[int, int], int],
     required: dict[int, set[int]],
-    submitted_counts: dict[tuple[int, int], int],
-    submitted_restocks: dict[tuple[int, int], int],
+    submitted_counts: Mapping[tuple[int, int], int | str],
+    submitted_restocks: Mapping[tuple[int, int], int | str],
     invalid_cells: set[tuple[int, int]],
+    invalid_restock_cells: set[tuple[int, int]],
 ) -> list[dict[str, Any]]:
     rows = []
     for item in items:
@@ -483,6 +513,7 @@ def _bulk_rows(
                     "restock_value": submitted_restocks.get(key, ""),
                     "count_required": count_required,
                     "invalid": key in invalid_cells,
+                    "restock_invalid": key in invalid_restock_cells,
                 }
             )
         rows.append({"item": item, "cells": cells})
@@ -495,6 +526,31 @@ def _changed_bulk_counts(
 ) -> dict[tuple[int, int], int]:
     originals = parse_quantity_grid(form, prefix="count_original_", skip_blank=True)
     return {key: value for key, value in submitted_counts.items() if originals.get(key) != value}
+
+
+def _quantity_values(form, prefix: str) -> dict[tuple[int, int], str]:
+    values = {}
+    for key, value in form.items():
+        if not key.startswith(prefix) or value == "":
+            continue
+        try:
+            item_id, storage_id = key.removeprefix(prefix).split("_", maxsplit=1)
+            values[(int(item_id), int(storage_id))] = value
+        except ValueError:
+            continue
+    return values
+
+
+def _invalid_quantity_cells(values: dict[tuple[int, int], str]) -> set[tuple[int, int]]:
+    invalid = set()
+    for key, value in values.items():
+        if not value.isdigit():
+            invalid.add(key)
+    return invalid
+
+
+def _non_negative_quantities(values: dict[tuple[int, int], str]) -> dict[tuple[int, int], int]:
+    return {key: int(value) for key, value in values.items()}
 
 
 def _missing_required_count_cells(

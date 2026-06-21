@@ -56,7 +56,9 @@
                             <small>Count needed</small>
                             {% endif %}
                         </td>
-                        <td>
+                        <td
+                            class="{% if cell.restock_invalid %}invalid-cell{% endif %}"
+                            data-restock-cell>
                             <input
                                 class="table-input"
                                 type="number"
