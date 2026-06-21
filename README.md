@@ -44,8 +44,16 @@ Notes:
 
 ## Production Web Command
 
+Railway web service pre-deploy command:
+
 ```txt
-alembic upgrade head && gunicorn --log-config gunicorn_logging.conf run:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
+alembic upgrade head
+```
+
+Railway web service start command:
+
+```txt
+gunicorn --log-config gunicorn_logging.conf run:app --bind 0.0.0.0:$PORT --workers 1 --threads 4 --timeout 120
 ```
 
 ## Tasks vs Scripts
