@@ -46,18 +46,24 @@ document.addEventListener("DOMContentLoaded", () => {
         return true;
     }
 
+    function showWhenEventCompletes(event) {
+        window.setTimeout(() => {
+            if (!event.defaultPrevented) show();
+        }, 0);
+    }
+
     document.addEventListener("click", (event) => {
         if (!(event.target instanceof Element)) return;
         const link = event.target.closest("a[href]");
         if (!link || !shouldHandleLink(link, event)) return;
-        show();
+        showWhenEventCompletes(event);
     }, true);
 
     document.addEventListener("submit", (event) => {
         const form = event.target;
         if (!(form instanceof HTMLFormElement)) return;
         if (event.defaultPrevented) return;
-        show();
+        showWhenEventCompletes(event);
     }, true);
 
     window.addEventListener("pageshow", hide);
