@@ -1,5 +1,7 @@
 """Request logging helpers for missing routes and noisy probes."""
 
+from pathlib import PurePosixPath
+
 from loguru import logger
 
 SAFE_MISSING_ROUTE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
@@ -14,14 +16,17 @@ LOW_SIGNAL_MISSING_ROUTE_PATHS = frozenset(
         "/robots.txt",
         "/ads.txt",
         "/apple-touch-icon.png",
+        "/feed/",
     }
 )
 LOW_SIGNAL_MISSING_ROUTE_PREFIXES = (
     "/wp-",
+    "/wp/",
     "/wordpress/",
     "/phpmyadmin/",
     "/phpMyAdmin/",
 )
+LOW_SIGNAL_MISSING_ROUTE_SUFFIXES = ("/wp-includes/wlwmanifest.xml",)
 SUSPICIOUS_MISSING_ROUTE_PATHS = frozenset(
     {
         "/.git/config",
@@ -69,7 +74,17 @@ def _normalize_path(path: str) -> str:
 
 
 def _is_low_signal_missing_route(path: str) -> bool:
-    return path in LOW_SIGNAL_MISSING_ROUTE_PATHS or path.startswith(LOW_SIGNAL_MISSING_ROUTE_PREFIXES)
+    return (
+        path in LOW_SIGNAL_MISSING_ROUTE_PATHS
+        or path.startswith(LOW_SIGNAL_MISSING_ROUTE_PREFIXES)
+        or path.endswith(LOW_SIGNAL_MISSING_ROUTE_SUFFIXES)
+        or _is_root_php_probe(path)
+    )
+
+
+def _is_root_php_probe(path: str) -> bool:
+    parsed_path = PurePosixPath(path)
+    return len(parsed_path.parts) == 2 and parsed_path.suffix.lower() == ".php"
 
 
 def _is_suspicious_missing_route(path: str) -> bool:
