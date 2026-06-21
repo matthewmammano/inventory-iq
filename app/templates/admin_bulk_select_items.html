@@ -25,7 +25,7 @@
             data-search="{{ item.name|lower }} {{ item.upc|default('', true)|lower }}{%- for tag in item.tags -%} {{ tag.tag_name|lower }}{%- endfor -%}">
             <label>
                 <input type="checkbox" name="item_ids" value="{{ item.id }}">
-                <span>{{ item.name }}</span>
+                <span>{{ item.name|bold_item_name }}</span>
             </label>
         </li>
         {% endfor %}

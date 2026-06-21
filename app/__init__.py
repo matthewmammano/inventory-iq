@@ -21,6 +21,7 @@ from app.shared import models as _shared_models  # noqa: F401 - register ORM mod
 from app.shared.config import settings
 from app.shared.database import init_db
 from app.shared.email_client import log_email_config_status
+from app.shared.html_formatting import bold_item_name
 from app.shared.logging import setup_logging
 
 login_manager = LoginManager()
@@ -88,6 +89,8 @@ def _register_blueprints(app: Flask) -> None:
 
 
 def _register_template_filters(app: Flask) -> None:
+    app.add_template_filter(bold_item_name, "bold_item_name")
+
     @app.template_filter("image_src")
     def image_src(image_path: str | None) -> str:
         if not image_path:

@@ -48,7 +48,7 @@ class ScanItemRequest(BaseModel):
     item_id: int = Field(..., gt=0)
     from_location_id: int | None = None
     to_location_id: int | None = None
-    counter_value: int = Field(..., gt=0)
+    counter_value: int = Field(..., ge=0)
 
     @field_validator("from_location_id", "to_location_id", mode="before")
     @classmethod

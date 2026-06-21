@@ -44,7 +44,7 @@
                 <tbody>
                     {% for row in restock_data %}
                     <tr>
-                        <td data-sort-value="{{ row['item'].name }}">{{ row['item'].name }}</td>
+                        <td data-sort-value="{{ row['item'].name }}">{{ row['item'].name|bold_item_name }}</td>
                         <td data-sort-value="{{ row['item'].increments }}">{{ row['item'].increments }}</td>
                         <td class="{{ row.get('current_total_class', '') }}" data-sort-value="{{ row['current_total'] }}">{{ row['current_total'] }}</td>
                         <td class="{{ row.get('projected_total_class', '') }}" data-sort-value="{{ row['projected_lead_time_total'] }}">{{ row['projected_lead_time_total'] }}</td>

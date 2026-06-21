@@ -6,11 +6,13 @@ from typing import Any
 from flask import redirect, url_for
 from flask_login import current_user
 from loguru import logger
+from markupsafe import Markup
 from sqlalchemy.orm import Session
 
 from app.auth.device_locations import get_device_location_id
 from app.auth.models import AgencyStorages
 from app.auth.queries import get_agency_permissions, get_storage, list_locations
+from app.shared.html_formatting import bold_item_name
 from app.shared.validators import parse_optional_int
 
 from .constants import (
@@ -154,6 +156,14 @@ def format_scan_route_label(from_location, to_location, *, is_admin: bool) -> st
     return f"{from_label} -> {to_label}"
 
 
+def minimum_scan_quantity(operation_type: OperationType) -> int:
+    return 0 if operation_type == OperationType.COUNT else 1
+
+
+def storage_selection_subtitle(item_name: str) -> Markup:
+    return Markup("Choose FROM and TO for {item_name}").format(item_name=bold_item_name(item_name))
+
+
 def format_scan_location_label(location, *, is_admin: bool, takeout_allowed: bool = False) -> str:
     if location == VIRTUAL_LOCATION_RESTOCK:
         return "RESTOCK"
@@ -176,7 +186,7 @@ def scan_success_message(
     is_admin: bool = False,
     from_storage: AgencyStorages | None = None,
     to_storage: AgencyStorages | None = None,
-) -> str:
+) -> Markup:
     if from_storage is None and from_storage_id:
         from_storage = get_storage(from_storage_id, current_user.id)
     if to_storage is None and to_storage_id:
@@ -186,14 +196,31 @@ def scan_success_message(
 
     match operation_type:
         case OperationType.COUNT:
-            return f"Set {item_name} quantity to {quantity} at {to_name}."
+            return Markup("Set {item_name} quantity to {quantity} at {to_name}.").format(
+                item_name=bold_item_name(item_name),
+                quantity=quantity,
+                to_name=to_name,
+            )
         case OperationType.RESTOCK:
-            return f"Restocked {quantity} {item_name} to {to_name}."
+            return Markup("Restocked {quantity} {item_name} to {to_name}.").format(
+                quantity=quantity,
+                item_name=bold_item_name(item_name),
+                to_name=to_name,
+            )
         case OperationType.TAKEOUT:
-            return f"Removed {quantity} {item_name} from {from_name}."
+            return Markup("Removed {quantity} {item_name} from {from_name}.").format(
+                quantity=quantity,
+                item_name=bold_item_name(item_name),
+                from_name=from_name,
+            )
         case OperationType.TRANSFER:
-            return f"Transferred {quantity} {item_name} from {from_name} to {to_name}."
-    return f"Operation completed for {item_name}."
+            return Markup("Transferred {quantity} {item_name} from {from_name} to {to_name}.").format(
+                quantity=quantity,
+                item_name=bold_item_name(item_name),
+                from_name=from_name,
+                to_name=to_name,
+            )
+    return Markup("Operation completed for {item_name}.").format(item_name=bold_item_name(item_name))
 
 
 def _scan_storage_name(storage: AgencyStorages | None, is_admin: bool) -> str | None:

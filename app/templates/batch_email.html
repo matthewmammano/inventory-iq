@@ -95,6 +95,9 @@
     td {
       font-size: 13px;
     }
+    .item-name {
+      font-weight: 700;
+    }
   </style>
 </head>
 <body>
@@ -129,7 +132,8 @@
             {% for row in section.rows %}
               <tr>
                 {% for column in section.columns %}
-                  <td>{{ row.get(column.key, "") }}</td>
+                  {% set value = row.get(column.key, "") %}
+                  <td>{{ value|bold_item_name if column.key in ("item", "item_name") else value }}</td>
                 {% endfor %}
               </tr>
             {% endfor %}

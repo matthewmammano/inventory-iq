@@ -35,7 +35,7 @@
         </div>
         <div>
             <div class="unit">{{ item.increments }}</div>
-            <div class="name">{{ item.name }}</div>
+            <div class="name">{{ item.name|bold_item_name }}</div>
         </div>
     </div>
 
@@ -70,7 +70,7 @@
 
 <form id="hidden-form" method="POST" class="hidden">
     <input type="hidden" name="item_id" id="item_id" value="{{ item.id }}">
-    <input type="hidden" name="counter_value" id="counter_value" value="1">
+    <input type="hidden" name="counter_value" id="counter_value" value="1" data-min-value="{{ minimum_scan_quantity }}">
     <input type="hidden" name="from_location_id" id="from_location_id" value="{{ from_location if from_location in [-1, -2] else from_location.id }}">
     <input type="hidden" name="to_location_id" id="to_location_id" value="{{ "-1" if to_location == -1 else to_location.id }}">
 </form>

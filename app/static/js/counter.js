@@ -2,6 +2,7 @@ const counterValue = document.querySelector('.counter-value');
 const counterInput = document.getElementById('counter_value');
 const submitBtn = document.querySelector('.submit-btn');
 const hiddenForm = document.getElementById('hidden-form');
+const minValue = parseInt(counterInput?.dataset.minValue || '0');
 
 // Handle all buttons with data-value (works for both guest and admin)
 document.querySelectorAll('[data-value]').forEach(btn => {
@@ -15,8 +16,7 @@ document.querySelectorAll('[data-value]').forEach(btn => {
         let currentValue = parseInt(counterValue.textContent);
         let newValue = currentValue + changeValue;
 
-        // Don't allow negative values
-        if (newValue < 0) newValue = 0;
+        if (newValue < minValue) newValue = minValue;
 
         counterValue.textContent = newValue;
         counterInput.value = newValue;

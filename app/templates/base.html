@@ -42,13 +42,15 @@
     {% with messages = get_flashed_messages(with_categories=true) %}
         {% set flash_category = messages[0][0] if messages else "" %}
         {% set flash_message = messages[0][1] if messages else "" %}
+        {% set flash_is_html = flash_message is escaped %}
         {% if flash_category == flash_message %}{% set flash_category = "info" %}{% endif %}
     <div
         id="flash-container"
         class="flash-container"
         aria-live="polite"
         data-category="{{ flash_category }}"
-        data-message="{{ flash_message }}">
+        data-message="{{ flash_message|forceescape }}"
+        data-html="{{ '1' if flash_is_html else '0' }}">
         <div id="flash-icon" class="flash-icon">i</div>
         <div id="flash-message" class="flash-message"></div>
         <div class="timer-container">

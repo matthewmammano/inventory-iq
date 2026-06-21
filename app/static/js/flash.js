@@ -4,7 +4,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const category = container.dataset.category || "info";
     const iconMap = { success: "OK", warning: "!", error: "X", info: "i" };
-    document.querySelector("#flash-message").textContent = container.dataset.message;
+    const message = document.querySelector("#flash-message");
+    if (container.dataset.html === "1") message.innerHTML = container.dataset.message;
+    else message.textContent = container.dataset.message;
     document.querySelector("#flash-icon").textContent = iconMap[category] || "i";
     container.classList.add("show", `flash-${category}`);
 

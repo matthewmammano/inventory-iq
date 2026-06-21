@@ -28,7 +28,7 @@
                         <td>{{ item.guest_quick_adjust }}</td>
                         <td><div class="tag-row">{% for tag in item.tags %}<span class="tag" style="background-color: {{ tag.color }}; color: {{ tag.text_color }}; border-color: {{ tag.text_color }};">{{ tag.tag_name }}</span>{% endfor %}</div></td>
                         <td>{{ item.increments }}</td>
-                        <td>{{ item.name }}</td>
+                        <td>{{ item.name|bold_item_name }}</td>
                         <td>
                             <img class="table-thumbnail"
                                  src="{{ item.image|image_src }}"

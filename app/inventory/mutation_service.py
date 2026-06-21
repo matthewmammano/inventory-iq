@@ -57,8 +57,8 @@ def _validate_operation(
 ) -> Items:
     if not isinstance(quantity, int) or quantity < 0:
         raise InventoryError("Quantity must be a non-negative number")
-    if operation_type in (OperationType.TRANSFER, OperationType.TAKEOUT) and quantity == 0:
-        raise InventoryError("Cannot transfer or remove zero items")
+    if operation_type != OperationType.COUNT and quantity == 0:
+        raise InventoryError("Quantity must be at least 1 for non-count scans")
 
     item = _validate_item(session, agency_id, item_id)
     storages_by_id = _storage_rows(session, agency_id, from_location, to_location)

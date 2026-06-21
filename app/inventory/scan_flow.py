@@ -23,6 +23,7 @@ from .scan_support import (
     format_scan_route_label,
     get_scan_permissions,
     load_scan_storage_choices,
+    minimum_scan_quantity,
     operation_from_storage_ids,
     redirect_to_scan_item,
     resolve_scan_location,
@@ -30,6 +31,7 @@ from .scan_support import (
     scan_success_message,
     single_scan_from_id,
     single_scan_to_id,
+    storage_selection_subtitle,
     validate_scan_route,
 )
 from .schema import ScanItemRequest, ScanStoragesRequest
@@ -150,7 +152,7 @@ def handle_scan_storages_get(
         auto_from_id=auto_from_id,
         auto_to_id=single_scan_to_id(to_storages, auto_from_id),
         logo_img=current_user.image,
-        page_subtitle=f"Choose FROM and TO for {item.name}",
+        page_subtitle=storage_selection_subtitle(item.name),
         admin=is_admin,
     )
 
@@ -311,6 +313,7 @@ def handle_scan_item_get(
         flash("Invalid item or storage for this squad.", "warning")
         return redirect(url_for(fallback, squad=squad))
 
+    operation_type, _, _ = operation_from_storage_ids(from_storage_id, to_storage_id)
     return render_template(
         "scan_item.html",
         squad=squad,
@@ -322,6 +325,7 @@ def handle_scan_item_get(
         logo_img=current_user.image,
         admin=is_admin,
         page_subtitle=format_scan_route_label(from_location, to_location, is_admin=is_admin),
+        minimum_scan_quantity=minimum_scan_quantity(operation_type),
         show_scan_route=show_scan_route and not is_admin,
         selected_from_location_label=format_scan_location_label(from_location, is_admin=is_admin),
         selected_to_location_label=format_scan_location_label(to_location, is_admin=is_admin, takeout_allowed=True),

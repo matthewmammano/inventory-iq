@@ -19,7 +19,7 @@
                 {% for log in action_logs %}
                 <tr>
                     <td>{{ log.get_time_scanned_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if log.time_scanned else 'Unknown' }}</td>
-                    <td>{{ log.item.name if log.item else 'None' }}</td>
+                    <td>{{ log.item.name|bold_item_name if log.item else 'None' }}</td>
                     <td>{{ log.operation_type.value }}</td>
                     <td>{{ log.quantity_delta }}</td>
                     <td>{{ log.from_location.history_name if log.from_location else log.operation_type.value }}</td>

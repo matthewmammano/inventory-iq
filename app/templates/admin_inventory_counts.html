@@ -36,7 +36,7 @@
                 <tbody>
                     {% for row in inventory_data %}
                     <tr>
-                        <td data-sort-value="{{ row.item.name }}">{{ row.item.name }}</td>
+                        <td data-sort-value="{{ row.item.name }}">{{ row.item.name|bold_item_name }}</td>
                         {% for storage in storages %}
                         <td class="{{ row.storage_classes[storage.id] }}" data-sort-value="{{ row.storage_counts[storage.id] }}">{{ row.storage_counts[storage.id] }}</td>
                         {% endfor %}

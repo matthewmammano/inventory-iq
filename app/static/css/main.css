@@ -224,6 +224,7 @@ p,
 }
 
 .muted { color: var(--color-muted); }
+.item-name { font-weight: 800; }
 .text-link { color: #5d3f00; font-weight: 700; text-decoration: underline; }
 .danger-text { color: #8b1e1e; }
 td.danger-text {

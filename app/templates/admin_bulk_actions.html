@@ -33,7 +33,7 @@
                 <tbody>
                     {% for row in rows %}
                     <tr>
-                        <th scope="row">{{ row.item.name }}</th>
+                        <th scope="row">{{ row.item.name|bold_item_name }}</th>
                         {% for cell in row.cells %}
                         <td
                             class="{% if cell.count_required %}required-cell{% endif %}{% if cell.invalid %} invalid-cell{% endif %}"
