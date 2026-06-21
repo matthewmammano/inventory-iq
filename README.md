@@ -55,9 +55,9 @@ alembic upgrade head && gunicorn --log-config gunicorn_logging.conf run:app --bi
 
 ## Railway Cron Split
 
-- `4:15am` local: `python -m tasks.reconcile_inventory_balances`
-- `6:00am` local: `python -m tasks.generate_inventory_alerts`
-- `11:45am` local: `python -m tasks.retrain_models`
+- `4:10am` local: `python -m tasks.reconcile_inventory_balances`
+- `7:50am` local: `python -m tasks.generate_inventory_alerts`
+- `11:40am` local: `python -m tasks.retrain_models`
 - hourly: `python -m tasks.process_email_alerts`
 
 ## Data Safety
