@@ -44,7 +44,6 @@ class Settings(BaseSettings):
 
     contact_phone: str = ""
     port: int = 5000
-    railway_environment_id: str = ""
 
     @model_validator(mode="before")
     @classmethod
@@ -52,7 +51,7 @@ class Settings(BaseSettings):
         if not isinstance(values, dict):
             return values
 
-        env = str(values.get("APP_ENV") or "dev").strip().lower()
+        env = str(values.get("app_env") or values.get("APP_ENV") or "dev").strip().lower()
         values["app_env"] = {"production": "prod", "development": "dev"}.get(env, env)
         if isinstance(values.get("debug"), str):
             values["debug"] = values["debug"].strip().lower() in {"1", "true", "yes", "on"}
@@ -86,10 +85,6 @@ class Settings(BaseSettings):
     @property
     def is_prod(self) -> bool:
         return self.app_env == "prod"
-
-    @property
-    def use_json_logs(self) -> bool:
-        return self.is_prod or bool(self.railway_environment_id)
 
 
 settings = Settings()  # type: ignore[call-arg]  # pyright: ignore[reportCallIssue]

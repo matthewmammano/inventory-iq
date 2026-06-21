@@ -39,7 +39,7 @@ def create_app() -> Flask:
     _register_health_check(app)
 
     db_type = _database_type()
-    logger.info(
+    logger.debug(
         "Flask app startup completed",
         extra={"database": db_type, "debug": settings.debug, "app_env": settings.app_env},
     )
@@ -48,7 +48,7 @@ def create_app() -> Flask:
 
 
 def _setup_process_logging() -> None:
-    setup_logging(debug=settings.debug, json_logs=settings.use_json_logs)
+    setup_logging(debug=settings.debug, json_logs=settings.is_prod)
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 
