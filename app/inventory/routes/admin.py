@@ -7,6 +7,7 @@ from flask_login import current_user
 from loguru import logger
 from pydantic import ValidationError
 from sqlalchemy import or_, select
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.auth.device_locations import (
     current_device_token,
@@ -19,6 +20,8 @@ from app.auth.queries import list_tags, list_top_locations
 from app.inventory import admin_bp as bp
 from app.inventory.bulk_location_service import (
     LocationQuantityGrid,
+    load_location_item_selection,
+    load_location_item_summary,
     load_location_quantity_grid,
     required_count_storage_ids,
     save_bulk_location_count,
@@ -43,11 +46,11 @@ from app.inventory.scan_support import (
     ScanPermissions,
     format_scan_route_label,
     is_scan_route_allowed,
+    load_scan_storage_choices,
     resolve_scan_location,
-    storages_for_scan,
 )
 from app.inventory.schema import AdminScanRouteRequest
-from app.inventory.search_payload import build_item_search_payload
+from app.inventory.search_payload import load_item_search_payload
 from app.inventory.ui import (
     get_days_until_low_class,
     get_inventory_level_class,
@@ -64,6 +67,8 @@ from app.shared.utils import (
     validate_admin_session,
     validate_squad_access,
 )
+
+HISTORY_PAGE_SIZE = 250
 
 # ---------------------------------------------------------------------------
 # Authorization guard
@@ -123,7 +128,16 @@ def admin_panel(squad: str) -> Any:
 def admin_panel_views(squad: str) -> Any:
     with get_session() as s:
         items = list_items(current_user.id, include_inactive=True, session=s)
-        locations = list_top_locations(current_user.id, session=s)
+        locations = list(
+            s.execute(
+                select(AgencyLocations)
+                .options(selectinload(AgencyLocations.storages))
+                .where(AgencyLocations.agency_id == current_user.id)
+                .order_by(AgencyLocations.name)
+            )
+            .scalars()
+            .all()
+        )
         tags = list_tags(current_user.id, s)
     return render_template(
         "admin_panel_views.html",
@@ -150,20 +164,18 @@ def inventory_counts(squad: str, agency_location_id: int | None = None) -> Any:
         agency_emails = list(
             s.execute(select(AgencyEmails).where(AgencyEmails.agency_id == current_user.id).order_by(AgencyEmails.email)).scalars().all()
         )
-        location_tabs = [
-            {
-                "location": location,
-                **_inventory_count_tab(s, current_user.id, location.id),
-            }
-            for location in locations
-        ]
+        active_location = _active_location(locations, agency_location_id)
+        active_tab = _inventory_count_tab(s, current_user.id, active_location.id) if active_location else {"inventory_data": [], "storages": []}
 
     return render_template(
         "admin_inventory_counts.html",
         squad=squad,
-        location_tabs=location_tabs,
+        locations=locations,
+        active_location=active_location,
+        inventory_data=active_tab["inventory_data"],
+        storages=active_tab["storages"],
         agency_emails=agency_emails,
-        active_location_id=agency_location_id,
+        active_location_id=active_location.id if active_location else None,
         admin=True,
     )
 
@@ -219,13 +231,9 @@ def _inventory_count_tab(session, agency_id: int, agency_location_id: int) -> di
 def restock(squad: str, agency_location_id: int | None = None) -> Any:
     try:
         with get_session() as s:
-            location_tabs = [
-                {
-                    "location": location,
-                    "restock_data": _restock_rows(s, current_user.id, location.id),
-                }
-                for location in list_top_locations(current_user.id, s)
-            ]
+            locations = list_top_locations(current_user.id, s)
+            active_location = _active_location(locations, agency_location_id)
+            restock_data = _restock_rows(s, current_user.id, active_location.id) if active_location else []
     except Exception:
         logger.exception(
             "Restock analysis page failed to load",
@@ -236,13 +244,17 @@ def restock(squad: str, agency_location_id: int | None = None) -> Any:
             },
         )
         flash("Error loading restock analysis.", "error")
-        location_tabs = []
+        locations = []
+        active_location = None
+        restock_data = []
 
     return render_template(
         "admin_restock.html",
         squad=squad,
-        location_tabs=location_tabs,
-        active_location_id=agency_location_id,
+        locations=locations,
+        active_location=active_location,
+        restock_data=restock_data,
+        active_location_id=active_location.id if active_location else None,
         admin=True,
     )
 
@@ -293,16 +305,16 @@ def bulk_actions(squad: str, agency_location_id: int | None = None) -> Any:
         )
 
     with get_session() as s:
-        grid = load_location_quantity_grid(s, current_user.id, agency_location_id)
-    if grid is None:
+        summary = load_location_item_summary(s, current_user.id, agency_location_id)
+    if summary is None:
         _log_bulk_location_missing(squad, agency_location_id)
         flash("Location not found.", "error")
         return redirect(url_for("admin.bulk_actions", squad=squad))
     return render_template(
         "admin_bulk_mode.html",
         squad=squad,
-        location=grid.location,
-        item_count=len(grid.items),
+        location=summary.location,
+        item_count=summary.item_count,
         admin=True,
     )
 
@@ -313,14 +325,14 @@ def bulk_actions(squad: str, agency_location_id: int | None = None) -> Any:
 )
 def bulk_select_items(squad: str, agency_location_id: int) -> Any:
     with get_session() as s:
-        grid = load_location_quantity_grid(s, current_user.id, agency_location_id)
-    if grid is None:
+        selection = load_location_item_selection(s, current_user.id, agency_location_id)
+    if selection is None:
         _log_bulk_location_missing(squad, agency_location_id)
         flash("Location not found.", "error")
         return redirect(url_for("admin.bulk_actions", squad=squad))
 
     if request.method == "POST":
-        item_ids = _selected_bulk_item_ids(request.form.getlist("item_ids"), grid.items)
+        item_ids = _selected_bulk_item_ids(request.form.getlist("item_ids"), selection.items)
         if not item_ids:
             logger.warning(
                 "Bulk item selection rejected: no items were selected",
@@ -343,8 +355,8 @@ def bulk_select_items(squad: str, agency_location_id: int) -> Any:
     return render_template(
         "admin_bulk_select_items.html",
         squad=squad,
-        location=grid.location,
-        items=grid.items,
+        location=selection.location,
+        items=selection.items,
         admin=True,
     )
 
@@ -573,29 +585,39 @@ def _log_bulk_location_missing(squad: str, agency_location_id: int) -> None:
 @bp.route("/<squad>/admin-panel/history")
 @bp.route("/<squad>/admin-panel/history/<int:agency_location_id>")
 def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
+    page = max(parse_optional_int(request.args.get("page")) or 1, 1)
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
-        location_tabs: list[dict[str, Any]] = [{"location": None, "action_logs": _history_logs(s, None)}]
-        location_tabs.extend(
-            {
-                "location": location,
-                "action_logs": _history_logs(s, location.id),
-            }
-            for location in locations
-        )
+        action_logs, has_next_page = _history_logs(s, agency_location_id, page, HISTORY_PAGE_SIZE)
     return render_template(
         "admin_history.html",
         squad=squad,
-        location_tabs=location_tabs,
+        locations=locations,
+        action_logs=action_logs,
         active_location_id=agency_location_id,
+        page=page,
+        has_next_page=has_next_page,
         admin=True,
         user_timezone=current_user.timezone,
         timezone_hint=get_timezone_hint(current_user.timezone),
     )
 
 
-def _history_logs(session, agency_location_id: int | None) -> list[ActionLogs]:
-    stmt = select(ActionLogs).where(ActionLogs.agency_id == current_user.id)
+def _history_logs(
+    session,
+    agency_location_id: int | None,
+    page: int,
+    page_size: int,
+) -> tuple[list[ActionLogs], bool]:
+    stmt = (
+        select(ActionLogs)
+        .options(
+            joinedload(ActionLogs.item),
+            joinedload(ActionLogs.from_location),
+            joinedload(ActionLogs.to_location),
+        )
+        .where(ActionLogs.agency_id == current_user.id)
+    )
     if agency_location_id is not None:
         storage_ids = [storage.id for storage in get_location_storages(session, current_user.id, agency_location_id)]
         stmt = stmt.where(
@@ -606,7 +628,16 @@ def _history_logs(session, agency_location_id: int | None) -> list[ActionLogs]:
             if storage_ids
             else ActionLogs.id == -1
         )
-    return list(session.execute(stmt.order_by(ActionLogs.id.desc())).scalars().all())
+    rows = list(session.execute(stmt.order_by(ActionLogs.id.desc()).offset((page - 1) * page_size).limit(page_size + 1)).scalars().all())
+    return rows[:page_size], len(rows) > page_size
+
+
+def _active_location(locations: list[AgencyLocations], agency_location_id: int | None) -> AgencyLocations | None:
+    if not locations:
+        return None
+    if agency_location_id is None:
+        return locations[0]
+    return next((location for location in locations if location.id == agency_location_id), locations[0])
 
 
 @bp.route("/<squad>/settings", methods=["GET", "POST"])
@@ -703,10 +734,15 @@ def admin_scan_items(squad: str) -> Any:
         )
         flash("Item not found. Please try again.", "error")
     with get_session() as s:
-        items = list_items(current_user.id, include_inactive=True, order_by_last_accessed=True, session=s)
+        items_payload = load_item_search_payload(
+            s,
+            current_user.id,
+            include_inactive=True,
+            order_by_last_accessed=True,
+        )
     return render_template(
         "index.html",
-        items_payload=build_item_search_payload(items),
+        items_payload=items_payload,
         squad=squad,
         logo_img=current_user.image,
         admin=True,
@@ -768,8 +804,9 @@ def scan_item(squad: str) -> Any:
 
 def _render_admin_scan_setup(squad: str) -> Any:
     with get_session() as s:
-        from_locations = storages_for_scan(current_user.id, "from", True, s)
-        to_locations = storages_for_scan(current_user.id, "to", True, s)
+        storage_choices = load_scan_storage_choices(current_user.id, True, s)
+        from_locations = storage_choices.from_storages
+        to_locations = storage_choices.to_storages
 
     if not from_locations:
         logger.error(

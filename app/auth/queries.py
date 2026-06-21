@@ -1,7 +1,7 @@
 """Auth domain queries — agencies, locations, and tags."""
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.shared.database import managed_session
 
@@ -55,7 +55,7 @@ def list_locations(
 ) -> list[AgencyStorages]:
     """Return storages for an agency, optionally filtered by scan-access flags."""
     with managed_session(session) as s:
-        stmt = select(AgencyStorages).where(AgencyStorages.agency_id == agency_id)
+        stmt = select(AgencyStorages).options(selectinload(AgencyStorages.location)).where(AgencyStorages.agency_id == agency_id)
         if agency_location_id is not None:
             stmt = stmt.where(AgencyStorages.location_id == agency_location_id)
         if user_access_from is not None:
@@ -71,7 +71,9 @@ def get_storage(storage_id: int, agency_id: int, session: Session | None = None)
     with managed_session(session) as s:
         return (
             s.execute(
-                select(AgencyStorages).where(
+                select(AgencyStorages)
+                .options(selectinload(AgencyStorages.location))
+                .where(
                     AgencyStorages.id == storage_id,
                     AgencyStorages.agency_id == agency_id,
                 )

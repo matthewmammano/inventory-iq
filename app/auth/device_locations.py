@@ -36,7 +36,7 @@ def get_device_location_id(agency_id: int, session: Session | None = None) -> in
         return None
     with managed_session(session) as s:
         device = _get_device(s, agency_id, token)
-        if not device or not device.active or not device.location:
+        if not device or not device.active or device.agency_location_id is None:
             return None
         return device.agency_location_id
 

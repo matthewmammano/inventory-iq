@@ -8,16 +8,18 @@
 {% block content %}
 <div class="tabbed-panel">
     <section class="tab-strip">
-        {% for tab in location_tabs %}
-        <a class="tab-button{% if (active_location_id and tab.location.id == active_location_id) or (not active_location_id and loop.first) %} active{% endif %}" href="#location-{{ tab.location.id }}" data-tab="location-{{ tab.location.id }}">{{ tab.location.name }}</a>
+        {% for location in locations %}
+        <a class="tab-button{% if active_location and location.id == active_location.id %} active{% endif %}" href="{{ url_for('admin.restock', squad=squad, agency_location_id=location.id) }}">{{ location.name }}</a>
         {% endfor %}
     </section>
-    {% for tab in location_tabs %}
-    <section class="panel tab-panel{% if not ((active_location_id and tab.location.id == active_location_id) or (not active_location_id and loop.first)) %} hidden{% endif %}" id="location-{{ tab.location.id }}">
-        {% if tab.restock_data|length == 0 %}
+
+    {% if restock_data|length == 0 %}
+    <section class="panel">
         <div class="empty-state"><h2>No items found</h2></div>
-        {% else %}
-        {% set estimate_tip = "Forecast based on recent usage. Verify before ordering." %}
+    </section>
+    {% else %}
+    {% set estimate_tip = "Forecast based on recent usage. Verify before ordering." %}
+    <section class="panel">
         <div class="table-wrap">
             <table>
                 <thead>
@@ -40,7 +42,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for row in tab.restock_data %}
+                    {% for row in restock_data %}
                     <tr>
                         <td>{{ row['item'].name }}</td>
                         <td>{{ row['item'].increments }}</td>
@@ -62,10 +64,7 @@
                 </tbody>
             </table>
         </div>
-        {% endif %}
     </section>
-    {% endfor %}
+    {% endif %}
 </div>
 {% endblock %}
-
-{% block extra_js %}<script src="{{ url_for('static', filename='js/tabs.js') }}" defer></script>{% endblock %}

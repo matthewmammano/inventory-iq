@@ -1,6 +1,7 @@
 """Support helpers for inventory scan flows."""
 
 from dataclasses import dataclass
+from typing import Any
 
 from flask import redirect, url_for
 from flask_login import current_user
@@ -26,6 +27,13 @@ class ScanPermissions:
     restock: bool
 
 
+@dataclass
+class ScanStorageChoices:
+    from_storages: list[AgencyStorages]
+    to_storages: list[AgencyStorages]
+    default_location_id: int | None
+
+
 def get_scan_permissions(squad: str, *, is_admin: bool = False) -> ScanPermissions:
     if is_admin:
         return ScanPermissions(count=True, restock=True)
@@ -37,12 +45,23 @@ def get_scan_permissions(squad: str, *, is_admin: bool = False) -> ScanPermissio
         return ScanPermissions(count=False, restock=False)
 
 
-def storages_for_scan(agency_id: int, direction: str, is_admin: bool, session: Session) -> list[AgencyStorages]:
+def load_scan_storage_choices(agency_id: int, is_admin: bool, session: Session) -> ScanStorageChoices:
     if is_admin:
-        return list_locations(agency_id, session=session)
+        storages = list_locations(agency_id, session=session)
+        return ScanStorageChoices(storages, storages, None)
+
     default_location_id = get_device_location_id(agency_id, session)
-    access_filter = {"user_access_from": True} if direction == "from" else {"user_access_to": True}
-    return list_locations(agency_id, agency_location_id=default_location_id, session=session, **access_filter)
+    storages = list_locations(agency_id, agency_location_id=default_location_id, session=session)
+    return ScanStorageChoices(
+        [storage for storage in storages if storage.user_access_from],
+        [storage for storage in storages if storage.user_access_to],
+        default_location_id,
+    )
+
+
+def storages_for_scan(agency_id: int, direction: str, is_admin: bool, session: Session) -> list[AgencyStorages]:
+    choices = load_scan_storage_choices(agency_id, is_admin, session)
+    return choices.from_storages if direction == "from" else choices.to_storages
 
 
 def operation_from_storage_ids(
@@ -62,13 +81,19 @@ def operation_from_storage_ids(
     raise ValueError("Invalid operation parameters")
 
 
-def resolve_scan_location(storage_id, agency_id: int, *, takeout_allowed: bool = False):
+def resolve_scan_location(
+    storage_id: Any,
+    agency_id: int,
+    *,
+    takeout_allowed: bool = False,
+    session: Session | None = None,
+):
     parsed_id = parse_optional_int(storage_id)
     if parsed_id in (VIRTUAL_LOCATION_RESTOCK, VIRTUAL_LOCATION_COUNT):
         return parsed_id
     if takeout_allowed and parsed_id == VIRTUAL_LOCATION_TAKEOUT:
         return VIRTUAL_LOCATION_TAKEOUT
-    return get_storage(parsed_id, agency_id) if parsed_id is not None else None
+    return get_storage(parsed_id, agency_id, session) if parsed_id is not None else None
 
 
 def validate_scan_route(
@@ -88,8 +113,9 @@ def validate_scan_route(
     if from_storage_id == VIRTUAL_LOCATION_COUNT and not permissions.count:
         return "COUNT is not allowed for this scan."
 
-    from_storages = storages_for_scan(agency_id, "from", is_admin, session)
-    to_storages = storages_for_scan(agency_id, "to", is_admin, session)
+    choices = load_scan_storage_choices(agency_id, is_admin, session)
+    from_storages = choices.from_storages
+    to_storages = choices.to_storages
     valid_from_ids = set(_valid_from_ids(from_storages, to_storages, permissions))
     if from_storage_id not in valid_from_ids:
         return "Selected source storage is not available for this scan."
@@ -148,9 +174,13 @@ def scan_success_message(
     to_storage_id: int | None,
     *,
     is_admin: bool = False,
+    from_storage: AgencyStorages | None = None,
+    to_storage: AgencyStorages | None = None,
 ) -> str:
-    from_storage = get_storage(from_storage_id, current_user.id) if from_storage_id else None
-    to_storage = get_storage(to_storage_id, current_user.id) if to_storage_id else None
+    if from_storage is None and from_storage_id:
+        from_storage = get_storage(from_storage_id, current_user.id)
+    if to_storage is None and to_storage_id:
+        to_storage = get_storage(to_storage_id, current_user.id)
     from_name = _scan_storage_name(from_storage, is_admin)
     to_name = _scan_storage_name(to_storage, is_admin)
 

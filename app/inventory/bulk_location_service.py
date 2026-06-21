@@ -1,11 +1,14 @@
 """Bulk count/restock service for one agency location."""
 
 from dataclasses import dataclass
+from datetime import timedelta
 
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.alerts.alert_service import record_action_log_alerts
-from app.auth.models import AgencyLocations, AgencyStorages
+from app.auth.models import Agencies, AgencyLocations, AgencyStorages
+from app.inventory.balance_service import get_required_count_storage_ids
 from app.inventory.location_operations import (
     build_location_count_rows,
     save_location_count,
@@ -13,7 +16,7 @@ from app.inventory.location_operations import (
 )
 from app.inventory.models import Items
 from app.prediction.bulk_service import BulkService
-from app.prediction.validation import get_stale_count_storage_ids
+from app.shared.clock import utc_now_naive
 
 type QuantityGrid = dict[tuple[int, int], int]
 
@@ -28,6 +31,22 @@ class LocationQuantityGrid:
     quantities: QuantityGrid
 
 
+@dataclass(frozen=True)
+class LocationItemSelection:
+    """Template-ready location plus active item list."""
+
+    location: AgencyLocations
+    items: list[Items]
+
+
+@dataclass(frozen=True)
+class LocationItemSummary:
+    """Template-ready location plus active item count."""
+
+    location: AgencyLocations
+    item_count: int
+
+
 def load_location_quantity_grid(
     session: Session,
     agency_id: int,
@@ -39,6 +58,32 @@ def load_location_quantity_grid(
         return None
     items, storages, quantities = build_location_count_rows(session, agency_id, agency_location_id)
     return LocationQuantityGrid(location, items, storages, quantities)
+
+
+def load_location_item_selection(
+    session: Session,
+    agency_id: int,
+    agency_location_id: int,
+) -> LocationItemSelection | None:
+    """Load location and active items without quantity grid work."""
+    location = BulkService.get_location(session, agency_id, agency_location_id)
+    if location is None:
+        return None
+    items = BulkService.get_active_items(session, agency_id)
+    return LocationItemSelection(location, items)
+
+
+def load_location_item_summary(
+    session: Session,
+    agency_id: int,
+    agency_location_id: int,
+) -> LocationItemSummary | None:
+    """Load location and active item count for the bulk-mode landing page."""
+    location = BulkService.get_location(session, agency_id, agency_location_id)
+    if location is None:
+        return None
+    item_count = int(session.scalar(select(func.count()).select_from(Items).where(Items.agency_id == agency_id, Items.active.is_(True))) or 0)
+    return LocationItemSummary(location, item_count)
 
 
 def save_bulk_location_count(
@@ -72,4 +117,9 @@ def required_count_storage_ids(
     items: list[Items],
 ) -> dict[int, set[int]]:
     """Return stale storage IDs per item before restock is allowed."""
-    return {item.id: set(get_stale_count_storage_ids(agency_id, item.id, agency_location_id, session)) for item in items}
+    if not items:
+        return {}
+    agency = session.get(Agencies, agency_id)
+    stale_days = int(agency.count_last_days if agency and agency.count_last_days else 1)
+    cutoff = utc_now_naive() - timedelta(days=stale_days)
+    return get_required_count_storage_ids(session, agency_id, agency_location_id, [item.id for item in items], cutoff)

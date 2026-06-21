@@ -4,10 +4,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.models import AgencyStorages
+from app.inventory.balance_service import build_location_quantity_rows, sync_balances_for_actions
 from app.inventory.constants import OperationType
-from app.inventory.item_queries import list_items
 from app.inventory.models import ActionLogs, Items
-from app.inventory.quantity_service import calculate_item_quantities
 from app.shared.clock import utc_now
 
 
@@ -35,15 +34,7 @@ def build_location_count_rows(
     agency_id: int,
     agency_location_id: int,
 ) -> tuple[list[Items], list[AgencyStorages], dict[tuple[int, int], int]]:
-    items = list_items(agency_id, session=session)
-    storages = get_location_storages(session, agency_id, agency_location_id)
-    storage_ids = {storage.id for storage in storages}
-    counts: dict[tuple[int, int], int] = {}
-    for item in items:
-        quantities = calculate_item_quantities(session, agency_id, item.id)
-        for storage_id in storage_ids:
-            counts[(item.id, storage_id)] = int(quantities.get(storage_id, 0))
-    return items, storages, counts
+    return build_location_quantity_rows(session, agency_id, agency_location_id)
 
 
 def save_location_count(
@@ -72,6 +63,7 @@ def save_location_count(
     ]
     session.add_all(logs)
     session.flush()
+    sync_balances_for_actions(session, logs)
     return logs
 
 
@@ -101,6 +93,7 @@ def save_location_restock(
     ]
     session.add_all(logs)
     session.flush()
+    sync_balances_for_actions(session, logs)
     return logs
 
 

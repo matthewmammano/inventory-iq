@@ -14,6 +14,7 @@ from sqlalchemy.exc import IntegrityError
 from app.alerts.alert_service import generate_scheduled_alerts
 from app.alerts.email_service import process_all_alerts
 from app.auth.models import Agencies
+from app.inventory.balance_service import BalanceReconciliationResult, reconcile_inventory_balances
 from app.shared.clock import current_speed, utc_now
 from app.shared.config import settings
 from app.shared.database import get_session
@@ -22,11 +23,15 @@ from app.shared.models import SchedulerRun
 GLOBAL_SCHEDULER_AGENCY_ID = 0
 EMAIL_JOB_NAME = "process_alert_emails"
 INVENTORY_AUDIT_JOB_NAME = "generate_inventory_alerts"
+BALANCE_RECONCILIATION_JOB_NAME = "reconcile_inventory_balances"
 JOB_STARTED = "started"
 JOB_SUCCESS = "success"
 JOB_FAILED = "failed"
 INVENTORY_AUDIT_LOCAL_HOUR = 7
 INVENTORY_AUDIT_LOCAL_MINUTE = 45
+# Run the balance audit ahead of the 6:00am alert cron and away from the 11:45am job.
+BALANCE_AUDIT_LOCAL_HOUR = 4
+BALANCE_AUDIT_LOCAL_MINUTE = 15
 
 _started = False
 
@@ -62,6 +67,7 @@ def _run_loop(app: Flask) -> None:
 def _run_due_jobs() -> None:
     now = utc_now()
     _run_daily_inventory_job(now)
+    _run_daily_balance_job(now)
     _run_hourly_email_job(now)
 
 
@@ -105,6 +111,44 @@ def _run_daily_inventory_job(now: datetime) -> None:
         logger.info("Scheduled inventory alert audit finished", extra={"rows_checked": total})
 
 
+def _run_daily_balance_job(now: datetime) -> None:
+    ran = False
+    total_mismatches = 0
+    total_repaired_rows = 0
+    for agency_id, timezone in _active_agency_schedules():
+        period_key = _balance_reconciliation_period_key(now, timezone)
+        if period_key is None:
+            continue
+
+        run_id = _claim_scheduler_run(BALANCE_RECONCILIATION_JOB_NAME, period_key, agency_id)
+        if run_id is None:
+            continue
+
+        try:
+            ran = True
+            result = _reconcile_agency_inventory_balances(agency_id)
+            total_mismatches += result.mismatch_count
+            total_repaired_rows += result.repaired_row_count
+            _finish_scheduler_run(run_id, JOB_SUCCESS)
+        except Exception as exc:
+            _finish_scheduler_run(run_id, JOB_FAILED, str(exc))
+            logger.exception(
+                "Scheduled inventory balance audit failed",
+                extra={"agency_id": agency_id, "period_key": period_key},
+            )
+    if not ran:
+        return
+    logger.info(
+        "Scheduled inventory balance audit finished",
+        extra={
+            "job_name": BALANCE_RECONCILIATION_JOB_NAME,
+            "schedule_local_time": f"{BALANCE_AUDIT_LOCAL_HOUR:02d}:{BALANCE_AUDIT_LOCAL_MINUTE:02d}",
+            "mismatch_count": total_mismatches,
+            "repaired_row_count": total_repaired_rows,
+        },
+    )
+
+
 def _active_agency_schedules() -> list[tuple[int, str]]:
     with get_session() as session:
         rows = session.execute(select(Agencies.id, Agencies.timezone).where(Agencies.active.is_(True))).all()
@@ -121,11 +165,58 @@ def _inventory_audit_period_key(now: datetime, timezone: str) -> str | None:
     return local_now.strftime("%Y-%m-%d")
 
 
+def _balance_reconciliation_period_key(now: datetime, timezone: str) -> str | None:
+    local_now = now.astimezone(ZoneInfo(timezone))
+    if (local_now.hour, local_now.minute) < (
+        BALANCE_AUDIT_LOCAL_HOUR,
+        BALANCE_AUDIT_LOCAL_MINUTE,
+    ):
+        return None
+    return local_now.strftime("%Y-%m-%d")
+
+
 def _generate_agency_inventory_alerts(agency_id: int) -> int:
     with get_session() as session:
         count = generate_scheduled_alerts(session, agency_id)
         session.commit()
         return count
+
+
+def run_inventory_balance_audit(
+    agency_id: int | None = None,
+    *,
+    repair: bool = True,
+) -> dict[str, int | str]:
+    """Run the balance audit immediately for one agency or all active agencies."""
+    agency_ids = [agency_id] if agency_id is not None else [agency_id for agency_id, _ in _active_agency_schedules()]
+    agencies_checked = 0
+    mismatch_count = 0
+    repaired_row_count = 0
+    for current_agency_id in agency_ids:
+        result = _reconcile_agency_inventory_balances(current_agency_id, repair=repair)
+        agencies_checked += 1
+        mismatch_count += result.mismatch_count
+        repaired_row_count += result.repaired_row_count
+
+    summary: dict[str, int | str] = {
+        "job_name": BALANCE_RECONCILIATION_JOB_NAME,
+        "agencies_checked": agencies_checked,
+        "mismatch_count": mismatch_count,
+        "repaired_row_count": repaired_row_count,
+    }
+    logger.info("Inventory balance audit run finished", extra=summary | {"repair": repair})
+    return summary
+
+
+def _reconcile_agency_inventory_balances(
+    agency_id: int,
+    *,
+    repair: bool = True,
+) -> BalanceReconciliationResult:
+    with get_session() as session:
+        result = reconcile_inventory_balances(session, agency_id, repair=repair)
+        session.commit()
+        return result
 
 
 def _claim_scheduler_run(

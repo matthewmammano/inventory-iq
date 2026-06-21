@@ -5,10 +5,9 @@ from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
+from app.inventory.balance_service import get_location_item_total
 from app.inventory.models import Items
-from app.inventory.quantity_service import calculate_item_quantities
 from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
-from app.prediction.segments import get_location_storage_ids
 from app.prediction.usage_model import get_inventory_trend
 
 
@@ -56,11 +55,7 @@ def get_location_item_quantity(
     agency_location_id: int,
 ) -> int:
     """Current item quantity summed across storages in one agency location."""
-    storage_ids = set(get_location_storage_ids(session, agency_id, agency_location_id))
-    if not storage_ids:
-        return 0
-    quantities = calculate_item_quantities(session, agency_id, item_id)
-    return int(sum(qty for storage_id, qty in quantities.items() if storage_id in storage_ids))
+    return get_location_item_total(session, agency_id, item_id, agency_location_id)
 
 
 def effective_lead_time_days(

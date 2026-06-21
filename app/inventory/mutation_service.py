@@ -1,16 +1,17 @@
 """Validated inventory mutations."""
 
 from loguru import logger
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.queries import get_storage
-from app.prediction.validation import validate_restock
+from app.auth.models import AgencyStorages
+from app.inventory.balance_service import sync_balances_for_actions
+from app.prediction.validation import validate_location_restock
 from app.shared.clock import utc_now
-from app.shared.database import get_session
+from app.shared.database import managed_session
 
 from .constants import OperationType
 from .errors import InventoryError
-from .item_queries import get_agency_item
 from .models import ActionLogs, Items
 
 
@@ -22,11 +23,12 @@ def inventory_operation(
     from_location: int | None = None,
     to_location: int | None = None,
     admin_action: bool = False,
+    session: Session | None = None,
 ) -> None:
     """Execute one validated inventory operation and queue generated alerts."""
     from app.alerts.alert_service import record_action_log_alerts
 
-    with get_session() as db:
+    with managed_session(session) as db:
         item = _validate_operation(db, agency_id, item_id, quantity, operation_type, from_location, to_location)
         _touch_item_last_accessed(item)
         action = _add_action_log(
@@ -39,10 +41,9 @@ def inventory_operation(
             to_location,
             admin_action,
         )
+        sync_balances_for_actions(db, [action])
         record_action_log_alerts(db, [action])
-        db.commit()
-
-        logger.debug(f"Inventory mutation committed: operation={operation_type.value} item_id={item_id} quantity={quantity}")
+        logger.debug(f"Inventory mutation applied: operation={operation_type.value} item_id={item_id} quantity={quantity}")
 
 
 def _validate_operation(
@@ -60,12 +61,8 @@ def _validate_operation(
         raise InventoryError("Cannot transfer or remove zero items")
 
     item = _validate_item(session, agency_id, item_id)
-    _validate_operation_locations(session, agency_id, item_id, operation_type, from_location, to_location)
-
-    if from_location is not None and not get_storage(from_location, agency_id, session):
-        raise InventoryError("Source storage not found")
-    if to_location is not None and not get_storage(to_location, agency_id, session):
-        raise InventoryError("Destination storage not found")
+    storages_by_id = _storage_rows(session, agency_id, from_location, to_location)
+    _validate_operation_locations(session, agency_id, item_id, operation_type, from_location, to_location, storages_by_id)
     return item
 
 
@@ -76,15 +73,20 @@ def _validate_operation_locations(
     operation_type: OperationType,
     from_location: int | None,
     to_location: int | None,
+    storages_by_id: dict[int, AgencyStorages],
 ) -> None:
     if operation_type == OperationType.COUNT and (from_location is not None or to_location is None):
         raise InventoryError("COUNT requires one destination storage")
     if operation_type == OperationType.RESTOCK:
-        _validate_restock_location(session, agency_id, item_id, from_location, to_location)
+        _validate_restock_location(session, agency_id, item_id, from_location, to_location, storages_by_id)
     if operation_type == OperationType.TRANSFER:
-        _validate_transfer_locations(from_location, to_location)
+        _validate_transfer_locations(from_location, to_location, storages_by_id)
     if operation_type == OperationType.TAKEOUT and (from_location is None or to_location is not None):
         raise InventoryError("TAKEOUT requires one source storage")
+    if from_location is not None and from_location not in storages_by_id:
+        raise InventoryError("Source storage not found")
+    if to_location is not None and to_location not in storages_by_id:
+        raise InventoryError("Destination storage not found")
 
 
 def _validate_restock_location(
@@ -93,26 +95,60 @@ def _validate_restock_location(
     item_id: int,
     from_location: int | None,
     to_location: int | None,
+    storages_by_id: dict[int, AgencyStorages],
 ) -> None:
     if from_location is not None or to_location is None:
         raise InventoryError("RESTOCK requires one destination storage")
-    is_valid, message = validate_restock(agency_id, item_id, to_location, session)
+    to_storage = storages_by_id.get(to_location)
+    if to_storage is None:
+        raise InventoryError("Destination storage not found")
+    is_valid, message = validate_location_restock(agency_id, item_id, to_storage.location_id, session)
     if not is_valid:
         raise InventoryError(message)
 
 
-def _validate_transfer_locations(from_location: int | None, to_location: int | None) -> None:
+def _validate_transfer_locations(
+    from_location: int | None,
+    to_location: int | None,
+    storages_by_id: dict[int, AgencyStorages],
+) -> None:
     if from_location is None or to_location is None:
         raise InventoryError("TRANSFER requires source and destination storages")
     if from_location == to_location:
         raise InventoryError("Cannot transfer to the same storage")
+    from_storage = storages_by_id.get(from_location)
+    to_storage = storages_by_id.get(to_location)
+    if from_storage is None:
+        raise InventoryError("Source storage not found")
+    if to_storage is None:
+        raise InventoryError("Destination storage not found")
+    if from_storage.location_id != to_storage.location_id:
+        raise InventoryError("Cannot transfer across locations")
 
 
 def _validate_item(session: Session, agency_id: int, item_id: int) -> Items:
-    item = get_agency_item(agency_id, item_id, session=session)
-    if not item:
+    item = session.get(Items, item_id)
+    if item is None or item.agency_id != agency_id or not item.active:
         raise InventoryError("Item not found")
     return item
+
+
+def _storage_rows(
+    session: Session,
+    agency_id: int,
+    from_location: int | None,
+    to_location: int | None,
+) -> dict[int, AgencyStorages]:
+    storage_ids = sorted({storage_id for storage_id in (from_location, to_location) if storage_id is not None})
+    if not storage_ids:
+        return {}
+    rows = session.execute(
+        select(AgencyStorages).where(
+            AgencyStorages.agency_id == agency_id,
+            AgencyStorages.id.in_(storage_ids),
+        )
+    ).scalars()
+    return {storage.id: storage for storage in rows}
 
 
 def _touch_item_last_accessed(item: Items) -> None:

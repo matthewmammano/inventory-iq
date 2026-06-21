@@ -11,23 +11,25 @@
 {% block content %}
 <div class="tabbed-panel">
     <section class="tab-strip">
-        {% for tab in location_tabs %}
-        <a class="tab-button{% if (active_location_id and tab.location.id == active_location_id) or (not active_location_id and loop.first) %} active{% endif %}" href="#location-{{ tab.location.id }}" data-tab="location-{{ tab.location.id }}">{{ tab.location.name }}</a>
+        {% for location in locations %}
+        <a class="tab-button{% if active_location and location.id == active_location.id %} active{% endif %}" href="{{ url_for('admin.inventory_counts', squad=squad, agency_location_id=location.id) }}">{{ location.name }}</a>
         {% endfor %}
     </section>
-    {% for tab in location_tabs %}
-    <section class="panel tab-panel{% if not ((active_location_id and tab.location.id == active_location_id) or (not active_location_id and loop.first)) %} hidden{% endif %}" id="location-{{ tab.location.id }}">
-        {% if tab.inventory_data|length == 0 %}
+
+    {% if inventory_data|length == 0 %}
+    <section class="panel">
         <div class="empty-state"><h2>No items found</h2></div>
-        {% else %}
+    </section>
+    {% else %}
+    <section class="panel">
         <div class="table-wrap">
             <table>
-                <thead><tr><th>Item</th>{% for storage in tab.storages %}<th>{{ storage.name }}</th>{% endfor %}<th>Total</th></tr></thead>
+                <thead><tr><th>Item</th>{% for storage in storages %}<th>{{ storage.name }}</th>{% endfor %}<th>Total</th></tr></thead>
                 <tbody>
-                    {% for row in tab.inventory_data %}
+                    {% for row in inventory_data %}
                     <tr>
                         <td>{{ row.item.name }}</td>
-                        {% for storage in tab.storages %}
+                        {% for storage in storages %}
                         <td class="{{ row.storage_classes[storage.id] }}">{{ row.storage_counts[storage.id] }}</td>
                         {% endfor %}
                         <td class="{{ row.total_class }}">{{ row.total }}</td>
@@ -36,9 +38,8 @@
                 </tbody>
             </table>
         </div>
-        {% endif %}
     </section>
-    {% endfor %}
+    {% endif %}
 </div>
 
 <div class="modal-backdrop hidden" id="report-email-modal">
@@ -76,6 +77,5 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/tabs.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/inventory-report-email.js') }}" defer></script>
 {% endblock %}

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.shared.clock import utc_now
 from app.shared.database import managed_session
 
+from .balance_service import get_item_quantities, has_balance_rows
 from .constants import OperationType
 from .models import ActionLogs
 
@@ -38,6 +39,29 @@ def get_recent_admin_count(
 
 
 def calculate_item_quantities(
+    session: Session,
+    agency_id: int,
+    item_id: int,
+    *,
+    location_id: int | None = None,
+    exclude_action_ids: set[int] | None = None,
+) -> dict[int, int]:
+    if not exclude_action_ids and has_balance_rows(session, agency_id, item_id):
+        quantities = get_item_quantities(session, agency_id, item_id)
+        if location_id is not None:
+            return {location_id: quantities.get(location_id, 0)}
+        return quantities
+
+    return _calculate_item_quantities_from_logs(
+        session,
+        agency_id,
+        item_id,
+        location_id=location_id,
+        exclude_action_ids=exclude_action_ids,
+    )
+
+
+def _calculate_item_quantities_from_logs(
     session: Session,
     agency_id: int,
     item_id: int,

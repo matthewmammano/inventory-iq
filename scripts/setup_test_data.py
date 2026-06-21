@@ -20,6 +20,7 @@ from app.auth.models import (
     AgencyLocations,
     AgencyStorages,
 )
+from app.inventory.balance_service import rebuild_inventory_balances
 from app.inventory.constants import OperationType
 from app.inventory.models import ActionLogs, Items
 from app.prediction.models import InventoryTrend
@@ -163,6 +164,7 @@ def _populate() -> None:
         _create_scan_activity_alerts(session, agency.id)
         _create_isolation_agencies(session)
         _train_main_trends(session, agency.id, items, locations)
+        rebuild_inventory_balances(session)
         session.commit()
 
 

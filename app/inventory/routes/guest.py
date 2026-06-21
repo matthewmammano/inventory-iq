@@ -16,7 +16,6 @@ from app.auth.device_locations import (
 )
 from app.auth.queries import get_agency_by_display_name, list_top_locations
 from app.inventory import guest_bp as bp
-from app.inventory.item_queries import list_items
 from app.inventory.scan_flow import (
     handle_scan_item_get,
     handle_scan_item_post,
@@ -24,7 +23,7 @@ from app.inventory.scan_flow import (
     handle_scan_storages_get,
     handle_scan_storages_post,
 )
-from app.inventory.search_payload import build_item_search_payload
+from app.inventory.search_payload import load_item_search_payload
 from app.shared.database import get_session
 from app.shared.utils import (
     get_squad_from_request,
@@ -79,17 +78,21 @@ def index(squad: str) -> Any:
         flash("Item not found. Please try again.", "error")
     try:
         with get_session() as s:
-            items = list_items(current_user.id, order_by_last_accessed=True, session=s)
+            items_payload = load_item_search_payload(
+                s,
+                current_user.id,
+                order_by_last_accessed=True,
+            )
     except Exception:
         logger.exception(
             "Guest inventory load failed",
             extra={"agency_id": current_user.id, "squad": squad},
         )
         flash("Error loading inventory.", "error")
-        items = []
+        items_payload = []
     return render_template(
         "index.html",
-        items_payload=build_item_search_payload(items),
+        items_payload=items_payload,
         squad=squad,
         logo_img=current_user.image,
     )

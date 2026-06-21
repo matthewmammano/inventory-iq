@@ -5,11 +5,15 @@ from datetime import datetime, timedelta
 from typing import Any
 
 from loguru import logger
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.auth.location_filters import alert_matches_location_filter, validate_location_filter_ids
 from app.auth.models import Agencies, AgencyEmails, AgencyLocations, AgencyStorages
+from app.inventory.balance_service import (
+    get_location_last_counted_at,
+    get_location_last_takeout_at,
+)
 from app.inventory.constants import OperationType
 from app.inventory.item_queries import get_agency_item, list_items
 from app.inventory.models import ActionLogs, Items
@@ -93,8 +97,9 @@ def generate_scheduled_alerts(session: Session, agency_id: int | None = None) ->
 
     for agency in agencies:
         agency_count = 0
+        items = list_items(agency.id, session=session)
         for location in agency.locations:
-            for item in list_items(agency.id, session=session):
+            for item in items:
                 _sync_stock_alerts(session, agency, item, location.id, now, include_predictions=True)
                 _sync_stale_count_alert(session, agency, item, location, now)
                 _sync_rare_takeout_alert(session, agency, item, location, now)
@@ -124,7 +129,11 @@ def generate_scheduled_alerts(session: Session, agency_id: int | None = None) ->
     return count
 
 
-def _record_scan_activity(session: Session, action: ActionLogs, now: datetime) -> None:
+def _record_scan_activity(
+    session: Session,
+    action: ActionLogs,
+    now: datetime,
+) -> None:
     alert_type = ACTION_ALERT_TYPES.get(action.operation_type)
     if alert_type is None or action.item_id is None:
         return
@@ -155,7 +164,7 @@ def _sync_action_rare_takeout_alert(
 ) -> None:
     if action.operation_type != OperationType.TAKEOUT or action.item_id is None:
         return
-    storage = session.get(AgencyStorages, action.from_location_id) if action.from_location_id else None
+    storage = _storage_row(session, action.agency_id, action.from_location_id)
     agency = session.get(Agencies, action.agency_id)
     item = _action_item(session, action)
     if (
@@ -168,13 +177,14 @@ def _sync_action_rare_takeout_alert(
         or not action.time_scanned
     ):
         return
-    _sync_rare_takeout_alert(
+    previous_takeout = _previous_location_takeout_at(session, action, storage.location_id)
+    _sync_rare_takeout_alert_for_timestamp(
         session,
         agency,
         item,
         storage.location,
         now,
-        before_time=action.time_scanned,
+        previous_takeout,
     )
 
 
@@ -247,7 +257,10 @@ def _stock_details_by_type(
 
     alerts: dict[AlertType, dict[str, Any]] = {}
     if current_total <= 0:
-        alerts[AlertType.STOCKOUT] = dict(base)
+        alerts[AlertType.STOCKOUT] = {
+            **base,
+            "stockout_at": _iso(_stockout_reached_at(session, agency.id, item.id, location.id)),
+        }
     if current_total < min_quantity:
         alerts[AlertType.LOW] = dict(base)
 
@@ -293,8 +306,8 @@ def _sync_stale_count_alert(
         _resolve_matching_condition(session, agency.id, AlertType.STALE_COUNT, identity, now)
         return
 
-    last_counted = _last_location_action_at(session, agency.id, item.id, location.id, OperationType.COUNT)
-    days_since = None if last_counted is None else (now.date() - last_counted.date()).days
+    last_counted = get_location_last_counted_at(session, agency.id, item.id, location.id)
+    days_since = _days_since_current_date(now, last_counted)
     if days_since is not None and days_since < days:
         _resolve_matching_condition(session, agency.id, AlertType.STALE_COUNT, identity, now)
         return
@@ -316,8 +329,18 @@ def _sync_rare_takeout_alert(
     item: Items,
     location: AgencyLocations,
     now: datetime,
-    *,
-    before_time: datetime | None = None,
+) -> None:
+    last_takeout = get_location_last_takeout_at(session, agency.id, item.id, location.id)
+    _sync_rare_takeout_alert_for_timestamp(session, agency, item, location, now, last_takeout)
+
+
+def _sync_rare_takeout_alert_for_timestamp(
+    session: Session,
+    agency: Agencies,
+    item: Items,
+    location: AgencyLocations,
+    now: datetime,
+    last_takeout: datetime | None,
 ) -> None:
     days = int(agency.alert_rare_scan_days or 0)
     identity = _stock_identity(item.id, location.id)
@@ -325,13 +348,12 @@ def _sync_rare_takeout_alert(
         _resolve_matching_condition(session, agency.id, AlertType.RARE_TAKEOUT, identity, now)
         return
 
-    last_takeout = _last_location_action_at(session, agency.id, item.id, location.id, OperationType.TAKEOUT, before_time=before_time)
     if last_takeout is None:
         _resolve_matching_condition(session, agency.id, AlertType.RARE_TAKEOUT, identity, now)
         return
 
-    days_since = (now.date() - last_takeout.date()).days
-    if days_since < days:
+    days_since = _days_since_current_date(now, last_takeout)
+    if days_since is not None and days_since < days:
         _resolve_matching_condition(session, agency.id, AlertType.RARE_TAKEOUT, identity, now)
         return
 
@@ -441,11 +463,7 @@ def _recently_sent(
         )
         .order_by(AlertRecords.action_at.desc())
     )
-    sent = next(
-        (alert for alert in session.execute(stmt).scalars() if _identity(alert_type, alert.details_json) == identity),
-        None,
-    )
-    return sent is not None
+    return any(_identity(alert_type, alert.details_json) == identity for alert in session.execute(stmt).scalars())
 
 
 def _resolve_matching_condition(
@@ -519,41 +537,104 @@ def _stock_identity(item_id: int | None, agency_location_id: int | None) -> dict
     return {"item_id": item_id, "agency_location_id": agency_location_id}
 
 
-def _affected_item_locations(session: Session, action_logs: list[ActionLogs]) -> set[tuple[int, int, int]]:
+def _affected_item_locations(
+    session: Session,
+    action_logs: list[ActionLogs],
+) -> set[tuple[int, int, int]]:
     pairs: set[tuple[int, int, int]] = set()
     for action in action_logs:
         if action.item_id is None:
             continue
         for storage_id in (action.from_location_id, action.to_location_id):
-            storage = session.get(AgencyStorages, storage_id) if storage_id else None
+            storage = _storage_row(session, action.agency_id, storage_id)
             if storage and storage.agency_id == action.agency_id:
                 pairs.add((action.agency_id, action.item_id, storage.location_id))
     return pairs
 
 
-def _last_location_action_at(
+def _previous_location_takeout_at(
+    session: Session,
+    action: ActionLogs,
+    agency_location_id: int,
+) -> datetime | None:
+    if action.item_id is None or action.id is None or action.time_scanned is None:
+        return None
+
+    storage_ids = get_location_storage_ids(session, action.agency_id, agency_location_id)
+    if not storage_ids:
+        return None
+
+    return session.scalar(
+        select(ActionLogs.time_scanned)
+        .where(
+            ActionLogs.agency_id == action.agency_id,
+            ActionLogs.item_id == action.item_id,
+            ActionLogs.operation_type == OperationType.TAKEOUT,
+            ActionLogs.from_location_id.in_(storage_ids),
+            or_(
+                ActionLogs.time_scanned < action.time_scanned,
+                and_(
+                    ActionLogs.time_scanned == action.time_scanned,
+                    ActionLogs.id < action.id,
+                ),
+            ),
+        )
+        .order_by(ActionLogs.time_scanned.desc(), ActionLogs.id.desc())
+    )
+
+
+def _stockout_reached_at(
     session: Session,
     agency_id: int,
     item_id: int,
     agency_location_id: int,
-    operation_type: OperationType,
-    *,
-    before_time: datetime | None = None,
 ) -> datetime | None:
     storage_ids = get_location_storage_ids(session, agency_id, agency_location_id)
     if not storage_ids:
         return None
-    column = ActionLogs.from_location_id if operation_type == OperationType.TAKEOUT else ActionLogs.to_location_id
-    stmt = select(ActionLogs.time_scanned).where(
-        ActionLogs.agency_id == agency_id,
-        ActionLogs.item_id == item_id,
-        ActionLogs.operation_type == operation_type,
-        column.in_(storage_ids),
-    )
-    if before_time is not None:
-        stmt = stmt.where(ActionLogs.time_scanned < before_time)
-    row = session.execute(stmt.order_by(ActionLogs.time_scanned.desc()).limit(1)).first()
-    return row[0] if row else None
+
+    rows = session.execute(
+        select(
+            ActionLogs.id,
+            ActionLogs.operation_type,
+            ActionLogs.from_location_id,
+            ActionLogs.to_location_id,
+            ActionLogs.quantity_delta,
+            ActionLogs.time_scanned,
+        )
+        .where(
+            ActionLogs.agency_id == agency_id,
+            ActionLogs.item_id == item_id,
+            (ActionLogs.from_location_id.in_(storage_ids) | ActionLogs.to_location_id.in_(storage_ids)),
+        )
+        .order_by(ActionLogs.time_scanned, ActionLogs.id)
+    ).all()
+    if not rows:
+        return None
+
+    quantities_by_storage = {storage_id: 0 for storage_id in storage_ids}
+    previous_total: int | None = None
+    stockout_at: datetime | None = None
+    for row in rows:
+        if row.operation_type == OperationType.COUNT and row.to_location_id in quantities_by_storage:
+            quantities_by_storage[int(row.to_location_id)] = int(row.quantity_delta)
+        else:
+            if row.to_location_id in quantities_by_storage:
+                quantities_by_storage[int(row.to_location_id)] += int(row.quantity_delta)
+            if row.from_location_id in quantities_by_storage:
+                quantities_by_storage[int(row.from_location_id)] -= int(row.quantity_delta)
+
+        current_total = sum(quantities_by_storage.values())
+        if current_total <= 0 and (previous_total is None or previous_total > 0):
+            stockout_at = row.time_scanned
+        previous_total = current_total
+    return stockout_at
+
+
+def _days_since_current_date(now: datetime, observed_at: datetime | None) -> int | None:
+    if observed_at is None:
+        return None
+    return (now.date() - observed_at.date()).days
 
 
 def _enabled_recipients(
@@ -563,13 +644,17 @@ def _enabled_recipients(
     details: dict[str, Any],
 ) -> list[AgencyEmails]:
     preference = PREFERENCE_BY_TYPE[alert_type]
-    recipients = session.execute(select(AgencyEmails).where(AgencyEmails.agency_id == agency_id).order_by(AgencyEmails.id)).scalars()
+    recipients = _agency_recipients(session, agency_id)
     return [recipient for recipient in recipients if bool(getattr(recipient, preference)) and _recipient_allows_alert(session, recipient, details)]
 
 
-def _stock_alert_recipients(session: Session, agency_id: int, agency_location_id: int) -> list[AgencyEmails]:
+def _stock_alert_recipients(
+    session: Session,
+    agency_id: int,
+    agency_location_id: int,
+) -> list[AgencyEmails]:
     details = {"agency_location_id": agency_location_id}
-    recipients = session.execute(select(AgencyEmails).where(AgencyEmails.agency_id == agency_id).order_by(AgencyEmails.id)).scalars()
+    recipients = _agency_recipients(session, agency_id)
     return [
         recipient
         for recipient in recipients
@@ -632,14 +717,41 @@ def _action_item(session: Session, action: ActionLogs) -> Items | None:
     return get_agency_item(action.agency_id, action.item_id, session=session)
 
 
-def _storage_history_name(session: Session, agency_id: int, storage_id: int | None) -> str | None:
-    storage = session.get(AgencyStorages, storage_id) if storage_id else None
+def _storage_history_name(
+    session: Session,
+    agency_id: int,
+    storage_id: int | None,
+) -> str | None:
+    storage = _storage_row(session, agency_id, storage_id)
     return storage.history_name if storage and storage.agency_id == agency_id else None
 
 
-def _storage_location_id(session: Session, agency_id: int, storage_id: int | None) -> int | None:
-    storage = session.get(AgencyStorages, storage_id) if storage_id else None
+def _storage_location_id(
+    session: Session,
+    agency_id: int,
+    storage_id: int | None,
+) -> int | None:
+    storage = _storage_row(session, agency_id, storage_id)
     return storage.location_id if storage and storage.agency_id == agency_id else None
+
+
+def _storage_row(
+    session: Session,
+    agency_id: int,
+    storage_id: int | None,
+) -> AgencyStorages | None:
+    if storage_id is None:
+        return None
+    storage = session.get(AgencyStorages, storage_id)
+    return storage if storage and storage.agency_id == agency_id else None
+
+
+def _agency_recipients(
+    session: Session,
+    agency_id: int,
+) -> list[AgencyEmails]:
+    rows = session.execute(select(AgencyEmails).where(AgencyEmails.agency_id == agency_id).order_by(AgencyEmails.id)).scalars()
+    return list(rows)
 
 
 def _iso(value: datetime | None) -> str | None:

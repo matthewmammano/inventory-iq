@@ -34,6 +34,15 @@ def validate_squad_access(squad: str) -> str | None:
         logger.warning("Squad access rejected: missing squad")
         flash("Squad name is required.", "warning")
         return url_for("auth.login")
+    if current_user.is_authenticated and current_user.display_name == squad:
+        if not current_user.active:
+            logger.warning(
+                "Squad access rejected: inactive current user squad",
+                extra={"agency_id": current_user.id, "squad": squad},
+            )
+            flash("This squad is inactive.", "warning")
+            return url_for("auth.login")
+        return None
     with get_session() as s:
         agency = get_agency_by_display_name(squad, s)
     if not agency:

@@ -51,14 +51,14 @@ class Agencies(Base, UserMixin):
     # Restock requirements
     count_last_days: Mapped[int] = mapped_column(Integer, default=90)
 
-    items = relationship("Items", backref="agency", lazy="selectin")
-    logs = relationship("ActionLogs", backref="agency", lazy="selectin")
-    emails = relationship("AgencyEmails", backref="agency", lazy="selectin")
-    alert_records = relationship(AlertRecords, back_populates="agency", lazy="selectin")
-    password_reset_pins = relationship("PasswordResetPins", back_populates="agency", lazy="selectin")
-    item_tags = relationship("AgencyItemTags", backref="agency", lazy="selectin")
-    locations = relationship("AgencyLocations", back_populates="agency", lazy="selectin")
-    storages = relationship("AgencyStorages", back_populates="agency", lazy="selectin")
+    items = relationship("Items", backref="agency", lazy="select")
+    logs = relationship("ActionLogs", backref="agency", lazy="select")
+    emails = relationship("AgencyEmails", backref="agency", lazy="select")
+    alert_records = relationship(AlertRecords, back_populates="agency", lazy="select")
+    password_reset_pins = relationship("PasswordResetPins", back_populates="agency", lazy="select")
+    item_tags = relationship("AgencyItemTags", backref="agency", lazy="select")
+    locations = relationship("AgencyLocations", back_populates="agency", lazy="select")
+    storages = relationship("AgencyStorages", back_populates="agency", lazy="select")
 
     def set_password(self, password: str) -> None:
         """Set the password hash."""
@@ -122,7 +122,7 @@ class PasswordResetPins(Base):
     attempt_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive)
 
-    agency = relationship("Agencies", back_populates="password_reset_pins", lazy="selectin")
+    agency = relationship("Agencies", back_populates="password_reset_pins", lazy="select")
 
     def set_pin(self, pin: str) -> None:
         self.pin_hash = generate_password_hash(pin)
@@ -175,7 +175,7 @@ class AgencyLocations(Base):
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
     name: Mapped[str] = mapped_column(String(50))
 
-    agency = relationship("Agencies", back_populates="locations", lazy="selectin")
+    agency = relationship("Agencies", back_populates="locations", lazy="select")
     storages = relationship(
         "AgencyStorages",
         back_populates="location",
@@ -204,7 +204,7 @@ class AgencyDevices(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
-    location = relationship("AgencyLocations", lazy="selectin")
+    location = relationship("AgencyLocations", lazy="select")
 
 
 class AgencyStorages(Base):
@@ -219,7 +219,7 @@ class AgencyStorages(Base):
     user_access_from: Mapped[bool] = mapped_column(Boolean, default=True)
     user_access_to: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    agency = relationship("Agencies", back_populates="storages", lazy="selectin")
+    agency = relationship("Agencies", back_populates="storages", lazy="select")
     location = relationship("AgencyLocations", back_populates="storages", lazy="selectin")
 
     __table_args__ = (UniqueConstraint("location_id", "name", name="uq_agency_storages_location_name"),)

@@ -194,6 +194,10 @@ class ActionLogs(Base):
         Index("idx_agency_item_id", "agency_id", "item_id"),
         Index("idx_agency_from_location", "agency_id", "from_location_id"),
         Index("idx_agency_to_location", "agency_id", "to_location_id"),
+        Index("idx_action_logs_agency_item_time_id", "agency_id", "item_id", "time_scanned", "id"),
+        Index("idx_action_logs_agency_to_operation_time_id", "agency_id", "to_location_id", "operation_type", "time_scanned", "id"),
+        Index("idx_action_logs_agency_from_operation_time_id", "agency_id", "from_location_id", "operation_type", "time_scanned", "id"),
+        Index("idx_action_logs_agency_id_desc", "agency_id", "id"),
     )
 
     @validates("quantity_delta")
@@ -219,6 +223,37 @@ class ActionLogs(Base):
     def get_time_scanned_local(self, user_timezone: str) -> datetime | None:
         """Return time_scanned converted from UTC to the user's local timezone."""
         return convert_utc_to_local(self.time_scanned, user_timezone)
+
+
+class InventoryBalances(Base):
+    """Current per-item, per-storage quantity derived from action history."""
+
+    __tablename__ = "inventory_balances"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"))
+    item_id: Mapped[int] = mapped_column(Integer, ForeignKey("items.id"))
+    storage_id: Mapped[int] = mapped_column(Integer, ForeignKey("agency_storages.id"))
+    quantity: Mapped[int] = mapped_column(Integer, default=0)
+    last_counted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_activity_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_takeout_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
+
+    item = relationship("Items", lazy="selectin")
+    storage = relationship("AgencyStorages", lazy="selectin")
+
+    __table_args__ = (
+        UniqueConstraint("agency_id", "item_id", "storage_id", name="uq_inventory_balances_agency_item_storage"),
+        Index("idx_inventory_balances_agency_storage", "agency_id", "storage_id"),
+        Index("idx_inventory_balances_agency_item", "agency_id", "item_id"),
+    )
+
+    @validates("quantity")
+    def validate_quantity(self, _key: str, value: int | None) -> int:
+        if value is None:
+            raise ValueError("quantity cannot be None")
+        return int(value)
 
 
 @event.listens_for(Items, "after_insert")

@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+    const MAX_VISIBLE_RESULTS = 7;
     const search = document.querySelector("#search");
     const list = document.querySelector("#results");
     if (!search || !list) return;
@@ -42,7 +43,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 : new Date(b.item.last_accessed || 0) - new Date(a.item.last_accessed || 0)
         );
         list.innerHTML = "";
-        results.slice(0, 5).forEach(({ item }) => list.appendChild(resultRow(item, itemUrl)));
+        results.slice(0, MAX_VISIBLE_RESULTS).forEach(({ item }) => list.appendChild(resultRow(item, itemUrl)));
     }
 
     search.focus();

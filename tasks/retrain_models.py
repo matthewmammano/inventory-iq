@@ -1,6 +1,6 @@
 """Retrain changed location-level inventory trends.
 
-Cron: 0 2 * * * python tasks/retrain_models.py
+Cron: 0 2 * * * python -m tasks.retrain_models
 """
 
 from loguru import logger

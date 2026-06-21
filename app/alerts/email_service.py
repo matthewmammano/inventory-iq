@@ -241,12 +241,12 @@ def _build_sections(alerts: list[AlertRecords], timezone: str) -> list[AlertTabl
     sections = [
         section
         for builder in (
-            _stockout_section,
+            lambda rows: _stockout_section(rows, timezone),
             _stockout_pred_section,
             _low_section,
             _low_pred_section,
             _stale_count_section,
-            _rare_takeout_section,
+            lambda rows: _rare_takeout_section(rows, timezone),
         )
         if (section := builder(alerts)) is not None
     ]
@@ -256,7 +256,7 @@ def _build_sections(alerts: list[AlertRecords], timezone: str) -> list[AlertTabl
     return sections
 
 
-def _stockout_section(alerts: list[AlertRecords]) -> AlertTableSection | None:
+def _stockout_section(alerts: list[AlertRecords], timezone: str) -> AlertTableSection | None:
     return _stock_section(
         alerts,
         AlertType.STOCKOUT,
@@ -266,7 +266,9 @@ def _stockout_section(alerts: list[AlertRecords]) -> AlertTableSection | None:
             AlertTableColumn(key="item_name", label="Item"),
             AlertTableColumn(key="locations", label="Locations"),
             AlertTableColumn(key="current_total", label="Current Total"),
+            AlertTableColumn(key="stockout_at", label="Hit Zero At"),
         ],
+        timezone=timezone,
     )
 
 
@@ -323,14 +325,16 @@ def _stock_section(
     title: str,
     note: str,
     columns: list[AlertTableColumn],
+    *,
+    timezone: str = "UTC",
 ) -> AlertTableSection | None:
-    rows = [_stock_row(alert) for alert in alerts if alert.type == alert_type]
+    rows = [_stock_row(alert, timezone) for alert in alerts if alert.type == alert_type]
     if not rows:
         return None
     return AlertTableSection(title=title, note=note, columns=columns, rows=rows)
 
 
-def _stock_row(alert: AlertRecords) -> dict[str, str | int | float | None]:
+def _stock_row(alert: AlertRecords, timezone: str) -> dict[str, str | int | float | None]:
     details = alert.details_json
     return {
         "item_name": details.get("item_name"),
@@ -340,6 +344,7 @@ def _stock_row(alert: AlertRecords) -> dict[str, str | int | float | None]:
         "lead_time_days": _days(details.get("lead_time_days")),
         "prediction": _prediction(details),
         "confidence": _confidence(details),
+        "stockout_at": _display_datetime(details.get("stockout_at"), timezone),
     }
 
 
@@ -368,12 +373,13 @@ def _stale_count_section(alerts: list[AlertRecords]) -> AlertTableSection | None
     )
 
 
-def _rare_takeout_section(alerts: list[AlertRecords]) -> AlertTableSection | None:
+def _rare_takeout_section(alerts: list[AlertRecords], timezone: str) -> AlertTableSection | None:
     rows = [
         {
             "item_name": alert.details_json.get("item_name"),
             "location_name": alert.details_json.get("location_name"),
             "days_since_last_takeout": alert.details_json.get("days_since_last_takeout"),
+            "last_takeout_at": _display_datetime(alert.details_json.get("last_takeout_at"), timezone),
             "current_total": _total(alert.details_json.get("current_total")),
         }
         for alert in alerts
@@ -388,6 +394,7 @@ def _rare_takeout_section(alerts: list[AlertRecords]) -> AlertTableSection | Non
             "item_name:Item",
             "location_name:Location",
             "days_since_last_takeout:Days Since Last Takeout",
+            "last_takeout_at:Last Takeout At",
             "current_total:Current Count",
         ],
     )

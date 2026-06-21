@@ -8,23 +8,23 @@
 {% block content %}
 <div class="tabbed-panel">
     <section class="tab-strip">
-        <a class="tab-button{% if not active_location_id or active_location_id == 0 %} active{% endif %}" href="#location-all" data-tab="location-all">All Locations</a>
-        {% for tab in location_tabs if tab.location %}
-        <a class="tab-button{% if active_location_id and tab.location.id == active_location_id %} active{% endif %}" href="#location-{{ tab.location.id }}" data-tab="location-{{ tab.location.id }}">{{ tab.location.name }}</a>
+        <a class="tab-button{% if not active_location_id or active_location_id == 0 %} active{% endif %}" href="{{ url_for('admin.admin_history', squad=squad) }}">All Locations</a>
+        {% for location in locations %}
+        <a class="tab-button{% if active_location_id and location.id == active_location_id %} active{% endif %}" href="{{ url_for('admin.admin_history', squad=squad, agency_location_id=location.id) }}">{{ location.name }}</a>
         {% endfor %}
     </section>
-    {% for tab in location_tabs %}
-    {% set panel_id = 'location-' ~ (tab.location.id if tab.location else 'all') %}
-    {% set is_active = (not tab.location and (not active_location_id or active_location_id == 0)) or (tab.location and active_location_id and tab.location.id == active_location_id) %}
-    <section class="panel tab-panel{% if not is_active %} hidden{% endif %}" id="{{ panel_id }}">
-        {% if tab.action_logs|length == 0 %}
+
+    {% if action_logs|length == 0 %}
+    <section class="panel">
         <div class="empty-state"><h2>No action history found</h2></div>
-        {% else %}
+    </section>
+    {% else %}
+    <section class="panel">
         <div class="table-wrap">
             <table>
                 <thead><tr><th>Time{% if timezone_hint %} ({{ timezone_hint }}){% endif %}</th><th>Item</th><th>Type</th><th>Qty</th><th>From</th><th>To</th><th>Admin?</th></tr></thead>
                 <tbody>
-                    {% for log in tab.action_logs %}
+                    {% for log in action_logs %}
                     <tr>
                         <td>{{ log.get_time_scanned_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if log.time_scanned else 'Unknown' }}</td>
                         <td>{{ log.item.name if log.item else 'None' }}</td>
@@ -38,10 +38,26 @@
                 </tbody>
             </table>
         </div>
-        {% endif %}
+
+        <div class="button-row">
+            {% if page > 1 %}
+            {% if active_location_id %}
+            {% set newer_href = url_for('admin.admin_history', squad=squad, agency_location_id=active_location_id, page=page-1) %}
+            {% else %}
+            {% set newer_href = url_for('admin.admin_history', squad=squad, page=page-1) %}
+            {% endif %}
+            <a class="quiet-button" href="{{ newer_href }}">Newer</a>
+            {% endif %}
+            {% if has_next_page %}
+            {% if active_location_id %}
+            {% set older_href = url_for('admin.admin_history', squad=squad, agency_location_id=active_location_id, page=page+1) %}
+            {% else %}
+            {% set older_href = url_for('admin.admin_history', squad=squad, page=page+1) %}
+            {% endif %}
+            <a class="success-button" href="{{ older_href }}">Older</a>
+            {% endif %}
+        </div>
     </section>
-    {% endfor %}
+    {% endif %}
 </div>
 {% endblock %}
-
-{% block extra_js %}<script src="{{ url_for('static', filename='js/tabs.js') }}" defer></script>{% endblock %}

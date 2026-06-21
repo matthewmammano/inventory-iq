@@ -6,11 +6,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.models import Agencies, AgencyStorages
-from app.inventory.constants import OperationType
-from app.inventory.models import ActionLogs
+from app.inventory.balance_service import get_required_count_storage_ids
 from app.prediction.constants import RESTOCK_VALIDATION_DAYS
-from app.prediction.segments import get_location_storage_ids
-from app.shared.clock import utc_now
+from app.shared.clock import utc_now_naive
 
 SESSION_REQUIRED_ERROR = "validate_restock requires an active session"
 
@@ -67,24 +65,8 @@ def get_stale_count_storage_ids(
     session: Session,
 ) -> list[int]:
     """Return storage IDs missing a recent count for restock validation."""
-    storage_ids = get_location_storage_ids(session, agency_id, agency_location_id)
-    if not storage_ids:
-        return []
-
-    cutoff = utc_now() - timedelta(days=_restock_validation_days(agency_id, session))
-    fresh_rows = session.execute(
-        select(ActionLogs.to_location_id)
-        .where(
-            ActionLogs.agency_id == agency_id,
-            ActionLogs.item_id == item_id,
-            ActionLogs.operation_type == OperationType.COUNT,
-            ActionLogs.to_location_id.in_(storage_ids),
-            ActionLogs.time_scanned >= cutoff,
-        )
-        .distinct()
-    ).all()
-    fresh_storage_ids = {row[0] for row in fresh_rows}
-    return [storage_id for storage_id in storage_ids if storage_id not in fresh_storage_ids]
+    cutoff = utc_now_naive() - timedelta(days=_restock_validation_days(agency_id, session))
+    return sorted(get_required_count_storage_ids(session, agency_id, agency_location_id, [item_id], cutoff).get(item_id, set()))
 
 
 def _restock_validation_days(agency_id: int, session: Session) -> int:

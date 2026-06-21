@@ -8,9 +8,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.models import Agencies, AgencyLocations
-from app.inventory.constants import OperationType
-from app.inventory.item_queries import list_items
-from app.inventory.models import ActionLogs, Items
+from app.inventory.balance_service import get_location_item_totals, get_location_last_counted_dates
+from app.inventory.models import Items
 from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
 from app.prediction.estimator import (
     days_to_threshold,
@@ -19,12 +18,21 @@ from app.prediction.estimator import (
 )
 from app.prediction.formatting import rounded_confidence_percent
 from app.prediction.models import InventoryTrend
-from app.prediction.segments import get_location_storage_ids
 from app.shared.timezone_utils import convert_utc_to_local
 
 
 class BulkService:
     """Build template-ready restock rows for a selected agency location."""
+
+    @staticmethod
+    def get_active_items(session: Session, agency_id: int) -> list[Items]:
+        return list(
+            session.execute(
+                select(Items).where(Items.agency_id == agency_id, Items.active.is_(True)).order_by(Items.last_accessed.desc().nulls_last())
+            )
+            .scalars()
+            .all()
+        )
 
     @staticmethod
     def get_restock_analysis(
@@ -33,13 +41,12 @@ class BulkService:
         agency_location_id: int,
     ) -> list[dict]:
         try:
-            agency = session.execute(select(Agencies).where(Agencies.id == agency_id)).scalars().first()
-            items = list_items(agency_id, include_inactive=False, order_by_last_accessed=True, session=session)
+            agency = session.get(Agencies, agency_id)
+            items = BulkService.get_active_items(session, agency_id)
             item_ids = [item.id for item in items]
-            storage_ids = get_location_storage_ids(session, agency_id, agency_location_id)
-            quantities = BulkService._location_quantities(session, agency_id, item_ids, storage_ids)
+            quantities = get_location_item_totals(session, agency_id, agency_location_id, item_ids)
             trends = BulkService._location_trends(session, agency_id, agency_location_id, item_ids)
-            last_counts = BulkService._last_counted_dates(session, agency_id, storage_ids, agency.timezone if agency else "UTC")
+            last_counts = BulkService._last_counted_dates(session, agency_id, agency_location_id, item_ids, agency.timezone if agency else "UTC")
             rows = [
                 BulkService._analyze_item(
                     item,
@@ -132,48 +139,6 @@ class BulkService:
         }
 
     @staticmethod
-    def _location_quantities(
-        session: Session,
-        agency_id: int,
-        item_ids: list[int],
-        storage_ids: list[int],
-    ) -> dict[int, int]:
-        if not item_ids or not storage_ids:
-            return {}
-
-        rows = session.execute(
-            select(
-                ActionLogs.item_id,
-                ActionLogs.operation_type,
-                ActionLogs.from_location_id,
-                ActionLogs.to_location_id,
-                ActionLogs.quantity_delta,
-            )
-            .where(
-                ActionLogs.agency_id == agency_id,
-                ActionLogs.item_id.in_(item_ids),
-                (ActionLogs.from_location_id.in_(storage_ids) | ActionLogs.to_location_id.in_(storage_ids)),
-            )
-            .order_by(ActionLogs.time_scanned, ActionLogs.id)
-        )
-
-        by_item_storage: dict[int, dict[int, int]] = {}
-        storage_set = set(storage_ids)
-        for item_id, operation, from_storage_id, to_storage_id, quantity in rows:
-            if item_id is None:
-                continue
-            quantities = by_item_storage.setdefault(item_id, {})
-            if operation == OperationType.COUNT and to_storage_id in storage_set:
-                quantities[to_storage_id] = quantity
-                continue
-            if to_storage_id in storage_set:
-                quantities[to_storage_id] = quantities.get(to_storage_id, 0) + quantity
-            if from_storage_id in storage_set:
-                quantities[from_storage_id] = quantities.get(from_storage_id, 0) - quantity
-
-        return {item_id: sum(quantities.values()) for item_id, quantities in by_item_storage.items()}
-
-    @staticmethod
     def _location_trends(
         session: Session,
         agency_id: int,
@@ -195,27 +160,15 @@ class BulkService:
     def _last_counted_dates(
         session: Session,
         agency_id: int,
-        storage_ids: list[int],
+        agency_location_id: int,
+        item_ids: list[int],
         agency_timezone: str,
     ) -> dict[int, datetime]:
-        if not storage_ids:
-            return {}
-
-        rows = session.execute(
-            select(ActionLogs.item_id, ActionLogs.time_scanned)
-            .where(
-                ActionLogs.agency_id == agency_id,
-                ActionLogs.operation_type == OperationType.COUNT,
-                ActionLogs.to_location_id.in_(storage_ids),
-            )
-            .order_by(ActionLogs.time_scanned)
-        )
         latest: dict[int, datetime] = {}
-        for item_id, scanned_at in rows:
-            if item_id is not None and scanned_at is not None:
-                local_time = convert_utc_to_local(scanned_at, agency_timezone)
-                if local_time is not None:
-                    latest[item_id] = local_time
+        for item_id, counted_at in get_location_last_counted_dates(session, agency_id, agency_location_id, item_ids).items():
+            local_time = convert_utc_to_local(counted_at, agency_timezone)
+            if local_time is not None:
+                latest[item_id] = local_time
         return latest
 
     @staticmethod

@@ -1,6 +1,6 @@
 """Send daily/weekly summary reports to agencies.
-Cron: 0 6 * * * python tasks/generate_summary_reports.py daily
-      0 6 * * 1 python tasks/generate_summary_reports.py weekly
+Cron: 0 6 * * * python -m tasks.generate_summary_reports daily
+      0 6 * * 1 python -m tasks.generate_summary_reports weekly
 """
 
 import sys

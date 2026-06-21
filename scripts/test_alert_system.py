@@ -34,6 +34,7 @@ from app.alerts.constants import AlertAction, AlertType  # noqa: E402
 from app.alerts.email_service import process_all_alerts  # noqa: E402
 from app.alerts.models import AlertRecords  # noqa: E402
 from app.auth.models import Agencies, AgencyEmails, AgencyLocations, AgencyStorages  # noqa: E402
+from app.inventory.balance_service import rebuild_inventory_balances, sync_balances_for_actions  # noqa: E402
 from app.inventory.constants import OperationType  # noqa: E402
 from app.inventory.models import ActionLogs, Items  # noqa: E402
 from app.prediction.estimator import get_location_item_quantity, project_location_item  # noqa: E402
@@ -76,6 +77,7 @@ def main() -> None:
 def _reset_environment() -> None:
     TEST_DB.parent.mkdir(parents=True, exist_ok=True)
     TEST_DB.unlink(missing_ok=True)
+    _clear_alert_files()
     _set_clock(START_AT)
 
 
@@ -92,6 +94,7 @@ def _seed_database() -> AlertTestContext:
         session.flush()
         _seed_counts(session, agency.id, storages, items)
         _seed_trends(session, agency.id, hq.id, items)
+        rebuild_inventory_balances(session, agency.id)
         session.commit()
         return AlertTestContext(
             agency_id=agency.id,
@@ -365,6 +368,7 @@ def _scan(
 ) -> None:
     item_id = ctx.items[item_name]
     action = _add_log(session, ctx.agency_id, item_id, operation_type, quantity, utc_now(), from_id, to_id)
+    sync_balances_for_actions(session, [action])
     record_action_log_alerts(session, [action])
 
 
@@ -460,6 +464,7 @@ def _assert_hourly_email(initial_files: set[Path]) -> set[Path]:
     _check(len(html_files) == 2, "two hourly recipient files written")
     contents = [_read(path) for path in html_files]
     _check(any("Stockouts" in text for text in contents), "hourly email includes stockouts")
+    _check(any("Hit Zero At" in text for text in contents), "hourly stockout email shows hit-zero timestamp")
     _check(any("Scan Activity" in text for text in contents), "hourly email includes scan activity")
     _check(all("Predicted Stockouts" not in text for text in contents), "predictions wait daily")
     _check(all("Low Stock" not in text for text in contents), "low stock waits daily")
@@ -477,6 +482,7 @@ def _assert_daily_email(previous_files: set[Path]) -> None:
     _check(any("Low Stock" in text for text in contents), "daily email has low stock")
     _check(any("Stale Counts" in text for text in contents), "daily email has stale counts")
     _check(any("Rare Takeouts" in text for text in contents), "daily email has rare takeouts")
+    _check(any("Last Takeout At" in text for text in contents), "daily rare-takeout email shows last takeout timestamp")
     _check(
         all("Scan Activity" not in text for text in contents),
         "hourly scans do not resend daily",
@@ -593,6 +599,14 @@ def _alert_files() -> set[Path]:
     alerts_dir = Path("instance/alerts")
     alerts_dir.mkdir(parents=True, exist_ok=True)
     return set(alerts_dir.glob("*_alert.html"))
+
+
+def _clear_alert_files() -> None:
+    alerts_dir = Path("instance/alerts")
+    if not alerts_dir.exists():
+        return
+    for path in alerts_dir.glob("*_alert.*"):
+        path.unlink()
 
 
 def _new_html_files(previous_files: set[Path]) -> set[Path]:
