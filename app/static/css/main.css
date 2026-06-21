@@ -723,6 +723,18 @@ th {
   overflow-wrap: normal;
 }
 
+th[data-sort-column] {
+  cursor: pointer;
+}
+
+th.sorted-column {
+  background: #fff7d6;
+}
+
+td.sorted-cell {
+  box-shadow: inset 0 0 0 9999px rgba(255, 247, 214, 0.42);
+}
+
 .table-thumbnail {
   width: min(100%, 58px);
   height: 42px;

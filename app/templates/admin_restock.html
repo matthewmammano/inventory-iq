@@ -21,44 +21,44 @@
     {% set estimate_tip = "Forecast based on recent usage. Verify before ordering." %}
     <section class="panel">
         <div class="table-wrap">
-            <table>
+            <table data-sort-table data-default-sort-column="10" data-default-sort-direction="asc">
                 <thead>
                     <tr>
-                        <th>Item Name</th>
-                        <th>Unit</th>
-                        <th>Current Total</th>
-                        <th>Projected At Lead Time <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th>Daily Usage <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th>Min Quantity</th>
-                        <th>Gap to Min</th>
-                        <th>Max Quantity</th>
-                        <th>Batch Size</th>
-                        <th>Lead Time Days</th>
-                        <th>Days Until Stockout <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th>Suggested Reorder Date <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th>Last Counted At</th>
-                        <th>Confidence <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th>Order Amount</th>
+                        <th data-sort-column="0">Item Name</th>
+                        <th data-sort-column="1">Unit</th>
+                        <th data-sort-column="2">Current Total</th>
+                        <th data-sort-column="3">Projected At Lead Time <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
+                        <th data-sort-column="4">Daily Usage <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
+                        <th data-sort-column="5">Min Quantity</th>
+                        <th data-sort-column="6">Gap to Min</th>
+                        <th data-sort-column="7">Max Quantity</th>
+                        <th data-sort-column="8">Batch Size</th>
+                        <th data-sort-column="9">Lead Time Days</th>
+                        <th data-sort-column="10">Days Until Stockout <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
+                        <th data-sort-column="11">Suggested Reorder Date <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
+                        <th data-sort-column="12">Last Counted At</th>
+                        <th data-sort-column="13">Confidence <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
+                        <th data-sort-column="14">Order Amount</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for row in restock_data %}
                     <tr>
-                        <td>{{ row['item'].name }}</td>
-                        <td>{{ row['item'].increments }}</td>
-                        <td class="{{ row.get('current_total_class', '') }}">{{ row['current_total'] }}</td>
-                        <td class="{{ row.get('projected_total_class', '') }}">{{ row['projected_lead_time_total'] }}</td>
-                        <td>{{ "%.1f"|format(row['daily_usage_rate']) if row['daily_usage_rate'] >= 0 else 'N/A' }}</td>
-                        <td class="{{ row.get('min_quantity_class', '') }}">{{ row['min_quantity'] if row['min_quantity'] > 0 else '-' }}</td>
-                        <td>{{ row['gap_to_min'] if row['gap_to_min'] > 0 else '' }}</td>
-                        <td>{{ row['max_quantity'] if row['max_quantity'] > 0 else '-' }}</td>
-                        <td>{{ row['item'].batch_size if row['item'].batch_size else '-' }}</td>
-                        <td>{{ row['lead_time_days'] }}</td>
-                        <td class="{{ row.get('days_class', '') }}">{% if row['days_until_stockout'] is not none %}{{ row['days_until_stockout'] if row['days_until_stockout'] <= 365 else 365 }}{% else %}N/A{% endif %}</td>
-                        <td>{{ row['suggested_reorder_date'].strftime('%Y-%m-%d') if row['suggested_reorder_date'] else 'N/A' }}</td>
-                        <td>{{ row['last_counted_at'].strftime('%Y-%m-%d') if row['last_counted_at'] else 'N/A' }}</td>
-                        <td>{{ row['confidence_display'] ~ '%' if row['confidence_display'] is not none else '' }}</td>
-                        <td class="{{ row.get('order_class', '') }}">{{ row['order_amount_display'] }}</td>
+                        <td data-sort-value="{{ row['item'].name }}">{{ row['item'].name }}</td>
+                        <td data-sort-value="{{ row['item'].increments }}">{{ row['item'].increments }}</td>
+                        <td class="{{ row.get('current_total_class', '') }}" data-sort-value="{{ row['current_total'] }}">{{ row['current_total'] }}</td>
+                        <td class="{{ row.get('projected_total_class', '') }}" data-sort-value="{{ row['projected_lead_time_total'] }}">{{ row['projected_lead_time_total'] }}</td>
+                        <td data-sort-value="{{ row['daily_usage_rate'] if row['daily_usage_rate'] >= 0 else 999999 }}">{{ "%.1f"|format(row['daily_usage_rate']) if row['daily_usage_rate'] >= 0 else 'N/A' }}</td>
+                        <td class="{{ row.get('min_quantity_class', '') }}" data-sort-value="{{ row['min_quantity'] }}">{{ row['min_quantity'] if row['min_quantity'] > 0 else '-' }}</td>
+                        <td data-sort-value="{{ row['gap_to_min'] }}">{{ row['gap_to_min'] if row['gap_to_min'] > 0 else '' }}</td>
+                        <td data-sort-value="{{ row['max_quantity'] }}">{{ row['max_quantity'] if row['max_quantity'] > 0 else '-' }}</td>
+                        <td data-sort-value="{{ row['item'].batch_size or 0 }}">{{ row['item'].batch_size if row['item'].batch_size else '-' }}</td>
+                        <td data-sort-value="{{ row['lead_time_days'] }}">{{ row['lead_time_days'] }}</td>
+                        <td class="{{ row.get('days_class', '') }}" data-sort-value="{{ row['days_until_stockout'] if row['days_until_stockout'] is not none else 999999 }}">{% if row['days_until_stockout'] is not none %}{{ row['days_until_stockout'] if row['days_until_stockout'] <= 365 else 365 }}{% else %}N/A{% endif %}</td>
+                        <td data-sort-value="{{ row['suggested_reorder_date'].strftime('%Y-%m-%d') if row['suggested_reorder_date'] else '9999-12-31' }}">{{ row['suggested_reorder_date'].strftime('%Y-%m-%d') if row['suggested_reorder_date'] else 'N/A' }}</td>
+                        <td data-sort-value="{{ row['last_counted_at'].strftime('%Y-%m-%d') if row['last_counted_at'] else '9999-12-31' }}">{{ row['last_counted_at'].strftime('%Y-%m-%d') if row['last_counted_at'] else 'N/A' }}</td>
+                        <td data-sort-value="{{ row['confidence_display'] if row['confidence_display'] is not none else -1 }}">{{ row['confidence_display'] ~ '%' if row['confidence_display'] is not none else '' }}</td>
+                        <td class="{{ row.get('order_class', '') }}" data-sort-value="{{ row['order_amount'] if row['order_amount'] is not none else -1 }}">{{ row['order_amount_display'] }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -67,4 +67,8 @@
     </section>
     {% endif %}
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/sortable-table.js') }}" defer></script>
 {% endblock %}

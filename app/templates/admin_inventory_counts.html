@@ -23,16 +23,24 @@
     {% else %}
     <section class="panel">
         <div class="table-wrap">
-            <table>
-                <thead><tr><th>Item</th>{% for storage in storages %}<th>{{ storage.name }}</th>{% endfor %}<th>Total</th></tr></thead>
+            <table data-sort-table data-default-sort-column="0" data-default-sort-direction="asc">
+                <thead>
+                    <tr>
+                        <th data-sort-column="0">Item</th>
+                        {% for storage in storages %}
+                        <th data-sort-column="{{ loop.index }}">{{ storage.name }}</th>
+                        {% endfor %}
+                        <th data-sort-column="{{ storages|length + 1 }}">Total</th>
+                    </tr>
+                </thead>
                 <tbody>
                     {% for row in inventory_data %}
                     <tr>
-                        <td>{{ row.item.name }}</td>
+                        <td data-sort-value="{{ row.item.name }}">{{ row.item.name }}</td>
                         {% for storage in storages %}
-                        <td class="{{ row.storage_classes[storage.id] }}">{{ row.storage_counts[storage.id] }}</td>
+                        <td class="{{ row.storage_classes[storage.id] }}" data-sort-value="{{ row.storage_counts[storage.id] }}">{{ row.storage_counts[storage.id] }}</td>
                         {% endfor %}
-                        <td class="{{ row.total_class }}">{{ row.total }}</td>
+                        <td class="{{ row.total_class }}" data-sort-value="{{ row.total }}">{{ row.total }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -78,4 +86,5 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/inventory-report-email.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/sortable-table.js') }}" defer></script>
 {% endblock %}
