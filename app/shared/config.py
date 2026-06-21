@@ -87,4 +87,4 @@ class Settings(BaseSettings):
         return self.app_env == "prod"
 
 
-settings = Settings()  # type: ignore[call-arg]  # pyright: ignore[reportCallIssue]
+settings = Settings()

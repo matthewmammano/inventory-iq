@@ -11,18 +11,22 @@ from app.auth.models import Agencies, AgencyLocations
 from app.inventory.models import Items
 from app.prediction.usage_model import train_location_trend
 from app.shared.database import get_session
+from app.shared.task_logging import logged_task
 
 
 def run() -> None:
     """Retrain changed location-level inventory trends for every active agency."""
     app = create_app()
-    with app.app_context(), get_session() as session:
+    with app.app_context(), get_session() as session, logged_task("retrain_models") as task_result:
         agencies = list(session.execute(select(Agencies).where(Agencies.active.is_(True))).scalars().all())
+        logger.debug("Inventory trend retraining agencies loaded", extra={"agency_count": len(agencies)})
         total = 0
         for agency in agencies:
-            total += _retrain_agency(session, agency.id)
+            retrained = _retrain_agency(session, agency.id)
+            logger.debug("Inventory trend retraining agency finished", extra={"agency_id": agency.id, "trend_count": retrained})
+            total += retrained
         session.commit()
-    logger.info("Inventory trend retraining task finished", extra={"trend_count": total})
+        task_result.update({"agency_count": len(agencies), "trend_count": total})
 
 
 def _retrain_agency(session, agency_id: int) -> int:

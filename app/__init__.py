@@ -3,7 +3,9 @@
 import logging
 import re
 from datetime import datetime
+from importlib import import_module
 from pathlib import Path
+from typing import Any, cast
 
 from flask import Flask, url_for
 from flask_login import LoginManager
@@ -14,35 +16,46 @@ from app.auth import bp as auth_bp
 from app.auth.queries import get_agency
 from app.errors import register_error_handlers
 from app.inventory import admin_bp, guest_bp
-from app.inventory.routes import admin as _admin_routes  # noqa: F401 - register routes
-from app.inventory.routes import guest as _guest_routes  # noqa: F401 - register routes
-from app.prediction import models as _prediction_models  # noqa: F401 - register ORM models
-from app.shared import models as _shared_models  # noqa: F401 - register ORM models
 from app.shared.config import settings
 from app.shared.database import init_db
 from app.shared.email_client import log_email_config_status
 from app.shared.html_formatting import bold_item_name
 from app.shared.logging import setup_logging
+from app.shared.model_registry import import_model_modules
+from app.shared.request_logging import register_request_logging
 
 login_manager = LoginManager()
+
+ROUTE_MODULES = (
+    "app.auth.routes",
+    "app.inventory.routes.admin",
+    "app.inventory.routes.guest",
+)
 
 
 def create_app() -> Flask:
     """Create and configure the Flask application."""
     _setup_process_logging()
+    import_model_modules()
+    for module_name in ROUTE_MODULES:
+        import_module(module_name)
     app = Flask(__name__, instance_path=str(_instance_path()))
     _configure_app(app)
     _init_extensions(app)
     _register_blueprints(app)
+    register_request_logging(app)
     register_error_handlers(app)
     _register_template_filters(app)
     _register_auth_loader()
     _register_health_check(app)
 
-    db_type = _database_type()
     logger.debug(
         "Flask app startup completed",
-        extra={"database": db_type, "debug": settings.debug, "app_env": settings.app_env},
+        extra={
+            "database": settings.database_url.split("://")[0] if "://" in settings.database_url else "unknown",
+            "debug": settings.debug,
+            "app_env": settings.app_env,
+        },
     )
     log_email_config_status(app.config)
     return app
@@ -76,7 +89,7 @@ def _configure_app(app: Flask) -> None:
 def _init_extensions(app: Flask) -> None:
     init_db(settings.database_url)
     login_manager.init_app(app)
-    login_manager.login_view = "auth.login"  # type: ignore[attr-defined]
+    cast(Any, login_manager).login_view = "auth.login"
     login_manager.login_message = "Please log in to access this page."
     login_manager.login_message_category = "warning"
 
@@ -117,7 +130,3 @@ def _register_health_check(app: Flask) -> None:
     @app.route("/health")
     def health_check():
         return {"status": "healthy", "timestamp": datetime.now().isoformat()}
-
-
-def _database_type() -> str:
-    return settings.database_url.split("://")[0] if "://" in settings.database_url else "unknown"

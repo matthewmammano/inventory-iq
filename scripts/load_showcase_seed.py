@@ -12,17 +12,16 @@ from sqlalchemy import JSON, Boolean, DateTime, create_engine, text
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.schema import Column, Table
 
-from app.alerts import models as _alert_models  # noqa: F401
-from app.auth import models as _auth_models  # noqa: F401
-from app.inventory import models as _inventory_models  # noqa: F401
 from app.inventory.balance_service import rebuild_inventory_balances
-from app.prediction import models as _prediction_models  # noqa: F401
-from app.shared import models as _shared_models  # noqa: F401
 from app.shared.config import settings
 from app.shared.database import Base, normalize_database_url
+from app.shared.logging import setup_logging
+from app.shared.model_registry import import_model_modules
+from app.shared.task_logging import logged_task
 
 
 def main() -> None:
+    setup_logging(debug=settings.debug, json_logs=settings.is_prod)
     parser = argparse.ArgumentParser(description="Load a SQLite seed DB into the configured DB.")
     parser.add_argument("seed_db", type=Path, help="SQLite seed database file")
     parser.add_argument("--replace", action="store_true", help="replace the target database")
@@ -39,25 +38,38 @@ def main() -> None:
 
 
 def _load_seed_rows(seed_db: Path, database_url: str) -> None:
+    import_model_modules()
     engine = create_engine(database_url, future=True)
-    with engine.begin() as target:
-        Base.metadata.drop_all(bind=target)
-        Base.metadata.create_all(bind=target)
-        with sqlite3.connect(seed_db) as source:
-            source.row_factory = sqlite3.Row
-            for table in Base.metadata.sorted_tables:
-                rows = _seed_rows(source, table)
-                if rows:
-                    target.execute(table.insert(), rows)
-                _reset_postgres_sequence(target, table)
-                logger.debug(f"Showcase seed table loaded: table={table.name} rows={len(rows)}")
-        session = Session(bind=target, future=True)
-        try:
-            rebuild_inventory_balances(session)
-            session.flush()
-        finally:
-            session.close()
-    logger.info(f"Showcase seed load finished: seed={seed_db} dialect={engine.dialect.name}")
+    with logged_task(
+        "admin_cli.load_showcase_seed",
+        actor="cli",
+        admin_action=True,
+        seed=str(seed_db),
+        dialect=engine.dialect.name,
+    ) as result:
+        table_count = 0
+        row_count = 0
+        with engine.begin() as target:
+            logger.debug("Showcase seed target schema reset", extra={"dialect": engine.dialect.name})
+            Base.metadata.drop_all(bind=target)
+            Base.metadata.create_all(bind=target)
+            with sqlite3.connect(seed_db) as source:
+                source.row_factory = sqlite3.Row
+                for table in Base.metadata.sorted_tables:
+                    rows = _seed_rows(source, table)
+                    if rows:
+                        target.execute(table.insert(), rows)
+                    _reset_postgres_sequence(target, table)
+                    table_count += 1
+                    row_count += len(rows)
+                    logger.debug("Showcase seed table loaded", extra={"table": table.name, "rows": len(rows)})
+            session = Session(bind=target, future=True)
+            try:
+                rebuild_inventory_balances(session)
+                session.flush()
+            finally:
+                session.close()
+        result.update({"table_count": table_count, "row_count": row_count})
 
 
 def _seed_rows(source: sqlite3.Connection, table: Table) -> list[dict[str, Any]]:

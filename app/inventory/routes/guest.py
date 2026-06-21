@@ -28,9 +28,9 @@ from app.shared.database import get_session
 from app.shared.utils import (
     get_squad_from_request,
     is_static_request,
-    parse_optional_int,
     validate_squad_access,
 )
+from app.shared.validators import parse_optional_int
 
 
 @bp.before_request

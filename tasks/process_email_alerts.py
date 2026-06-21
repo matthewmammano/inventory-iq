@@ -5,18 +5,17 @@ Production task: python -m tasks.process_email_alerts
 
 import argparse
 
-from loguru import logger
-
 from app import create_app
 from app.alerts.email_service import process_all_alerts
+from app.shared.task_logging import logged_task
 
 
 def run(*, force: bool = False) -> None:
     """Send pending alert emails using the normal cadence unless forced."""
     app = create_app()
-    with app.app_context():
+    with app.app_context(), logged_task("process_email_alerts", force=force) as task_result:
         result = process_all_alerts(force=force)
-        logger.info(f"Alert email task finished: force={force} processed={result['processed']} sent={result['sent']} failed={result['failed']}")
+        task_result.update(result)
 
 
 if __name__ == "__main__":

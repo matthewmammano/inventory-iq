@@ -5,20 +5,18 @@ Production task: python -m tasks.reconcile_inventory_balances
 
 import argparse
 
-from loguru import logger
-
 from app import create_app
 from app.shared.config import settings
 from app.shared.scheduler import run_inventory_balance_audit
+from app.shared.task_logging import logged_task
 
 
 def run(*, agency_id: int | None = None, repair: bool = True) -> None:
     """Run the inventory balance audit for one agency or all active agencies."""
     settings.scheduler_enabled = False
     app = create_app()
-    with app.app_context():
-        summary = run_inventory_balance_audit(agency_id=agency_id, repair=repair)
-    logger.info("Inventory balance audit task finished", extra=summary | {"repair": repair})
+    with app.app_context(), logged_task("reconcile_inventory_balances", agency_id=agency_id, repair=repair) as task_result:
+        task_result.update(run_inventory_balance_audit(agency_id=agency_id, repair=repair))
 
 
 if __name__ == "__main__":

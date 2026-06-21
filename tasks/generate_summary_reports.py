@@ -14,24 +14,26 @@ from app.auth.models import Agencies, AgencyEmails
 from app.inventory.models import ActionLogs
 from app.shared.database import get_session
 from app.shared.email_client import EMAIL_RETRY_DELAYS_SECONDS, OutboundEmail, send_email
+from app.shared.task_logging import logged_task
 
 
 def generate_summary_reports(report_type: str) -> None:
     if report_type not in ("daily", "weekly"):
-        logger.error(f"Summary report task rejected unknown report type: {report_type}")
+        logger.error("Summary report task rejected unknown report type", extra={"report_type": report_type})
         return
 
     app = create_app()
-    with app.app_context():
+    with app.app_context(), logged_task("generate_summary_reports", report_type=report_type) as task_result:
         days = 1 if report_type == "daily" else 7
         flag_col = AgencyEmails.daily_summary if report_type == "daily" else AgencyEmails.weekly_summary
         cutoff = datetime.now(UTC) - timedelta(days=days)
 
         with get_session() as s:
-            # Find all agency emails opted into this report type
             opted_in = list(s.execute(select(AgencyEmails).where(flag_col.is_(True))).scalars().all())
+        logger.debug("Summary report recipients loaded", extra={"report_type": report_type, "recipient_count": len(opted_in)})
 
         sent = 0
+        skipped = 0
         for ae in opted_in:
             with get_session() as s:
                 count = int(
@@ -49,10 +51,13 @@ def generate_summary_reports(report_type: str) -> None:
                 )
                 agency = s.get(Agencies, ae.agency_id)
 
+            logger.debug("Summary report recipient evaluated", extra={"agency_id": ae.agency_id, "agency_email_id": ae.id, "action_count": count})
             if count > 0 and agency and _send_report(ae.email, agency.display_name, report_type, count, cutoff):
                 sent += 1
+            else:
+                skipped += 1
 
-        logger.info(f"Summary report task finished: report_type={report_type} sent={sent}")
+        task_result.update({"recipient_count": len(opted_in), "sent": sent, "skipped": skipped})
 
 
 def _send_report(email: str, name: str, report_type: str, count: int, cutoff: datetime) -> bool:

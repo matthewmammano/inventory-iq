@@ -14,13 +14,12 @@ from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import Session
 from sqlalchemy.schema import Index, Table
 
-from app.alerts import models as _alert_models  # noqa: F401
-from app.auth import models as _auth_models  # noqa: F401
-from app.inventory import models as _inventory_models  # noqa: F401
 from app.inventory.balance_service import rebuild_inventory_balances
 from app.inventory.models import ActionLogs, InventoryBalances
-from app.prediction import models as _prediction_models  # noqa: F401
-from app.shared import models as _shared_models  # noqa: F401
+from app.shared.config import settings
+from app.shared.logging import setup_logging
+from app.shared.model_registry import import_model_modules
+from app.shared.task_logging import logged_task
 
 HEAD_REVISION = "20260620_0010"
 DEFAULT_SEED_DIR = Path("tmp/seed")
@@ -39,18 +38,24 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> None:
+    setup_logging(debug=settings.debug, json_logs=settings.is_prod)
     args = parse_args()
     paths = args.paths or sorted(DEFAULT_SEED_DIR.glob("*.db"))
     if not paths:
         raise SystemExit("No seed DB files found.")
-    for path in paths:
-        normalize_seed_database(path.resolve())
+    with logged_task("admin_cli.normalize_seed_databases", actor="cli", admin_action=True, database_count=len(paths)) as result:
+        normalized = 0
+        for path in paths:
+            normalize_seed_database(path.resolve())
+            normalized += 1
+        result["normalized_count"] = normalized
 
 
 def normalize_seed_database(path: Path) -> None:
     if not path.exists():
         raise FileNotFoundError(path)
 
+    import_model_modules()
     engine = create_engine(f"sqlite:///{path.as_posix()}", future=True)
     with engine.begin() as connection:
         _ensure_inventory_balances(connection)
@@ -62,7 +67,7 @@ def normalize_seed_database(path: Path) -> None:
         _stamp_head_revision(session)
         session.commit()
 
-    logger.info("Seed database normalized", extra={"path": str(path), "rebuilt_row_count": rebuilt_rows, "revision": HEAD_REVISION})
+    logger.debug("Seed database normalized", extra={"path": str(path), "rebuilt_row_count": rebuilt_rows, "revision": HEAD_REVISION})
 
 
 def _ensure_inventory_balances(connection) -> None:

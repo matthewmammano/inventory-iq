@@ -33,7 +33,7 @@ def get_agency_permissions(display_name: str, session: Session | None = None) ->
     """Return (count_allow, restock_allow) or None if agency not found."""
     with managed_session(session) as s:
         row = s.execute(select(Agencies.user_count_allow, Agencies.user_restock_allow).where(Agencies.display_name == display_name)).first()
-        return tuple(row) if row else None  # type: ignore[return-value]
+        return (row.user_count_allow, row.user_restock_allow) if row else None
 
 
 def list_locations(

@@ -67,10 +67,10 @@ from app.shared.timezone_utils import get_timezone_hint
 from app.shared.utils import (
     get_squad_from_request,
     is_static_request,
-    parse_optional_int,
     validate_admin_session,
     validate_squad_access,
 )
+from app.shared.validators import parse_optional_int
 
 HISTORY_PAGE_SIZE = 250
 HISTORY_PRINT_LIMIT = 5000

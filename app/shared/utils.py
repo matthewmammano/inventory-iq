@@ -9,7 +9,6 @@ from loguru import logger
 from app.auth.queries import get_agency_by_display_name
 from app.shared.constants import ADMIN_TIMEOUT
 from app.shared.database import get_session
-from app.shared.validators import parse_optional_int  # noqa: F401 (re-exported)
 
 
 def parse_bool(value, default: bool = False) -> bool:
