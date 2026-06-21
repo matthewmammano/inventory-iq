@@ -18,6 +18,18 @@
 
 {% block content %}
 <section class="search">
+    {% if admin and selected_scan_route %}
+    <div class="scan-route-strip" aria-label="Selected scan route">
+        <div>
+            <span>FROM</span>
+            <strong>{{ selected_from_location_label }}</strong>
+        </div>
+        <div>
+            <span>TO</span>
+            <strong>{{ selected_to_location_label }}</strong>
+        </div>
+    </div>
+    {% endif %}
     <div class="status">
         {% if admin and selected_scan_route %}
             Scan UPC or search inventory below.

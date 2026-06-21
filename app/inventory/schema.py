@@ -21,6 +21,7 @@ class ScanStoragesRequest(BaseModel):
     from_location_id: int | None = None
     to_location_id: int | None = None
     same_location_error: str | None = None
+    show_scan_route: bool = False
 
     @field_validator("from_location_id", "to_location_id", mode="before")
     @classmethod

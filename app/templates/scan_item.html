@@ -12,6 +12,19 @@
 
 {% block content %}
 <section class="quantity-panel">
+    {% if show_scan_route %}
+    <div class="scan-route-strip" aria-label="Selected scan route">
+        <div>
+            <span>FROM</span>
+            <strong>{{ selected_from_location_label }}</strong>
+        </div>
+        <div>
+            <span>TO</span>
+            <strong>{{ selected_to_location_label }}</strong>
+        </div>
+    </div>
+    {% endif %}
+
     <div class="top">
         <div class="photo">
             <img src="{{ item.image|image_src }}"

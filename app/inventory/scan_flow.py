@@ -19,6 +19,7 @@ from .models import Items
 from .mutation_service import inventory_operation
 from .scan_support import (
     can_skip_storage_selection,
+    format_scan_location_label,
     format_scan_route_label,
     get_scan_permissions,
     load_scan_storage_choices,
@@ -200,13 +201,19 @@ def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = Fals
         flash(route_error or "Invalid storage combination.", "error")
         return redirect(url_for(f"{route}.scan_storages", squad=squad, item_id=request_data.item_id))
 
+    scan_item_args = {
+        "squad": squad,
+        "item_id": request_data.item_id,
+        "from_location_id": request_data.from_location_id,
+        "to_location_id": request_data.to_location_id,
+    }
+    if request_data.show_scan_route:
+        scan_item_args["show_scan_route"] = "1"
+
     return redirect(
         url_for(
             f"{route}.scan_item",
-            squad=squad,
-            item_id=request_data.item_id,
-            from_location_id=request_data.from_location_id,
-            to_location_id=request_data.to_location_id,
+            **scan_item_args,
         )
     )
 
@@ -219,6 +226,7 @@ def handle_scan_item_get(
     user_count_allow: bool = False,
     user_restock_allow: bool = False,
     is_admin: bool = False,
+    show_scan_route: bool = False,
 ):
     route = "admin" if is_admin else "guest"
     fallback = scan_fallback_endpoint(route)
@@ -314,6 +322,9 @@ def handle_scan_item_get(
         logo_img=current_user.image,
         admin=is_admin,
         page_subtitle=format_scan_route_label(from_location, to_location, is_admin=is_admin),
+        show_scan_route=show_scan_route and not is_admin,
+        selected_from_location_label=format_scan_location_label(from_location, is_admin=is_admin),
+        selected_to_location_label=format_scan_location_label(to_location, is_admin=is_admin, takeout_allowed=True),
         cancel_url=_scan_item_cancel_url(route, squad, from_location_id, to_location_id),
     )
 

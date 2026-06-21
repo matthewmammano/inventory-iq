@@ -44,6 +44,7 @@ from app.inventory.scan_flow import (
 )
 from app.inventory.scan_support import (
     ScanPermissions,
+    format_scan_location_label,
     format_scan_route_label,
     is_scan_route_allowed,
     load_scan_storage_choices,
@@ -717,8 +718,10 @@ def admin_scan_items(squad: str) -> Any:
         squad=squad,
         logo_img=current_user.image,
         admin=True,
-        page_subtitle=scan_route["label"],
+        page_subtitle="Ready for barcode scan or item search",
         selected_scan_route=scan_route["label"],
+        selected_from_location_label=scan_route["from_label"],
+        selected_to_location_label=scan_route["to_label"],
         selected_from_location_id=scan_route["from_location_id"],
         selected_to_location_id=scan_route["to_location_id"],
         scan_item_url_base=url_for("admin.scan_item", squad=squad),
@@ -867,6 +870,8 @@ def _selected_admin_scan_route() -> dict[str, int | str] | None:
     return {
         "from_location_id": from_location_id or 0,
         "to_location_id": to_location_id or 0,
+        "from_label": format_scan_location_label(from_location, is_admin=True),
+        "to_label": format_scan_location_label(to_location, is_admin=True, takeout_allowed=True),
         "label": format_scan_route_label(from_location, to_location, is_admin=True),
     }
 

@@ -221,6 +221,15 @@ def scan_item(squad: str) -> Any:
     to_location_id = request.args.get("to_location_id")
     user_count_allow = request.args.get("user_count_allow", "false").lower() == "true"
     user_restock_allow = request.args.get("user_restock_allow", "false").lower() == "true"
+    show_scan_route = request.args.get("show_scan_route") == "1"
     if to_location_id is None and not user_count_allow and not user_restock_allow:
         to_location_id = "-1"
-    return handle_scan_item_get(squad, item_id, from_location_id, to_location_id, user_count_allow, user_restock_allow)
+    return handle_scan_item_get(
+        squad,
+        item_id,
+        from_location_id,
+        to_location_id,
+        user_count_allow,
+        user_restock_allow,
+        show_scan_route=show_scan_route,
+    )
