@@ -32,10 +32,6 @@ from app.shared.utils import (
     validate_squad_access,
 )
 
-# ---------------------------------------------------------------------------
-# Authentication guard
-# ---------------------------------------------------------------------------
-
 
 @bp.before_request
 def check_guest_auth() -> Any:
@@ -60,11 +56,6 @@ def check_guest_auth() -> Any:
         return redirect(redirect_url)
 
     return None
-
-
-# ---------------------------------------------------------------------------
-# Guest index
-# ---------------------------------------------------------------------------
 
 
 @bp.route("/<squad>/")
@@ -96,11 +87,6 @@ def index(squad: str) -> Any:
         squad=squad,
         logo_img=current_user.image,
     )
-
-
-# ---------------------------------------------------------------------------
-# Admin login (PIN-based)
-# ---------------------------------------------------------------------------
 
 
 @bp.route("/<squad>/admin", methods=["GET", "POST"])
@@ -149,11 +135,6 @@ def _admin_login_response(squad: str, token: str) -> Any:
     )
     set_device_cookie(response, token)
     return response
-
-
-# ---------------------------------------------------------------------------
-# Scan flow
-# ---------------------------------------------------------------------------
 
 
 @bp.route("/<squad>/scan")

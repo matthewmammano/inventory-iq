@@ -42,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 ? a.score - b.score
                 : new Date(b.item.last_accessed || 0) - new Date(a.item.last_accessed || 0)
         );
-        list.innerHTML = "";
+        list.replaceChildren();
         results.slice(0, MAX_VISIBLE_RESULTS).forEach(({ item }) => list.appendChild(resultRow(item, itemUrl)));
     }
 
@@ -81,14 +81,33 @@ function navigateTo(url) {
 
 function resultRow(item, itemUrl) {
     const row = document.createElement("li");
-    const tags = item.tag_data.map((tag) =>
-        `<span class="tag" style="background-color: ${tag.color}; color: ${tag.text_color}; border-color: ${tag.text_color};">${tag.name}</span>`
-    ).join("");
-    row.innerHTML = `<div class="result-title"><strong>${item.name}</strong><div class="tags">${tags}</div></div>`;
+    const title = document.createElement("div");
+    title.className = "result-title";
+
+    const name = document.createElement("strong");
+    name.textContent = item.name;
+    title.appendChild(name);
+
+    const tags = document.createElement("div");
+    tags.className = "tags";
+    item.tag_data.forEach((tag) => tags.appendChild(tagBadge(tag)));
+    title.appendChild(tags);
+
+    row.appendChild(title);
     row.addEventListener("click", () => {
         navigateTo(itemUrl(item.id));
     });
     return row;
+}
+
+function tagBadge(tag) {
+    const badge = document.createElement("span");
+    badge.className = "tag";
+    badge.textContent = tag.name;
+    badge.style.backgroundColor = tag.color;
+    badge.style.color = tag.text_color;
+    badge.style.borderColor = tag.text_color;
+    return badge;
 }
 
 function bindUpcScanner(scanUpc) {

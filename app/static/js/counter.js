@@ -24,7 +24,6 @@ document.querySelectorAll('[data-value]').forEach(btn => {
 });
 
 submitBtn.addEventListener('click', function() {
-    // Update the counter_value before submitting
     counterInput.value = counterValue.textContent;
 
     if (!hiddenForm) return;

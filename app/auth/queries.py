@@ -7,10 +7,6 @@ from app.shared.database import managed_session
 
 from .models import Agencies, AgencyItemTags, AgencyLocations, AgencyStorages
 
-# ---------------------------------------------------------------------------
-# Agency queries
-# ---------------------------------------------------------------------------
-
 
 def get_agency(agency_id: int, session: Session | None = None) -> Agencies | None:
     with managed_session(session) as s:
@@ -38,11 +34,6 @@ def get_agency_permissions(display_name: str, session: Session | None = None) ->
     with managed_session(session) as s:
         row = s.execute(select(Agencies.user_count_allow, Agencies.user_restock_allow).where(Agencies.display_name == display_name)).first()
         return tuple(row) if row else None  # type: ignore[return-value]
-
-
-# ---------------------------------------------------------------------------
-# Location queries
-# ---------------------------------------------------------------------------
 
 
 def list_locations(
@@ -87,11 +78,6 @@ def list_top_locations(agency_id: int, session: Session | None = None) -> list[A
     with managed_session(session) as s:
         stmt = select(AgencyLocations).where(AgencyLocations.agency_id == agency_id).order_by(AgencyLocations.name)
         return list(s.execute(stmt).scalars().all())
-
-
-# ---------------------------------------------------------------------------
-# Tag queries
-# ---------------------------------------------------------------------------
 
 
 def list_tags(agency_id: int, session: Session | None = None) -> list[AgencyItemTags]:

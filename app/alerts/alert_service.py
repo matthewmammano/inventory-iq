@@ -612,7 +612,7 @@ def _stockout_reached_at(
     if not rows:
         return None
 
-    quantities_by_storage = {storage_id: 0 for storage_id in storage_ids}
+    quantities_by_storage = dict.fromkeys(storage_ids, 0)
     previous_total: int | None = None
     stockout_at: datetime | None = None
     for row in rows:

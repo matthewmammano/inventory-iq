@@ -31,7 +31,7 @@ from app.shared.database import create_all, get_session, init_db
 MAIN_AGENCY = "Point Boro EMS"
 MAIN_EMAIL = "mattmammanoweb@gmail.com"
 ALERT_EMAIL = "mattmammano@gmail.com"
-MAIN_PASSWORD = "Passw0rd!Point"
+MAIN_LOGIN = "point-demo-login-1!"
 MAIN_PIN = "1111"
 LAST_COUNT_AT = datetime(2026, 5, 9, 12, 0, tzinfo=UTC)
 SEGMENT_DAYS = 14
@@ -181,7 +181,7 @@ def _create_main_agency(session: Session) -> Agencies:
         alert_rare_scan_days=45,
         count_last_days=30,
     )
-    agency.set_password(MAIN_PASSWORD)
+    agency.set_password(MAIN_LOGIN)
     session.add(agency)
     session.flush()
     session.add(
@@ -533,7 +533,7 @@ def _create_small_agency(
         alert_rare_scan_days=45,
         count_last_days=30,
     )
-    agency.set_password("Passw0rd!Demo")
+    agency.set_password("demo-login-1!")
     session.add(agency)
     session.flush()
     locations = _create_locations(session, agency.id, {location_name: (storage_name,)})

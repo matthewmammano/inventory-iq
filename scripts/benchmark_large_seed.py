@@ -15,7 +15,7 @@ from urllib.parse import quote
 
 DEFAULT_SEED_DB = Path("tmp/seed/2026-05-28_showcase_full.db")
 DEFAULT_OUTPUT_JSON = Path("tmp/large_seed_benchmark.json")
-DEVICE_TOKEN = "stress-benchmark-device-token"
+DEVICE_COOKIE_VALUE = "benchmark-device"
 
 
 @dataclass(frozen=True)
@@ -114,7 +114,7 @@ def main() -> None:
         _authenticate_client(client, context)
         _enable_admin_session(client)
         _save_device_location_for_guest_flow(context)
-        client.set_cookie(DEVICE_COOKIE, DEVICE_TOKEN)
+        client.set_cookie(DEVICE_COOKIE, DEVICE_COOKIE_VALUE)
 
         route_specs = [
             ("guest_index", "GET", f"/inventory/{context.squad_url}/", False),
@@ -292,7 +292,7 @@ def _save_device_location_for_guest_flow(context: BenchmarkContext) -> None:
     from app.shared.database import get_session
 
     with get_session() as session:
-        save_device_location(context.agency_id, DEVICE_TOKEN, context.location_id, session)
+        save_device_location(context.agency_id, DEVICE_COOKIE_VALUE, context.location_id, session)
         session.commit()
 
 

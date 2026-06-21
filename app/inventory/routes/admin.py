@@ -70,10 +70,6 @@ from app.shared.utils import (
 
 HISTORY_PAGE_SIZE = 250
 
-# ---------------------------------------------------------------------------
-# Authorization guard
-# ---------------------------------------------------------------------------
-
 
 @bp.before_request
 def check_admin() -> Any:
@@ -106,11 +102,6 @@ def check_admin() -> Any:
         return redirect(url_for("auth.login"))
 
     return None
-
-
-# ---------------------------------------------------------------------------
-# Dashboard
-# ---------------------------------------------------------------------------
 
 
 @bp.route("/<squad>/admin-panel")
@@ -149,11 +140,6 @@ def admin_panel_views(squad: str) -> Any:
         user_timezone=current_user.timezone,
         timezone_hint=get_timezone_hint(current_user.timezone),
     )
-
-
-# ---------------------------------------------------------------------------
-# Inventory counts
-# ---------------------------------------------------------------------------
 
 
 @bp.route("/<squad>/admin-panel/inventory-count-levels")
@@ -219,11 +205,6 @@ def _inventory_count_tab(session, agency_id: int, agency_location_id: int) -> di
         row["total_class"] = get_inventory_level_class(row["total"])
         rows.append(row)
     return {"inventory_data": rows, "storages": storages}
-
-
-# ---------------------------------------------------------------------------
-# Restock analysis
-# ---------------------------------------------------------------------------
 
 
 @bp.route("/<squad>/admin-panel/restock")
@@ -577,11 +558,6 @@ def _log_bulk_location_missing(squad: str, agency_location_id: int) -> None:
     )
 
 
-# ---------------------------------------------------------------------------
-# History and help
-# ---------------------------------------------------------------------------
-
-
 @bp.route("/<squad>/admin-panel/history")
 @bp.route("/<squad>/admin-panel/history/<int:agency_location_id>")
 def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
@@ -706,11 +682,6 @@ def _positive_setting(field: str, label: str) -> int:
     if value < 1:
         raise ValueError(f"{label} must be at least 1.")
     return value
-
-
-# ---------------------------------------------------------------------------
-# Scan flow
-# ---------------------------------------------------------------------------
 
 
 @bp.route("/<squad>/admin-panel/scan-items", methods=["GET", "POST"])

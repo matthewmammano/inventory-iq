@@ -23,7 +23,7 @@ from app.shared.database import create_all, get_session, init_db
 DEFAULT_OUTPUT = Path("seed/2026-06-19_stress_large.db")
 STRESS_AGENCY = "Stress Test EMS"
 STRESS_EMAIL = "stress@example.com"
-STRESS_PASSWORD = "Passw0rd!Stress"
+STRESS_LOGIN = "stress-demo-login-1!"
 STRESS_PIN = "1111"
 STRESS_ALERT_EMAIL = "stress-alerts@example.com"
 TAG_SPECS = (
@@ -117,7 +117,7 @@ def _create_agency(session: Session) -> Agencies:
         alert_rare_scan_days=60,
         count_last_days=45,
     )
-    agency.set_password(STRESS_PASSWORD)
+    agency.set_password(STRESS_LOGIN)
     session.add(agency)
     session.flush()
     session.add(
