@@ -714,6 +714,9 @@ def _save_settings(squad: str) -> Any:
             extra={"agency_id": current_user.id, "squad": squad, "agency_location_id": location_id},
         )
         flash("Settings saved.", "success")
+        response = make_response(redirect(url_for("admin.admin_panel", squad=squad)))
+        set_device_cookie(response, token)
+        return response
     except ValueError as exc:
         logger.warning(
             "Admin settings rejected",
