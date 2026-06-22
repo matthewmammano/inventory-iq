@@ -9,7 +9,7 @@ from flask_login import current_user
 from loguru import logger
 
 REQUEST_ID_HEADER = "X-Request-ID"
-SLOW_REQUEST_MS = 1000
+SLOW_REQUEST_MS = 5000
 
 SAFE_MISSING_ROUTE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
 LOW_SIGNAL_MISSING_ROUTE_PATHS = frozenset(
@@ -110,7 +110,7 @@ def _log_request_finished(response) -> None:
         logger.warning("Request finished with error status", extra=extra)
         return
     if duration_ms is not None and duration_ms >= SLOW_REQUEST_MS:
-        logger.info("Slow request finished", extra=extra)
+        logger.warning(f"Slower request than {SLOW_REQUEST_MS} ms finished", extra=extra)
         return
     logger.debug("Request finished", extra=extra)
 

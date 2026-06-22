@@ -96,16 +96,17 @@ def extract_segments(
     agency_location_id: int,
 ) -> list[TrendSegment]:
     """Build completed location-level trend segments from fresh full-location counts."""
-    anchors = _extract_count_anchors(session, agency_id, item_id, agency_location_id)
+    anchors = extract_count_anchors(session, agency_id, item_id, agency_location_id)
     return [segment for start, end in pairwise(anchors) if (segment := _build_segment(start, end)) is not None]
 
 
-def _extract_count_anchors(
+def extract_count_anchors(
     session: Session,
     agency_id: int,
     item_id: int,
     agency_location_id: int,
 ) -> list[CountAnchor]:
+    """Return collapsed full-location count anchors used by training and charts."""
     storage_ids = get_location_storage_ids(session, agency_id, agency_location_id)
     if not storage_ids:
         return []

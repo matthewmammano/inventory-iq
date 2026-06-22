@@ -36,7 +36,7 @@ from app.inventory.location_operations import (
     get_location_storages,
     parse_quantity_grid,
 )
-from app.inventory.models import ActionLogs
+from app.inventory.models import ActionLogs, Items
 from app.inventory.report_email_service import send_inventory_count_report
 from app.inventory.scan_flow import (
     handle_scan_item_get,
@@ -61,6 +61,7 @@ from app.inventory.ui import (
     get_order_quantity_class,
 )
 from app.prediction.bulk_service import BulkService
+from app.prediction.history_service import build_item_trend_chart
 from app.shared.constants import ADMIN_TIMEOUT
 from app.shared.database import get_session
 from app.shared.timezone_utils import get_timezone_hint
@@ -145,6 +146,26 @@ def admin_panel_views(squad: str) -> Any:
         user_timezone=current_user.timezone,
         timezone_hint=get_timezone_hint(current_user.timezone),
     )
+
+
+@bp.get("/<squad>/items/<int:item_id>/locations/<int:agency_location_id>/trend")
+def item_trend_chart(squad: str, item_id: int, agency_location_id: int) -> Any:
+    with get_session() as s:
+        item = s.scalar(
+            select(Items).where(
+                Items.agency_id == current_user.id,
+                Items.id == item_id,
+            )
+        )
+        location = s.scalar(
+            select(AgencyLocations).where(
+                AgencyLocations.agency_id == current_user.id,
+                AgencyLocations.id == agency_location_id,
+            )
+        )
+        if item is None or location is None:
+            return {"error": "Item or location not found."}, 404
+        return build_item_trend_chart(s, current_user.id, item, location).model_dump(mode="json")
 
 
 @bp.route("/<squad>/admin-panel/inventory-count-levels")

@@ -12,3 +12,25 @@ class LocationPredictionResponse(BaseModel):
     trend_per_day: float
     confidence_percent: float | None = Field(default=None, ge=0, le=100)
     days_until_low: float | None = Field(default=None, ge=0)
+
+
+class TrendChartPoint(BaseModel):
+    """One point on an item/location trend chart."""
+
+    at: str
+    quantity: float
+    operation: str | None = None
+
+
+class ItemTrendChartResponse(BaseModel):
+    """Historical item/location trend chart payload."""
+
+    item_id: int
+    item_name: str
+    agency_location_id: int
+    location_name: str
+    count_points: list[TrendChartPoint]
+    operation_points: list[TrendChartPoint]
+    trendline_points: list[TrendChartPoint]
+    trend_per_day: float | None = None
+    confidence_percent: float | None = Field(default=None, ge=0, le=100)
