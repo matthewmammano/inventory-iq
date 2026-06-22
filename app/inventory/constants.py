@@ -13,6 +13,18 @@ class OperationType(str, Enum):
     TRANSFER = "TRANSFER"
 
 
+class UnknownUpcStatus(str, Enum):
+    PENDING = "PENDING"
+    RESOLVED = "RESOLVED"
+    IGNORE = "IGNORE"
+
+
+UNKNOWN_UPC_REVIEW_MESSAGE: Final[str] = (
+    "UPC not recognized yet. This item may already exist under another barcode. "
+    "Try scanning a different UPC for now while an admin reviews this code."
+)
+
+
 VIRTUAL_LOCATION_RESTOCK: Final[int] = -1
 VIRTUAL_LOCATION_COUNT: Final[int] = -2
 VIRTUAL_LOCATION_TAKEOUT: Final[int] = -1

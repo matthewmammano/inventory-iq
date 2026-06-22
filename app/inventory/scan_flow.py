@@ -12,7 +12,7 @@ from app.auth.models import AgencyStorages
 from app.shared.database import get_session
 from app.shared.validators import parse_optional_int
 
-from .constants import OperationType
+from .constants import UNKNOWN_UPC_REVIEW_MESSAGE, OperationType
 from .errors import InventoryError
 from .item_queries import get_agency_item, get_item_by_upc
 from .models import Items
@@ -35,6 +35,7 @@ from .scan_support import (
     validate_scan_route,
 )
 from .schema import ScanItemRequest, ScanStoragesRequest
+from .upc_service import record_unknown_upc
 
 
 @dataclass(frozen=True)
@@ -61,20 +62,29 @@ def handle_scan_start(
 
     with get_session() as db:
         item = _get_scan_item(db, item_id, upc, is_admin=is_admin)
+        if not item:
+            if upc:
+                try:
+                    record_unknown_upc(db, current_user.id, upc)
+                    db.commit()
+                except ValueError as exc:
+                    logger.warning(
+                        "Unknown UPC scan ignored because the code was invalid",
+                        extra={"agency_id": current_user.id, "squad": squad, "error": str(exc)},
+                    )
+            logger.warning(
+                "Scan start rejected: item was not found",
+                extra={
+                    "agency_id": current_user.id,
+                    "squad": squad,
+                    "item_id": item_id,
+                    "upc": upc,
+                    "admin": is_admin,
+                },
+            )
+            flash(UNKNOWN_UPC_REVIEW_MESSAGE if upc else "Item not found for this squad.", "warning")
+            return redirect(url_for(fallback, squad=squad))
         storage_choices = load_scan_storage_choices(current_user.id, is_admin, db)
-    if not item:
-        logger.warning(
-            "Scan start rejected: item was not found",
-            extra={
-                "agency_id": current_user.id,
-                "squad": squad,
-                "item_id": item_id,
-                "upc": upc,
-                "admin": is_admin,
-            },
-        )
-        flash("Item not found for this squad.", "warning")
-        return redirect(url_for(fallback, squad=squad))
 
     permissions = get_scan_permissions(squad, is_admin=is_admin)
     from_storages = storage_choices.from_storages

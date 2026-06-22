@@ -16,6 +16,7 @@ from app.auth.device_locations import (
 )
 from app.auth.queries import get_agency_by_display_name, list_top_locations
 from app.inventory import guest_bp as bp
+from app.inventory.constants import UNKNOWN_UPC_REVIEW_MESSAGE
 from app.inventory.scan_flow import (
     handle_scan_item_get,
     handle_scan_item_post,
@@ -24,6 +25,7 @@ from app.inventory.scan_flow import (
     handle_scan_storages_post,
 )
 from app.inventory.search_payload import load_item_search_payload
+from app.inventory.upc_service import record_unknown_upc
 from app.shared.database import get_session
 from app.shared.utils import (
     get_squad_from_request,
@@ -62,11 +64,12 @@ def check_guest_auth() -> Any:
 @login_required
 def index(squad: str) -> Any:
     if request.args.get("scan_error") == "not_found":
+        has_unknown_upc = _record_unknown_upc_from_request(squad)
         logger.warning(
             "Guest scan search could not find the scanned barcode",
             extra={"agency_id": current_user.id, "squad": squad},
         )
-        flash("Item not found. Please try again.", "error")
+        flash(UNKNOWN_UPC_REVIEW_MESSAGE if has_unknown_upc else "Item not found. Please try again.", "warning")
     try:
         with get_session() as s:
             items_payload = load_item_search_payload(
@@ -87,6 +90,23 @@ def index(squad: str) -> Any:
         squad=squad,
         logo_img=current_user.image,
     )
+
+
+def _record_unknown_upc_from_request(squad: str) -> bool:
+    upc = request.args.get("unknown_upc", "").strip()
+    if not upc:
+        return False
+    try:
+        with get_session() as s:
+            record_unknown_upc(s, current_user.id, upc)
+            s.commit()
+        return True
+    except ValueError as exc:
+        logger.warning(
+            "Unknown guest UPC scan ignored because the code was invalid",
+            extra={"agency_id": current_user.id, "squad": squad, "error": str(exc)},
+        )
+        return False
 
 
 @bp.route("/<squad>/admin", methods=["GET", "POST"])
@@ -145,6 +165,7 @@ def scan_start(squad: str) -> Any:
     return handle_scan_start(
         squad,
         parse_optional_int(request.args.get("item_id")),
+        upc=request.args.get("upc"),
         is_admin=False,
     )
 

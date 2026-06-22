@@ -27,12 +27,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     const scanUpc = (upc) => {
-        const item = items.find((candidate) => candidate.upc === upc);
+        const item = items.find((candidate) => (candidate.upcs || []).includes(upc));
         if (item) {
             navigateTo(itemUrl(item.id));
             return;
         }
-        navigateTo(scanErrorUrl || `${window.location.pathname}?scan_error=not_found`);
+        const errorUrl = new URL(scanErrorUrl || `${window.location.pathname}?scan_error=not_found`, window.location.origin);
+        errorUrl.searchParams.set("unknown_upc", upc);
+        navigateTo(errorUrl.toString());
     };
 
     function showResults(query) {
@@ -61,7 +63,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 function buildSearch(items) {
     if (typeof Fuse !== "undefined") {
-        return new Fuse(items, { keys: ["name", "upc", "tags"], threshold: 0.9, includeScore: true });
+        return new Fuse(items, { keys: ["name", "upcs", "tags"], threshold: 0.9, includeScore: true });
     }
     return {
         search: (query) => items
@@ -71,7 +73,7 @@ function buildSearch(items) {
 }
 
 function searchableText(item) {
-    return `${item.name} ${item.upc} ${item.tags.join(" ")}`.toLowerCase();
+    return `${item.name} ${(item.upcs || []).join(" ")} ${item.tags.join(" ")}`.toLowerCase();
 }
 
 function navigateTo(url) {

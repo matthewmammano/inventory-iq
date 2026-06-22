@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+
+{% macro upc_table(scans, items, lookup_tip, ignored=False) %}
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>UPC</th>
+                <th>Barcode Lookup Result <button type="button" class="info-tip" aria-label="{{ lookup_tip }}" data-tooltip="{{ lookup_tip }}">i</button></th>
+                <th>Suggested Inventory Item</th>
+                <th>Last Seen</th>
+                <th>First Seen</th>
+                <th>Link To Item</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for scan in scans %}
+            <tr>
+                <td>{{ scan.upc }}</td>
+                <td>{% if scan.lookup_title %}"{{ scan.lookup_title }}"{% else %}No online product name found{% endif %}</td>
+                <td>{{ scan.suggested_item.name if scan.suggested_item else 'No confident match' }}</td>
+                <td>{{ scan.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>
+                    <form method="POST" class="inline-form upc-review-link">
+                        <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
+                        <input type="hidden" name="action" value="resolve">
+                        <select class="upc-review-select" name="item_id" required>
+                            <option value="">Select item</option>
+                            {% for item in items %}
+                            <option value="{{ item.id }}" {% if scan.suggested_item_id == item.id %}selected{% endif %}>{{ item.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <button class="success-button" type="submit">Link</button>
+                    </form>
+                </td>
+                <td>
+                    <div class="upc-review-actions">
+                        <form method="POST" class="inline-form">
+                            <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
+                            <input type="hidden" name="action" value="{{ 'unignore' if ignored else 'ignore' }}">
+                            <button class="quiet-button" type="submit">{{ 'Unignore' if ignored else 'Ignore' }}</button>
+                        </form>
+                        <form method="POST" class="inline-form">
+                            <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
+                            <input type="hidden" name="action" value="remove">
+                            <button class="danger-button" type="submit">Cancel</button>
+                        </form>
+                    </div>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endmacro %}
+
+{% block title %}Unknown UPCs{% endblock %}
+{% block header_title %}Unknown UPCs{% endblock %}
+{% block sub_title %}Review unknown scanned barcodes{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>{% endblock %}
+
+{% block content %}
+{% set lookup_tip = "This is not exact. It is only an online barcode lookup used to speed up classifying the UPC, and it may be wrong." %}
+<section class="panel">
+    <div class="panel-header">
+        <h2>Pending Review</h2>
+    </div>
+    {% if pending_upcs|length == 0 %}
+    <div class="empty-state"><h2>No pending UPCs</h2></div>
+    {% else %}
+    {{ upc_table(pending_upcs, items, lookup_tip) }}
+    {% endif %}
+</section>
+
+<section class="panel">
+    <div class="panel-header">
+        <h2>Ignored UPCs</h2>
+    </div>
+    {% if ignored_upcs|length == 0 %}
+    <div class="empty-state"><h2>No ignored UPCs</h2></div>
+    {% else %}
+    {{ upc_table(ignored_upcs, items, lookup_tip, ignored=True) }}
+    {% endif %}
+</section>
+{% endblock %}

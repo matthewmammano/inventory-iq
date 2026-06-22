@@ -1,12 +1,12 @@
 """Inventory item query helpers."""
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from app.auth.queries import get_tags_by_ids
 from app.shared.database import managed_session
 
-from .models import Items
+from .models import Items, ItemUpcCode
 
 
 def get_agency_item(
@@ -17,7 +17,7 @@ def get_agency_item(
     session: Session | None = None,
 ) -> Items | None:
     with managed_session(session) as db:
-        stmt = select(Items).where(Items.id == item_id, Items.agency_id == agency_id)
+        stmt = select(Items).options(selectinload(Items.upc_codes)).where(Items.id == item_id, Items.agency_id == agency_id)
         if not include_inactive:
             stmt = stmt.where(Items.active.is_(True))
         return db.execute(stmt).scalars().first()
@@ -31,7 +31,7 @@ def get_item_by_upc(
     session: Session | None = None,
 ) -> Items | None:
     with managed_session(session) as db:
-        stmt = select(Items).where(Items.agency_id == agency_id, Items.upc == upc)
+        stmt = select(Items).join(ItemUpcCode).where(Items.agency_id == agency_id, ItemUpcCode.upc == upc)
         if not include_inactive:
             stmt = stmt.where(Items.active.is_(True))
         return db.execute(stmt).scalars().first()
@@ -45,7 +45,7 @@ def list_items(
     session: Session | None = None,
 ) -> list[Items]:
     with managed_session(session) as db:
-        stmt = select(Items).where(Items.agency_id == agency_id)
+        stmt = select(Items).options(selectinload(Items.upc_codes)).where(Items.agency_id == agency_id)
         if not include_inactive:
             stmt = stmt.where(Items.active.is_(True))
         order_column = Items.last_accessed.desc().nulls_last() if order_by_last_accessed else Items.name

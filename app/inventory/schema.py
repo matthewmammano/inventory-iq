@@ -72,7 +72,7 @@ class ItemResponse(BaseModel):
 
     id: int
     agency_id: int
-    upc: str | None
+    upcs: list[str] = Field(default_factory=list)
     active: bool
     guest_quick_adjust: bool
     tag_ids: list[int]

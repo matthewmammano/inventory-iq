@@ -18,18 +18,23 @@ class AlertType(str, Enum):
     RESTOCK_ACTION = "restock_action"
     TAKEOUT_ACTION = "takeout_action"
     TRANSFER_ACTION = "transfer_action"
+    UNKNOWN_UPC = "unknown_upc"
 
     @property
     def color(self) -> str:
         if self == AlertType.STOCKOUT:
             return "#9F1F1F"
-        if self in {
-            AlertType.STOCKOUT_PRED,
-            AlertType.LOW,
-            AlertType.LOW_PRED,
-            AlertType.STALE_COUNT,
-            AlertType.RARE_TAKEOUT,
-        }:
+        if (
+            self
+            in {
+                AlertType.STOCKOUT_PRED,
+                AlertType.LOW,
+                AlertType.LOW_PRED,
+                AlertType.STALE_COUNT,
+                AlertType.RARE_TAKEOUT,
+            }
+            or self == AlertType.UNKNOWN_UPC
+        ):
             return "#8A5A00"
         return "#2F6B4F"
 

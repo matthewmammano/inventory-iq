@@ -11,7 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.auth.location_filters import alert_matches_location_filter, validate_location_filter_ids
 from app.auth.models import Agencies, AgencyEmails
-from app.inventory.models import ActionLogs
+from app.inventory.constants import UnknownUpcStatus
+from app.inventory.models import ActionLogs, UnknownUpcScan
 from app.prediction.formatting import rounded_confidence_percent
 from app.shared.clock import utc_now_naive
 from app.shared.database import get_session
@@ -28,6 +29,7 @@ WARNING_TYPES = {
     AlertType.LOW_PRED,
     AlertType.STALE_COUNT,
     AlertType.RARE_TAKEOUT,
+    AlertType.UNKNOWN_UPC,
 }
 
 ACTION_TYPES = {
@@ -37,7 +39,7 @@ ACTION_TYPES = {
     AlertType.TRANSFER_ACTION,
 }
 
-HOURLY_TYPES = {AlertType.STOCKOUT, *ACTION_TYPES}
+HOURLY_TYPES = {AlertType.STOCKOUT, AlertType.UNKNOWN_UPC, *ACTION_TYPES}
 
 PREFERENCE_BY_TYPE = {
     AlertType.STOCKOUT: "alert_for_stockout",
@@ -63,6 +65,7 @@ LABEL_BY_TYPE = {
     AlertType.RESTOCK_ACTION: "restock activity",
     AlertType.TAKEOUT_ACTION: "takeout activity",
     AlertType.TRANSFER_ACTION: "transfer activity",
+    AlertType.UNKNOWN_UPC: "unknown UPCs",
 }
 
 
@@ -253,6 +256,9 @@ def _build_sections(alerts: list[AlertRecords], timezone: str) -> list[AlertTabl
     scan_section = _scan_activity_section(alerts, timezone)
     if scan_section is not None:
         sections.append(scan_section)
+    upc_section = _unknown_upc_section(alerts, timezone)
+    if upc_section is not None:
+        sections.append(upc_section)
     return sections
 
 
@@ -427,6 +433,25 @@ def _scan_activity_section(alerts: list[AlertRecords], timezone: str) -> AlertTa
     )
 
 
+def _unknown_upc_section(alerts: list[AlertRecords], timezone: str) -> AlertTableSection | None:
+    rows = [
+        {
+            "upc": alert.details_json.get("upc"),
+            "lookup_title": alert.details_json.get("lookup_title") or "Not found",
+            "created_at": _display_datetime(alert.details_json.get("created_at"), timezone),
+        }
+        for alert in alerts
+        if alert.type == AlertType.UNKNOWN_UPC
+    ]
+    return _simple_section(
+        AlertType.UNKNOWN_UPC,
+        "Unknown UPCs",
+        "These UPCs need admin review before they can scan to an item.",
+        rows,
+        ["upc:UPC", "lookup_title:Lookup Name", "created_at:First Seen"],
+    )
+
+
 def _summary_sections(
     session: Session,
     agency: Agencies,
@@ -549,6 +574,8 @@ def _recipient_allows_alert(
     recipient: AgencyEmails,
     alert: AlertRecords,
 ) -> bool:
+    if alert.type == AlertType.UNKNOWN_UPC:
+        return _unknown_upc_is_pending(session, alert)
     if not bool(getattr(recipient, PREFERENCE_BY_TYPE[alert.type])):
         return False
     try:
@@ -565,6 +592,31 @@ def _recipient_allows_alert(
         )
         return False
     return alert_matches_location_filter(location_ids, alert.details_json)
+
+
+def _unknown_upc_is_pending(session: Session, alert: AlertRecords) -> bool:
+    unknown_upc_id = alert.details_json.get("unknown_upc_id")
+    if isinstance(unknown_upc_id, int):
+        return (
+            session.scalar(
+                select(UnknownUpcScan.status).where(
+                    UnknownUpcScan.agency_id == alert.agency_id,
+                    UnknownUpcScan.id == unknown_upc_id,
+                )
+            )
+            == UnknownUpcStatus.PENDING
+        )
+    upc = alert.details_json.get("upc")
+    return (
+        isinstance(upc, str)
+        and session.scalar(
+            select(UnknownUpcScan.status).where(
+                UnknownUpcScan.agency_id == alert.agency_id,
+                UnknownUpcScan.upc == upc,
+            )
+        )
+        == UnknownUpcStatus.PENDING
+    )
 
 
 def _display_now(timezone: str, now: datetime) -> str:

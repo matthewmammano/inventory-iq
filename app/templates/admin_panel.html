@@ -11,6 +11,10 @@
         <h2>View</h2>
         <p>Access item, location, and tag views.</p>
     </a>
+    <a class="card" href="{{ url_for('admin.pending_upcs', squad=squad) }}">
+        <h2>Unknown UPCs</h2>
+        <p>Review unknown scanned barcodes.</p>
+    </a>
     <a class="card" href="{{ url_for('admin.admin_scan_items', squad=squad) }}">
         <h2>Move / Count</h2>
         <p>Move inventory or correct counts.</p>

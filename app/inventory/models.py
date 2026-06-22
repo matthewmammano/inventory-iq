@@ -3,7 +3,6 @@
 from datetime import datetime
 from typing import Any
 
-from loguru import logger
 from sqlalchemy import (
     JSON,
     Boolean,
@@ -14,13 +13,9 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
-    event,
-    update,
 )
 from sqlalchemy import Enum as SAEnum
-from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.orm import Mapped, mapped_column, object_session, relationship, validates
-from sqlalchemy.orm.attributes import set_committed_value
+from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 
 from app.shared.clock import utc_now
 from app.shared.database import Base
@@ -33,9 +28,8 @@ from app.shared.validators import (
 )
 
 from .constants import (
-    UPC_GENERATION_PREFIX,
-    UPC_PAYLOAD_LENGTH,
     OperationType,
+    UnknownUpcStatus,
 )
 
 
@@ -46,7 +40,6 @@ class Items(Base):
     __allow_unmapped__ = True
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    upc: Mapped[str | None] = mapped_column(String(12))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     guest_quick_adjust: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -65,11 +58,10 @@ class Items(Base):
     prior_daily_usage: Mapped[float] = mapped_column(Float)
 
     action_logs = relationship("ActionLogs", back_populates="item", lazy="selectin")
+    upc_codes = relationship("ItemUpcCode", back_populates="item", cascade="all, delete-orphan", lazy="selectin")
     tags: Any
 
     __table_args__ = (
-        UniqueConstraint("agency_id", "upc", name="uq_items_agency_upc"),
-        Index("idx_agency_upc", "agency_id", "upc"),
         Index("idx_agency_name", "agency_id", "name"),
         Index("idx_agency_last_accessed", "agency_id", "last_accessed"),
     )
@@ -131,43 +123,71 @@ class Items(Base):
     def validate_image(self, _key: str, value: str | None) -> str | None:
         return validate_image_url(value)
 
-    @staticmethod
-    def calculate_upc_check_digit(upc11: str) -> str:
-        digits = [int(d) for d in upc11]
-        odd_sum = sum(digits[::2]) * 3
-        even_sum = sum(digits[1::2])
-        total = odd_sum + even_sum
-        return str((10 - total % 10) % 10)
 
-    @staticmethod
-    def generated_upc_from_id(item_id: int) -> str:
-        base = f"{UPC_GENERATION_PREFIX}{item_id:0>{UPC_PAYLOAD_LENGTH - 1}}"
-        return base + Items.calculate_upc_check_digit(base)
+class ItemUpcCode(Base):
+    """Valid UPC code linked to one inventory item."""
+
+    __tablename__ = "item_upc_codes"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
+    item_id: Mapped[int] = mapped_column(Integer, ForeignKey("items.id", ondelete="CASCADE"), index=True)
+    upc: Mapped[str] = mapped_column(String(12))
+
+    item = relationship("Items", back_populates="upc_codes", lazy="selectin")
+
+    __table_args__ = (
+        UniqueConstraint("agency_id", "upc", name="uq_item_upc_codes_agency_upc"),
+        Index("idx_item_upc_codes_agency_item", "agency_id", "item_id"),
+        Index("idx_item_upc_codes_agency_upc", "agency_id", "upc"),
+    )
 
     @validates("upc")
-    def validate_upc(self, _key: str, value: str | None) -> str | None:
-        if not value:
-            return None
-        if not isinstance(value, str):
-            raise ValueError("UPC must be a string")
-        if not value.isdigit() or len(value) != 12:
-            raise ValueError("UPC must be a 12-digit number")
-        calculated_check = self.calculate_upc_check_digit(value[:11])
-        if calculated_check != value[11]:
-            raise ValueError("Invalid UPC check digit")
-        try:
-            sess = object_session(self)
-            agency_id_val = getattr(self, "agency_id", None)
-            if sess is not None and agency_id_val is not None:
-                stmt = sess.query(Items.id).filter(Items.agency_id == agency_id_val).filter(Items.upc == value)
-                if getattr(self, "id", None) is not None:
-                    stmt = stmt.filter(Items.id != self.id)
-                existing = stmt.first()
-                if existing:
-                    raise ValueError("UPC must be unique per agency")
-        except SQLAlchemyError as db_error:
-            logger.warning(f"UPC uniqueness check skipped because the database lookup failed: {db_error}")
-        return value
+    def validate_upc(self, _key: str, value: str | None) -> str:
+        return validate_upc_code(value)
+
+
+class UnknownUpcScan(Base):
+    """Unknown UPC waiting for admin review."""
+
+    __tablename__ = "unknown_upc_scans"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
+    upc: Mapped[str] = mapped_column(String(12))
+    lookup_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    suggested_item_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("items.id"), nullable=True)
+    status: Mapped[UnknownUpcStatus] = mapped_column(SAEnum(UnknownUpcStatus), default=UnknownUpcStatus.PENDING, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+
+    suggested_item = relationship("Items", lazy="selectin")
+
+    __table_args__ = (
+        UniqueConstraint("agency_id", "upc", name="uq_unknown_upc_scans_agency_upc"),
+        Index("idx_unknown_upc_scans_agency_status_created", "agency_id", "status", "created_at"),
+    )
+
+    @validates("upc")
+    def validate_upc(self, _key: str, value: str | None) -> str:
+        return validate_upc_code(value)
+
+
+def validate_upc_code(value: str | None) -> str:
+    if not value or not isinstance(value, str):
+        raise ValueError("UPC must be a string")
+    normalized = value.strip()
+    if not normalized.isdigit() or len(normalized) != 12:
+        raise ValueError("UPC must be a 12-digit number")
+    if _upc_check_digit(normalized[:11]) != normalized[11]:
+        raise ValueError("Invalid UPC check digit")
+    return normalized
+
+
+def _upc_check_digit(upc11: str) -> str:
+    digits = [int(digit) for digit in upc11]
+    total = sum(digits[::2]) * 3 + sum(digits[1::2])
+    return str((10 - total % 10) % 10)
 
 
 class ActionLogs(Base):
@@ -254,12 +274,3 @@ class InventoryBalances(Base):
         if value is None:
             raise ValueError("quantity cannot be None")
         return int(value)
-
-
-@event.listens_for(Items, "after_insert")
-def auto_assign_generated_upc(_mapper, connection, item: Items) -> None:
-    if item.upc or item.id is None:
-        return
-    upc = Items.generated_upc_from_id(item.id)
-    connection.execute(update(Items).where(Items.id == item.id).values(upc=upc))
-    set_committed_value(item, "upc", upc)

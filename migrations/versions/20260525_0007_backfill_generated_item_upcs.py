@@ -15,6 +15,10 @@ depends_on = None
 
 
 def upgrade() -> None:
+    columns = {column["name"] for column in sa.inspect(op.get_bind()).get_columns("items")}
+    if "upc" not in columns:
+        return
+
     items = sa.table("items", sa.column("id", sa.Integer), sa.column("upc", sa.String))
     connection = op.get_bind()
     rows = connection.execute(sa.select(items.c.id).where(items.c.upc.is_(None))).all()

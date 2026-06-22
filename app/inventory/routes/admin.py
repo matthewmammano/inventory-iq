@@ -30,6 +30,7 @@ from app.inventory.bulk_location_service import (
     save_bulk_location_count,
     save_bulk_location_restock,
 )
+from app.inventory.constants import UNKNOWN_UPC_REVIEW_MESSAGE, UnknownUpcStatus
 from app.inventory.item_queries import list_items
 from app.inventory.location_operations import (
     build_location_count_rows,
@@ -59,6 +60,14 @@ from app.inventory.ui import (
     get_days_until_low_class,
     get_inventory_level_class,
     get_order_quantity_class,
+)
+from app.inventory.upc_service import (
+    ignore_unknown_upc,
+    list_review_unknown_upcs,
+    record_unknown_upc,
+    remove_unknown_upc,
+    resolve_unknown_upc,
+    unignore_unknown_upc,
 )
 from app.prediction.bulk_service import BulkService
 from app.prediction.history_service import build_item_trend_chart
@@ -146,6 +155,54 @@ def admin_panel_views(squad: str) -> Any:
         user_timezone=current_user.timezone,
         timezone_hint=get_timezone_hint(current_user.timezone),
     )
+
+
+@bp.route("/<squad>/admin-panel/pending-upcs", methods=["GET", "POST"])
+def pending_upcs(squad: str) -> Any:
+    if request.method == "POST":
+        return _save_pending_upc_review(squad)
+    with get_session() as s:
+        review_upcs = list_review_unknown_upcs(s, current_user.id)
+        items = list_items(current_user.id, session=s)
+    return render_template(
+        "admin_pending_upcs.html",
+        squad=squad,
+        pending_upcs=[scan for scan in review_upcs if scan.status == UnknownUpcStatus.PENDING],
+        ignored_upcs=[scan for scan in review_upcs if scan.status == UnknownUpcStatus.IGNORE],
+        items=items,
+        admin=True,
+        user_timezone=current_user.timezone,
+    )
+
+
+def _save_pending_upc_review(squad: str) -> Any:
+    unknown_upc_id = parse_optional_int(request.form.get("unknown_upc_id"))
+    action = request.form.get("action", "")
+    try:
+        if unknown_upc_id is None:
+            raise ValueError("Pending UPC not found.")
+        with get_session() as s:
+            if action == "resolve":
+                item_id = parse_optional_int(request.form.get("item_id"))
+                if item_id is None:
+                    raise ValueError("Select an item.")
+                resolve_unknown_upc(s, current_user.id, unknown_upc_id, item_id)
+                flash("UPC linked to item.", "success")
+            elif action == "ignore":
+                ignore_unknown_upc(s, current_user.id, unknown_upc_id)
+                flash("UPC ignored.", "success")
+            elif action == "unignore":
+                unignore_unknown_upc(s, current_user.id, unknown_upc_id)
+                flash("UPC moved back to pending.", "success")
+            elif action == "remove":
+                remove_unknown_upc(s, current_user.id, unknown_upc_id)
+                flash("UPC review canceled.", "success")
+            else:
+                raise ValueError("Choose a valid UPC review action.")
+            s.commit()
+    except ValueError as exc:
+        flash(str(exc), "error")
+    return redirect(url_for("admin.pending_upcs", squad=squad))
 
 
 @bp.get("/<squad>/items/<int:item_id>/locations/<int:agency_location_id>/trend")
@@ -864,6 +921,7 @@ def admin_scan_items(squad: str) -> Any:
         return _render_admin_scan_setup(squad)
 
     if request.args.get("scan_error") == "not_found":
+        has_unknown_upc = _record_unknown_upc_from_request(squad)
         logger.warning(
             "Admin scan search could not find the scanned barcode",
             extra={
@@ -873,7 +931,7 @@ def admin_scan_items(squad: str) -> Any:
                 "to_storage_id": scan_route["to_location_id"],
             },
         )
-        flash("Item not found. Please try again.", "error")
+        flash(UNKNOWN_UPC_REVIEW_MESSAGE if has_unknown_upc else "Item not found. Please try again.", "warning")
     with get_session() as s:
         items_payload = load_item_search_payload(
             s,
@@ -904,11 +962,29 @@ def admin_scan_items(squad: str) -> Any:
     )
 
 
+def _record_unknown_upc_from_request(squad: str) -> bool:
+    upc = request.args.get("unknown_upc", "").strip()
+    if not upc:
+        return False
+    try:
+        with get_session() as s:
+            record_unknown_upc(s, current_user.id, upc)
+            s.commit()
+        return True
+    except ValueError as exc:
+        logger.warning(
+            "Unknown UPC scan ignored because the code was invalid",
+            extra={"agency_id": current_user.id, "squad": squad, "error": str(exc)},
+        )
+        return False
+
+
 @bp.route("/<squad>/admin-panel/scan")
 def admin_scan_start(squad: str) -> Any:
     return handle_scan_start(
         squad,
         parse_optional_int(request.args.get("item_id")),
+        upc=request.args.get("upc"),
         is_admin=True,
     )
 
