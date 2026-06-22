@@ -27,6 +27,7 @@ LOW_SIGNAL_MISSING_ROUTE_PATHS = frozenset(
     }
 )
 LOW_SIGNAL_MISSING_ROUTE_PREFIXES = (
+    "/.well-known/",
     "/wp-",
     "/wp/",
     "/wordpress/",
@@ -78,15 +79,11 @@ def register_request_logging(app: Flask) -> None:
 def log_missing_route(path: str, method: str) -> None:
     """Log 404s at a level that matches their likely risk."""
     normalized_path = _normalize_path(path)
-    if normalized_path.startswith("/.well-known/"):
-        return
-
     normalized_method = method.upper()
-    extra = {"path": normalized_path, "method": normalized_method}
-
-    if _is_low_signal_missing_route(normalized_path):
-        logger.debug("Missing route from low-signal probe", extra=extra)
+    if _is_low_signal_404(normalized_path, normalized_method):
         return
+
+    extra = {"path": normalized_path, "method": normalized_method}
 
     if normalized_method not in SAFE_MISSING_ROUTE_METHODS:
         logger.warning("Missing route with unexpected method", extra=extra)
@@ -106,8 +103,13 @@ def _log_request_finished(response) -> None:
         "duration_ms": duration_ms,
         "content_length": response.calculate_content_length(),
     }
+    if response.status_code == 404 and _is_low_signal_404(request.path, request.method):
+        return
     if response.status_code >= 400:
-        logger.warning("Request finished with error status", extra=extra)
+        logger.warning(
+            f"Request finished with error status: {response.status_code} {request.method} {request.path} in {duration_ms} ms",
+            extra=extra,
+        )
         return
     if duration_ms is not None and duration_ms >= SLOW_REQUEST_MS:
         logger.warning(f"Slower request than {SLOW_REQUEST_MS} ms finished", extra=extra)
@@ -146,6 +148,11 @@ def _is_low_signal_missing_route(path: str) -> bool:
         or path.endswith(LOW_SIGNAL_MISSING_ROUTE_SUFFIXES)
         or _is_root_php_probe(path)
     )
+
+
+def _is_low_signal_404(path: str, method: str) -> bool:
+    normalized_path = _normalize_path(path)
+    return method.upper() in SAFE_MISSING_ROUTE_METHODS and _is_low_signal_missing_route(normalized_path)
 
 
 def _is_root_php_probe(path: str) -> bool:
