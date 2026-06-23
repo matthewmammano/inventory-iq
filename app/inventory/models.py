@@ -1,11 +1,13 @@
 """SQLAlchemy ORM models for inventory domain."""
 
 from datetime import datetime
+from random import SystemRandom
 from typing import Any
 
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -13,9 +15,12 @@ from sqlalchemy import (
     Integer,
     String,
     UniqueConstraint,
+    event,
+    select,
 )
 from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
+from sqlalchemy.orm import Session as OrmSession
 
 from app.shared.clock import utc_now
 from app.shared.database import Base
@@ -28,9 +33,12 @@ from app.shared.validators import (
 )
 
 from .constants import (
+    UPC_GENERATION_PREFIX,
     OperationType,
     UnknownUpcStatus,
 )
+
+_rng = SystemRandom()
 
 
 class Items(Base):
@@ -40,30 +48,32 @@ class Items(Base):
     __allow_unmapped__ = True
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"))
+    name: Mapped[str] = mapped_column(String(100))
+    upc: Mapped[str] = mapped_column(String(12), nullable=False)
+
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     guest_quick_adjust: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"))
-    tag_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
-
     increments: Mapped[str | None] = mapped_column(String(50))
-    name: Mapped[str] = mapped_column(String(100))
+    tag_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
     image: Mapped[str | None] = mapped_column(String(1024))
-    last_accessed: Mapped[datetime | None] = mapped_column(DateTime, default=utc_now)
-
     min_quantity: Mapped[int] = mapped_column(Integer)
     max_quantity: Mapped[int] = mapped_column(Integer)
     batch_size: Mapped[int | None] = mapped_column(Integer, default=1)
     restock_delivery_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     prior_daily_usage: Mapped[float] = mapped_column(Float)
+    last_accessed: Mapped[datetime | None] = mapped_column(DateTime, default=utc_now)
 
     action_logs = relationship("ActionLogs", back_populates="item", lazy="selectin")
-    upc_codes = relationship("ItemUpcCode", back_populates="item", cascade="all, delete-orphan", lazy="selectin")
+    secondary_upcs = relationship("ItemSecondaryUpc", back_populates="item", cascade="all, delete-orphan", lazy="selectin")
     tags: Any
 
     __table_args__ = (
+        UniqueConstraint("agency_id", "upc", name="uq_items_agency_upc"),
+        CheckConstraint(f"upc LIKE '{UPC_GENERATION_PREFIX}%'", name="ck_items_upc_private_prefix"),
         Index("idx_agency_name", "agency_id", "name"),
         Index("idx_agency_last_accessed", "agency_id", "last_accessed"),
+        Index("idx_agency_upc", "agency_id", "upc"),
     )
 
     def __repr__(self) -> str:
@@ -106,6 +116,13 @@ class Items(Base):
     def validate_increments(self, _key: str, value: str | None) -> str | None:
         return validate_string_length(value, "increments", 50, allow_none=True, allow_empty=True)
 
+    @validates("upc")
+    def validate_upc(self, _key: str, value: str | None) -> str:
+        normalized = validate_upc_code(value)
+        if not normalized.startswith(UPC_GENERATION_PREFIX):
+            raise ValueError(f"Primary UPC must start with {UPC_GENERATION_PREFIX}")
+        return normalized
+
     @validates("min_quantity", "max_quantity", "batch_size", "restock_delivery_days")
     def validate_positive_integers(self, key: str, value: int | None) -> int | None:
         return validate_positive_integer(value, key, allow_none=True)
@@ -124,27 +141,31 @@ class Items(Base):
         return validate_image_url(value)
 
 
-class ItemUpcCode(Base):
-    """Valid UPC code linked to one inventory item."""
+class ItemSecondaryUpc(Base):
+    """Real package UPC alias linked to one inventory item."""
 
-    __tablename__ = "item_upc_codes"
+    __tablename__ = "item_secondary_upcs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
     item_id: Mapped[int] = mapped_column(Integer, ForeignKey("items.id", ondelete="CASCADE"), index=True)
     upc: Mapped[str] = mapped_column(String(12))
 
-    item = relationship("Items", back_populates="upc_codes", lazy="selectin")
+    item = relationship("Items", back_populates="secondary_upcs", lazy="selectin")
 
     __table_args__ = (
-        UniqueConstraint("agency_id", "upc", name="uq_item_upc_codes_agency_upc"),
-        Index("idx_item_upc_codes_agency_item", "agency_id", "item_id"),
-        Index("idx_item_upc_codes_agency_upc", "agency_id", "upc"),
+        UniqueConstraint("agency_id", "upc", name="uq_item_secondary_upcs_agency_upc"),
+        CheckConstraint(f"upc NOT LIKE '{UPC_GENERATION_PREFIX}%'", name="ck_item_secondary_upcs_not_private_prefix"),
+        Index("idx_item_secondary_upcs_agency_item", "agency_id", "item_id"),
+        Index("idx_item_secondary_upcs_agency_upc", "agency_id", "upc"),
     )
 
     @validates("upc")
     def validate_upc(self, _key: str, value: str | None) -> str:
-        return validate_upc_code(value)
+        normalized = validate_upc_code(value)
+        if normalized.startswith(UPC_GENERATION_PREFIX):
+            raise ValueError(f"Secondary UPC cannot start with {UPC_GENERATION_PREFIX}")
+        return normalized
 
 
 class UnknownUpcScan(Base):
@@ -155,9 +176,9 @@ class UnknownUpcScan(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
     upc: Mapped[str] = mapped_column(String(12))
-    lookup_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    suggested_item_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("items.id"), nullable=True)
     status: Mapped[UnknownUpcStatus] = mapped_column(SAEnum(UnknownUpcStatus), default=UnknownUpcStatus.PENDING, index=True)
+    suggested_item_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("items.id"), nullable=True)
+    lookup_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
@@ -190,6 +211,31 @@ def _upc_check_digit(upc11: str) -> str:
     return str((10 - total % 10) % 10)
 
 
+@event.listens_for(OrmSession, "before_flush")
+def _fill_primary_upcs(session: OrmSession, *_args) -> None:
+    reserved = {item.upc for item in session.new if isinstance(item, Items) and item.upc}
+    for item in session.new:
+        if isinstance(item, Items) and not item.upc and item.agency_id:
+            item.upc = _generate_primary_upc(session, item.agency_id, reserved)
+            reserved.add(item.upc)
+
+
+def _generate_primary_upc(session: OrmSession, agency_id: int, reserved: set[str]) -> str:
+    for _ in range(100):
+        body = f"{UPC_GENERATION_PREFIX}{_rng.randrange(10**8):08d}"
+        upc = body + _upc_check_digit(body)
+        if upc not in reserved and not agency_upc_exists(session, agency_id, upc):
+            return upc
+    raise ValueError("Could not generate a unique primary UPC.")
+
+
+def agency_upc_exists(session: OrmSession, agency_id: int, upc: str) -> bool:
+    return (
+        session.scalar(select(Items.id).where(Items.agency_id == agency_id, Items.upc == upc)) is not None
+        or session.scalar(select(ItemSecondaryUpc.id).where(ItemSecondaryUpc.agency_id == agency_id, ItemSecondaryUpc.upc == upc)) is not None
+    )
+
+
 class ActionLogs(Base):
     """Inventory action log."""
 
@@ -199,10 +245,9 @@ class ActionLogs(Base):
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"))
     item_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("items.id"))
     operation_type: Mapped[OperationType] = mapped_column(SAEnum(OperationType))
+    quantity_delta: Mapped[int] = mapped_column(Integer)
     from_location_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("agency_storages.id"))
     to_location_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("agency_storages.id"))
-
-    quantity_delta: Mapped[int] = mapped_column(Integer)
     admin_action: Mapped[bool] = mapped_column(Boolean)
     time_scanned: Mapped[datetime | None] = mapped_column(DateTime, default=utc_now, nullable=False)
 

@@ -61,6 +61,7 @@ def upgrade() -> None:
 
     item_columns = {column["name"] for column in inspector.get_columns("items")}
     if "upc" in item_columns:
+        checks = {constraint["name"] for constraint in inspector.get_check_constraints("items")}
         op.execute(
             sa.text(
                 """
@@ -74,6 +75,8 @@ def upgrade() -> None:
         with op.batch_alter_table("items") as batch:
             batch.drop_index("idx_agency_upc")
             batch.drop_constraint("uq_items_agency_upc", type_="unique")
+            if "ck_items_upc_private_prefix" in checks:
+                batch.drop_constraint("ck_items_upc_private_prefix", type_="check")
             batch.drop_column("upc")
 
 

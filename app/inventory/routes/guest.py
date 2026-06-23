@@ -16,7 +16,9 @@ from app.auth.device_locations import (
 )
 from app.auth.queries import get_agency_by_display_name, list_top_locations
 from app.inventory import guest_bp as bp
-from app.inventory.constants import UNKNOWN_UPC_REVIEW_MESSAGE
+from app.inventory.constants import (
+    UNKNOWN_UPC_INVALID_MESSAGE,
+)
 from app.inventory.scan_flow import (
     handle_scan_item_get,
     handle_scan_item_post,
@@ -25,7 +27,7 @@ from app.inventory.scan_flow import (
     handle_scan_storages_post,
 )
 from app.inventory.search_payload import load_item_search_payload
-from app.inventory.upc_service import record_unknown_upc
+from app.inventory.upc_service import record_unknown_upc, unknown_upc_scan_message
 from app.shared.database import get_session
 from app.shared.utils import (
     get_squad_from_request,
@@ -64,9 +66,9 @@ def check_guest_auth() -> Any:
 @login_required
 def index(squad: str) -> Any:
     if request.args.get("scan_error") == "not_found":
-        has_unknown_upc = _record_unknown_upc_from_request(squad)
+        unknown_upc_message = _record_unknown_upc_from_request(squad)
         logger.warning("Guest scan search could not find the scanned barcode")
-        flash(UNKNOWN_UPC_REVIEW_MESSAGE if has_unknown_upc else "Item not found. Please try again.", "warning")
+        flash(unknown_upc_message or "Item not found. Please try again.", "warning")
     try:
         with get_session() as s:
             items_payload = load_item_search_payload(
@@ -86,21 +88,21 @@ def index(squad: str) -> Any:
     )
 
 
-def _record_unknown_upc_from_request(squad: str) -> bool:
+def _record_unknown_upc_from_request(squad: str) -> str | None:
     upc = request.args.get("unknown_upc", "").strip()
     if not upc:
-        return False
+        return None
     try:
         with get_session() as s:
-            record_unknown_upc(s, current_user.id, upc)
+            status = record_unknown_upc(s, current_user.id, upc)
             s.commit()
-        return True
+        return unknown_upc_scan_message(status)
     except ValueError as exc:
         logger.warning(
             "Unknown guest UPC scan ignored because the code was invalid",
             extra={"error": str(exc)},
         )
-        return False
+        return UNKNOWN_UPC_INVALID_MESSAGE
 
 
 @bp.route("/<squad>/admin", methods=["GET", "POST"])

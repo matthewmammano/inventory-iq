@@ -15,8 +15,8 @@ class SchedulerRun(Base):
     __tablename__ = "scheduler_runs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
-    job_name: Mapped[str] = mapped_column(String(80), index=True)
     agency_id: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    job_name: Mapped[str] = mapped_column(String(80), index=True)
     period_key: Mapped[str] = mapped_column(String(40), index=True)
     status: Mapped[str] = mapped_column(String(20), default="started", index=True)
     started_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive)

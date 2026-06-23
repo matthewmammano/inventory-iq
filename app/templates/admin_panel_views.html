@@ -19,16 +19,22 @@
         {% else %}
         <div class="table-wrap">
             <table>
-                <thead><tr><th>UPCs</th><th>Active?</th><th>Expanded (±5, ±10)</th><th>Tags</th><th>Increments</th><th>Name</th><th>Image</th><th>Min Quantity</th><th>Max Quantity</th><th>Order Size</th><th>Lead Time Override</th><th>Last Accessed{% if timezone_hint %} ({{ timezone_hint }}){% endif %}</th></tr></thead>
+                <thead><tr><th>Name</th><th>Primary UPC</th><th>Secondary UPCs</th><th>Increments</th><th>Tags</th><th>Min Quantity</th><th>Max Quantity</th><th>Order Size</th><th>Lead Time Override</th><th>Active?</th><th>Expanded (±5, ±10)</th><th>Last Accessed{% if timezone_hint %} ({{ timezone_hint }}){% endif %}</th><th>Image</th></tr></thead>
                 <tbody>
                     {% for item in items %}
                     <tr>
-                        <td>{% for code in item.upc_codes %}<div>{{ code.upc }}</div>{% else %}None{% endfor %}</td>
+                        <td>{{ item.name|bold_item_name }}</td>
+                        <td>{{ item.upc }}</td>
+                        <td>{% for code in item.secondary_upcs %}<div>{{ code.upc }}</div>{% else %}None{% endfor %}</td>
+                        <td>{{ item.increments }}</td>
+                        <td><div class="tag-row">{% for tag in item.tags %}<span class="tag" style="background-color: {{ tag.color }}; color: {{ tag.text_color }}; border-color: {{ tag.text_color }};">{{ tag.tag_name }}</span>{% endfor %}</div></td>
+                        <td>{{ item.min_quantity }}</td>
+                        <td>{{ item.max_quantity }}</td>
+                        <td>{{ item.batch_size }}</td>
+                        <td>{{ item.restock_delivery_days if item.restock_delivery_days is not none else 'Default' }}</td>
                         <td>{{ item.active }}</td>
                         <td>{{ item.guest_quick_adjust }}</td>
-                        <td><div class="tag-row">{% for tag in item.tags %}<span class="tag" style="background-color: {{ tag.color }}; color: {{ tag.text_color }}; border-color: {{ tag.text_color }};">{{ tag.tag_name }}</span>{% endfor %}</div></td>
-                        <td>{{ item.increments }}</td>
-                        <td>{{ item.name|bold_item_name }}</td>
+                        <td>{{ item.get_last_accessed_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if item.last_accessed else 'Never' }}</td>
                         <td>
                             <img class="table-thumbnail"
                                  src="{{ item.image|image_src }}"
@@ -36,11 +42,6 @@
                                  loading="lazy"
                                  decoding="async">
                         </td>
-                        <td>{{ item.min_quantity }}</td>
-                        <td>{{ item.max_quantity }}</td>
-                        <td>{{ item.batch_size }}</td>
-                        <td>{{ item.restock_delivery_days if item.restock_delivery_days is not none else 'Default' }}</td>
-                        <td>{{ item.get_last_accessed_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if item.last_accessed else 'Never' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>

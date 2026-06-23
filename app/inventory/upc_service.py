@@ -13,17 +13,29 @@ from app.alerts.models import AlertRecords
 from app.auth.models import AgencyEmails
 from app.shared.clock import utc_now
 
-from .constants import UnknownUpcStatus
-from .models import Items, ItemUpcCode, UnknownUpcScan, validate_upc_code
+from .constants import (
+    UNKNOWN_UPC_IGNORED_MESSAGE,
+    UNKNOWN_UPC_LINKED_MESSAGE,
+    UNKNOWN_UPC_REVIEW_MESSAGE,
+    UPC_GENERATION_PREFIX,
+    UnknownUpcStatus,
+)
+from .models import Items, ItemSecondaryUpc, UnknownUpcScan, agency_upc_exists, validate_upc_code
 from .upc_lookup_service import lookup_upc_title
 
+MIN_SUGGESTION_SCORE = 0.55
 
-def record_unknown_upc(session: Session, agency_id: int, upc: str) -> None:
+
+def record_unknown_upc(session: Session, agency_id: int, upc: str) -> UnknownUpcStatus:
     normalized = validate_upc_code(upc)
+    if agency_upc_exists(session, agency_id, normalized):
+        return UnknownUpcStatus.RESOLVED
+    if normalized.startswith(UPC_GENERATION_PREFIX):
+        raise ValueError("Private UPCs must already be linked as primary item UPCs.")
     existing = _unknown_upc(session, agency_id, normalized)
     if existing is not None:
         existing.updated_at = utc_now()
-        return
+        return existing.status
 
     lookup_title = _clean_lookup_title(lookup_upc_title(normalized))
     closest_item = _closest_item(session, agency_id, lookup_title)
@@ -46,7 +58,7 @@ def record_unknown_upc(session: Session, agency_id: int, upc: str) -> None:
             "Duplicate unknown UPC scan merged into existing review row",
             extra={"agency_id": agency_id, "upc": normalized},
         )
-        return
+        return existing.status if existing is not None else UnknownUpcStatus.PENDING
     recipient_count = _queue_unknown_upc_alerts(session, agency_id, scan)
     logger.info(
         "Unknown UPC queued for admin review",
@@ -62,6 +74,7 @@ def record_unknown_upc(session: Session, agency_id: int, upc: str) -> None:
             "recipient_count": recipient_count,
         },
     )
+    return UnknownUpcStatus.PENDING
 
 
 def list_review_unknown_upcs(session: Session, agency_id: int) -> list[UnknownUpcScan]:
@@ -80,15 +93,25 @@ def list_review_unknown_upcs(session: Session, agency_id: int) -> list[UnknownUp
     )
 
 
+def unknown_upc_scan_message(status: UnknownUpcStatus) -> str:
+    if status == UnknownUpcStatus.IGNORE:
+        return UNKNOWN_UPC_IGNORED_MESSAGE
+    if status == UnknownUpcStatus.RESOLVED:
+        return UNKNOWN_UPC_LINKED_MESSAGE
+    return UNKNOWN_UPC_REVIEW_MESSAGE
+
+
 def resolve_unknown_upc(session: Session, agency_id: int, unknown_upc_id: int, item_id: int) -> None:
     scan = _review_unknown_by_id(session, agency_id, unknown_upc_id)
     item = session.scalar(select(Items).where(Items.agency_id == agency_id, Items.id == item_id))
     if scan is None or item is None:
         raise ValueError("UPC review row or item not found.")
-    if _upc_exists(session, agency_id, scan.upc):
+    if scan.upc.startswith(UPC_GENERATION_PREFIX):
+        raise ValueError(f"Secondary UPCs cannot start with {UPC_GENERATION_PREFIX}.")
+    if agency_upc_exists(session, agency_id, scan.upc):
         raise ValueError("UPC is already linked to an item.")
 
-    session.add(ItemUpcCode(agency_id=agency_id, item_id=item.id, upc=scan.upc))
+    session.add(ItemSecondaryUpc(agency_id=agency_id, item_id=item.id, upc=scan.upc))
     scan.status = UnknownUpcStatus.RESOLVED
     _clear_unknown_upc_alerts(session, agency_id, scan.upc)
 
@@ -142,10 +165,6 @@ def _ignored_unknown_by_id(session: Session, agency_id: int, unknown_upc_id: int
     )
 
 
-def _upc_exists(session: Session, agency_id: int, upc: str) -> bool:
-    return session.scalar(select(ItemUpcCode.id).where(ItemUpcCode.agency_id == agency_id, ItemUpcCode.upc == upc)) is not None
-
-
 def _queue_unknown_upc_alerts(session: Session, agency_id: int, scan: UnknownUpcScan) -> int:
     rows = session.execute(select(AgencyEmails).where(AgencyEmails.agency_id == agency_id).order_by(AgencyEmails.id)).scalars()
     count = 0
@@ -176,9 +195,9 @@ def _closest_item(session: Session, agency_id: int, lookup_title: str | None) ->
             Items.active.is_(True),
         )
     ).all()
-    scored = [(_match_score(lookup_title, item_name), _token_count(item_name), item_id, item_name) for item_id, item_name in rows]
-    score, _, item_id, item_name = max(scored, default=(0.0, 0, None, ""))
-    if item_id is None:
+    scored = [(_match_score(lookup_title, item_name), item_id, item_name) for item_id, item_name in rows]
+    score, item_id, item_name = max(scored, default=(0.0, None, ""))
+    if item_id is None or score < MIN_SUGGESTION_SCORE:
         return None
     return item_id, item_name, score
 
@@ -213,10 +232,6 @@ def _match_score(left: str, right: str) -> float:
 def _normalize_match_text(value: str) -> str:
     words = re.sub(r"[^a-z0-9]+", " ", value.lower()).split()
     return " ".join(_normalize_match_word(word) for word in words)
-
-
-def _token_count(value: str) -> int:
-    return len(_normalize_match_text(value).split())
 
 
 def _normalize_match_word(word: str) -> str:

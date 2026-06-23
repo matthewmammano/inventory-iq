@@ -22,7 +22,7 @@
         {% for item in items %}
         <li
             data-item-row
-            data-search="{{ item.name|lower }}{%- for code in item.upc_codes -%} {{ code.upc|lower }}{%- endfor -%}{%- for tag in item.tags -%} {{ tag.tag_name|lower }}{%- endfor -%}">
+            data-search="{{ item.name|lower }} {{ item.upc }}{%- for code in item.secondary_upcs -%} {{ code.upc|lower }}{%- endfor -%}{%- for tag in item.tags -%} {{ tag.tag_name|lower }}{%- endfor -%}">
             <label>
                 <input type="checkbox" name="item_ids" value="{{ item.id }}">
                 <span>{{ item.name|bold_item_name }}</span>

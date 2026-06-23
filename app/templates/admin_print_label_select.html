@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Print Labels{% endblock %}
+{% block header_title %}Print Labels{% endblock %}
+{% block sub_title %}Choose shelf cards to print{% endblock %}
+{% block main_class %}search-main{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>{% endblock %}
+
+{% block content %}
+<form method="POST" class="search bulk-select" data-bulk-item-select>
+    <div class="status" data-selected-count>0 items selected</div>
+    <input type="search" id="bulk-item-search" placeholder="Search items or UPCs" autocomplete="off">
+    <label class="select-all-row">
+        <input type="checkbox" data-select-all>
+        <span>Select all shown</span>
+    </label>
+    <ul>
+        {% for item in items %}
+        <li
+            data-item-row
+            data-search="{{ item.name|lower }} {{ item.upc }}{%- for code in item.secondary_upcs -%} {{ code.upc }}{%- endfor -%}">
+            <label>
+                <input type="checkbox" name="item_ids" value="{{ item.id }}">
+                <span>{{ item.name|bold_item_name }} <small class="muted">{{ item.upc }}</small></span>
+            </label>
+        </li>
+        {% endfor %}
+    </ul>
+    <div class="button-row">
+        <button class="success-button" type="submit" name="action" value="selected" disabled data-continue>Preview Selected</button>
+        <button class="quiet-button" type="submit" name="action" value="all">Preview All</button>
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/bulk-item-select.js') }}" defer></script>
+{% endblock %}

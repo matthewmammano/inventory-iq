@@ -34,22 +34,21 @@ class Agencies(Base, UserMixin):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     display_name: Mapped[str] = mapped_column(String(50), unique=True)
     email: Mapped[str] = mapped_column(String(128), unique=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+    image: Mapped[str | None] = mapped_column(Text)
+    timezone: Mapped[str] = mapped_column(String(50), default="America/New_York")
     password: Mapped[str | None] = mapped_column(Text)
     pin: Mapped[str] = mapped_column(String(4))
-    image: Mapped[str | None] = mapped_column(Text)
     user_count_allow: Mapped[bool] = mapped_column(Boolean, default=False)
     user_restock_allow: Mapped[bool] = mapped_column(Boolean, default=False)
-    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
-    timezone: Mapped[str] = mapped_column(String(50), default="America/New_York")
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
-    active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     # Alert detection thresholds
     lead_time_days: Mapped[int] = mapped_column(Integer, default=21)
+    count_last_days: Mapped[int] = mapped_column(Integer, default=90)
     alert_rare_scan_days: Mapped[int] = mapped_column(Integer, default=90)
 
-    # Restock requirements
-    count_last_days: Mapped[int] = mapped_column(Integer, default=90)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     items = relationship("Items", backref="agency", lazy="select")
     logs = relationship("ActionLogs", backref="agency", lazy="select")
@@ -117,9 +116,9 @@ class PasswordResetPins(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
     pin_hash: Mapped[str] = mapped_column(String(255))
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
     expires_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive)
 
     agency = relationship("Agencies", back_populates="password_reset_pins", lazy="select")
@@ -197,12 +196,12 @@ class AgencyDevices(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
-    device_token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     agency_location_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("agency_locations.id"), nullable=True)
+    device_token_hash: Mapped[str] = mapped_column(String(64), unique=True, index=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
-    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
+    last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
     location = relationship("AgencyLocations", lazy="select")
 

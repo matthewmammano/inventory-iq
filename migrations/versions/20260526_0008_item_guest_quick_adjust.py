@@ -15,6 +15,9 @@ depends_on = None
 
 
 def upgrade() -> None:
+    columns = {column["name"] for column in sa.inspect(op.get_bind()).get_columns("items")}
+    if "guest_quick_adjust" in columns:
+        return
     op.add_column(
         "items",
         sa.Column(
@@ -27,4 +30,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    columns = {column["name"] for column in sa.inspect(op.get_bind()).get_columns("items")}
+    if "guest_quick_adjust" not in columns:
+        return
     op.drop_column("items", "guest_quick_adjust")

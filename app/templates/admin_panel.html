@@ -27,6 +27,10 @@
         <h2>Bulk Action</h2>
         <p>Count or receive stock by location.</p>
     </a>
+    <a class="card" href="{{ url_for('admin.print_labels', squad=squad) }}">
+        <h2>Print Labels</h2>
+        <p>Print shelf cards with item names and UPCs.</p>
+    </a>
     <a class="card" href="{{ url_for('admin.inventory_counts', squad=squad) }}">
         <h2>Inventory Levels</h2>
         <p>Review counts across locations.</p>

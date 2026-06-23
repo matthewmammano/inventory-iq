@@ -8,7 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.queries import get_tags_by_ids
-from app.inventory.models import Items, ItemUpcCode
+from app.inventory.models import Items, ItemSecondaryUpc
 from app.shared.cache import ttl_cache
 
 if TYPE_CHECKING:
@@ -19,7 +19,7 @@ def build_item_search_payload(items: Iterable[Items]) -> list[dict[str, Any]]:
     payload: list[dict[str, Any]] = []
     for item in items:
         tags = cast("list[AgencyItemTags]", item.tags)
-        payload.append(_item_payload_entry(item.id, item.name, [code.upc for code in item.upc_codes], item.last_accessed, tags))
+        payload.append(_item_payload_entry(item.id, item.name, [item.upc, *(code.upc for code in item.secondary_upcs)], item.last_accessed, tags))
     return payload
 
 
@@ -35,6 +35,7 @@ def load_item_search_payload(
     stmt = select(
         Items.id,
         Items.name,
+        Items.upc,
         Items.last_accessed,
         Items.tag_ids,
     ).where(Items.agency_id == agency_id)
@@ -53,15 +54,15 @@ def load_item_search_payload(
     payload: list[dict[str, Any]] = []
     for row in rows:
         item_tags = [tags_by_id[tag_id] for tag_id in (row.tag_ids or []) if tag_id in tags_by_id]
-        payload.append(_item_payload_entry(row.id, row.name, upcs_by_item_id.get(row.id, []), row.last_accessed, item_tags))
+        payload.append(_item_payload_entry(row.id, row.name, [row.upc, *upcs_by_item_id.get(row.id, [])], row.last_accessed, item_tags))
     return payload
 
 
 def _upcs_by_item_id(session: Session, agency_id: int, item_ids: list[int]) -> dict[int, list[str]]:
     rows = session.execute(
-        select(ItemUpcCode.item_id, ItemUpcCode.upc)
-        .where(ItemUpcCode.agency_id == agency_id, ItemUpcCode.item_id.in_(item_ids))
-        .order_by(ItemUpcCode.item_id, ItemUpcCode.upc)
+        select(ItemSecondaryUpc.item_id, ItemSecondaryUpc.upc)
+        .where(ItemSecondaryUpc.agency_id == agency_id, ItemSecondaryUpc.item_id.in_(item_ids))
+        .order_by(ItemSecondaryUpc.item_id, ItemSecondaryUpc.upc)
     ).all()
     upcs_by_item: dict[int, list[str]] = {}
     for item_id, upc in rows:
