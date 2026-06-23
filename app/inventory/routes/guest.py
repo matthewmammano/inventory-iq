@@ -49,7 +49,7 @@ def check_guest_auth() -> Any:
         return redirect(url_for("auth.login"))
 
     if not current_user.is_authenticated:
-        logger.warning("Guest route rejected: unauthenticated", extra={"squad": squad})
+        logger.warning("Guest route rejected: unauthenticated")
         flash("You must be logged in.", "warning")
         return redirect(url_for("auth.login"))
 
@@ -65,10 +65,7 @@ def check_guest_auth() -> Any:
 def index(squad: str) -> Any:
     if request.args.get("scan_error") == "not_found":
         has_unknown_upc = _record_unknown_upc_from_request(squad)
-        logger.warning(
-            "Guest scan search could not find the scanned barcode",
-            extra={"agency_id": current_user.id, "squad": squad},
-        )
+        logger.warning("Guest scan search could not find the scanned barcode")
         flash(UNKNOWN_UPC_REVIEW_MESSAGE if has_unknown_upc else "Item not found. Please try again.", "warning")
     try:
         with get_session() as s:
@@ -78,10 +75,7 @@ def index(squad: str) -> Any:
                 order_by_last_accessed=True,
             )
     except Exception:
-        logger.exception(
-            "Guest inventory load failed",
-            extra={"agency_id": current_user.id, "squad": squad},
-        )
+        logger.exception("Guest inventory load failed")
         flash("Error loading inventory.", "error")
         items_payload = []
     return render_template(
@@ -104,7 +98,7 @@ def _record_unknown_upc_from_request(squad: str) -> bool:
     except ValueError as exc:
         logger.warning(
             "Unknown guest UPC scan ignored because the code was invalid",
-            extra={"agency_id": current_user.id, "squad": squad, "error": str(exc)},
+            extra={"error": str(exc)},
         )
         return False
 
@@ -117,24 +111,18 @@ def admin_login(squad: str) -> Any:
         with get_session() as s:
             agency = get_agency_by_display_name(squad, s)
         if not agency:
-            logger.warning("Admin PIN login rejected: squad name was not found", extra={"squad": squad})
+            logger.warning("Admin PIN login rejected: squad name was not found")
             flash("Invalid squad name.", "error")
             return _admin_login_response(squad, token)
         if agency.pin and pin == agency.pin:
             session["admin"] = True
             session["admin_last_active"] = datetime.now(UTC).timestamp()
-            logger.info(
-                "Admin PIN login succeeded for guest device session",
-                extra={"agency_id": current_user.id, "squad": squad},
-            )
+            logger.info("Admin PIN login succeeded for guest device session")
             flash("Admin access granted.", "success")
             response = make_response(redirect(url_for("admin.admin_panel", squad=squad)))
             set_device_cookie(response, token)
             return response
-        logger.warning(
-            "Admin PIN login rejected: invalid PIN",
-            extra={"agency_id": current_user.id, "squad": squad},
-        )
+        logger.warning("Admin PIN login rejected: invalid PIN")
         flash("Invalid PIN.", "error")
     return _admin_login_response(squad, token)
 
@@ -175,10 +163,7 @@ def scan_start(squad: str) -> Any:
 def scan_location(squad: str) -> Any:
     item_id = parse_optional_int(request.values.get("item_id"))
     if item_id is None:
-        logger.error(
-            "Device location selection rejected: missing item",
-            extra={"agency_id": current_user.id, "squad": squad},
-        )
+        logger.error("Device location selection rejected: missing item")
         flash("Item not found.", "error")
         return redirect(url_for("guest.index", squad=squad))
 
@@ -193,8 +178,6 @@ def scan_location(squad: str) -> Any:
             logger.warning(
                 "Device location selection rejected",
                 extra={
-                    "agency_id": current_user.id,
-                    "squad": squad,
                     "agency_location_id": location_id,
                     "error": str(exc),
                 },
@@ -204,8 +187,6 @@ def scan_location(squad: str) -> Any:
         logger.debug(
             "Device location saved for guest scan flow",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
                 "item_id": item_id,
                 "agency_location_id": location_id,
             },

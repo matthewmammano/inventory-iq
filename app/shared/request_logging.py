@@ -4,8 +4,7 @@ from pathlib import PurePosixPath
 from time import perf_counter
 from uuid import uuid4
 
-from flask import Flask, g, request, session
-from flask_login import current_user
+from flask import Flask, g, request
 from loguru import logger
 
 REQUEST_ID_HEADER = "X-Request-ID"
@@ -72,7 +71,7 @@ def register_request_logging(app: Flask) -> None:
         if error is not None:
             logger.opt(exception=error).error(
                 "Request failed",
-                extra=_request_log_context() | {"duration_ms": _request_duration_ms()},
+                extra=_request_log_details() | {"duration_ms": _request_duration_ms()},
             )
 
 
@@ -98,7 +97,7 @@ def log_missing_route(path: str, method: str) -> None:
 
 def _log_request_finished(response) -> None:
     duration_ms = _request_duration_ms()
-    extra = _request_log_context() | {
+    extra = _request_log_details() | {
         "status_code": response.status_code,
         "duration_ms": duration_ms,
         "content_length": response.calculate_content_length(),
@@ -106,26 +105,19 @@ def _log_request_finished(response) -> None:
     if response.status_code == 404 and _is_low_signal_404(request.path, request.method):
         return
     if response.status_code >= 400:
-        logger.warning(
-            f"Request finished with error status: {response.status_code} {request.method} {request.path} in {duration_ms} ms",
-            extra=extra,
-        )
+        logger.warning("Request finished with error status", extra=extra)
         return
     if duration_ms is not None and duration_ms >= SLOW_REQUEST_MS:
-        logger.warning(f"Slower request than {SLOW_REQUEST_MS} ms finished", extra=extra)
+        logger.warning("Slow request finished", extra=extra | {"slow_request_ms": SLOW_REQUEST_MS})
         return
     logger.debug("Request finished", extra=extra)
 
 
-def _request_log_context() -> dict[str, object]:
+def _request_log_details() -> dict[str, object]:
     return {
-        "request_id": g.request_id,
-        "agency_id": current_user.id if current_user.is_authenticated else None,
         "method": request.method,
         "path": request.path,
         "endpoint": request.endpoint,
-        "squad": (request.view_args or {}).get("squad"),
-        "admin_session": bool(session.get("admin")),
     }
 
 

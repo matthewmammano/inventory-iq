@@ -36,7 +36,10 @@ def deliver_batch(batch: EmailBatch) -> bool:
         retry_delays_seconds=EMAIL_RETRY_DELAYS_SECONDS,
     )
     if sent:
-        logger.debug("Alert email batch delivered through provider")
+        logger.debug(
+            "Alert email batch delivered through provider",
+            extra={"section_count": len(batch.sections), "summary_count": len(batch.summary)},
+        )
     return sent
 
 
@@ -46,10 +49,16 @@ def _write_batch_file(batch: EmailBatch) -> bool:
         html_path.write_text(render_template("batch_email.html", batch=batch), encoding="utf-8")
         html_path.with_suffix(".txt").write_text(render_template("batch_email.txt", batch=batch), encoding="utf-8")
         _prune_alert_files(html_path.parent)
-        logger.info("Alert email batch written to local files", extra={"path": str(html_path)})
+        logger.info(
+            "Alert email batch written to local files",
+            extra={"path": str(html_path), "section_count": len(batch.sections), "summary_count": len(batch.summary)},
+        )
         return True
     except OSError:
-        logger.exception("Alert email batch file write failed")
+        logger.exception(
+            "Alert email batch file write failed",
+            extra={"section_count": len(batch.sections), "summary_count": len(batch.summary)},
+        )
         return False
 
 

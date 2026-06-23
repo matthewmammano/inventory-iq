@@ -35,17 +35,14 @@ def validate_squad_access(squad: str) -> str | None:
         return url_for("auth.login")
     if current_user.is_authenticated and current_user.display_name == squad:
         if not current_user.active:
-            logger.warning(
-                "Squad access rejected: inactive current user squad",
-                extra={"agency_id": current_user.id, "squad": squad},
-            )
+            logger.warning("Squad access rejected: inactive current user squad")
             flash("This squad is inactive.", "warning")
             return url_for("auth.login")
         return None
     with get_session() as s:
         agency = get_agency_by_display_name(squad, s)
     if not agency:
-        logger.warning("Squad access rejected: squad name was not found", extra={"squad": squad})
+        logger.warning("Squad access rejected: squad name was not found")
         flash("Invalid squad name.", "error")
         return url_for("auth.login")
     if not agency.active:
@@ -63,10 +60,7 @@ def validate_admin_session(squad: str, timeout_seconds: int = ADMIN_TIMEOUT) -> 
     if not session.get("admin"):
         session.pop("admin", None)
         session.pop("admin_last_active", None)
-        logger.warning(
-            "Admin session rejected: missing",
-            extra={"agency_id": getattr(current_user, "id", None), "squad": squad},
-        )
+        logger.warning("Admin session rejected: missing")
         flash("Admin session not found. Please log in with your PIN.", "warning")
         return url_for("guest.index", squad=squad)
 
@@ -75,10 +69,7 @@ def validate_admin_session(squad: str, timeout_seconds: int = ADMIN_TIMEOUT) -> 
     if not last_active or now - last_active > timeout_seconds:
         session.pop("admin", None)
         session.pop("admin_last_active", None)
-        logger.warning(
-            "Admin session rejected: expired",
-            extra={"agency_id": getattr(current_user, "id", None), "squad": squad},
-        )
+        logger.warning("Admin session rejected: expired")
         flash("Admin session expired. Please log in with your PIN again.", "warning")
         return url_for("guest.index", squad=squad)
 

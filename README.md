@@ -29,7 +29,6 @@ Important env vars:
 - `APP_ENV`
 - `SECRET_KEY`
 - `DATABASE_URL`
-- `DEBUG`
 - `PORT`
 - `EMAIL_API_URL`
 - `EMAIL_API_KEY`

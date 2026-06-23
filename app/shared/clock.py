@@ -60,7 +60,7 @@ def _fake_now(real_now: datetime) -> datetime | None:
         speed = float(state.get("speed", 1))
         return fake_anchor + ((real_now - real_anchor) * speed)
     except (KeyError, TypeError, ValueError) as exc:
-        logger.warning(f"Invalid dev clock state ignored: {exc}")
+        logger.warning("Invalid dev clock state ignored", extra={"error": str(exc)})
         return None
 
 
@@ -70,7 +70,7 @@ def _read_state() -> dict[str, Any] | None:
     try:
         return json.loads(CLOCK_FILE.read_text(encoding="utf-8"))
     except (OSError, json.JSONDecodeError) as exc:
-        logger.warning(f"Unable to read dev clock file: {exc}")
+        logger.warning("Unable to read dev clock file", extra={"error": str(exc)})
         return None
 
 

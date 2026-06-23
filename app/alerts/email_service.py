@@ -91,9 +91,7 @@ def process_all_alerts(*, force: bool = False) -> dict[str, int]:
             alerts = _alerts_for_recipient(session, recipient, agency, now, force=force)
             type_counts = _alert_type_counts(alerts)
             logger.debug(
-                "Alert email recipient evaluated: "
-                f"agency_email_id={recipient.id} sendable={len(alerts)} "
-                f"force={force} types={_format_counts(type_counts)}",
+                "Alert email recipient evaluated",
                 extra={
                     "agency_id": agency.id,
                     "agency_email_id": recipient.id,
@@ -110,9 +108,7 @@ def process_all_alerts(*, force: bool = False) -> dict[str, int]:
                 session.commit()
                 stats["sent"] += 1
                 logger.debug(
-                    "Alert email batch delivered for recipient: "
-                    f"agency_email_id={recipient.id} sent_alerts={len(alerts)} "
-                    f"types={_format_counts(type_counts)}",
+                    "Alert email batch delivered for recipient",
                     extra={
                         "agency_id": agency.id,
                         "agency_email_id": recipient.id,
@@ -123,9 +119,13 @@ def process_all_alerts(*, force: bool = False) -> dict[str, int]:
             else:
                 stats["failed"] += 1
                 logger.error(
-                    "Alert email batch failed after provider retries: "
-                    f"agency_id={agency.id} agency_email_id={recipient.id} "
-                    f"pending_alerts={len(alerts)} types={_format_counts(type_counts)}",
+                    "Alert email batch failed after provider retries",
+                    extra={
+                        "agency_id": agency.id,
+                        "agency_email_id": recipient.id,
+                        "pending_alerts": len(alerts),
+                        "type_counts": dict(type_counts),
+                    },
                 )
 
     logger.info("Alert email run finished", extra=stats)
@@ -582,7 +582,7 @@ def _recipient_allows_alert(
         location_ids = validate_location_filter_ids(session, recipient.agency_id, recipient.location_filter_ids)
     except ValueError as exc:
         logger.warning(
-            f"Alert email skipped because recipient has an invalid location filter: agency_email_id={recipient.id}",
+            "Alert email skipped because recipient has an invalid location filter",
             extra={
                 "agency_id": recipient.agency_id,
                 "agency_email_id": recipient.id,

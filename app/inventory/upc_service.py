@@ -42,23 +42,24 @@ def record_unknown_upc(session: Session, agency_id: int, upc: str) -> None:
         existing = _unknown_upc(session, agency_id, normalized)
         if existing is not None:
             existing.updated_at = utc_now()
-        logger.info("Duplicate unknown UPC scan merged into existing review row", extra={"agency_id": agency_id, "upc": normalized})
+        logger.info(
+            "Duplicate unknown UPC scan merged into existing review row",
+            extra={"agency_id": agency_id, "upc": normalized},
+        )
         return
-    _queue_unknown_upc_alerts(session, agency_id, scan)
+    recipient_count = _queue_unknown_upc_alerts(session, agency_id, scan)
     logger.info(
-        "Unknown UPC queued for admin review: "
-        f"upc={normalized} lookup_title={lookup_title or 'none'} "
-        f"closest_item={suggested_item_name or 'none'} "
-        f"closest_score={round(suggestion_score, 3) if suggestion_score is not None else 'none'} "
-        f"suggested_item_id={suggested_item_id}",
+        "Unknown UPC queued for admin review",
         extra={
             "agency_id": agency_id,
+            "unknown_upc_id": scan.id,
             "upc": normalized,
             "lookup_title": lookup_title,
             "closest_item_id": suggested_item_id,
             "closest_item_name": suggested_item_name,
             "closest_score": round(suggestion_score, 3) if suggestion_score is not None else None,
             "suggested_item_id": suggested_item_id,
+            "recipient_count": recipient_count,
         },
     )
 
@@ -145,8 +146,9 @@ def _upc_exists(session: Session, agency_id: int, upc: str) -> bool:
     return session.scalar(select(ItemUpcCode.id).where(ItemUpcCode.agency_id == agency_id, ItemUpcCode.upc == upc)) is not None
 
 
-def _queue_unknown_upc_alerts(session: Session, agency_id: int, scan: UnknownUpcScan) -> None:
+def _queue_unknown_upc_alerts(session: Session, agency_id: int, scan: UnknownUpcScan) -> int:
     rows = session.execute(select(AgencyEmails).where(AgencyEmails.agency_id == agency_id).order_by(AgencyEmails.id)).scalars()
+    count = 0
     for recipient in rows:
         session.add(
             AlertRecords(
@@ -161,6 +163,8 @@ def _queue_unknown_upc_alerts(session: Session, agency_id: int, scan: UnknownUpc
                 },
             )
         )
+        count += 1
+    return count
 
 
 def _closest_item(session: Session, agency_id: int, lookup_title: str | None) -> tuple[int, str, float] | None:

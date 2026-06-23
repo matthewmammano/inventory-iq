@@ -1,6 +1,5 @@
 """Small in-process scheduler for demo/runtime jobs."""
 
-import os
 import threading
 import time
 from datetime import datetime
@@ -39,7 +38,7 @@ _started = False
 def start_scheduler(app: Flask) -> None:
     """Start background jobs when explicitly enabled."""
     global _started
-    if _started or not settings.scheduler_enabled or _is_reloader_parent(app):
+    if _started or not settings.scheduler_enabled:
         return
     if settings.is_prod:
         logger.warning("In-process scheduler disabled in prod; use Railway cron")
@@ -260,10 +259,6 @@ def _finish_scheduler_run(run_id: int, status: str, error: str | None = None) ->
         run.finished_at = utc_now().replace(tzinfo=None)
         run.error = error[:1000] if error else None
         session.commit()
-
-
-def _is_reloader_parent(app: Flask) -> bool:
-    return app.debug and os.environ.get("WERKZEUG_RUN_MAIN") != "true"
 
 
 def _poll_seconds() -> float:

@@ -70,17 +70,11 @@ def handle_scan_start(
                 except ValueError as exc:
                     logger.warning(
                         "Unknown UPC scan ignored because the code was invalid",
-                        extra={"agency_id": current_user.id, "squad": squad, "error": str(exc)},
+                        extra={"error": str(exc)},
                     )
             logger.warning(
                 "Scan start rejected: item was not found",
-                extra={
-                    "agency_id": current_user.id,
-                    "squad": squad,
-                    "item_id": item_id,
-                    "upc": upc,
-                    "admin": is_admin,
-                },
+                extra={"item_id": item_id, "upc": upc},
             )
             flash(UNKNOWN_UPC_REVIEW_MESSAGE if upc else "Item not found for this squad.", "warning")
             return redirect(url_for(fallback, squad=squad))
@@ -93,12 +87,7 @@ def handle_scan_start(
     if not from_storages:
         logger.error(
             "Scan start failed: no valid source storages are available",
-            extra={
-                "agency_id": current_user.id,
-                "squad": squad,
-                "item_id": item.id,
-                "admin": is_admin,
-            },
+            extra={"item_id": item.id, "item_name": item.name},
         )
         flash("No valid storages found. Please check this device location.", "error")
         return redirect(url_for(fallback, squad=squad))
@@ -132,10 +121,7 @@ def handle_scan_storages_get(
             logger.warning(
                 "Storage selection rejected: item was not found",
                 extra={
-                    "agency_id": current_user.id,
-                    "squad": squad,
                     "item_id": item_id,
-                    "admin": is_admin,
                 },
             )
             flash("Item not found for this squad.", "warning")
@@ -178,9 +164,6 @@ def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = Fals
         logger.warning(
             "Storage selection rejected: submitted form data was invalid",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
-                "admin": is_admin,
                 "error": str(exc),
             },
         )
@@ -201,12 +184,9 @@ def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = Fals
         logger.warning(
             "Storage selection rejected: source and destination combination is not allowed",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
                 "item_id": request_data.item_id,
                 "from_storage_id": request_data.from_location_id,
                 "to_storage_id": request_data.to_location_id,
-                "admin": is_admin,
                 "error": route_error,
             },
         )
@@ -262,12 +242,9 @@ def handle_scan_item_get(
         logger.warning(
             "Scan quantity page rejected: selected route is not allowed",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
                 "item_id": item_id,
                 "from_storage_id": from_storage_id,
                 "to_storage_id": to_storage_id,
-                "admin": is_admin,
                 "error": route_error,
             },
         )
@@ -278,12 +255,9 @@ def handle_scan_item_get(
             logger.warning(
                 "Admin scan quantity page redirected because the item was not found",
                 extra={
-                    "agency_id": current_user.id,
-                    "squad": squad,
                     "item_id": item_id,
                     "from_storage_id": from_location_id,
                     "to_storage_id": to_location_id,
-                    "admin": is_admin,
                 },
             )
             return redirect(
@@ -297,12 +271,9 @@ def handle_scan_item_get(
         logger.warning(
             "Scan quantity page rejected: item was not found",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
                 "item_id": item_id,
                 "from_storage_id": from_location_id,
                 "to_storage_id": to_location_id,
-                "admin": is_admin,
             },
         )
         flash("Invalid item or storage for this squad.", "warning")
@@ -312,12 +283,9 @@ def handle_scan_item_get(
         logger.warning(
             "Scan quantity page rejected: selected route is invalid for this item",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
                 "item_id": item_id,
                 "from_storage_id": from_location_id,
                 "to_storage_id": to_location_id,
-                "admin": is_admin,
             },
         )
         flash("Invalid item or storage for this squad.", "warning")
@@ -366,7 +334,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
             if not isinstance(prepared, ScanSubmitContext):
                 return prepared
 
-            inventory_operation(
+            action = inventory_operation(
                 agency_id=current_user.id,
                 item_id=prepared.item.id,
                 quantity=request_data.counter_value,
@@ -381,10 +349,10 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         logger.warning(
             "Inventory update rejected by validation rules",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
                 "item_id": request_data.item_id,
-                "admin": is_admin,
+                "quantity": request_data.counter_value,
+                "from_storage_id": request_data.from_location_id,
+                "to_storage_id": request_data.to_location_id,
                 "error": str(exc),
             },
         )
@@ -401,10 +369,10 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         logger.exception(
             "Inventory update crashed unexpectedly",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
                 "item_id": request_data.item_id,
-                "admin": is_admin,
+                "quantity": request_data.counter_value,
+                "from_storage_id": request_data.from_location_id,
+                "to_storage_id": request_data.to_location_id,
             },
         )
         flash("System error - please try again.", "error")
@@ -428,17 +396,15 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         to_storage=prepared.to_location if isinstance(prepared.to_location, AgencyStorages) else None,
     )
     logger.info(
-        f"Inventory {prepared.operation_type.value.lower()} completed for {'admin' if is_admin else 'guest'} scan",
+        "Inventory scan completed",
         extra={
-            "agency_id": current_user.id,
-            "squad": squad,
+            "action_log_id": action.id,
             "item_id": prepared.item.id,
             "item_name": prepared.item.name,
             "operation_type": prepared.operation_type.value,
             "quantity": request_data.counter_value,
             "from_storage_id": prepared.from_storage_id,
             "to_storage_id": prepared.to_storage_id,
-            "admin": is_admin,
         },
     )
     flash(message, "success")
@@ -464,9 +430,6 @@ def _parse_scan_item_request(
         logger.warning(
             "Scan submit rejected: submitted quantity form data was invalid",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
-                "admin": is_admin,
                 "error": str(exc),
             },
         )
@@ -503,12 +466,9 @@ def _prepare_scan_submit(
         logger.warning(
             "Scan submit rejected: selected route is not allowed",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
                 "item_id": request_data.item_id,
                 "from_storage_id": request_data.from_location_id,
                 "to_storage_id": request_data.to_location_id,
-                "admin": is_admin,
                 "error": route_error,
             },
         )
@@ -550,12 +510,9 @@ def _scan_item_not_found_response(
         logger.warning(
             "Admin scan submit redirected because the item was not found",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
                 "item_id": request_data.item_id,
                 "from_storage_id": request_data.from_location_id,
                 "to_storage_id": request_data.to_location_id,
-                "admin": is_admin,
             },
         )
         return redirect(
@@ -568,12 +525,7 @@ def _scan_item_not_found_response(
         )
     logger.warning(
         "Scan submit rejected: item was not found",
-        extra={
-            "agency_id": current_user.id,
-            "squad": squad,
-            "item_id": request_data.item_id,
-            "admin": is_admin,
-        },
+        extra={"item_id": request_data.item_id},
     )
     flash("Item not found for this squad.", "warning")
     return redirect(url_for(fallback, squad=squad))

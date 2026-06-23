@@ -13,7 +13,7 @@ def convert_utc_to_local(utc_dt: datetime | None, timezone: str) -> datetime | N
         aware = utc_dt.replace(tzinfo=UTC) if utc_dt.tzinfo is None else utc_dt
         return aware.astimezone(ZoneInfo(timezone))
     except Exception as exc:
-        logger.warning(f"Timezone conversion failed for timezone={timezone}: {exc}")
+        logger.warning("Timezone conversion failed", extra={"timezone": timezone, "error": str(exc)})
         return utc_dt
 
 

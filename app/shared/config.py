@@ -29,7 +29,6 @@ class Settings(BaseSettings):
     )
     database_url: str = DEV_DATABASE_URL
     secret_key: str = ""
-    debug: bool = False
 
     # Blank email settings are allowed in dev; prod startup rejects blanks below.
     email_api_url: str = ""
@@ -53,8 +52,6 @@ class Settings(BaseSettings):
 
         env = str(values.get("app_env") or values.get("APP_ENV") or "dev").strip().lower()
         values["app_env"] = {"production": "prod", "development": "dev"}.get(env, env)
-        if isinstance(values.get("debug"), str):
-            values["debug"] = values["debug"].strip().lower() in {"1", "true", "yes", "on"}
         return values
 
     @model_validator(mode="after")

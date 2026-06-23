@@ -53,7 +53,6 @@ def create_app() -> Flask:
         "Flask app startup completed",
         extra={
             "database": settings.database_url.split("://")[0] if "://" in settings.database_url else "unknown",
-            "debug": settings.debug,
             "app_env": settings.app_env,
         },
     )
@@ -62,7 +61,7 @@ def create_app() -> Flask:
 
 
 def _setup_process_logging() -> None:
-    setup_logging(debug=settings.debug, json_logs=settings.is_prod)
+    setup_logging(json_logs=settings.is_prod)
     logging.getLogger("werkzeug").setLevel(logging.WARNING)
 
 
@@ -75,7 +74,7 @@ def _configure_app(app: Flask) -> None:
         SECRET_KEY=settings.secret_key,
         SQLALCHEMY_DATABASE_URI=settings.database_url,
         CONTACT_PHONE=settings.contact_phone,
-        DEBUG=settings.debug,
+        DEBUG=False,
         EMAIL_API_URL=settings.email_api_url,
         EMAIL_API_KEY=settings.email_api_key,
         EMAIL_SENDER_EMAIL=settings.email_sender_email,

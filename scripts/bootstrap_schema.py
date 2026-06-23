@@ -15,7 +15,7 @@ from app.shared.task_logging import logged_task
 
 def run() -> None:
     """Create all registered ORM tables if they do not already exist."""
-    setup_logging(debug=settings.debug, json_logs=settings.is_prod)
+    setup_logging(json_logs=settings.is_prod)
     with logged_task(
         "admin_cli.bootstrap_schema",
         actor="cli",

@@ -93,7 +93,7 @@ def check_admin() -> Any:
 
     squad = get_squad_from_request() or ""
     if not current_user.is_authenticated:
-        logger.warning("Admin route rejected: unauthenticated", extra={"squad": squad})
+        logger.warning("Admin route rejected: unauthenticated")
         flash("You must be logged in.", "warning")
         return redirect(url_for("auth.login"))
 
@@ -108,7 +108,6 @@ def check_admin() -> Any:
         logger.warning(
             "Admin route rejected: squad mismatch",
             extra={
-                "agency_id": current_user.id,
                 "requested_squad": squad,
                 "user_squad": current_user.display_name,
             },
@@ -255,21 +254,18 @@ def send_inventory_counts_email(squad: str) -> Any:
     with get_session() as s:
         sent, total = send_inventory_count_report(s, current_user.id, selected_ids)
     if total == 0:
-        logger.warning(
-            "Inventory report email request rejected: no recipients were selected",
-            extra={"agency_id": current_user.id},
-        )
+        logger.warning("Inventory report email request rejected: no recipients were selected")
         flash("Select at least one email recipient.", "warning")
     elif sent == total:
         logger.info(
             "Inventory report email sent successfully",
-            extra={"agency_id": current_user.id, "recipient_count": sent},
+            extra={"recipient_count": sent},
         )
         flash(f"Sent inventory report to {sent} email recipient(s).", "success")
     else:
         logger.error(
             "Inventory report email partially failed",
-            extra={"agency_id": current_user.id, "sent": sent, "recipient_count": total},
+            extra={"sent": sent, "recipient_count": total},
         )
         flash(f"Sent {sent} of {total} inventory report email(s).", "error")
     return redirect(url_for("admin.inventory_counts", squad=squad))
@@ -302,8 +298,6 @@ def restock(squad: str, agency_location_id: int | None = None) -> Any:
         logger.exception(
             "Restock analysis page failed to load",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
                 "agency_location_id": agency_location_id,
             },
         )
@@ -401,8 +395,6 @@ def bulk_select_items(squad: str, agency_location_id: int) -> Any:
             logger.warning(
                 "Bulk item selection rejected: no items were selected",
                 extra={
-                    "agency_id": current_user.id,
-                    "squad": squad,
                     "agency_location_id": agency_location_id,
                 },
             )
@@ -458,9 +450,8 @@ def bulk_edit(squad: str, agency_location_id: int) -> Any:
             logger.warning(
                 "Bulk action rejected: quantity values must be non-negative whole numbers",
                 extra={
-                    "agency_id": current_user.id,
-                    "squad": squad,
                     "agency_location_id": agency_location_id,
+                    "item_count": len(item_ids) or len(grid.items),
                     "invalid_count_cell_count": len(invalid_count_cells),
                     "invalid_restock_cell_count": len(invalid_restock_cells),
                 },
@@ -482,9 +473,8 @@ def bulk_edit(squad: str, agency_location_id: int) -> Any:
             logger.warning(
                 "Bulk action rejected: required count values are missing before restock",
                 extra={
-                    "agency_id": current_user.id,
-                    "squad": squad,
                     "agency_location_id": agency_location_id,
+                    "item_count": len(item_ids) or len(grid.items),
                     "missing_count_cell_count": len(invalid_cells),
                 },
             )
@@ -556,7 +546,16 @@ def _save_bulk_edit(
         count_logs = save_bulk_location_count(session, current_user.id, location.id, counts) if counts else 0
         restock_logs = save_bulk_location_restock(session, current_user.id, location.id, restocks) if restocks else 0
         session.commit()
-        _log_bulk_save("Bulk action saved", squad, location.id, count_logs + restock_logs)
+        logger.info(
+            "Bulk inventory changes saved",
+            extra={
+                "agency_location_id": location.id,
+                "item_count": len(item_ids) or None,
+                "count_entry_count": count_logs,
+                "restock_entry_count": restock_logs,
+                "entry_count": count_logs + restock_logs,
+            },
+        )
         flash(
             f"Saved {count_logs} count and {restock_logs} restock entries for {location.name}.",
             "success",
@@ -564,7 +563,15 @@ def _save_bulk_edit(
         return redirect(url_for("admin.admin_panel", squad=squad))
     except Exception:
         session.rollback()
-        _log_bulk_failure("Bulk action failed", squad, location.id)
+        logger.exception(
+            "Bulk inventory changes could not be saved",
+            extra={
+                "agency_location_id": location.id,
+                "item_count": len(item_ids) or None,
+                "count_entry_count": len(counts),
+                "restock_entry_count": sum(1 for quantity in restocks.values() if quantity > 0),
+            },
+        )
         flash("Could not save bulk action. Please try again.", "error")
         return redirect(_bulk_edit_url(squad, location.id, item_ids))
 
@@ -662,37 +669,10 @@ def _bulk_edit_url(squad: str, agency_location_id: int, item_ids: set[int]) -> s
     return url_for("admin.bulk_edit", squad=squad, agency_location_id=agency_location_id)
 
 
-def _log_bulk_save(message: str, squad: str, agency_location_id: int, entry_count: int) -> None:
-    logger.info(
-        f"{message}: bulk inventory changes saved",
-        extra={
-            "agency_id": current_user.id,
-            "squad": squad,
-            "agency_location_id": agency_location_id,
-            "entry_count": entry_count,
-        },
-    )
-
-
-def _log_bulk_failure(message: str, squad: str, agency_location_id: int) -> None:
-    logger.exception(
-        f"{message}: bulk inventory changes could not be saved",
-        extra={
-            "agency_id": current_user.id,
-            "squad": squad,
-            "agency_location_id": agency_location_id,
-        },
-    )
-
-
 def _log_bulk_location_missing(squad: str, agency_location_id: int) -> None:
     logger.error(
         "Bulk action rejected: requested location was not found",
-        extra={
-            "agency_id": current_user.id,
-            "squad": squad,
-            "agency_location_id": agency_location_id,
-        },
+        extra={"agency_location_id": agency_location_id},
     )
 
 
@@ -878,7 +858,7 @@ def _save_settings(squad: str) -> Any:
             s.commit()
         logger.info(
             "Admin settings saved successfully",
-            extra={"agency_id": current_user.id, "squad": squad, "agency_location_id": location_id},
+            extra={"agency_location_id": location_id},
         )
         flash("Settings saved.", "success")
         response = make_response(redirect(url_for("admin.admin_panel", squad=squad)))
@@ -887,14 +867,11 @@ def _save_settings(squad: str) -> Any:
     except ValueError as exc:
         logger.warning(
             "Admin settings rejected",
-            extra={"agency_id": current_user.id, "squad": squad, "error": str(exc)},
+            extra={"error": str(exc)},
         )
         flash(str(exc), "error")
     except Exception:
-        logger.exception(
-            "Admin settings save failed unexpectedly",
-            extra={"agency_id": current_user.id, "squad": squad},
-        )
+        logger.exception("Admin settings save failed unexpectedly")
         flash("Settings could not be saved. Please try again.", "error")
     response = make_response(redirect(url_for("admin.settings_page", squad=squad)))
     set_device_cookie(response, token)
@@ -925,8 +902,6 @@ def admin_scan_items(squad: str) -> Any:
         logger.warning(
             "Admin scan search could not find the scanned barcode",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
                 "from_storage_id": scan_route["from_location_id"],
                 "to_storage_id": scan_route["to_location_id"],
             },
@@ -974,7 +949,7 @@ def _record_unknown_upc_from_request(squad: str) -> bool:
     except ValueError as exc:
         logger.warning(
             "Unknown UPC scan ignored because the code was invalid",
-            extra={"agency_id": current_user.id, "squad": squad, "error": str(exc)},
+            extra={"error": str(exc)},
         )
         return False
 
@@ -1028,10 +1003,7 @@ def _render_admin_scan_setup(squad: str) -> Any:
         to_locations = storage_choices.to_storages
 
     if not from_locations:
-        logger.error(
-            "Admin scan setup failed: no valid source storages are available",
-            extra={"agency_id": current_user.id, "squad": squad},
-        )
+        logger.error("Admin scan setup failed: no valid source storages are available")
         flash("No valid storages found. Please check your location setup.", "error")
         return redirect(url_for("admin.admin_panel", squad=squad))
 
@@ -1055,7 +1027,7 @@ def _save_admin_scan_route(squad: str) -> Any:
     except ValidationError as exc:
         logger.warning(
             "Admin scan setup rejected: submitted route form data was invalid",
-            extra={"agency_id": current_user.id, "squad": squad, "error": str(exc)},
+            extra={"error": str(exc)},
         )
         flash("Invalid form data. Please try again.", "error")
         return redirect(url_for("admin.admin_panel", squad=squad))
@@ -1064,8 +1036,6 @@ def _save_admin_scan_route(squad: str) -> Any:
         logger.warning(
             "Admin scan setup rejected: source and destination combination is not allowed",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
                 "from_storage_id": route_request.from_location_id,
                 "to_storage_id": route_request.to_location_id,
             },
@@ -1084,8 +1054,6 @@ def _save_admin_scan_route(squad: str) -> Any:
         logger.warning(
             "Admin scan setup rejected: selected route is not allowed",
             extra={
-                "agency_id": current_user.id,
-                "squad": squad,
                 "from_storage_id": route_request.from_location_id,
                 "to_storage_id": route_request.to_location_id,
             },

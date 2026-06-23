@@ -24,7 +24,7 @@ def inventory_operation(
     to_location: int | None = None,
     admin_action: bool = False,
     session: Session | None = None,
-) -> None:
+) -> ActionLogs:
     """Execute one validated inventory operation and queue generated alerts."""
     from app.alerts.alert_service import record_action_log_alerts
 
@@ -43,7 +43,20 @@ def inventory_operation(
         )
         sync_balances_for_actions(db, [action])
         record_action_log_alerts(db, [action])
-        logger.debug(f"Inventory mutation applied: operation={operation_type.value} item_id={item_id} quantity={quantity}")
+        logger.debug(
+            "Inventory mutation applied",
+            extra={
+                "agency_id": agency_id,
+                "action_log_id": action.id,
+                "item_id": item_id,
+                "operation_type": operation_type.value,
+                "quantity": quantity,
+                "from_storage_id": from_location,
+                "to_storage_id": to_location,
+                "admin_action": admin_action,
+            },
+        )
+        return action
 
 
 def _validate_operation(
