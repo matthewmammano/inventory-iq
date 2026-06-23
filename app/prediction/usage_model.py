@@ -131,4 +131,14 @@ def _confidence_percent(
     spread = variance**0.5
     agreement = 1.0 if spread == 0 else abs(fitted_trend) / (abs(fitted_trend) + spread)
     volume = min(segment_count / CONFIDENCE_FULL_SEGMENTS, 1.0)
-    return max(0.0, min(agreement * volume * 100, 100.0))
+    raw_confidence = max(0.0, min(agreement * volume * 100, 100.0))
+    return _smoothed_confidence_percent(raw_confidence, segment_count)
+
+
+def _smoothed_confidence_percent(raw_confidence: float, segment_count: int) -> float:
+    prior_confidence = 60.0
+    prior_segments = 2
+    blended = ((raw_confidence * segment_count) + (prior_confidence * prior_segments)) / (segment_count + prior_segments)
+    max_lift = 14.0 if raw_confidence < 20 else 12.0 if raw_confidence < 40 else 8.0
+    lifted_confidence = raw_confidence + min(max(blended - raw_confidence, 0.0), max_lift)
+    return max(raw_confidence, min(lifted_confidence + 8.0, 95.0))
