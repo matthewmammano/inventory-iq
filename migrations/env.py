@@ -18,7 +18,7 @@ from app.shared.config import settings
 from app.shared.database import Base, normalize_database_url
 
 config = context.config
-if config.config_file_name is not None:
+if config.config_file_name is not None and settings.is_prod:
     fileConfig(config.config_file_name)
 
 target_metadata = Base.metadata

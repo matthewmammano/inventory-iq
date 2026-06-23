@@ -7,6 +7,8 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
+from alembic import command
+from alembic.config import Config
 from flask import Flask, url_for
 from flask_login import LoginManager
 from loguru import logger
@@ -86,11 +88,18 @@ def _configure_app(app: Flask) -> None:
 
 
 def _init_extensions(app: Flask) -> None:
+    _run_dev_migrations()
     init_db(settings.database_url)
     login_manager.init_app(app)
     cast(Any, login_manager).login_view = "auth.login"
     login_manager.login_message = "Please log in to access this page."
     login_manager.login_message_category = "warning"
+
+
+def _run_dev_migrations() -> None:
+    if settings.is_dev:
+        logger.info("Running dev database migrations")
+        command.upgrade(Config(str(Path(__file__).resolve().parent.parent / "alembic.ini")), "head")
 
 
 def _register_blueprints(app: Flask) -> None:
