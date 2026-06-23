@@ -238,6 +238,9 @@ def _stock_details_by_type(
     location: AgencyLocations,
     include_predictions: bool,
 ) -> dict[AlertType, dict[str, Any]]:
+    if get_location_last_counted_at(session, agency.id, item.id, location.id) is None:
+        return {}
+
     min_quantity = int(item.min_quantity or 0)
     lead_time_days = effective_lead_time_days(agency.lead_time_days, item.restock_delivery_days)
     projection = project_location_item(session, agency.id, item, location.id)
