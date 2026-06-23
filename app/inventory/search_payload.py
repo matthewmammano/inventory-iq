@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.queries import get_tags_by_ids
 from app.inventory.models import Items, ItemUpcCode
+from app.shared.cache import ttl_cache
 
 if TYPE_CHECKING:
     from app.auth.models import AgencyItemTags
@@ -22,6 +23,7 @@ def build_item_search_payload(items: Iterable[Items]) -> list[dict[str, Any]]:
     return payload
 
 
+@ttl_cache(skip_first_args=1)
 def load_item_search_payload(
     session: Session,
     agency_id: int,

@@ -53,6 +53,7 @@ repos:
     rev: v1.15.0
     hooks:
       - id: mypy
+        additional_dependencies: [types-cachetools]
         args: [--ignore-missing-imports, app, scripts, tasks]
         pass_filenames: false
 

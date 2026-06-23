@@ -10,7 +10,7 @@ from flask_login import current_user
 from loguru import logger
 from pydantic import ValidationError
 from sqlalchemy import or_, select
-from sqlalchemy.orm import joinedload, selectinload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.auth.device_locations import (
     current_device_token,
@@ -71,6 +71,7 @@ from app.inventory.upc_service import (
 )
 from app.prediction.bulk_service import BulkService
 from app.prediction.history_service import build_item_trend_chart
+from app.shared.cache import ttl_cache
 from app.shared.constants import ADMIN_TIMEOUT
 from app.shared.database import get_session
 from app.shared.timezone_utils import get_timezone_hint
@@ -132,28 +133,35 @@ def admin_panel(squad: str) -> Any:
 @bp.route("/<squad>/admin-panel/views")
 def admin_panel_views(squad: str) -> Any:
     with get_session() as s:
-        items = list_items(current_user.id, include_inactive=True, session=s)
-        locations = list(
-            s.execute(
-                select(AgencyLocations)
-                .options(selectinload(AgencyLocations.storages))
-                .where(AgencyLocations.agency_id == current_user.id)
-                .order_by(AgencyLocations.name)
-            )
-            .scalars()
-            .all()
-        )
-        tags = list_tags(current_user.id, s)
+        view_data = _admin_view_data(s, current_user.id)
     return render_template(
         "admin_panel_views.html",
         squad=squad,
-        items=items,
-        locations=locations,
-        tags=tags,
+        items=view_data["items"],
+        locations=view_data["locations"],
+        tags=view_data["tags"],
         admin=True,
         user_timezone=current_user.timezone,
         timezone_hint=get_timezone_hint(current_user.timezone),
     )
+
+
+@ttl_cache(skip_first_args=1)
+def _admin_view_data(session: Session, agency_id: int) -> dict[str, Any]:
+    return {
+        "items": list_items(agency_id, include_inactive=True, session=session),
+        "locations": list(
+            session.execute(
+                select(AgencyLocations)
+                .options(selectinload(AgencyLocations.storages))
+                .where(AgencyLocations.agency_id == agency_id)
+                .order_by(AgencyLocations.name)
+            )
+            .scalars()
+            .all()
+        ),
+        "tags": list_tags(agency_id, session),
+    }
 
 
 @bp.route("/<squad>/admin-panel/pending-upcs", methods=["GET", "POST"])
@@ -317,6 +325,7 @@ def restock(squad: str, agency_location_id: int | None = None) -> Any:
     )
 
 
+@ttl_cache(skip_first_args=1)
 def _restock_rows(session, agency_id: int, agency_location_id: int) -> list[dict]:
     rows = BulkService.get_restock_analysis(session, agency_id, agency_location_id)
     for row in rows:
