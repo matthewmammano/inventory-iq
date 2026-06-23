@@ -554,21 +554,35 @@ select,
 
 select,
 .small-select {
-  padding-right: 34px;
+  padding-right: 44px;
 }
 
 .upc-review-select {
-  min-width: 220px;
+  width: clamp(220px, 28vw, 420px);
 }
 
 .upc-review-link {
+  flex: 1 1 auto;
+  flex-wrap: nowrap;
+  min-width: 0;
   white-space: nowrap;
+}
+
+.upc-add-form {
+  flex: 1 1 360px;
+  justify-content: end;
+}
+
+.upc-add-form input {
+  max-width: 18ch;
 }
 
 .upc-review-actions {
   display: inline-flex;
+  flex-wrap: nowrap;
   gap: 8px;
   align-items: center;
+  width: max-content;
   white-space: nowrap;
 }
 

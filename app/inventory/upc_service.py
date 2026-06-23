@@ -1,7 +1,9 @@
 """UPC review and lookup workflow."""
 
 import re
+from collections.abc import Iterable
 from difflib import SequenceMatcher
+from typing import cast
 
 from loguru import logger
 from sqlalchemy import select
@@ -23,7 +25,31 @@ from .constants import (
 from .models import Items, ItemSecondaryUpc, UnknownUpcScan, agency_upc_exists, validate_upc_code
 from .upc_lookup_service import lookup_upc_title
 
-MIN_SUGGESTION_SCORE = 0.55
+MIN_SUGGESTION_SCORE = 0.3
+MATCH_EQUIVALENCES = (
+    ("bvm", "bag valve mask", "resuscitator", "resuscitator"),
+    ("child", "pediatric", "paediatric"),
+    ("infant", "neonatal", "newborn"),
+    ("nrb", "non rebreather", "nonrebreather"),
+    ("nc", "nasal cannula"),
+    ("bp", "blood pressure", "sphygmomanometer"),
+    ("ccollar", "cervical collar", "c collar"),
+    ("oral", "oropharyngeal", "opa", "guedel", "berman"),
+    ("nasal", "nasopharyngeal", "npa"),
+    ("yankauer set", "suction tip", "suction handle"),
+    ("oximeter", "ox"),
+    ("shear", "shears", "scissors"),
+    ("quick", "hemostatic"),
+    ("cravat", "triangular"),
+    ("ice", "cold"),
+    ("faceshield", "face shield"),
+    ("small volume", "nebulizer"),
+    ("mega mover", "portable transport unit"),
+    ("lifeband", "life band"),
+    ("aed pad", "padz", "pads", "electrodes"),
+    ("quick clot", "quikclot", "hemostatic", "combat gauze"),
+)
+SINGLE_TOKEN_MIN_SCORE = 0.38
 
 
 def record_unknown_upc(session: Session, agency_id: int, upc: str) -> UnknownUpcStatus:
@@ -187,15 +213,24 @@ def _queue_unknown_upc_alerts(session: Session, agency_id: int, scan: UnknownUpc
 
 
 def _closest_item(session: Session, agency_id: int, lookup_title: str | None) -> tuple[int, str, float] | None:
+    rows = cast(
+        "list[tuple[int, str]]",
+        session.execute(
+            select(Items.id, Items.name).where(
+                Items.agency_id == agency_id,
+                Items.active.is_(True),
+            )
+        )
+        .tuples()
+        .all(),
+    )
+    return suggest_item_match(lookup_title, rows)
+
+
+def suggest_item_match(lookup_title: str | None, items: Iterable[tuple[int, str]]) -> tuple[int, str, float] | None:
     if not lookup_title:
         return None
-    rows = session.execute(
-        select(Items.id, Items.name).where(
-            Items.agency_id == agency_id,
-            Items.active.is_(True),
-        )
-    ).all()
-    scored = [(_match_score(lookup_title, item_name), item_id, item_name) for item_id, item_name in rows]
+    scored = [(_match_score(lookup_title, item_name), item_id, item_name) for item_id, item_name in items]
     score, item_id, item_name = max(scored, default=(0.0, None, ""))
     if item_id is None or score < MIN_SUGGESTION_SCORE:
         return None
@@ -221,17 +256,36 @@ def _match_score(left: str, right: str) -> float:
 
     left_tokens = set(left_text.split())
     right_tokens = set(right_text.split())
-    return max(
+    shared_tokens = left_tokens & right_tokens
+    if not shared_tokens:
+        return 0.0
+    if len(shared_tokens) == 1 and len(right_tokens) > 1 and not _single_token_item_match(shared_tokens, left_tokens, right_tokens):
+        return 0.0
+    score = max(
         SequenceMatcher(None, left_text, right_text).ratio(),
         _token_overlap_score(left_tokens, right_tokens),
         _token_subset_score(left_tokens, right_tokens),
         _substring_score(left_text, right_text),
     )
+    return min(1.0, score + _number_match_bonus(left_tokens, right_tokens))
 
 
 def _normalize_match_text(value: str) -> str:
-    words = re.sub(r"[^a-z0-9]+", " ", value.lower()).split()
+    text = re.sub(r"[^a-z0-9]+", " ", value.lower())
+    text = re.sub(r"\b(\d+)\s+(ml|mm|fr|mg)\b", r"\1\2", text)
+    text = re.sub(r"\b(\d+)\s*x\s*(\d+)\b", r"\1x\2", text)
+    for equivalents in MATCH_EQUIVALENCES:
+        canonical = equivalents[0]
+        for phrase in equivalents:
+            text = re.sub(_phrase_pattern(phrase), canonical, text)
+    words = text.split()
+    words = _apply_unordered_equivalences(words)
     return " ".join(_normalize_match_word(word) for word in words)
+
+
+def _phrase_pattern(phrase: str) -> str:
+    words = [re.escape(word) for word in phrase.split()]
+    return rf"\b{'[^a-z0-9]+'.join(words)}\b"
 
 
 def _normalize_match_word(word: str) -> str:
@@ -240,6 +294,19 @@ def _normalize_match_word(word: str) -> str:
     if len(word) > 3 and word.endswith("s") and not word.endswith("ss"):
         return word[:-1]
     return word
+
+
+def _apply_unordered_equivalences(words: list[str]) -> list[str]:
+    token_set = set(words)
+    for equivalents in MATCH_EQUIVALENCES:
+        canonical_tokens = equivalents[0].split()
+        for phrase in equivalents:
+            phrase_tokens = phrase.split()
+            if len(phrase_tokens) > 1 and set(phrase_tokens).issubset(token_set):
+                words = [word for word in words if word not in phrase_tokens] + canonical_tokens
+                token_set = set(words)
+                break
+    return words
 
 
 def _token_overlap_score(left_tokens: set[str], right_tokens: set[str]) -> float:
@@ -255,6 +322,8 @@ def _token_overlap_score(left_tokens: set[str], right_tokens: set[str]) -> float
 
 def _token_subset_score(left_tokens: set[str], right_tokens: set[str]) -> float:
     shorter_tokens, longer_tokens = sorted((left_tokens, right_tokens), key=len)
+    if len(right_tokens) == 1 and right_tokens.issubset(left_tokens):
+        return 0.84
     if len(shorter_tokens) < 2 or not shorter_tokens.issubset(longer_tokens):
         return 0.0
     return 0.9 + min(len(shorter_tokens), 5) * 0.02
@@ -262,10 +331,23 @@ def _token_subset_score(left_tokens: set[str], right_tokens: set[str]) -> float:
 
 def _substring_score(left: str, right: str) -> float:
     shorter, longer = sorted((left, right), key=len)
-    if shorter not in longer or len(shorter.split()) < 2:
+    if shorter not in longer:
         return 0.0
+    if len(shorter.split()) < 2:
+        return SINGLE_TOKEN_MIN_SCORE
     length_ratio = len(shorter) / max(len(longer), 1)
     return 0.88 + min(length_ratio, 1.0) * 0.12
+
+
+def _number_match_bonus(left_tokens: set[str], right_tokens: set[str]) -> float:
+    left_numbers = {number for token in left_tokens for number in re.findall(r"\d+", token)}
+    right_numbers = {number for token in right_tokens for number in re.findall(r"\d+", token)}
+    return 0.12 if left_numbers & right_numbers else 0.0
+
+
+def _single_token_item_match(shared_tokens: set[str], left_tokens: set[str], right_tokens: set[str]) -> bool:
+    token = next(iter(shared_tokens))
+    return len(right_tokens) == 1 and token in left_tokens
 
 
 def _clear_unknown_upc_alerts(session: Session, agency_id: int, upc: str) -> None:
