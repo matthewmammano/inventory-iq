@@ -40,7 +40,7 @@ def get_item_by_upc(
             return item
         stmt = select(Items).join(ItemSecondaryUpc).where(Items.agency_id == agency_id, ItemSecondaryUpc.upc == normalized)
         if not include_inactive:
-            stmt = stmt.where(Items.active.is_(True))
+            stmt = stmt.where(Items.active.is_(True), ItemSecondaryUpc.active.is_(True))
         return db.execute(stmt).scalars().first()
 
 
@@ -62,6 +62,8 @@ def list_items(
 
 
 def _attach_tags(agency_id: int, items: list[Items], session: Session) -> None:
+    for item in items:
+        item.secondary_upcs = [code for code in item.secondary_upcs if code.active]
     tag_ids = {tag_id for item in items for tag_id in (item.tag_ids or [])}
     if not tag_ids:
         for item in items:

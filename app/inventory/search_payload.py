@@ -61,7 +61,11 @@ def load_item_search_payload(
 def _upcs_by_item_id(session: Session, agency_id: int, item_ids: list[int]) -> dict[int, list[str]]:
     rows = session.execute(
         select(ItemSecondaryUpc.item_id, ItemSecondaryUpc.upc)
-        .where(ItemSecondaryUpc.agency_id == agency_id, ItemSecondaryUpc.item_id.in_(item_ids))
+        .where(
+            ItemSecondaryUpc.agency_id == agency_id,
+            ItemSecondaryUpc.item_id.in_(item_ids),
+            ItemSecondaryUpc.active.is_(True),
+        )
         .order_by(ItemSecondaryUpc.item_id, ItemSecondaryUpc.upc)
     ).all()
     upcs_by_item: dict[int, list[str]] = {}

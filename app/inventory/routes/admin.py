@@ -5,22 +5,24 @@ from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from flask import current_app, flash, make_response, redirect, render_template, request, url_for
+from flask import current_app, flash, redirect, render_template, request, url_for
 from flask_login import current_user
 from loguru import logger
 from pydantic import ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.auth.device_locations import (
-    current_device_token,
-    get_device_location_id,
-    save_device_location,
-    set_device_cookie,
-)
-from app.auth.models import Agencies, AgencyEmails, AgencyLocations
-from app.auth.queries import list_tags, list_top_locations
+from app.auth.models import Agencies, AgencyLocations
+from app.auth.queries import list_active_emails, list_tags, list_top_locations
 from app.inventory import admin_bp as bp
+from app.inventory.admin_edit_service import (
+    NOTIFICATION_ALERT_FIELDS,
+    NOTIFICATION_SUMMARY_FIELDS,
+    save_admin_items,
+    save_admin_notifications,
+    save_admin_settings,
+    save_admin_tags,
+)
 from app.inventory.barcodes import upc_bars
 from app.inventory.bulk_location_service import (
     LocationQuantityGrid,
@@ -90,6 +92,16 @@ from app.shared.validators import parse_optional_int
 
 HISTORY_PAGE_SIZE = 250
 HISTORY_PRINT_LIMIT = 5000
+TIMEZONE_CHOICES = (
+    "America/New_York",
+    "America/Chicago",
+    "America/Denver",
+    "America/Phoenix",
+    "America/Los_Angeles",
+    "America/Anchorage",
+    "Pacific/Honolulu",
+    "UTC",
+)
 
 
 @bp.before_request
@@ -135,6 +147,55 @@ def admin_panel(squad: str) -> Any:
     )
 
 
+@bp.route("/<squad>/admin-panel/edit-data", methods=["GET", "POST"])
+def admin_edit_data(squad: str) -> Any:
+    if request.method == "POST":
+        return _save_admin_edit_data(squad)
+    with get_session() as s:
+        edit_data = _admin_edit_data(s, current_user.id)
+    return render_template(
+        "admin_edit_data.html",
+        squad=squad,
+        active_tab=request.args.get("tab", "items"),
+        admin=True,
+        **edit_data,
+    )
+
+
+def _save_admin_edit_data(squad: str) -> Any:
+    tab = request.form.get("tab", "items")
+    try:
+        with get_session() as s:
+            if tab == "items":
+                changed = save_admin_items(s, current_user.id, request.form)
+            elif tab == "tags":
+                changed = save_admin_tags(s, current_user.id, request.form)
+            elif tab == "notifications":
+                changed = save_admin_notifications(s, current_user.id, request.form)
+            else:
+                raise ValueError("Choose a valid edit tab.")
+            s.commit()
+        flash(f"Saved {changed} row(s).", "success")
+    except (ValueError, ValidationError) as exc:
+        logger.warning("Admin edit save rejected", extra={"tab": tab, "error": str(exc)})
+        flash(str(exc), "error")
+    except Exception:
+        logger.exception("Admin edit save failed unexpectedly", extra={"tab": tab})
+        flash("Changes could not be saved. Please try again.", "error")
+    return redirect(url_for("admin.admin_edit_data", squad=squad, tab=tab))
+
+
+def _admin_edit_data(session: Session, agency_id: int) -> dict[str, Any]:
+    return {
+        "items": list_items(agency_id, session=session),
+        "tags": list_tags(agency_id, session),
+        "locations": list_top_locations(agency_id, session),
+        "notifications": list_active_emails(agency_id, session),
+        "notification_alert_fields": NOTIFICATION_ALERT_FIELDS,
+        "notification_summary_fields": NOTIFICATION_SUMMARY_FIELDS,
+    }
+
+
 @bp.route("/<squad>/admin-panel/print-labels", methods=["GET", "POST"])
 def print_labels(squad: str) -> Any:
     with get_session() as s:
@@ -169,16 +230,18 @@ def admin_panel_views(squad: str) -> Any:
         items=view_data["items"],
         locations=view_data["locations"],
         tags=view_data["tags"],
+        notifications=view_data["notifications"],
+        notification_alert_fields=NOTIFICATION_ALERT_FIELDS,
+        notification_summary_fields=NOTIFICATION_SUMMARY_FIELDS,
         admin=True,
         user_timezone=current_user.timezone,
         timezone_hint=get_timezone_hint(current_user.timezone),
     )
 
 
-@ttl_cache(skip_first_args=1)
 def _admin_view_data(session: Session, agency_id: int) -> dict[str, Any]:
     return {
-        "items": list_items(agency_id, include_inactive=True, session=session),
+        "items": list_items(agency_id, session=session),
         "locations": list(
             session.execute(
                 select(AgencyLocations)
@@ -190,6 +253,7 @@ def _admin_view_data(session: Session, agency_id: int) -> dict[str, Any]:
             .all()
         ),
         "tags": list_tags(agency_id, session),
+        "notifications": list_active_emails(agency_id, session),
     }
 
 
@@ -290,9 +354,7 @@ def item_trend_chart(squad: str, item_id: int, agency_location_id: int) -> Any:
 def inventory_counts(squad: str, agency_location_id: int | None = None) -> Any:
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
-        agency_emails = list(
-            s.execute(select(AgencyEmails).where(AgencyEmails.agency_id == current_user.id).order_by(AgencyEmails.email)).scalars().all()
-        )
+        agency_emails = list_active_emails(current_user.id, s)
         active_location = _active_location(locations, agency_location_id)
         active_tab = _inventory_count_tab(s, current_user.id, active_location.id) if active_location else {"inventory_data": [], "storages": []}
 
@@ -887,46 +949,32 @@ def settings_page(squad: str) -> Any:
     if request.method == "POST":
         return _save_settings(squad)
 
-    with get_session() as s:
-        locations = list_top_locations(current_user.id, s)
-        current_location_id = get_device_location_id(current_user.id, s)
-        current_location = next((location for location in locations if location.id == current_location_id), None)
     return render_template(
         "admin_settings.html",
         squad=squad,
         contact_phone=current_app.config.get("CONTACT_PHONE", ""),
-        locations=locations,
-        current_location=current_location,
+        timezone_choices=_settings_timezone_choices(current_user.timezone),
         admin=True,
     )
 
 
+def _settings_timezone_choices(current_timezone: str) -> tuple[str, ...]:
+    if current_timezone in TIMEZONE_CHOICES:
+        return TIMEZONE_CHOICES
+    return (current_timezone, *TIMEZONE_CHOICES)
+
+
 def _save_settings(squad: str) -> Any:
-    token = current_device_token()
     try:
-        location_id = parse_optional_int(request.form.get("agency_location_id"))
-        if location_id is None:
-            raise ValueError("Select a default device location.")
         with get_session() as s:
             agency = s.get(Agencies, current_user.id)
             if agency is None:
                 raise ValueError("Agency not found.")
-            save_device_location(current_user.id, token, location_id, s)
-            agency.user_count_allow = request.form.get("user_count_allow") == "1"
-            agency.user_restock_allow = request.form.get("user_restock_allow") == "1"
-            agency.lead_time_days = _positive_setting("lead_time_days", "Lead Time Days")
-            agency.count_last_days = _positive_setting("count_last_days", "Stale Count Days")
-            agency.alert_rare_scan_days = _positive_setting("alert_rare_scan_days", "Rare Takeout Days")
+            save_admin_settings(s, agency, request.form.to_dict())
+            flash("Settings saved.", "success")
             s.commit()
-        logger.info(
-            "Admin settings saved successfully",
-            extra={"agency_location_id": location_id},
-        )
-        flash("Settings saved.", "success")
-        response = make_response(redirect(url_for("admin.admin_panel", squad=squad)))
-        set_device_cookie(response, token)
-        return response
-    except ValueError as exc:
+        return redirect(url_for("admin.settings_page", squad=squad))
+    except (ValueError, ValidationError) as exc:
         logger.warning(
             "Admin settings rejected",
             extra={"error": str(exc)},
@@ -935,19 +983,7 @@ def _save_settings(squad: str) -> Any:
     except Exception:
         logger.exception("Admin settings save failed unexpectedly")
         flash("Settings could not be saved. Please try again.", "error")
-    response = make_response(redirect(url_for("admin.settings_page", squad=squad)))
-    set_device_cookie(response, token)
-    return response
-
-
-def _positive_setting(field: str, label: str) -> int:
-    try:
-        value = int(request.form.get(field, ""))
-    except ValueError as exc:
-        raise ValueError(f"{label} must be a whole number.") from exc
-    if value < 1:
-        raise ValueError(f"{label} must be at least 1.")
-    return value
+    return redirect(url_for("admin.settings_page", squad=squad))
 
 
 @bp.route("/<squad>/admin-panel/scan-items", methods=["GET", "POST"])
@@ -984,7 +1020,7 @@ def admin_scan_items(squad: str) -> Any:
         items_payload = load_item_search_payload(
             s,
             current_user.id,
-            include_inactive=True,
+            include_inactive=False,
             order_by_last_accessed=True,
         )
     return render_template(

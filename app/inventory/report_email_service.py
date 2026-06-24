@@ -45,7 +45,13 @@ def _selected_recipients(
         return []
     return list(
         session.execute(
-            select(AgencyEmails).where(AgencyEmails.agency_id == agency_id, AgencyEmails.id.in_(agency_email_ids)).order_by(AgencyEmails.email)
+            select(AgencyEmails)
+            .where(
+                AgencyEmails.agency_id == agency_id,
+                AgencyEmails.id.in_(agency_email_ids),
+                AgencyEmails.active.is_(True),
+            )
+            .order_by(AgencyEmails.email)
         )
         .scalars()
         .all()

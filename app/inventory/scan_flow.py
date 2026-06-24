@@ -534,12 +534,11 @@ def _scan_item_not_found_response(
 
 
 def _get_scan_item(db, item_id: int | None, upc: str | None, *, is_admin: bool):
-    include_inactive = is_admin
     if upc:
-        return get_item_by_upc(current_user.id, upc.strip(), include_inactive=include_inactive, session=db)
+        return get_item_by_upc(current_user.id, upc.strip(), session=db)
     if item_id is None:
         return None
-    return get_agency_item(current_user.id, item_id, include_inactive=include_inactive, session=db)
+    return get_agency_item(current_user.id, item_id, session=db)
 
 
 def _scan_item_error_url(

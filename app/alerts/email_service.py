@@ -175,7 +175,11 @@ def _pending_recipients(session: Session) -> list[AgencyEmails]:
     if not recipient_ids:
         return []
     return list(
-        session.execute(select(AgencyEmails).where(AgencyEmails.id.in_(recipient_ids)).order_by(AgencyEmails.agency_id, AgencyEmails.id))
+        session.execute(
+            select(AgencyEmails)
+            .where(AgencyEmails.id.in_(recipient_ids), AgencyEmails.active.is_(True))
+            .order_by(AgencyEmails.agency_id, AgencyEmails.id)
+        )
         .scalars()
         .all()
     )

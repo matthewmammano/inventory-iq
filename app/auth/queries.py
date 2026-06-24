@@ -5,7 +5,7 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.shared.database import managed_session
 
-from .models import Agencies, AgencyItemTags, AgencyLocations, AgencyStorages
+from .models import Agencies, AgencyEmails, AgencyItemTags, AgencyLocations, AgencyStorages
 
 
 def get_agency(agency_id: int, session: Session | None = None) -> Agencies | None:
@@ -80,9 +80,16 @@ def list_top_locations(agency_id: int, session: Session | None = None) -> list[A
         return list(s.execute(stmt).scalars().all())
 
 
+def list_active_emails(agency_id: int, session: Session | None = None, *, order_by_id: bool = False) -> list[AgencyEmails]:
+    with managed_session(session) as s:
+        order_col = AgencyEmails.id if order_by_id else AgencyEmails.email
+        stmt = select(AgencyEmails).where(AgencyEmails.agency_id == agency_id, AgencyEmails.active.is_(True)).order_by(order_col)
+        return list(s.execute(stmt).scalars().all())
+
+
 def list_tags(agency_id: int, session: Session | None = None) -> list[AgencyItemTags]:
     with managed_session(session) as s:
-        stmt = select(AgencyItemTags).where(AgencyItemTags.agency_id == agency_id).order_by(AgencyItemTags.tag_name)
+        stmt = select(AgencyItemTags).where(AgencyItemTags.agency_id == agency_id, AgencyItemTags.active.is_(True)).order_by(AgencyItemTags.tag_name)
         return list(s.execute(stmt).scalars().all())
 
 
@@ -91,5 +98,6 @@ def get_tags_by_ids(agency_id: int, tag_ids: list[int], session: Session | None 
         stmt = select(AgencyItemTags).where(
             AgencyItemTags.id.in_(tag_ids),
             AgencyItemTags.agency_id == agency_id,
+            AgencyItemTags.active.is_(True),
         )
         return list(s.execute(stmt).scalars().all())

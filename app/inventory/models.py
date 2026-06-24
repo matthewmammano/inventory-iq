@@ -150,6 +150,7 @@ class ItemSecondaryUpc(Base):
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
     item_id: Mapped[int] = mapped_column(Integer, ForeignKey("items.id", ondelete="CASCADE"), index=True)
     upc: Mapped[str] = mapped_column(String(12))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     item = relationship("Items", back_populates="secondary_upcs", lazy="selectin")
 
@@ -232,7 +233,14 @@ def _generate_primary_upc(session: OrmSession, agency_id: int, reserved: set[str
 def agency_upc_exists(session: OrmSession, agency_id: int, upc: str) -> bool:
     return (
         session.scalar(select(Items.id).where(Items.agency_id == agency_id, Items.upc == upc)) is not None
-        or session.scalar(select(ItemSecondaryUpc.id).where(ItemSecondaryUpc.agency_id == agency_id, ItemSecondaryUpc.upc == upc)) is not None
+        or session.scalar(
+            select(ItemSecondaryUpc.id).where(
+                ItemSecondaryUpc.agency_id == agency_id,
+                ItemSecondaryUpc.upc == upc,
+                ItemSecondaryUpc.active.is_(True),
+            )
+        )
+        is not None
     )
 
 

@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.location_filters import alert_matches_location_filter, validate_location_filter_ids
 from app.auth.models import Agencies, AgencyEmails, AgencyLocations, AgencyStorages
+from app.auth.queries import list_active_emails
 from app.inventory.balance_service import (
     get_location_last_counted_at,
     get_location_last_takeout_at,
@@ -750,8 +751,7 @@ def _agency_recipients(
     session: Session,
     agency_id: int,
 ) -> list[AgencyEmails]:
-    rows = session.execute(select(AgencyEmails).where(AgencyEmails.agency_id == agency_id).order_by(AgencyEmails.id)).scalars()
-    return list(rows)
+    return list_active_emails(agency_id, session, order_by_id=True)
 
 
 def _iso(value: datetime | None) -> str | None:

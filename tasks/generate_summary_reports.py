@@ -29,7 +29,7 @@ def generate_summary_reports(report_type: str) -> None:
         cutoff = datetime.now(UTC) - timedelta(days=days)
 
         with get_session() as s:
-            opted_in = list(s.execute(select(AgencyEmails).where(flag_col.is_(True))).scalars().all())
+            opted_in = list(s.execute(select(AgencyEmails).where(flag_col.is_(True), AgencyEmails.active.is_(True))).scalars().all())
         logger.debug("Summary report recipients loaded", extra={"report_type": report_type, "recipient_count": len(opted_in)})
 
         sent = 0

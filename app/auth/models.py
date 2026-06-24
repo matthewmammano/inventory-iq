@@ -138,6 +138,7 @@ class AgencyEmails(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
     email: Mapped[str] = mapped_column(String(128), unique=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
     location_filter_ids: Mapped[list[int] | None] = mapped_column(MutableList.as_mutable(JSON), nullable=True)
 
     alert_for_stockout: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -249,6 +250,7 @@ class AgencyItemTags(Base):
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
     tag_name: Mapped[str] = mapped_column(String(50))
     color: Mapped[str] = mapped_column(String(7))
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     __table_args__ = (UniqueConstraint("agency_id", "tag_name", name="uq_agency_item_tags_agency_tag"),)
 

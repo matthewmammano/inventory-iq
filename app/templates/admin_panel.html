@@ -8,8 +8,12 @@
 {% block content %}
 <section class="grid admin-menu">
     <a class="card" href="{{ url_for('admin.admin_panel_views', squad=squad) }}">
-        <h2>View</h2>
-        <p>Access item, location, and tag views.</p>
+        <h2>View Data</h2>
+        <p>Preview items, locations, tags, and notifications.</p>
+    </a>
+    <a class="card" href="{{ url_for('admin.admin_edit_data', squad=squad) }}">
+        <h2>Edit Data</h2>
+        <p>Edit items, tags, and notifications.</p>
     </a>
     <a class="card" href="{{ url_for('admin.pending_upcs', squad=squad) }}">
         <h2>New Barcodes</h2>
@@ -41,7 +45,7 @@
     </a>
     <a class="card" href="{{ url_for('admin.settings_page', squad=squad) }}">
         <h2>Settings</h2>
-        <p>Device defaults, support, and future admin options.</p>
+        <p>Squad image, PIN, permissions, and alert thresholds.</p>
     </a>
 </section>
 <section class="footer-actions">

@@ -16,6 +16,7 @@ from app.auth.device_locations import (
 )
 from app.auth.queries import get_agency_by_display_name, list_top_locations
 from app.inventory import guest_bp as bp
+from app.inventory.admin_edit_service import send_temporary_time_pin
 from app.inventory.constants import (
     UNKNOWN_UPC_INVALID_MESSAGE,
 )
@@ -109,22 +110,31 @@ def _record_unknown_upc_from_request(squad: str) -> str | None:
 def admin_login(squad: str) -> Any:
     token = current_device_token()
     if request.method == "POST":
-        pin = request.form.get("password", "")
         with get_session() as s:
             agency = get_agency_by_display_name(squad, s)
         if not agency:
             logger.warning("Admin PIN login rejected: squad name was not found")
             flash("Invalid squad name.", "error")
             return _admin_login_response(squad, token)
+        if request.form.get("action") == "send_temp_pin":
+            with get_session() as s:
+                agency = get_agency_by_display_name(squad, s)
+                if agency is None or not send_temporary_time_pin(s, agency):
+                    flash("Temporary admin PIN could not be sent. Please try again.", "error")
+                    return _admin_login_response(squad, token)
+                s.commit()
+            flash("Temporary admin PIN sent to the account email.", "success")
+            return _admin_login_response(squad, token)
+        pin = request.form.get("password", "")
         if agency.pin and pin == agency.pin:
             session["admin"] = True
             session["admin_last_active"] = datetime.now(UTC).timestamp()
-            logger.info("Admin PIN login succeeded for guest device session")
+            logger.debug("Admin PIN login succeeded for guest device session")
             flash("Admin access granted.", "success")
             response = make_response(redirect(url_for("admin.admin_panel", squad=squad)))
             set_device_cookie(response, token)
             return response
-        logger.warning("Admin PIN login rejected: invalid PIN")
+        logger.debug("Admin PIN login rejected: invalid PIN")
         flash("Invalid PIN.", "error")
     return _admin_login_response(squad, token)
 

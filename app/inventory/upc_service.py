@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.alerts.constants import AlertAction, AlertType
 from app.alerts.models import AlertRecords
-from app.auth.models import AgencyEmails
+from app.auth.queries import list_active_emails
 from app.shared.clock import utc_now
 
 from .constants import (
@@ -54,7 +54,7 @@ SINGLE_TOKEN_MIN_SCORE = 0.38
 
 def record_unknown_upc(session: Session, agency_id: int, upc: str) -> UnknownUpcStatus:
     normalized = validate_upc_code(upc)
-    if agency_upc_exists(session, agency_id, normalized):
+    if _active_upc_exists(session, agency_id, normalized):
         return UnknownUpcStatus.RESOLVED
     if normalized.startswith(UPC_GENERATION_PREFIX):
         raise ValueError("Private UPCs must already be linked as primary item UPCs.")
@@ -129,7 +129,7 @@ def unknown_upc_scan_message(status: UnknownUpcStatus) -> str:
 
 def resolve_unknown_upc(session: Session, agency_id: int, unknown_upc_id: int, item_id: int) -> None:
     scan = _review_unknown_by_id(session, agency_id, unknown_upc_id)
-    item = session.scalar(select(Items).where(Items.agency_id == agency_id, Items.id == item_id))
+    item = session.scalar(select(Items).where(Items.agency_id == agency_id, Items.id == item_id, Items.active.is_(True)))
     if scan is None or item is None:
         raise ValueError("UPC review row or item not found.")
     if scan.upc.startswith(UPC_GENERATION_PREFIX):
@@ -137,7 +137,12 @@ def resolve_unknown_upc(session: Session, agency_id: int, unknown_upc_id: int, i
     if agency_upc_exists(session, agency_id, scan.upc):
         raise ValueError("UPC is already linked to an item.")
 
-    session.add(ItemSecondaryUpc(agency_id=agency_id, item_id=item.id, upc=scan.upc))
+    existing = session.scalar(select(ItemSecondaryUpc).where(ItemSecondaryUpc.agency_id == agency_id, ItemSecondaryUpc.upc == scan.upc))
+    if existing:
+        existing.item_id = item.id
+        existing.active = True
+    else:
+        session.add(ItemSecondaryUpc(agency_id=agency_id, item_id=item.id, upc=scan.upc))
     scan.status = UnknownUpcStatus.RESOLVED
     _clear_unknown_upc_alerts(session, agency_id, scan.upc)
 
@@ -171,6 +176,20 @@ def _unknown_upc(session: Session, agency_id: int, upc: str) -> UnknownUpcScan |
     return session.scalar(select(UnknownUpcScan).where(UnknownUpcScan.agency_id == agency_id, UnknownUpcScan.upc == upc))
 
 
+def _active_upc_exists(session: Session, agency_id: int, upc: str) -> bool:
+    return (
+        session.scalar(select(Items.id).where(Items.agency_id == agency_id, Items.upc == upc, Items.active.is_(True))) is not None
+        or session.scalar(
+            select(ItemSecondaryUpc.id).where(
+                ItemSecondaryUpc.agency_id == agency_id,
+                ItemSecondaryUpc.upc == upc,
+                ItemSecondaryUpc.active.is_(True),
+            )
+        )
+        is not None
+    )
+
+
 def _review_unknown_by_id(session: Session, agency_id: int, unknown_upc_id: int) -> UnknownUpcScan | None:
     return session.scalar(
         select(UnknownUpcScan).where(
@@ -192,9 +211,8 @@ def _ignored_unknown_by_id(session: Session, agency_id: int, unknown_upc_id: int
 
 
 def _queue_unknown_upc_alerts(session: Session, agency_id: int, scan: UnknownUpcScan) -> int:
-    rows = session.execute(select(AgencyEmails).where(AgencyEmails.agency_id == agency_id).order_by(AgencyEmails.id)).scalars()
     count = 0
-    for recipient in rows:
+    for recipient in list_active_emails(agency_id, session, order_by_id=True):
         session.add(
             AlertRecords(
                 agency_id=agency_id,

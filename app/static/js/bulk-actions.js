@@ -3,12 +3,17 @@ document.addEventListener("DOMContentLoaded", () => {
     const modal = document.querySelector("#tab-confirm-modal");
     const changeList = document.querySelector("#tab-change-list");
     const back = document.querySelector("[data-bulk-back]");
+    const saveButton = document.querySelector("#save-bulk-button");
     const loadingOverlay = window.InventoryLoadingOverlay;
     if (!modal || !changeList || !back) return;
 
     const quantityInputs = [...document.querySelectorAll("[data-count-input], [data-restock-input]")];
     const changedInputs = () => [...document.querySelectorAll("[data-original-value]")]
         .filter((input) => input.value !== input.dataset.originalValue);
+
+    function renderDirtyState() {
+        saveButton?.classList.toggle("hidden", changedInputs().length === 0);
+    }
 
     function updateRequiredCounts() {
         document.querySelectorAll("[data-count-cell]").forEach((cell) => {
@@ -35,7 +40,10 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    quantityInputs.forEach((input) => input.addEventListener("input", updateRequiredCounts));
+    quantityInputs.forEach((input) => input.addEventListener("input", () => {
+        updateRequiredCounts();
+        renderDirtyState();
+    }));
 
     back.addEventListener("click", (event) => {
         const inputs = changedInputs();
@@ -79,4 +87,5 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     updateRequiredCounts();
+    renderDirtyState();
 });

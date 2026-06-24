@@ -3,10 +3,13 @@
 {% block title %}Bulk Action{% endblock %}
 {% block header_title %}Bulk Action{% endblock %}
 {% block sub_title %}Location: {{ location.name }}{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('admin.bulk_actions', squad=squad, agency_location_id=location.id) }}" data-bulk-back>Back</a>{% endblock %}
+{% block header_right %}
+<button class="success-button hidden" id="save-bulk-button" type="submit" form="bulk-action-form">Save</button>
+<a class="header-action" href="{{ url_for('admin.bulk_actions', squad=squad, agency_location_id=location.id) }}" data-bulk-back>Back</a>
+{% endblock %}
 
 {% block content %}
-<form method="POST" class="panel stack" data-bulk-form>
+<form id="bulk-action-form" method="POST" class="panel stack" data-bulk-form>
     {% for item_id in item_ids %}
     <input type="hidden" name="item_ids" value="{{ item_id }}">
     {% endfor %}

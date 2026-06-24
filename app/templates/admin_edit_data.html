@@ -1,0 +1,160 @@
+{% extends "base.html" %}
+
+{% block title %}Edit Data{% endblock %}
+{% block header_title %}Edit Data{% endblock %}
+{% block sub_title %}Edit active items, tags, and notifications{% endblock %}
+{% block header_right %}
+<button class="success-button hidden" id="edit-save-button" type="button">Save</button>
+<a class="header-action" id="edit-back-link" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>
+{% endblock %}
+
+{% macro check(name, checked, label) -%}
+<label class="check-option"><input type="checkbox" name="{{ name }}" value="1" {% if checked %}checked{% endif %} data-original="{{ '1' if checked else '0' }}" data-label="{{ label }}"> {{ label }}</label>
+{%- endmacro %}
+
+{% macro input(name, value, label, attrs="") -%}
+<label class="edit-field"><span>{{ label }}</span><input class="table-input" name="{{ name }}" value="{{ value if value is not none else '' }}" data-original="{{ value if value is not none else '' }}" data-label="{{ label }}" {{ attrs|safe }}></label>
+{%- endmacro %}
+
+{% macro bare_input(name, value, label, attrs="", classes="") -%}
+<input class="table-input {{ classes }}" name="{{ name }}" value="{{ value if value is not none else '' }}" aria-label="{{ label }}" data-original="{{ value if value is not none else '' }}" data-label="{{ label }}" {{ attrs|safe }}>
+{%- endmacro %}
+
+{% macro delete_toggle(name, label, value="", attrs="") -%}
+<label class="delete-toggle-label">
+    <input class="delete-toggle-input" type="checkbox" name="{{ name }}" {% if value %}value="{{ value }}" {% endif %}data-original="0" data-original-display="Keep" data-off-display="Keep" data-on-display="Delete" data-review-text="{{ label|replace('Delete ', '') }} will be hidden after saving." data-label="{{ label }}" {{ attrs|safe }}>
+    <span class="delete-toggle" aria-label="{{ label }}" title="{{ label }}">
+        <img class="delete-icon-trash" src="https://img.icons8.com/?size=24&amp;id=85081&amp;format=png&amp;color=000000" alt="">
+        <img class="delete-icon-recycle" src="https://img.icons8.com/?size=24&amp;id=103049&amp;format=png&amp;color=2f7d46" alt="">
+    </span>
+</label>
+{%- endmacro %}
+
+{% macro checkbox_list(title, name, options, selected_ids, label) -%}
+<div class="checkbox-list" aria-label="{{ title }}">
+    {% for option in options %}
+    {% set selected = option.id in selected_ids %}
+    {% set option_label = option.tag_name if option.tag_name is defined else option.name %}
+    <label class="check-option"><input type="checkbox" name="{{ name }}" value="{{ option.id }}" {% if selected %}checked{% endif %} data-original="{{ '1' if selected else '0' }}" data-on-display="Selected" data-off-display="Not selected" data-label="{{ label }}: {{ option_label }}"> {{ option_label }}</label>
+    {% endfor %}
+</div>
+{%- endmacro %}
+
+{% block content %}
+<div class="tabbed-panel" data-edit-tabs>
+    <section class="tab-strip">
+        <a class="tab-button{% if active_tab == 'items' %} active{% endif %}" href="#items" data-tab="items">Items</a>
+        <a class="tab-button{% if active_tab == 'tags' %} active{% endif %}" href="#tags" data-tab="tags">Tags</a>
+        <a class="tab-button{% if active_tab == 'notifications' %} active{% endif %}" href="#notifications" data-tab="notifications">Notifications</a>
+    </section>
+
+    <section class="panel tab-panel{% if active_tab != 'items' %} hidden{% endif %}" id="items">
+        <form id="edit-form-items" method="POST" data-edit-form>
+            <input type="hidden" name="tab" value="items">
+            <div class="table-wrap">
+                <table>
+                    <thead><tr><th class="thin-col">Current Item</th><th>Edit Item</th><th class="thin-col">Quantities</th><th>Tags</th><th>Secondary UPCs</th><th>Delete?</th></tr></thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr data-row-label="{{ item.name }}">
+                            <th class="thin-col" scope="row">{{ item.name|bold_item_name }}</th>
+                            <td>
+                                <input type="hidden" name="item_ids" value="{{ item.id }}">
+                                {{ input("item_" ~ item.id ~ "_name", item.name, "Item Name", "maxlength=100 required") }}
+                                {{ input("item_" ~ item.id ~ "_image", item.image, "Image", "maxlength=1020 placeholder='Image URL'") }}
+                                {{ input("item_" ~ item.id ~ "_increments", item.increments, "Increments", "maxlength=50 placeholder=Increments") }}
+                                <div class="expanded-option">{{ check("item_" ~ item.id ~ "_guest_quick_adjust", item.guest_quick_adjust, "Expanded ±5, ±10") }}</div>
+                            </td>
+                            <td class="thin-col">
+                                {{ input("item_" ~ item.id ~ "_min_quantity", item.min_quantity, "Minimum Quantity", "type=number min=1 required") }}
+                                {{ input("item_" ~ item.id ~ "_max_quantity", item.max_quantity, "Maximum Quantity", "type=number min=1 required") }}
+                                {{ input("item_" ~ item.id ~ "_batch_size", item.batch_size, "Order Size", "type=number min=1 required") }}
+                                {{ input("item_" ~ item.id ~ "_restock_delivery_days", item.restock_delivery_days, "Lead Time Override", "type=number min=1 placeholder='Lead days'") }}
+                                {{ input("item_" ~ item.id ~ "_prior_daily_usage", item.prior_daily_usage, "Prior Daily Usage", "type=number min=0 step=any required") }}
+                            </td>
+                            <td>
+                                {{ checkbox_list("Tags", "item_" ~ item.id ~ "_tag_ids", tags, item.tag_ids, "Tags") }}
+                            </td>
+                            <td>
+                                {% for code in item.secondary_upcs %}
+                                <div class="upc-edit-row">
+                                    {{ bare_input("item_" ~ item.id ~ "_secondary_upcs", code.upc, "Secondary UPC", "maxlength=12 inputmode=numeric", "upc-existing-input") }}
+                                    {{ delete_toggle("delete_secondary_upc_" ~ item.id ~ "_" ~ loop.index, "Delete Secondary UPC", "", "data-clear-field") }}
+                                </div>
+                                {% endfor %}
+                                <div class="upc-edit-row" data-upc-add-row>{{ bare_input("item_" ~ item.id ~ "_secondary_upcs", "", "Add UPC", "maxlength=12 inputmode=numeric data-upc-add-input") }}</div>
+                            </td>
+                            <td>{{ delete_toggle("delete_item_ids", "Delete Item", item.id) }}</td>
+                        </tr>
+                        {% endfor %}
+                        <tr data-row-label="New Item">
+                            <th class="thin-col" scope="row">New Item</th>
+                            <td>{{ input("new_item_name", "", "Item Name", "maxlength=100 placeholder='New item name'") }}{{ input("new_item_image", "", "Image", "maxlength=1020 placeholder='Image URL'") }}{{ input("new_item_increments", "", "Increments", "maxlength=50 placeholder=Increments") }}<div class="expanded-option">{{ check("new_item_guest_quick_adjust", false, "Expanded ±5, ±10") }}</div></td>
+                            <td class="thin-col">{{ input("new_item_min_quantity", "", "Minimum Quantity", "type=number min=1 placeholder=Min") }}{{ input("new_item_max_quantity", "", "Maximum Quantity", "type=number min=1 placeholder=Max") }}{{ input("new_item_batch_size", 1, "Order Size", "type=number min=1") }}{{ input("new_item_restock_delivery_days", "", "Lead Time Override", "type=number min=1 placeholder='Lead days'") }}{{ input("new_item_prior_daily_usage", 0, "Prior Daily Usage", "type=number min=0 step=any") }}</td>
+                            <td>{{ checkbox_list("Tags", "new_item_tag_ids", tags, [], "Tags") }}</td>
+                            <td><div class="upc-edit-row" data-upc-add-row>{{ bare_input("new_item_secondary_upcs", "", "Add UPC", "maxlength=12 inputmode=numeric data-upc-add-input") }}</div></td>
+                            <td></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </form>
+    </section>
+
+    <section class="panel tab-panel{% if active_tab != 'tags' %} hidden{% endif %}" id="tags">
+        <form id="edit-form-tags" method="POST" data-edit-form>
+            <input type="hidden" name="tab" value="tags">
+            <div class="table-wrap"><table><thead><tr><th>Name</th><th>Color</th><th>Delete?</th></tr></thead><tbody>
+                {% for tag in tags %}
+                <tr data-row-label="{{ tag.tag_name }}">
+                    <td><input type="hidden" name="tag_ids" value="{{ tag.id }}">{{ bare_input("tag_" ~ tag.id ~ "_tag_name", tag.tag_name, "Tag Name", "maxlength=50 required") }}</td>
+                    <td>{{ bare_input("tag_" ~ tag.id ~ "_color", tag.color, "Color", "type=color required") }}</td>
+                    <td>{{ delete_toggle("delete_tag_ids", "Delete Tag", tag.id) }}</td>
+                </tr>
+                {% endfor %}
+                <tr data-row-label="New Tag"><td>{{ bare_input("new_tag_tag_name", "", "Tag Name", "maxlength=50 placeholder='New tag name'") }}</td><td>{{ bare_input("new_tag_color", "#2F6B4F", "Color", "type=color") }}</td><td></td></tr>
+            </tbody></table></div>
+        </form>
+    </section>
+
+    <section class="panel tab-panel{% if active_tab != 'notifications' %} hidden{% endif %}" id="notifications">
+        <form id="edit-form-notifications" method="POST" data-edit-form>
+            <input type="hidden" name="tab" value="notifications">
+            <div class="table-wrap"><table><thead><tr><th>Email</th><th>Locations</th><th>Alerts</th><th>Summaries</th><th>Delete?</th></tr></thead><tbody>
+                {% for email in notifications %}
+                <tr data-row-label="{{ email.email }}">
+                    <td><input type="hidden" name="email_ids" value="{{ email.id }}">{{ bare_input("email_" ~ email.id ~ "_email", email.email, "Email Address", "type=email maxlength=128 required") }}</td>
+                    <td>{{ checkbox_list("Location Filters", "email_" ~ email.id ~ "_location_filter_ids", locations, email.location_filter_ids|default([], true), "Location Filters") }}<small>Blank means all locations.</small></td>
+                    <td>{% for field, label in notification_alert_fields %}{{ check("email_" ~ email.id ~ "_" ~ field, email|attr(field), label) }}{% endfor %}</td>
+                    <td>{% for field, label in notification_summary_fields %}{{ check("email_" ~ email.id ~ "_" ~ field, email|attr(field), label) }}{% endfor %}</td>
+                    <td>{{ delete_toggle("delete_email_ids", "Delete Notification", email.id) }}</td>
+                </tr>
+                {% endfor %}
+                <tr data-new-email-row data-email-index="0" data-row-label="New Notification">
+                    <td><input type="hidden" name="new_email_keys" value="new_email_0">{{ bare_input("new_email_0_email", "", "Email Address", "type=email maxlength=128 placeholder='New email'") }}</td>
+                    <td>{{ checkbox_list("Location Filters", "new_email_0_location_filter_ids", locations, [], "Location Filters") }}</td>
+                    <td>{% for field, label in notification_alert_fields %}{{ check("new_email_0_" ~ field, false, label) }}{% endfor %}</td>
+                    <td>{% for field, label in notification_summary_fields %}{{ check("new_email_0_" ~ field, false, label) }}{% endfor %}</td>
+                    <td></td>
+                </tr>
+            </tbody></table></div>
+        </form>
+    </section>
+</div>
+
+<div class="modal-backdrop hidden" id="edit-confirm-modal">
+    <div class="modal">
+        <h2 id="edit-modal-title">Review Changes</h2>
+        <p id="edit-modal-message">Confirm these changes before saving.</p>
+        <div class="change-list" id="edit-change-list"></div>
+        <div class="button-row">
+            <button class="success-button" id="edit-confirm-button" type="button">Yes, Save</button>
+            <button class="quiet-button" id="edit-cancel-button" type="button">Keep Editing</button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin-edit.js') }}" defer></script>
+{% endblock %}
