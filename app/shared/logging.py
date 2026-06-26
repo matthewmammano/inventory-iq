@@ -33,7 +33,7 @@ CONTEXT_KEYS = frozenset(
 
 CONSOLE_LOG_FORMAT = (
     "<green>{time:YYYY-MM-DD HH:mm:ss}</green> | <level>{level}</level> | "
-    "<cyan>{extra[request_id_display]}</cyan> | <cyan>{extra[agency_id_display]}</cyan> | "
+    "<cyan>{extra[agency_id_display]}</cyan> | "
     "<cyan>{name}</cyan>:<cyan>{function}</cyan>:<cyan>{line}</cyan> | "
     "<level>{message}</level>"
 )

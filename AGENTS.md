@@ -1,196 +1,126 @@
 # AGENTS.md
 
-## Purpose
+**READ THIS FILE AFTER EVERY PROMPT.** It defines reusable coding-agent rules for production software work.
 
-This file defines how the coding agent should work in this repository.
+## Project Docs
 
-Target: a live Python web application already in progress.
+Read local project docs when they exist. For this repository:
 
-Optimize for production-safe progress with minimal churn.
+- [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): module map, layers, and change placement.
+- [docs/DATA_MODEL.md](docs/DATA_MODEL.md): tables, ownership, and persistence invariants.
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): stack, setup, env vars, migrations, commands, and cron tasks.
+- [docs/ADMIN_WORKFLOWS.md](docs/ADMIN_WORKFLOWS.md): admin and scan workflow behavior.
+- [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md): logging, traceability, and diagnostics.
+- [docs/REPO_CONVENTIONS.md](docs/REPO_CONVENTIONS.md): Inventory IQ-specific UI, flash, modal, and email conventions.
+- [docs/TODO.md](docs/TODO.md): active plan, deferred work, and future improvements.
 
 ## Priority Order
 
-Always optimize in this exact order:
+**ALWAYS OPTIMIZE IN THIS EXACT ORDER:**
 
-1. **Simplicity first (KISS)**
-   - Implement or refactor in the easiest correct way.
-   - Prefer straightforward control flow over clever abstractions.
-   - Choose the fewest moving parts that solve the problem well.
+1. **SIMPLICITY FIRST:** choose the easiest correct implementation.
+2. **DRY AND STRONG STRUCTURE:** centralize repeated logic, literals, schemas, validation, and cross-cutting behavior.
+3. **LOW COMPLEXITY:** prefer straightforward control flow, early returns, and shallow nesting.
+4. **SHORT FUNCTIONS AND FILES:** keep modules cohesive and split by responsibility before they get crowded.
+5. **PRODUCTION-GRADE PYTHON:** favor correctness, explicitness, typing, maintainability, and operability.
+6. **EXCELLENT TRACEABILITY:** make failures diagnosable without exposing secrets or PII.
+7. **EASE OF UNDERSTANDING:** code should read naturally in one pass.
 
-2. **DRY and strong structure**
-   - Eliminate repeated logic, repeated literals, repeated schemas, and repeated validation.
-   - Reuse helpers, constants, typed utilities, shared adapters, and Pydantic models.
-   - Centralize cross-cutting behavior.
+## Architecture Rules
 
-3. **Low complexity**
-   - Minimize branching, nesting, statefulness, and hidden behavior.
-   - Reduce cognitive load before optimizing for elegance.
-
-4. **Short functions and short files**
-   - Keep functions focused and small.
-   - Split files before they become crowded.
-   - Prefer composable modules over large mixed-responsibility files.
-
-5. **Production-grade Python practices**
-   - Use modern Python 3.13 best practices throughout.
-   - Favor correctness, explicitness, maintainability, and operability.
-
-6. **Excellent logging and traceability**
-   - Log clearly across debug, info, warning, error, and exception paths.
-   - Make production failures easy to diagnose.
-
-7. **Ease of understanding**
-   - Write code that reads naturally.
-   - Use short inline comments only when they add value.
-   - Use concise docstrings for public or non-obvious behavior.
-
-## Core Application Principles
-
-These directly implement the Priority Order and serve as the decision-making filter.
-
-### Boundaries & Structure
-
-- **Layers**: routes (thin) → schemas/DTOs → services (logic) → repositories (data) → infrastructure.
-- **Isolation**: Persistence does not leak across boundaries. External API details are behind adapters.
-- **Pydantic for shape**: request validation, response models, config, domain payloads, untrusted data.
-- **Keep models focused**: reusable, composed, validators only where they belong.
-
-### File & Function Discipline
-
-- One thing per function. Early returns. Avoid nesting.
-- Break files when responsibilities diverge. Keep modules cohesive.
-- If hard to name simply, doing too much. If logic repeats twice, extract it.
-
-### Comments & Docstrings
-
-- Comment intent, not obvious mechanics.
-- Docstrings for public APIs, tricky invariants, non-obvious side effects only.
-- Remove stale comments immediately.
-
-### Logging (Production-Ready)
-
-Structured logging with context:
-
-- `debug`: diagnostics, branch decisions, checkpoints
-- `info`: successful events worth tracking
-- `warning`: recoverable issues, suspicious input
-- `error`: failed operations with clear context
-- `exception`: unexpected failures with stack trace
-
-Style: `logger.info("event", extra={"key": value})`. Never log secrets/PII. Log at boundaries: request entry, service decisions, external calls, DB ops, failures.
+- **PRESERVE BOUNDARIES:** routes -> schemas/DTOs -> services -> repositories/queries -> infrastructure.
+- **KEEP HANDLERS THIN.** Put business decisions in services and persistence in query/repository-style modules.
+- **VALIDATE UNTRUSTED INPUT AT BOUNDARIES** with Pydantic or existing typed validators.
+- Keep external API/provider details behind adapters.
+- Do not leak ORM or persistence details across layers unless the existing codebase clearly does so.
+- **MAKE INVALID STATES HARD TO REPRESENT** with types, constants, enums, constraints, or focused models.
+- **DO NOT KEEP BACKWARD-COMPATIBILITY SHIMS FOR DEAD CODE.** If there is no explicit live API, migration path, production data dependency, or user-facing contract requiring compatibility, prefer a clean full refactor over preserving old names, duplicate paths, or legacy adapters.
 
 ## Implementation Checklist
 
 Before writing code, verify:
 
-1. Is there an existing pattern in the codebase to reuse?
+1. What existing pattern should be reused?
 2. What is the simplest correct implementation?
-3. Can this be more DRY without harming readability?
-4. Should this live in a route, service, repository, or utility?
-5. Should a Pydantic model, constant, enum, or helper be introduced?
-6. Can function/file size be reduced?
-7. Are names precise and descriptive?
-8. Are failure modes explicit?
-9. Are logs sufficient for production debugging?
-10. Is the code easy for another engineer to modify later?
+3. Can duplication be removed without hiding simple logic?
+4. Which layer owns this change?
+5. Should a Pydantic model, constant, enum, helper, or service function be introduced?
+6. Are names precise and domain-specific?
+7. Are failure modes explicit?
+8. Are logs sufficient and safe?
+9. Is the change easy to review, test, and revert?
+10. Is the result easy for another engineer to modify later?
 
-## Preferred Coding Conventions
-
-### Design & Naming
+## Python Conventions
 
 - Prefer composition over inheritance.
 - Prefer pure functions where practical.
-- Minimize shared mutable state. Keep side effects at edges.
-- Use f-strings for Python string interpolation; do not use Loguru `{}` placeholders or `.format()`.
-- Make invalid states hard to represent.
-- Use clear, literal names. Favor domain language.
-- Avoid filler names like `data`, `item`, `manager`, `helper`, `misc`.
-- Name functions after behavior, not implementation.
+- **MINIMIZE SHARED MUTABLE STATE.** Keep side effects at the edges.
+- Use f-strings for Python interpolation; do not use Loguru `{}` placeholders or `.format()`.
+- Avoid filler names like `data`, `item`, `manager`, `helper`, `misc`, unless they are precise in context.
+- Name functions after behavior, not implementation details.
+- Comment intent, not mechanics. Use docstrings for public APIs, tricky invariants, or non-obvious side effects.
+- Use async only where it materially helps, and keep concurrency bounded and simple.
 
-### Errors & Validation
+## Errors, Config, And Data
 
-- Fail fast on invalid input. Raise precise exceptions.
+- **FAIL FAST** on invalid input with precise exceptions.
 - Convert low-level errors to useful application-level errors at boundaries.
 - Do not swallow exceptions silently.
-- Return clear API errors for user-caused failures.
-- Validate inputs at the boundary with Pydantic.
-
-### Config & Secrets
-
-- Centralize all settings.
-- Use environment variables through typed settings models.
-- Avoid scattered config reads.
+- Return stable API shapes and consistent user-caused errors.
+- Centralize settings in typed config models. Avoid scattered environment reads.
 - Keep defaults explicit and safe.
-- Never log or expose secrets, tokens, or PII.
-
-### Data Access
-
-- Keep queries explicit.
-- Avoid leaking ORM objects across boundaries.
-- Keep transaction handling predictable.
-- Minimize hidden DB work.
-
-### APIs
-
-- Keep handlers thin.
-- Return stable response shapes.
-- Make error responses consistent.
-- Preserve backward compatibility unless deliberately changing.
-
-### Async
-
-- Use async only where it materially helps.
-- Do not mix sync and async carelessly.
-- Keep concurrency simple and bounded.
+- **NEVER LOG OR EXPOSE SECRETS, TOKENS, PASSWORDS, RESET CODES, RAW PII, OR SENSITIVE PAYLOADS.**
+- Keep database queries explicit and transaction handling predictable.
+- **ADD MIGRATIONS FOR SCHEMA CHANGES; DO NOT RELY ON IMPLICIT TABLE CREATION IN PRODUCTION.**
 
 ## Refactor Rules
 
-- First preserve behavior.
+- **PRESERVE BEHAVIOR FIRST.**
 - Then simplify.
 - Then deduplicate.
 - Then tighten types.
 - Then improve naming and structure.
-- Do not bundle unrelated refactors.
-- Do not rewrite working code without concrete benefit.
+- **DO NOT BUNDLE UNRELATED REFACTORS.**
+- **DO NOT REWRITE WORKING CODE WITHOUT CONCRETE BENEFIT.**
+- Prefer clean replacement over compatibility layers when old behavior is not a live contract.
 
-Good refactors: remove duplication, shorten a function, isolate side effects, improve type safety, replace magic literals with constants or enums, extract validation into Pydantic models, split overcrowded files.
+Good refactors remove duplication, shorten a function, isolate side effects, improve type safety, replace magic literals with constants/enums, extract validation into models, or split overcrowded files.
 
-Bad refactors: introduce abstraction without reuse, hide simple logic behind layers, convert readable code into generic machinery, change architecture without immediate payoff.
+Bad refactors introduce abstraction without reuse, hide simple logic behind generic machinery, change architecture without immediate payoff, or mix formatting churn with behavior changes.
 
-## Code Quality Standards
+## Review Standard
 
-### When Adding New Code
+When reviewing or editing, look for:
 
-1. Reuse an existing pattern if good.
-2. Add the smallest viable implementation.
-3. Extract shared pieces only when repetition is real.
-4. Add or improve types.
-5. Add targeted logging.
-6. Add concise tests if the repo includes tests.
+- duplicated logic or literals
+- oversized functions or files
+- weak typing or unvalidated input
+- route handlers doing too much
+- hidden side effects or implicit DB work
+- poor logging context or unsafe logs
+- vague naming
+- unnecessary abstraction
+- missing tests or verification for risky behavior
 
-### When Reviewing Existing Code
+## Output Expectations
 
-Look for duplicated logic, oversized functions/files, weak typing, route handlers doing too much, unvalidated external input, hidden side effects, poor logging context, vague naming, unnecessary abstraction.
-
-### Output Expectations
-
-- Explain the chosen approach briefly.
-- Mention rejected alternatives only if relevant.
-- Keep explanations compact.
 - Prefer concrete diffs over broad theory.
-- If the user asks for a commit name, commit string, or commit message, first scan the relevant uncommitted changes and then provide a commit message that accurately reflects the full diff the user intends to include.
+- Explain the chosen approach briefly.
+- Mention rejected alternatives only when relevant.
+- Say what verification ran, or what could not be run.
 - Do not pad responses.
 
 ## Default Quality Bar
 
-Every change should aim for:
+Every change should be:
 
 - simpler than before
 - drier than before
-- more typed than before
+- more typed where it matters
 - easier to trace in production
 - easier to understand later
-- minimal surface area
-- minimal surprise
+- minimal in surface area
+- unsurprising
 
-**Final principle: Optimize for simple, typed, modular, production-safe Python that another engineer can understand in one pass. Do not optimize for cleverness.**
+**FINAL PRINCIPLE: OPTIMIZE FOR SIMPLE, TYPED, MODULAR, PRODUCTION-SAFE CODE THAT ANOTHER ENGINEER CAN UNDERSTAND IN ONE PASS. DO NOT OPTIMIZE FOR CLEVERNESS.**

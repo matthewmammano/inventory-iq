@@ -1,0 +1,4 @@
+interface:
+  display_name: "Git Change Workflow"
+  short_description: "Draft commit, branch, and release guidance"
+  default_prompt: "Use $git-change-workflow to inspect current changes and recommend the right commit, branch, or release guidance."
