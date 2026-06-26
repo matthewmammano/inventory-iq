@@ -154,11 +154,18 @@ def save_admin_items(session: Session, agency_id: int, form: Any) -> int:
             raise ValueError("Item not found.")
         if row.id is None:
             session.add(item)
+            _apply(item, row, exclude={"id", "secondary_upcs"})
+            _sync_secondary_upcs(session, agency_id, item, row.secondary_upcs)
+            changed += 1
+            continue
         row.tag_ids = sorted(active_tag_ids | (set(item.tag_ids or []) - tags))
-        _apply(item, row, exclude={"id", "secondary_upcs"})
-        _sync_secondary_upcs(session, agency_id, item, row.secondary_upcs)
-        changed += 1
-    logger.info("Admin item edits saved", extra={"agency_id": agency_id, "row_count": changed})
+        upcs_changed = _secondary_upcs_changed(session, agency_id, item, row.secondary_upcs)
+        fields_changed = _apply_if_changed(item, row, exclude={"id", "secondary_upcs"})
+        if upcs_changed:
+            _sync_secondary_upcs(session, agency_id, item, row.secondary_upcs)
+        if fields_changed or upcs_changed:
+            changed += 1
+    logger.info("Admin item edits saved", extra={"agency_id": agency_id, "submitted_row_count": len(rows), "row_count": changed})
     return changed
 
 
@@ -182,9 +189,9 @@ def save_admin_tags(session: Session, agency_id: int, form: Any) -> int:
             session.add(tag)
         if row.id is not None and tag.id != row.id:
             raise ValueError("Tag not found.")
-        _apply(tag, row, exclude={"id"})
-        changed += 1
-    logger.info("Admin tag edits saved", extra={"agency_id": agency_id, "row_count": changed})
+        if _apply_if_changed(tag, row, exclude={"id"}):
+            changed += 1
+    logger.info("Admin tag edits saved", extra={"agency_id": agency_id, "submitted_row_count": len(rows), "row_count": changed})
     return changed
 
 
@@ -204,17 +211,21 @@ def save_admin_notifications(session: Session, agency_id: int, form: Any) -> int
             session.add(recipient)
         if row.id is not None and recipient.id != row.id:
             raise ValueError("Notification recipient not found.")
-        _apply(recipient, row, exclude={"id", "location_filter_ids"})
-        recipient.location_filter_ids = location_ids
-        changed += 1
-    logger.info("Admin notification edits saved", extra={"agency_id": agency_id, "row_count": changed})
+        row_changed = _apply_if_changed(recipient, row, exclude={"id", "location_filter_ids"})
+        if recipient.location_filter_ids != location_ids:
+            recipient.location_filter_ids = location_ids
+            row_changed = True
+        if row_changed:
+            changed += 1
+    logger.info("Admin notification edits saved", extra={"agency_id": agency_id, "submitted_row_count": len(rows), "row_count": changed})
     return changed
 
 
-def save_admin_settings(session: Session, agency: Agencies, values: dict[str, Any]) -> None:
+def save_admin_settings(session: Session, agency: Agencies, values: dict[str, Any]) -> bool:
     settings = AdminSettingsForm.model_validate(values)
-    _apply(agency, settings)
-    logger.info("Admin settings saved", extra={"agency_id": agency.id})
+    changed = _apply_if_changed(agency, settings)
+    logger.info("Admin settings saved", extra={"agency_id": agency.id, "changed": changed})
+    return changed
 
 
 def send_temporary_time_pin(session: Session, agency: Agencies) -> bool:
@@ -321,6 +332,24 @@ def _sync_secondary_upcs(session: Session, agency_id: int, item: Items, upcs: Se
             session.add(ItemSecondaryUpc(agency_id=agency_id, item_id=item.id, upc=upc, active=True))
 
 
+def _secondary_upcs_changed(session: Session, agency_id: int, item: Items, upcs: Sequence[str]) -> bool:
+    if item.id is None:
+        return bool(upcs)
+    return set(_active_secondary_upcs(session, agency_id, item.id)) != set(upcs)
+
+
+def _active_secondary_upcs(session: Session, agency_id: int, item_id: int) -> list[str]:
+    return list(
+        session.execute(
+            select(ItemSecondaryUpc.upc).where(
+                ItemSecondaryUpc.agency_id == agency_id,
+                ItemSecondaryUpc.item_id == item_id,
+                ItemSecondaryUpc.active.is_(True),
+            )
+        ).scalars()
+    )
+
+
 def _rows_by_id(session: Session, model, agency_id: int) -> dict[int, Any]:
     rows = session.execute(select(model).where(model.agency_id == agency_id)).scalars()
     return {row.id: row for row in rows}
@@ -333,6 +362,26 @@ def _active_tag_ids(session: Session, agency_id: int) -> set[int]:
 def _apply(target: Any, source: BaseModel, *, exclude: set[str] | None = None) -> None:
     for key, value in source.model_dump(exclude=exclude or set()).items():
         setattr(target, key, value)
+
+
+def _apply_if_changed(target: Any, source: BaseModel, *, exclude: set[str] | None = None) -> bool:
+    values = source.model_dump(exclude=exclude or set())
+    if not _has_changes(target, values):
+        return False
+    for key, value in values.items():
+        setattr(target, key, value)
+    return True
+
+
+def _has_changes(target: Any, values: dict[str, Any]) -> bool:
+    return any(_stored_value(target, key, value) != value for key, value in values.items())
+
+
+def _stored_value(target: Any, key: str, submitted_value: Any) -> Any:
+    stored_value = getattr(target, key)
+    if isinstance(submitted_value, list):
+        return sorted(stored_value or [])
+    return stored_value
 
 
 def _ids(form: Any, key: str) -> list[int]:

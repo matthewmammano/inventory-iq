@@ -41,7 +41,6 @@ from app.inventory.item_queries import list_items
 from app.inventory.location_operations import (
     build_location_count_rows,
     get_location_storages,
-    parse_quantity_grid,
 )
 from app.inventory.models import ActionLogs, Items, UnknownUpcScan
 from app.inventory.report_email_service import send_inventory_count_report
@@ -90,7 +89,7 @@ from app.shared.utils import (
 )
 from app.shared.validators import parse_optional_int
 
-HISTORY_PAGE_SIZE = 250
+HISTORY_PAGE_SIZE = 50
 HISTORY_PRINT_LIMIT = 5000
 TIMEZONE_CHOICES = (
     "America/New_York",
@@ -175,7 +174,8 @@ def _save_admin_edit_data(squad: str) -> Any:
             else:
                 raise ValueError("Choose a valid edit tab.")
             s.commit()
-        flash(f"Saved {changed} row(s).", "success")
+        flash(f"Saved {changed} row(s)." if changed else "No changes entered.", "success" if changed else "info")
+        return redirect(url_for("admin.admin_panel", squad=squad))
     except (ValueError, ValidationError) as exc:
         logger.warning("Admin edit save rejected", extra={"tab": tab, "error": str(exc)})
         flash(str(exc), "error")
@@ -617,7 +617,7 @@ def bulk_edit(squad: str, agency_location_id: int) -> Any:
                 s,
                 squad,
                 grid.location,
-                _changed_bulk_counts(request.form, submitted_counts),
+                submitted_counts,
                 submitted_restocks,
                 item_ids,
             )
@@ -730,14 +730,6 @@ def _bulk_rows(
             )
         rows.append({"item": item, "cells": cells})
     return rows
-
-
-def _changed_bulk_counts(
-    form,
-    submitted_counts: dict[tuple[int, int], int],
-) -> dict[tuple[int, int], int]:
-    originals = parse_quantity_grid(form, prefix="count_original_", skip_blank=True)
-    return {key: value for key, value in submitted_counts.items() if originals.get(key) != value}
 
 
 def _quantity_values(form, prefix: str) -> dict[tuple[int, int], str]:
@@ -970,8 +962,8 @@ def _save_settings(squad: str) -> Any:
             agency = s.get(Agencies, current_user.id)
             if agency is None:
                 raise ValueError("Agency not found.")
-            save_admin_settings(s, agency, request.form.to_dict())
-            flash("Settings saved.", "success")
+            changed = save_admin_settings(s, agency, request.form.to_dict())
+            flash("Settings saved." if changed else "No settings changes entered.", "success" if changed else "info")
             s.commit()
         return redirect(url_for("admin.settings_page", squad=squad))
     except (ValueError, ValidationError) as exc:
