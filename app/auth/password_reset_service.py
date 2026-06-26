@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.shared.clock import utc_now_naive
+from app.shared.email_addresses import email_domain
 from app.shared.email_client import OutboundEmail, send_email
 
 from .constants import RESET_PIN_DIGITS, RESET_PIN_MAX_ATTEMPTS, RESET_PIN_TTL_MINUTES
@@ -18,7 +19,7 @@ def create_password_reset_pin(session: Session, email: str) -> bool:
     """Create and send a reset PIN when the agency exists; never reveals existence."""
     agency = _active_agency_by_email(session, email)
     if agency is None:
-        logger.debug("Password reset request ignored for unknown or inactive agency")
+        logger.debug("Password reset request ignored for unknown or inactive agency", extra={"email_domain": email_domain(email)})
         return True
 
     now = utc_now_naive()
@@ -36,11 +37,11 @@ def create_password_reset_pin(session: Session, email: str) -> bool:
     sent = _send_reset_pin(agency.email, pin)
     if sent:
         logger.info(
-            "Password reset PIN created and delivered to agency email",
+            "Password reset PIN delivered",
             extra={"agency_id": agency.id},
         )
     else:
-        logger.warning("Password reset PIN created but email delivery failed", extra={"agency_id": agency.id})
+        logger.error("Password reset PIN delivery failed", extra={"agency_id": agency.id})
     return sent
 
 
@@ -52,13 +53,13 @@ def reset_password_with_pin(
 ) -> bool:
     agency = _active_agency_by_email(session, email)
     if agency is None:
-        logger.warning("Password reset rejected: email does not match an active agency")
+        logger.warning("Password reset rejected: unknown or inactive agency", extra={"email_domain": email_domain(email)})
         return False
 
     reset_pin = _latest_open_pin(session, agency.id)
     now = utc_now_naive()
     if reset_pin is None or reset_pin.expires_at < now:
-        logger.warning(
+        logger.info(
             "Password reset rejected: PIN is missing or expired",
             extra={"agency_id": agency.id},
         )
@@ -71,7 +72,7 @@ def reset_password_with_pin(
     if not reset_pin.check_pin(pin):
         reset_pin.attempt_count += 1
         session.commit()
-        logger.warning("Password reset rejected: incorrect PIN", extra={"agency_id": agency.id})
+        logger.info("Password reset rejected: incorrect PIN", extra={"agency_id": agency.id, "attempt_count": reset_pin.attempt_count})
         return False
 
     agency.set_password(new_password)

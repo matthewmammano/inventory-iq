@@ -92,7 +92,7 @@ def log_missing_route(path: str, method: str) -> None:
         logger.warning("Missing route from suspicious probe", extra=extra)
         return
 
-    logger.warning("Missing route", extra=extra)
+    logger.info("Missing route", extra=extra)
 
 
 def _log_request_finished(response) -> None:
@@ -104,8 +104,11 @@ def _log_request_finished(response) -> None:
     }
     if response.status_code == 404 and _is_low_signal_404(request.path, request.method):
         return
+    if response.status_code >= 500:
+        logger.error("Request finished with server error status", extra=extra)
+        return
     if response.status_code >= 400:
-        logger.warning("Request finished with error status", extra=extra)
+        logger.info("Request finished with client error status", extra=extra)
         return
     if duration_ms is not None and duration_ms >= SLOW_REQUEST_MS:
         logger.warning("Slow request finished", extra=extra | {"slow_request_ms": SLOW_REQUEST_MS})

@@ -69,12 +69,12 @@ def handle_scan_start(
                     message = unknown_upc_scan_message(record_unknown_upc(db, current_user.id, upc))
                     db.commit()
                 except ValueError as exc:
-                    logger.warning(
+                    logger.info(
                         "Unknown UPC scan ignored because the code was invalid",
                         extra={"error": str(exc)},
                     )
                     message = UNKNOWN_UPC_INVALID_MESSAGE
-            logger.warning(
+            logger.info(
                 "Scan start rejected: item was not found",
                 extra={"item_id": item_id, "upc": upc},
             )
@@ -120,7 +120,7 @@ def handle_scan_storages_get(
     with get_session() as db:
         item = _get_scan_item(db, item_id, None, is_admin=is_admin)
         if not item:
-            logger.warning(
+            logger.info(
                 "Storage selection rejected: item was not found",
                 extra={
                     "item_id": item_id,
@@ -163,7 +163,7 @@ def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = Fals
     try:
         request_data = ScanStoragesRequest(**form_data)
     except ValidationError as exc:
-        logger.warning(
+        logger.info(
             "Storage selection rejected: submitted form data was invalid",
             extra={
                 "error": str(exc),
@@ -183,7 +183,7 @@ def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = Fals
         )
 
     if request_data.same_location_error == "1" or route_error:
-        logger.warning(
+        logger.info(
             "Storage selection rejected: source and destination combination is not allowed",
             extra={
                 "item_id": request_data.item_id,
@@ -241,7 +241,7 @@ def handle_scan_item_get(
         from_location = resolve_scan_location(from_storage_id, current_user.id, session=db)
         to_location = resolve_scan_location(to_storage_id, current_user.id, takeout_allowed=True, session=db)
     if route_error:
-        logger.warning(
+        logger.info(
             "Scan quantity page rejected: selected route is not allowed",
             extra={
                 "item_id": item_id,
@@ -254,7 +254,7 @@ def handle_scan_item_get(
         return redirect(url_for(fallback, squad=squad))
     if not item:
         if is_admin:
-            logger.warning(
+            logger.info(
                 "Admin scan quantity page redirected because the item was not found",
                 extra={
                     "item_id": item_id,
@@ -270,7 +270,7 @@ def handle_scan_item_get(
                     scan_error="not_found",
                 )
             )
-        logger.warning(
+        logger.info(
             "Scan quantity page rejected: item was not found",
             extra={
                 "item_id": item_id,
@@ -282,7 +282,7 @@ def handle_scan_item_get(
         return redirect(url_for(fallback, squad=squad))
 
     if not from_location:
-        logger.warning(
+        logger.info(
             "Scan quantity page rejected: selected route is invalid for this item",
             extra={
                 "item_id": item_id,
@@ -348,7 +348,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
             )
             db.commit()
     except (InventoryError, ValueError) as exc:
-        logger.warning(
+        logger.info(
             "Inventory update rejected by validation rules",
             extra={
                 "item_id": request_data.item_id,
@@ -358,7 +358,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
                 "error": str(exc),
             },
         )
-        flash(str(exc), "error")
+        flash(str(exc), "warning")
         return redirect(
             _scan_item_error_url(
                 route,
@@ -377,7 +377,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
                 "to_storage_id": request_data.to_location_id,
             },
         )
-        flash("System error - please try again.", "error")
+        flash("Inventory could not be saved. Try again.", "error")
         return redirect(
             _scan_item_error_url(
                 route,
@@ -429,13 +429,13 @@ def _parse_scan_item_request(
     try:
         return ScanItemRequest(**form_data)
     except ValidationError as exc:
-        logger.warning(
+        logger.info(
             "Scan submit rejected: submitted quantity form data was invalid",
             extra={
                 "error": str(exc),
             },
         )
-        flash("Invalid form data.", "error")
+        flash("Invalid form data. Please try again.", "error")
         return None
 
 
@@ -465,7 +465,7 @@ def _prepare_scan_submit(
         session=db,
     )
     if route_error:
-        logger.warning(
+        logger.info(
             "Scan submit rejected: selected route is not allowed",
             extra={
                 "item_id": request_data.item_id,
@@ -509,7 +509,7 @@ def _scan_item_not_found_response(
     is_admin: bool,
 ):
     if is_admin:
-        logger.warning(
+        logger.info(
             "Admin scan submit redirected because the item was not found",
             extra={
                 "item_id": request_data.item_id,
@@ -525,7 +525,7 @@ def _scan_item_not_found_response(
                 scan_error="not_found",
             )
         )
-    logger.warning(
+    logger.info(
         "Scan submit rejected: item was not found",
         extra={"item_id": request_data.item_id},
     )

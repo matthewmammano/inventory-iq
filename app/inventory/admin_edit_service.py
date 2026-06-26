@@ -165,7 +165,7 @@ def save_admin_items(session: Session, agency_id: int, form: Any) -> int:
             _sync_secondary_upcs(session, agency_id, item, row.secondary_upcs)
         if fields_changed or upcs_changed:
             changed += 1
-    logger.info("Admin item edits saved", extra={"agency_id": agency_id, "submitted_row_count": len(rows), "row_count": changed})
+    logger.info("Admin item edit submitted", extra={"agency_id": agency_id, "submitted_row_count": len(rows), "changed_row_count": changed})
     return changed
 
 
@@ -191,7 +191,7 @@ def save_admin_tags(session: Session, agency_id: int, form: Any) -> int:
             raise ValueError("Tag not found.")
         if _apply_if_changed(tag, row, exclude={"id"}):
             changed += 1
-    logger.info("Admin tag edits saved", extra={"agency_id": agency_id, "submitted_row_count": len(rows), "row_count": changed})
+    logger.info("Admin tag edit submitted", extra={"agency_id": agency_id, "submitted_row_count": len(rows), "changed_row_count": changed})
     return changed
 
 
@@ -217,14 +217,14 @@ def save_admin_notifications(session: Session, agency_id: int, form: Any) -> int
             row_changed = True
         if row_changed:
             changed += 1
-    logger.info("Admin notification edits saved", extra={"agency_id": agency_id, "submitted_row_count": len(rows), "row_count": changed})
+    logger.info("Admin notification edit submitted", extra={"agency_id": agency_id, "submitted_row_count": len(rows), "changed_row_count": changed})
     return changed
 
 
 def save_admin_settings(session: Session, agency: Agencies, values: dict[str, Any]) -> bool:
     settings = AdminSettingsForm.model_validate(values)
     changed = _apply_if_changed(agency, settings)
-    logger.info("Admin settings saved", extra={"agency_id": agency.id, "changed": changed})
+    logger.info("Admin settings submitted", extra={"agency_id": agency.id, "changed": changed})
     return changed
 
 
@@ -240,7 +240,7 @@ def send_temporary_time_pin(session: Session, agency: Agencies) -> bool:
         retry_delays_seconds=EMAIL_RETRY_DELAYS_SECONDS,
     )
     if not sent:
-        logger.warning("Temporary admin PIN email failed", extra={"agency_id": agency.id})
+        logger.error("Temporary admin PIN email failed", extra={"agency_id": agency.id})
         return False
     agency.pin = code
     logger.info("Temporary admin PIN set and emailed", extra={"agency_id": agency.id})

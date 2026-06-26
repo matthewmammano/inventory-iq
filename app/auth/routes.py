@@ -5,6 +5,7 @@ from flask_login import current_user, login_user, logout_user
 from loguru import logger
 
 from app.shared.database import get_session
+from app.shared.email_addresses import email_domain
 
 from . import bp
 from .constants import PASSWORD_REQUIREMENTS_MESSAGE
@@ -20,7 +21,7 @@ def login():
         password = request.form.get("password", "").strip()
 
         if not email or not password:
-            logger.warning("Login rejected: missing email or password")
+            logger.info("Login form rejected: missing credentials", extra={"email_entered": bool(email), "password_entered": bool(password)})
             flash("Email and password are required.", "error")
             return redirect(url_for("auth.login"))
 
@@ -28,13 +29,13 @@ def login():
             agency = get_agency_by_email(email, s)
 
         if agency is None or not agency.active:
-            logger.warning("Login rejected: invalid or inactive agency")
+            logger.warning("Login rejected: invalid or inactive agency", extra={"email_domain": email_domain(email)})
             flash("Invalid email or password.", "error")
             return redirect(url_for("auth.login"))
 
         if not agency.password:
-            logger.warning("Login blocked: password has not been set yet", extra={"agency_id": agency.id})
-            flash("Please use the emailed PIN flow to set your password.", "info")
+            logger.info("Login redirected: password has not been set", extra={"agency_id": agency.id})
+            flash("Use the emailed PIN to set your password.", "info")
             return redirect(url_for("auth.forgot_password", email=email))
 
         if agency.check_password(password):
@@ -63,13 +64,13 @@ def forgot_password():
     if request.method == "POST":
         email = request.form.get("email", "").strip()
         if not email:
-            logger.warning("Password reset PIN rejected: missing email")
+            logger.info("Password reset form rejected: missing email", extra={"email_entered": False})
             flash("Email is required.", "error")
             return redirect(url_for("auth.forgot_password"))
         with get_session() as s:
             sent = create_password_reset_pin(s, email)
         if not sent:
-            flash("Reset PIN email could not be sent. Please try again shortly.", "error")
+            flash("Reset PIN email could not be sent. Try again shortly.", "error")
             return redirect(url_for("auth.forgot_password", email=email))
         flash("If that agency email is active, enter the reset PIN sent to that email.", "info")
         return redirect(url_for("auth.reset_password", email=email))
@@ -88,12 +89,12 @@ def reset_password():
         try:
             validate_password_strength(new_password)
         except ValueError:
-            logger.warning("Password reset rejected: weak password")
+            logger.info("Password reset form rejected: weak password", extra={"email_domain": email_domain(email)})
             flash(PASSWORD_REQUIREMENTS_MESSAGE, "error")
             return redirect(url_for("auth.reset_password", email=email))
         with get_session() as s:
             if reset_password_with_pin(s, email, pin, new_password):
-                flash("Password reset successfully. Please log in.", "success")
+                flash("Password reset. Please log in.", "success")
                 return redirect(url_for("auth.login"))
         flash("Reset PIN is invalid or expired.", "error")
         return redirect(url_for("auth.reset_password", email=email))
@@ -111,5 +112,5 @@ def logout():
     squad = current_user.display_name if current_user.is_authenticated else None
     logout_user()
     logger.info("User logout completed", extra={"agency_id": agency_id, "squad": squad})
-    flash("Logged out successfully!", "success")
+    flash("Logged out.", "success")
     return redirect(url_for("auth.login"))

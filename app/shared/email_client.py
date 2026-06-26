@@ -14,6 +14,8 @@ from urllib.request import HTTPSHandler, Request, build_opener
 from flask import current_app
 from loguru import logger
 
+from app.shared.email_addresses import email_domain
+
 EMAIL_RETRY_DELAYS_SECONDS = (5, 15, 30, 60)
 
 
@@ -44,7 +46,7 @@ def log_email_config_status(config) -> None:
             "mode": "provider" if configured else "file_fallback",
             "host": urlparse(api_url).netloc or "missing",
             "key_set": api_key_set,
-            "sender_domain": _recipient_domain(sender_email),
+            "sender_domain": email_domain(sender_email),
             "timeout_seconds": int(config.get("EMAIL_TIMEOUT_SECONDS") or 4),
         },
     )
@@ -90,7 +92,7 @@ def send_email(
         method="POST",
     )
     max_attempts = len(retry_delays_seconds) + 1
-    recipient_domain = _recipient_domain(email.to_email)
+    recipient_domain = email_domain(email.to_email)
     for attempt in range(1, max_attempts + 1):
         result = _send_request(request, attempt, max_attempts, recipient_domain, retry_delays_seconds)
         if result is not None:
@@ -163,16 +165,11 @@ def _send_request(
                 {"error": type(exc).__name__},
             )
             return None
-        logger.exception(
-            "Email request crashed after retries",
+        logger.error(
+            "Email request failed after retries",
             extra={"recipient_domain": recipient_domain, "error": type(exc).__name__, "attempt": attempt, "max_attempts": max_attempts},
         )
         return False
-
-
-def _recipient_domain(email_address: str) -> str:
-    _, _, domain = email_address.partition("@")
-    return domain or "unknown"
 
 
 def _log_retry(

@@ -110,7 +110,7 @@ def check_admin() -> Any:
 
     squad = get_squad_from_request() or ""
     if not current_user.is_authenticated:
-        logger.warning("Admin route rejected: unauthenticated")
+        logger.info("Admin route rejected: unauthenticated", extra={"squad": squad})
         flash("You must be logged in.", "warning")
         return redirect(url_for("auth.login"))
 
@@ -129,7 +129,7 @@ def check_admin() -> Any:
                 "user_squad": current_user.display_name,
             },
         )
-        flash("You do not have permission to access this squad.", "warning")
+        flash("You do not have access to this squad.", "warning")
         return redirect(url_for("auth.login"))
 
     return None
@@ -177,7 +177,7 @@ def _save_admin_edit_data(squad: str) -> Any:
         flash(f"Saved {changed} row(s)." if changed else "No changes entered.", "success" if changed else "info")
         return redirect(url_for("admin.admin_panel", squad=squad))
     except (ValueError, ValidationError) as exc:
-        logger.warning("Admin edit save rejected", extra={"tab": tab, "error": str(exc)})
+        logger.info("Admin edit save rejected", extra={"tab": tab, "error": str(exc)})
         flash(str(exc), "error")
     except Exception:
         logger.exception("Admin edit save failed unexpectedly", extra={"tab": tab})
@@ -203,6 +203,7 @@ def print_labels(squad: str) -> Any:
     if request.method == "POST":
         item_ids = set() if request.form.get("action") == "all" else _selected_bulk_item_ids(request.form.getlist("item_ids"), items)
         if request.form.get("action") != "all" and not item_ids:
+            logger.info("Print labels rejected: no items selected", extra={"action": request.form.get("action")})
             flash("Select at least one item.", "warning")
             return redirect(url_for("admin.print_labels", squad=squad))
         return redirect(url_for("admin.print_label_preview", squad=squad, item_ids=",".join(str(item_id) for item_id in sorted(item_ids))))
@@ -292,20 +293,25 @@ def _save_pending_upc_review(squad: str) -> Any:
                 if item_id is None:
                     raise ValueError("Select an item.")
                 resolve_unknown_upc(s, current_user.id, unknown_upc_id, item_id)
+                logger.info("Pending UPC linked to item", extra={"unknown_upc_id": unknown_upc_id, "item_id": item_id})
                 flash("UPC linked to item.", "success")
             elif action == "ignore":
                 ignore_unknown_upc(s, current_user.id, unknown_upc_id)
+                logger.info("Pending UPC ignored", extra={"unknown_upc_id": unknown_upc_id})
                 flash("UPC ignored.", "success")
             elif action == "unignore":
                 unignore_unknown_upc(s, current_user.id, unknown_upc_id)
+                logger.info("Pending UPC restored", extra={"unknown_upc_id": unknown_upc_id})
                 flash("UPC moved back to pending.", "success")
             elif action == "remove":
                 remove_unknown_upc(s, current_user.id, unknown_upc_id)
+                logger.info("Pending UPC review removed", extra={"unknown_upc_id": unknown_upc_id})
                 flash("UPC review canceled.", "success")
             else:
                 raise ValueError("Choose a valid UPC review action.")
             s.commit()
     except ValueError as exc:
+        logger.info("Pending UPC review rejected", extra={"action": action, "unknown_upc_id": unknown_upc_id, "error": str(exc)})
         flash(str(exc), "error")
     return redirect(url_for("admin.pending_upcs", squad=squad))
 
@@ -317,9 +323,11 @@ def _add_pending_upc(squad: str) -> Any:
             status = record_unknown_upc(s, current_user.id, upc)
             s.commit()
         is_pending = status == UnknownUpcStatus.PENDING
+        logger.info("Pending UPC added from admin review", extra={"status": status.value, "upc": upc})
         flash("Barcode ready to link." if is_pending else unknown_upc_scan_message(status), "success" if is_pending else "warning")
         return redirect(url_for("admin.pending_upcs", squad=squad, focus_upc=upc))
     except ValueError as exc:
+        logger.info("Pending UPC add rejected", extra={"error": str(exc)})
         flash(str(exc), "error")
         return redirect(url_for("admin.pending_upcs", squad=squad))
 
@@ -377,7 +385,7 @@ def send_inventory_counts_email(squad: str) -> Any:
     with get_session() as s:
         sent, total = send_inventory_count_report(s, current_user.id, selected_ids)
     if total == 0:
-        logger.warning("Inventory report email request rejected: no recipients were selected")
+        logger.info("Inventory report email request rejected: no recipients selected", extra={"selected_recipient_count": len(selected_ids)})
         flash("Select at least one email recipient.", "warning")
     elif sent == total:
         logger.info(
@@ -424,7 +432,7 @@ def restock(squad: str, agency_location_id: int | None = None) -> Any:
                 "agency_location_id": agency_location_id,
             },
         )
-        flash("Error loading restock analysis.", "error")
+        flash("Restock analysis could not load. Try again.", "error")
         locations = []
         active_location = None
         restock_data = []
@@ -490,7 +498,7 @@ def bulk_actions(squad: str, agency_location_id: int | None = None) -> Any:
         summary = load_location_item_summary(s, current_user.id, agency_location_id)
     if summary is None:
         _log_bulk_location_missing(squad, agency_location_id)
-        flash("Location not found.", "error")
+        flash("Choose a valid location.", "error")
         return redirect(url_for("admin.bulk_actions", squad=squad))
     return render_template(
         "admin_bulk_mode.html",
@@ -510,13 +518,13 @@ def bulk_select_items(squad: str, agency_location_id: int) -> Any:
         selection = load_location_item_selection(s, current_user.id, agency_location_id)
     if selection is None:
         _log_bulk_location_missing(squad, agency_location_id)
-        flash("Location not found.", "error")
+        flash("Choose a valid location.", "error")
         return redirect(url_for("admin.bulk_actions", squad=squad))
 
     if request.method == "POST":
         item_ids = _selected_bulk_item_ids(request.form.getlist("item_ids"), selection.items)
         if not item_ids:
-            logger.warning(
+            logger.info(
                 "Bulk item selection rejected: no items were selected",
                 extra={
                     "agency_location_id": agency_location_id,
@@ -550,7 +558,7 @@ def bulk_edit(squad: str, agency_location_id: int) -> Any:
         grid = load_location_quantity_grid(s, current_user.id, agency_location_id)
         if grid is None:
             _log_bulk_location_missing(squad, agency_location_id)
-            flash("Location not found.", "error")
+            flash("Choose a valid location.", "error")
             return redirect(url_for("admin.bulk_actions", squad=squad))
 
         item_ids = _selected_bulk_item_ids(
@@ -571,7 +579,7 @@ def bulk_edit(squad: str, agency_location_id: int) -> Any:
         invalid_count_cells = _invalid_quantity_cells(raw_counts)
         invalid_restock_cells = _invalid_quantity_cells(raw_restocks)
         if request.method == "POST" and (invalid_count_cells or invalid_restock_cells):
-            logger.warning(
+            logger.info(
                 "Bulk action rejected: quantity values must be non-negative whole numbers",
                 extra={
                     "agency_location_id": agency_location_id,
@@ -594,7 +602,7 @@ def bulk_edit(squad: str, agency_location_id: int) -> Any:
         submitted_restocks = _non_negative_quantities(raw_restocks)
         invalid_cells = _missing_required_count_cells(required, submitted_counts, submitted_restocks)
         if request.method == "POST" and invalid_cells:
-            logger.warning(
+            logger.info(
                 "Bulk action rejected: required count values are missing before restock",
                 extra={
                     "agency_location_id": agency_location_id,
@@ -664,7 +672,8 @@ def _save_bulk_edit(
     item_ids: set[int],
 ) -> Any:
     if not counts and not any(quantity > 0 for quantity in restocks.values()):
-        flash("No count or restock changes entered.", "warning")
+        logger.info("Bulk action rejected: no count or restock entries submitted", extra={"agency_location_id": location.id})
+        flash("No count or restock entries entered.", "info")
         return redirect(_bulk_edit_url(squad, location.id, item_ids))
     try:
         count_logs = save_bulk_location_count(session, current_user.id, location.id, counts) if counts else 0
@@ -696,7 +705,7 @@ def _save_bulk_edit(
                 "restock_entry_count": sum(1 for quantity in restocks.values() if quantity > 0),
             },
         )
-        flash("Could not save bulk action. Please try again.", "error")
+        flash("Bulk action could not be saved. Try again.", "error")
         return redirect(_bulk_edit_url(squad, location.id, item_ids))
 
 
@@ -786,9 +795,9 @@ def _bulk_edit_url(squad: str, agency_location_id: int, item_ids: set[int]) -> s
 
 
 def _log_bulk_location_missing(squad: str, agency_location_id: int) -> None:
-    logger.error(
+    logger.warning(
         "Bulk action rejected: requested location was not found",
-        extra={"agency_location_id": agency_location_id},
+        extra={"squad": squad, "agency_location_id": agency_location_id},
     )
 
 
@@ -822,6 +831,10 @@ def admin_history_print(squad: str, agency_location_id: int | None = None) -> An
     try:
         start_utc, end_utc = _history_date_bounds(start_date, end_date, current_user.timezone)
     except ValueError as exc:
+        logger.info(
+            "History print date range rejected",
+            extra={"agency_location_id": agency_location_id, "start_date": start_date, "end_date": end_date, "error": str(exc)},
+        )
         if request.headers.get("X-Requested-With") == "fetch":
             return str(exc), 400
         flash(str(exc), "error")
@@ -967,14 +980,14 @@ def _save_settings(squad: str) -> Any:
             s.commit()
         return redirect(url_for("admin.settings_page", squad=squad))
     except (ValueError, ValidationError) as exc:
-        logger.warning(
+        logger.info(
             "Admin settings rejected",
             extra={"error": str(exc)},
         )
         flash(str(exc), "error")
     except Exception:
-        logger.exception("Admin settings save failed unexpectedly")
-        flash("Settings could not be saved. Please try again.", "error")
+        logger.exception("Admin settings save failed unexpectedly", extra={"squad": squad})
+        flash("Settings could not be saved. Try again.", "error")
     return redirect(url_for("admin.settings_page", squad=squad))
 
 
@@ -990,10 +1003,11 @@ def admin_scan_items(squad: str) -> Any:
     if request.args.get("scan_error") == "not_found":
         unknown_upc = request.args.get("unknown_upc", "").strip()
         unknown_upc_status = _record_admin_unknown_upc(unknown_upc)
-        logger.warning(
-            "Admin scan search could not find the scanned barcode",
+        logger.info(
+            "Admin scan barcode was not found",
             extra={
                 "upc": unknown_upc,
+                "unknown_upc_status": unknown_upc_status.value if unknown_upc_status else None,
                 "from_storage_id": scan_route["from_location_id"],
                 "to_storage_id": scan_route["to_location_id"],
             },
@@ -1047,7 +1061,7 @@ def _record_admin_unknown_upc(upc: str) -> UnknownUpcStatus | None:
             s.commit()
         return status
     except ValueError as exc:
-        logger.warning("Unknown admin UPC scan ignored because the code was invalid", extra={"error": str(exc)})
+        logger.info("Unknown admin UPC scan ignored because the code was invalid", extra={"error": str(exc)})
         return None
 
 
@@ -1100,7 +1114,7 @@ def _render_admin_scan_setup(squad: str) -> Any:
         to_locations = storage_choices.to_storages
 
     if not from_locations:
-        logger.error("Admin scan setup failed: no valid source storages are available")
+        logger.error("Admin scan setup failed: no valid source storages are available", extra={"squad": squad})
         flash("No valid storages found. Please check your location setup.", "error")
         return redirect(url_for("admin.admin_panel", squad=squad))
 
@@ -1122,7 +1136,7 @@ def _save_admin_scan_route(squad: str) -> Any:
     try:
         route_request = AdminScanRouteRequest.model_validate(request.form.to_dict())
     except ValidationError as exc:
-        logger.warning(
+        logger.info(
             "Admin scan setup rejected: submitted route form data was invalid",
             extra={"error": str(exc)},
         )
@@ -1130,7 +1144,7 @@ def _save_admin_scan_route(squad: str) -> Any:
         return redirect(url_for("admin.admin_panel", squad=squad))
 
     if route_request.same_location_error == "1":
-        logger.warning(
+        logger.info(
             "Admin scan setup rejected: source and destination combination is not allowed",
             extra={
                 "from_storage_id": route_request.from_location_id,
@@ -1148,16 +1162,20 @@ def _save_admin_scan_route(squad: str) -> Any:
         )
 
     if not _is_valid_admin_scan_route(route_request.from_location_id, route_request.to_location_id):
-        logger.warning(
+        logger.info(
             "Admin scan setup rejected: selected route is not allowed",
             extra={
                 "from_storage_id": route_request.from_location_id,
                 "to_storage_id": route_request.to_location_id,
             },
         )
-        flash("Please choose valid scan locations.", "error")
+        flash("Choose valid scan locations.", "error")
         return redirect(url_for("admin.admin_scan_items", squad=squad))
 
+    logger.info(
+        "Admin scan route selected",
+        extra={"from_storage_id": route_request.from_location_id, "to_storage_id": route_request.to_location_id},
+    )
     return redirect(
         url_for(
             "admin.admin_scan_items",

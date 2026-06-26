@@ -55,7 +55,7 @@ def validate_timezone(value: str) -> str:
     try:
         ZoneInfo(value)
     except ZoneInfoNotFoundError as exc:
-        logger.warning("Timezone validation rejected input", extra={"timezone": value, "error": str(exc)})
+        logger.info("Timezone validation rejected input", extra={"timezone": value, "error": str(exc)})
         raise ValueError(f"Invalid timezone: {value}") from exc
     return value
 
