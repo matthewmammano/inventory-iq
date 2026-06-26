@@ -807,6 +807,7 @@ def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
     page = max(parse_optional_int(request.args.get("page")) or 1, 1)
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
+        active_location = _active_location(locations, agency_location_id) if agency_location_id else None
         action_logs, has_next_page = _history_logs(s, agency_location_id, page, HISTORY_PAGE_SIZE)
     return render_template(
         "admin_history.html",
@@ -814,6 +815,7 @@ def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
         locations=locations,
         action_logs=action_logs,
         active_location_id=agency_location_id,
+        active_location_name=active_location.name if active_location else "All Locations",
         page=page,
         has_next_page=has_next_page,
         admin=True,

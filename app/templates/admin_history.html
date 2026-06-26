@@ -6,7 +6,7 @@
 {% block sub_title %}Review recent scan activity across locations{% endblock %}
 {% block header_right %}
     <button class="success-button" id="open-history-print" type="button">Print History</button>
-    <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>
+    <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
 {% endblock %}
 
 {% block content %}
@@ -33,7 +33,7 @@
             {% else %}
             {% set older_href = url_for('admin.admin_history', squad=squad, page=page+1) %}
             {% endif %}
-            <a class="success-button" href="{{ older_href }}">Older</a>
+            <a class="success-button" href="{{ older_href }}">Scroll to Older</a>
             {% endif %}
             {% if page > 1 %}
             {% if active_location_id %}
@@ -41,7 +41,7 @@
             {% else %}
             {% set newer_href = url_for('admin.admin_history', squad=squad, page=page-1) %}
             {% endif %}
-            <a class="quiet-button" href="{{ newer_href }}">Newer</a>
+            <a class="quiet-button" href="{{ newer_href }}">Scroll to Newer</a>
             {% endif %}
         </div>
     </section>
@@ -51,7 +51,7 @@
 <div class="modal-backdrop hidden" id="history-print-modal">
     <div class="modal history-print-modal">
         <h2>Print History</h2>
-        <p>Leave either date blank to print without that limit.</p>
+        <p>Printing: <strong>{{ active_location_name }}</strong>. Leave either date blank to print without that limit.</p>
         {% if active_location_id %}
             {% set print_action = url_for('admin.admin_history_print', squad=squad, agency_location_id=active_location_id) %}
         {% else %}

@@ -4,8 +4,8 @@
 {% block header_title %}Settings{% endblock %}
 {% block sub_title %}Squad image, PIN, permissions, and alert thresholds{% endblock %}
 {% block header_right %}
-    <button class="success-button hidden" id="save-button" type="button" form="settings-form">Save</button>
-    <a class="header-action" id="back-link" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>
+    <button class="success-button hidden" id="save-button" type="button" form="settings-form">Save Changes</button>
+    <a class="header-action" id="back-link" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
 {% endblock %}
 
 {% block content %}

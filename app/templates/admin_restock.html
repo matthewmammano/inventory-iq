@@ -3,7 +3,7 @@
 {% block title %}Restock Report{% endblock %}
 {% block header_title %}Restock{% endblock %}
 {% block sub_title %}Review reorder needs and receiving priorities by location{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/item-trend-modal.css') }}">{% endblock %}
 
 {% block content %}
@@ -19,7 +19,7 @@
         <div class="empty-state"><h2>No items found</h2></div>
     </section>
     {% else %}
-    {% set estimate_tip = "Forecast based on recent usage. Verify before ordering." %}
+    {% set estimate_tip = "Estimated from recent usage trends. Review current stock before ordering." %}
     <section class="panel">
         <div class="table-wrap">
             <table data-sort-table data-default-sort-column="10" data-default-sort-direction="asc">

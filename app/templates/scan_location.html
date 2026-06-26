@@ -3,7 +3,7 @@
 {% block title %}Scan Location{% endblock %}
 {% block header_title %}Scan Location{% endblock %}
 {% block sub_title %}Choose where this device is being used right now{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('guest.index', squad=squad) }}">Back</a>{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('guest.index', squad=squad) }}">Back to Scan</a>{% endblock %}
 
 {% block content %}
 {% if locations|length == 0 %}
@@ -31,7 +31,7 @@
             </label>
             {% endfor %}
         </div>
-        <button type="submit" class="success-button">Continue</button>
+        <button type="submit" class="success-button">Continue to Storage Selection</button>
     </form>
 </section>
 {% endif %}

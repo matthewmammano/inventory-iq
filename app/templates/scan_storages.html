@@ -5,7 +5,7 @@
 {% block sub_title %}{{ page_subtitle }}{% endblock %}
 {% block main_class %}kiosk-main{% endblock %}
 {% block header_right %}
-    <a class="back" href="{{ url_for('admin.admin_scan_items' if admin else 'guest.index', squad=squad) }}">Back</a>
+    <a class="back" href="{{ url_for('admin.admin_scan_items' if admin else 'guest.index', squad=squad) }}">Back to Scan</a>
 {% endblock %}
 
 {% block content %}
@@ -56,7 +56,7 @@
 
     <section class="continue" id="continue-panel">
         <div><strong id="route-status">Choose storages</strong><br><span id="route-label">Select from and to options</span></div>
-        <button type="submit" class="success-button" id="continue-button">Continue</button>
+        <button type="submit" class="success-button" id="continue-button">Continue to Item Scan</button>
     </section>
 </form>
 {% endblock %}

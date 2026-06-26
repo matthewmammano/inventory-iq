@@ -56,7 +56,7 @@
 {% block title %}New Barcodes{% endblock %}
 {% block header_title %}New Barcodes{% endblock %}
 {% block sub_title %}Link new scanned barcodes to inventory items{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>{% endblock %}
 
 {% block content %}
 {% set lookup_tip = "This is not exact. It is only an online barcode lookup used to speed up classifying the UPC, and it may be wrong." %}

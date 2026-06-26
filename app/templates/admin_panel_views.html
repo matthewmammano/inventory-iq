@@ -3,7 +3,7 @@
 {% block title %}View Options{% endblock %}
 {% block header_title %}View{% endblock %}
 {% block sub_title %}Inspect items, locations, and tags for this squad{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>{% endblock %}
 
 {% macro readonly_check(value, label) -%}
 <input class="readonly-check" type="checkbox" aria-label="{{ label }}" {% if value %}checked{% endif %} disabled>

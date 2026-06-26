@@ -9,7 +9,7 @@
         {% if selected_scan_route %}
         <a class="header-action" href="{{ url_for('admin.admin_scan_items', squad=squad) }}">Change Route</a>
         {% else %}
-        <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back</a>
+        <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
         {% endif %}
     {% else %}
         <a class="admin" href="{{ url_for('guest.admin_login', squad=squad) }}">Admin</a>
