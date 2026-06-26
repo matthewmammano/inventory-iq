@@ -26,15 +26,7 @@
     <section class="panel">
         {{ history_table(action_logs, user_timezone, timezone_hint) }}
 
-        <div class="button-row">
-            {% if page > 1 %}
-            {% if active_location_id %}
-            {% set newer_href = url_for('admin.admin_history', squad=squad, agency_location_id=active_location_id, page=page-1) %}
-            {% else %}
-            {% set newer_href = url_for('admin.admin_history', squad=squad, page=page-1) %}
-            {% endif %}
-            <a class="quiet-button" href="{{ newer_href }}">Newer</a>
-            {% endif %}
+        <div class="button-row history-pagination">
             {% if has_next_page %}
             {% if active_location_id %}
             {% set older_href = url_for('admin.admin_history', squad=squad, agency_location_id=active_location_id, page=page+1) %}
@@ -42,6 +34,14 @@
             {% set older_href = url_for('admin.admin_history', squad=squad, page=page+1) %}
             {% endif %}
             <a class="success-button" href="{{ older_href }}">Older</a>
+            {% endif %}
+            {% if page > 1 %}
+            {% if active_location_id %}
+            {% set newer_href = url_for('admin.admin_history', squad=squad, agency_location_id=active_location_id, page=page-1) %}
+            {% else %}
+            {% set newer_href = url_for('admin.admin_history', squad=squad, page=page-1) %}
+            {% endif %}
+            <a class="quiet-button" href="{{ newer_href }}">Newer</a>
             {% endif %}
         </div>
     </section>

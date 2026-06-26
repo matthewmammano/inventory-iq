@@ -51,10 +51,6 @@
                                 value="{{ cell.count_value }}"
                                 data-original-value="{{ cell.count_original }}"
                                 data-count-input>
-                            <input
-                                type="hidden"
-                                name="count_original_{{ row.item.id }}_{{ cell.storage.id }}"
-                                value="{{ cell.count_original }}">
                             {% if cell.count_required %}
                             <small>Count needed</small>
                             {% endif %}

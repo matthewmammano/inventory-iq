@@ -115,7 +115,7 @@ body.admin-screen > header {
 .button-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 15px;
   align-items: center;
 }
 
@@ -1626,6 +1626,11 @@ body.loading-active > *:not(.loading-overlay) {
 
 .bulk-select .button-row {
   margin-top: 18px;
+}
+
+.history-pagination {
+  margin: 15px 0;
+  justify-content: center;
 }
 
 .bulk-combined-table th[colspan] {
