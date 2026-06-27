@@ -74,6 +74,7 @@ class InventoryAlertEventStatus(StrEnum):
     """Lifecycle for one discrete non-stock alert event."""
 
     PENDING = "PENDING"
+    NO_RECIPIENT = "NO_RECIPIENT"
     QUEUED = "QUEUED"
     NOTIFIED = "NOTIFIED"
     CANCELLED = "CANCELLED"

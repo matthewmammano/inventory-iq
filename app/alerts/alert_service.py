@@ -17,7 +17,12 @@ from app.shared.clock import utc_now_naive
 from .constants import ACTION_ALERT_TYPES, ALERT_DEFINITIONS, AlertSeverity, AlertSourceType, AlertType, InventoryAlertEventStatus
 from .models import InventoryAlertEvent
 
-OPEN_EVENT_STATUSES = (InventoryAlertEventStatus.PENDING, InventoryAlertEventStatus.QUEUED, InventoryAlertEventStatus.ERROR)
+OPEN_EVENT_STATUSES = (
+    InventoryAlertEventStatus.PENDING,
+    InventoryAlertEventStatus.NO_RECIPIENT,
+    InventoryAlertEventStatus.QUEUED,
+    InventoryAlertEventStatus.ERROR,
+)
 STATE_AUDIT_EVENT_TYPES = (AlertType.STALE_COUNT, AlertType.RARE_TAKEOUT)
 
 
@@ -303,7 +308,7 @@ def _refresh_event(
     payload: dict[str, Any],
     event_at: datetime,
 ) -> None:
-    if event.status == InventoryAlertEventStatus.CANCELLED:
+    if event.status in {InventoryAlertEventStatus.CANCELLED, InventoryAlertEventStatus.NO_RECIPIENT}:
         event.status = InventoryAlertEventStatus.PENDING
         event.cancelled_at = None
     event.severity = severity

@@ -119,9 +119,10 @@ def prepare_notification_deliveries(
     if queued_event_ids:
         events = session.execute(select(InventoryAlertEvent).where(InventoryAlertEvent.id.in_(queued_event_ids))).scalars()
         for event in events:
-            if event.status == InventoryAlertEventStatus.PENDING:
+            if event.status in {InventoryAlertEventStatus.PENDING, InventoryAlertEventStatus.NO_RECIPIENT}:
                 event.status = InventoryAlertEventStatus.QUEUED
                 event.queued_at = now
+    _mark_pending_events_without_recipients(session, queued_event_ids, agency_id=agency_id)
     logger.debug("Notification deliveries prepared", extra={"created_or_updated": created, "queued_event_count": len(queued_event_ids)})
     return created
 
@@ -402,12 +403,35 @@ def _events_for_recipient(session: Session, recipient: AgencyEmails) -> list[Inv
         select(InventoryAlertEvent)
         .where(
             InventoryAlertEvent.agency_id == recipient.agency_id,
-            InventoryAlertEvent.status.in_([InventoryAlertEventStatus.PENDING, InventoryAlertEventStatus.QUEUED]),
+            InventoryAlertEvent.status.in_(
+                [
+                    InventoryAlertEventStatus.PENDING,
+                    InventoryAlertEventStatus.NO_RECIPIENT,
+                    InventoryAlertEventStatus.QUEUED,
+                ]
+            ),
             InventoryAlertEvent.alert_type.in_(DISCRETE_EVENT_TYPES),
         )
         .order_by(InventoryAlertEvent.event_at, InventoryAlertEvent.id)
     ).scalars()
     return [event for event in rows if _recipient_allows_event(session, recipient, event)]
+
+
+def _mark_pending_events_without_recipients(
+    session: Session,
+    queued_event_ids: set[int],
+    *,
+    agency_id: int | None,
+) -> None:
+    stmt = select(InventoryAlertEvent).where(
+        InventoryAlertEvent.status == InventoryAlertEventStatus.PENDING,
+        InventoryAlertEvent.alert_type.in_(DISCRETE_EVENT_TYPES),
+    )
+    if agency_id is not None:
+        stmt = stmt.where(InventoryAlertEvent.agency_id == agency_id)
+    for event in session.execute(stmt).scalars():
+        if event.id not in queued_event_ids:
+            event.status = InventoryAlertEventStatus.NO_RECIPIENT
 
 
 def _recipient_allows_state(
@@ -817,7 +841,11 @@ def _mark_delivery_sent(session: Session, delivery: NotificationEmailDelivery, n
     if delivery.alert_event_ids_json:
         events = session.execute(select(InventoryAlertEvent).where(InventoryAlertEvent.id.in_(delivery.alert_event_ids_json))).scalars()
         for event in events:
-            if event.status in {InventoryAlertEventStatus.PENDING, InventoryAlertEventStatus.QUEUED}:
+            if event.status in {
+                InventoryAlertEventStatus.PENDING,
+                InventoryAlertEventStatus.NO_RECIPIENT,
+                InventoryAlertEventStatus.QUEUED,
+            }:
                 event.status = InventoryAlertEventStatus.NOTIFIED
                 event.notified_at = now
 
