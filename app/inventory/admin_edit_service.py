@@ -11,7 +11,8 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth.location_filters import validate_location_filter_ids
-from app.auth.models import Agencies, AgencyEmails, AgencyItemTags
+from app.auth.models import Agencies, AgencyEmails, AgencyItemTags, AgencyLocations
+from app.inventory.location_state_service import rebuild_item_location_states, recompute_item_location_state
 from app.inventory.models import Items, ItemSecondaryUpc, validate_upc_code
 from app.shared.email_client import EMAIL_RETRY_DELAYS_SECONDS, OutboundEmail, send_email
 from app.shared.validators import validate_image_url, validate_pin, validate_string_length, validate_timezone
@@ -145,6 +146,7 @@ def save_admin_items(session: Session, agency_id: int, form: Any) -> int:
     tags = _active_tag_ids(session, agency_id)
     existing = _rows_by_id(session, Items, agency_id)
     changed = 0
+    changed_item_ids: set[int] = set()
     for row in rows:
         active_tag_ids = set(row.tag_ids)
         if invalid_tags := sorted(active_tag_ids - tags):
@@ -157,6 +159,8 @@ def save_admin_items(session: Session, agency_id: int, form: Any) -> int:
             _apply(item, row, exclude={"id", "secondary_upcs"})
             _sync_secondary_upcs(session, agency_id, item, row.secondary_upcs)
             changed += 1
+            session.flush()
+            changed_item_ids.add(item.id)
             continue
         row.tag_ids = sorted(active_tag_ids | (set(item.tag_ids or []) - tags))
         upcs_changed = _secondary_upcs_changed(session, agency_id, item, row.secondary_upcs)
@@ -165,6 +169,8 @@ def save_admin_items(session: Session, agency_id: int, form: Any) -> int:
             _sync_secondary_upcs(session, agency_id, item, row.secondary_upcs)
         if fields_changed or upcs_changed:
             changed += 1
+            changed_item_ids.add(item.id)
+    _recompute_item_states(session, agency_id, changed_item_ids)
     logger.info("Admin item edit submitted", extra={"agency_id": agency_id, "submitted_row_count": len(rows), "changed_row_count": changed})
     return changed
 
@@ -224,6 +230,8 @@ def save_admin_notifications(session: Session, agency_id: int, form: Any) -> int
 def save_admin_settings(session: Session, agency: Agencies, values: dict[str, Any]) -> bool:
     settings = AdminSettingsForm.model_validate(values)
     changed = _apply_if_changed(agency, settings)
+    if changed:
+        rebuild_item_location_states(session, agency.id)
     logger.info("Admin settings submitted", extra={"agency_id": agency.id, "changed": changed})
     return changed
 
@@ -322,12 +330,14 @@ def _sync_secondary_upcs(session: Session, agency_id: int, item: Items, upcs: Se
     for upc, row in rows.items():
         row.active = upc in upcs
     for upc in upcs:
-        row = rows.get(upc) or session.scalar(select(ItemSecondaryUpc).where(ItemSecondaryUpc.agency_id == agency_id, ItemSecondaryUpc.upc == upc))
-        if row:
-            if row.item_id != item.id and row.active:
+        secondary_upc = rows.get(upc)
+        if secondary_upc is None:
+            secondary_upc = session.scalar(select(ItemSecondaryUpc).where(ItemSecondaryUpc.agency_id == agency_id, ItemSecondaryUpc.upc == upc))
+        if secondary_upc:
+            if secondary_upc.item_id != item.id and secondary_upc.active:
                 raise ValueError(f"UPC {upc} is already linked to another item.")
-            row.item_id = item.id
-            row.active = True
+            secondary_upc.item_id = item.id
+            secondary_upc.active = True
         else:
             session.add(ItemSecondaryUpc(agency_id=agency_id, item_id=item.id, upc=upc, active=True))
 
@@ -357,6 +367,15 @@ def _rows_by_id(session: Session, model, agency_id: int) -> dict[int, Any]:
 
 def _active_tag_ids(session: Session, agency_id: int) -> set[int]:
     return set(session.execute(select(AgencyItemTags.id).where(AgencyItemTags.agency_id == agency_id, AgencyItemTags.active.is_(True))).scalars())
+
+
+def _recompute_item_states(session: Session, agency_id: int, item_ids: set[int]) -> None:
+    if not item_ids:
+        return
+    location_ids = list(session.execute(select(AgencyLocations.id).where(AgencyLocations.agency_id == agency_id)).scalars())
+    for item_id in item_ids:
+        for location_id in location_ids:
+            recompute_item_location_state(session, agency_id, item_id, location_id)
 
 
 def _apply(target: Any, source: BaseModel, *, exclude: set[str] | None = None) -> None:

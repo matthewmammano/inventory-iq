@@ -1,7 +1,5 @@
 """Live inventory balance helpers derived from action history."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -13,7 +11,7 @@ from app.auth.models import AgencyStorages
 from app.shared.clock import utc_now
 
 from .constants import OperationType
-from .models import ActionLogs, InventoryBalances, Items
+from .models import ActionLogs, InventoryStorageBalances, Items
 
 
 @dataclass
@@ -54,7 +52,7 @@ def rebuild_inventory_balances(session: Session, agency_id: int | None = None) -
         return 0
 
     rows = [
-        InventoryBalances(
+        InventoryStorageBalances(
             agency_id=key[0],
             item_id=key[1],
             storage_id=key[2],
@@ -146,9 +144,9 @@ def get_item_quantities(
 ) -> dict[int, int]:
     """Return current quantity by storage for one item from the live balance table."""
     rows = session.execute(
-        select(InventoryBalances.storage_id, InventoryBalances.quantity).where(
-            InventoryBalances.agency_id == agency_id,
-            InventoryBalances.item_id == item_id,
+        select(InventoryStorageBalances.storage_id, InventoryStorageBalances.quantity).where(
+            InventoryStorageBalances.agency_id == agency_id,
+            InventoryStorageBalances.item_id == item_id,
         )
     ).all()
     return {storage_id: int(quantity) for storage_id, quantity in rows}
@@ -186,11 +184,11 @@ def get_location_item_total(
 ) -> int:
     """Return the current total for one item across all storages in a location."""
     total = session.scalar(
-        select(func.coalesce(func.sum(InventoryBalances.quantity), 0))
-        .join(AgencyStorages, AgencyStorages.id == InventoryBalances.storage_id)
+        select(func.coalesce(func.sum(InventoryStorageBalances.quantity), 0))
+        .join(AgencyStorages, AgencyStorages.id == InventoryStorageBalances.storage_id)
         .where(
-            InventoryBalances.agency_id == agency_id,
-            InventoryBalances.item_id == item_id,
+            InventoryStorageBalances.agency_id == agency_id,
+            InventoryStorageBalances.item_id == item_id,
             AgencyStorages.location_id == agency_location_id,
         )
     )
@@ -208,16 +206,16 @@ def get_location_item_totals(
         return {}
     rows = session.execute(
         select(
-            InventoryBalances.item_id,
-            func.coalesce(func.sum(InventoryBalances.quantity), 0),
+            InventoryStorageBalances.item_id,
+            func.coalesce(func.sum(InventoryStorageBalances.quantity), 0),
         )
-        .join(AgencyStorages, AgencyStorages.id == InventoryBalances.storage_id)
+        .join(AgencyStorages, AgencyStorages.id == InventoryStorageBalances.storage_id)
         .where(
-            InventoryBalances.agency_id == agency_id,
-            InventoryBalances.item_id.in_(item_ids),
+            InventoryStorageBalances.agency_id == agency_id,
+            InventoryStorageBalances.item_id.in_(item_ids),
             AgencyStorages.location_id == agency_location_id,
         )
-        .group_by(InventoryBalances.item_id)
+        .group_by(InventoryStorageBalances.item_id)
     ).all()
     return {item_id: int(total) for item_id, total in rows}
 
@@ -233,17 +231,17 @@ def get_location_last_counted_dates(
         return {}
     rows = session.execute(
         select(
-            InventoryBalances.item_id,
-            func.max(InventoryBalances.last_counted_at),
+            InventoryStorageBalances.item_id,
+            func.max(InventoryStorageBalances.last_counted_at),
         )
-        .join(AgencyStorages, AgencyStorages.id == InventoryBalances.storage_id)
+        .join(AgencyStorages, AgencyStorages.id == InventoryStorageBalances.storage_id)
         .where(
-            InventoryBalances.agency_id == agency_id,
-            InventoryBalances.item_id.in_(item_ids),
+            InventoryStorageBalances.agency_id == agency_id,
+            InventoryStorageBalances.item_id.in_(item_ids),
             AgencyStorages.location_id == agency_location_id,
-            InventoryBalances.last_counted_at.is_not(None),
+            InventoryStorageBalances.last_counted_at.is_not(None),
         )
-        .group_by(InventoryBalances.item_id)
+        .group_by(InventoryStorageBalances.item_id)
     ).all()
     return {item_id: counted_at for item_id, counted_at in rows if counted_at is not None}
 
@@ -260,7 +258,7 @@ def get_location_last_counted_at(
         agency_id,
         item_id,
         agency_location_id,
-        InventoryBalances.last_counted_at,
+        InventoryStorageBalances.last_counted_at,
     )
 
 
@@ -276,7 +274,7 @@ def get_location_last_takeout_at(
         agency_id,
         item_id,
         agency_location_id,
-        InventoryBalances.last_takeout_at,
+        InventoryStorageBalances.last_takeout_at,
     )
 
 
@@ -304,13 +302,13 @@ def get_required_count_storage_ids(
 
     rows = session.execute(
         select(
-            InventoryBalances.item_id,
-            InventoryBalances.storage_id,
-            InventoryBalances.last_counted_at,
+            InventoryStorageBalances.item_id,
+            InventoryStorageBalances.storage_id,
+            InventoryStorageBalances.last_counted_at,
         ).where(
-            InventoryBalances.agency_id == agency_id,
-            InventoryBalances.item_id.in_(item_ids),
-            InventoryBalances.storage_id.in_(storage_ids),
+            InventoryStorageBalances.agency_id == agency_id,
+            InventoryStorageBalances.item_id.in_(item_ids),
+            InventoryStorageBalances.storage_id.in_(storage_ids),
         )
     ).all()
     counted_at_by_key = {(item_id, storage_id): counted_at for item_id, storage_id, counted_at in rows}
@@ -327,10 +325,10 @@ def get_required_count_storage_ids(
 def has_balance_rows(session: Session, agency_id: int, item_id: int) -> bool:
     """Return whether the live balance table already has rows for one item."""
     row = session.execute(
-        select(InventoryBalances.id)
+        select(InventoryStorageBalances.id)
         .where(
-            InventoryBalances.agency_id == agency_id,
-            InventoryBalances.item_id == item_id,
+            InventoryStorageBalances.agency_id == agency_id,
+            InventoryStorageBalances.item_id == item_id,
         )
         .limit(1)
     ).first()
@@ -352,17 +350,17 @@ def _action_balance_keys(actions: list[ActionLogs]) -> set[tuple[int, int, int]]
 def _load_balance_rows(
     session: Session,
     keys: set[tuple[int, int, int]],
-) -> dict[tuple[int, int, int], InventoryBalances]:
+) -> dict[tuple[int, int, int], InventoryStorageBalances]:
     if not keys:
         return {}
     agency_ids = sorted({agency_id for agency_id, _, _ in keys})
     item_ids = sorted({item_id for _, item_id, _ in keys})
     storage_ids = sorted({storage_id for _, _, storage_id in keys})
     rows = session.execute(
-        select(InventoryBalances).where(
-            InventoryBalances.agency_id.in_(agency_ids),
-            InventoryBalances.item_id.in_(item_ids),
-            InventoryBalances.storage_id.in_(storage_ids),
+        select(InventoryStorageBalances).where(
+            InventoryStorageBalances.agency_id.in_(agency_ids),
+            InventoryStorageBalances.item_id.in_(item_ids),
+            InventoryStorageBalances.storage_id.in_(storage_ids),
         )
     ).scalars()
     return {(row.agency_id, row.item_id, row.storage_id): row for row in rows}
@@ -370,7 +368,7 @@ def _load_balance_rows(
 
 def _apply_action_to_rows(
     session: Session,
-    row_by_key: dict[tuple[int, int, int], InventoryBalances],
+    row_by_key: dict[tuple[int, int, int], InventoryStorageBalances],
     action: ActionLogs,
 ) -> None:
     if action.item_id is None:
@@ -399,16 +397,16 @@ def _apply_action_to_rows(
 
 def _ensure_row(
     session: Session,
-    row_by_key: dict[tuple[int, int, int], InventoryBalances],
+    row_by_key: dict[tuple[int, int, int], InventoryStorageBalances],
     agency_id: int,
     item_id: int,
     storage_id: int,
-) -> InventoryBalances:
+) -> InventoryStorageBalances:
     key = (agency_id, item_id, storage_id)
     row = row_by_key.get(key)
     if row is not None:
         return row
-    row = InventoryBalances(
+    row = InventoryStorageBalances(
         agency_id=agency_id,
         item_id=item_id,
         storage_id=storage_id,
@@ -458,16 +456,16 @@ def _computed_balance_state(session: Session, agency_id: int | None) -> dict[tup
 
 def _stored_balance_state(session: Session, agency_id: int | None) -> dict[tuple[int, int, int], BalanceState]:
     stmt = select(
-        InventoryBalances.agency_id,
-        InventoryBalances.item_id,
-        InventoryBalances.storage_id,
-        InventoryBalances.quantity,
-        InventoryBalances.last_counted_at,
-        InventoryBalances.last_activity_at,
-        InventoryBalances.last_takeout_at,
+        InventoryStorageBalances.agency_id,
+        InventoryStorageBalances.item_id,
+        InventoryStorageBalances.storage_id,
+        InventoryStorageBalances.quantity,
+        InventoryStorageBalances.last_counted_at,
+        InventoryStorageBalances.last_activity_at,
+        InventoryStorageBalances.last_takeout_at,
     )
     if agency_id is not None:
-        stmt = stmt.where(InventoryBalances.agency_id == agency_id)
+        stmt = stmt.where(InventoryStorageBalances.agency_id == agency_id)
     rows = session.execute(stmt).all()
     return {
         (row.agency_id, row.item_id, row.storage_id): BalanceState(
@@ -481,9 +479,9 @@ def _stored_balance_state(session: Session, agency_id: int | None) -> dict[tuple
 
 
 def _delete_existing_balances(session: Session, agency_id: int | None) -> None:
-    stmt = delete(InventoryBalances)
+    stmt = delete(InventoryStorageBalances)
     if agency_id is not None:
-        stmt = stmt.where(InventoryBalances.agency_id == agency_id)
+        stmt = stmt.where(InventoryStorageBalances.agency_id == agency_id)
     session.execute(stmt)
 
 
@@ -505,12 +503,12 @@ def _location_counts(
         return {}
     rows = session.execute(
         select(
-            InventoryBalances.item_id,
-            InventoryBalances.storage_id,
-            InventoryBalances.quantity,
+            InventoryStorageBalances.item_id,
+            InventoryStorageBalances.storage_id,
+            InventoryStorageBalances.quantity,
         ).where(
-            InventoryBalances.agency_id == agency_id,
-            InventoryBalances.storage_id.in_(storage_ids),
+            InventoryStorageBalances.agency_id == agency_id,
+            InventoryStorageBalances.storage_id.in_(storage_ids),
         )
     ).all()
     return {(item_id, storage_id): int(quantity) for item_id, storage_id, quantity in rows}
@@ -525,10 +523,10 @@ def _location_balance_timestamp(
 ) -> datetime | None:
     return session.scalar(
         select(func.max(column))
-        .join(AgencyStorages, AgencyStorages.id == InventoryBalances.storage_id)
+        .join(AgencyStorages, AgencyStorages.id == InventoryStorageBalances.storage_id)
         .where(
-            InventoryBalances.agency_id == agency_id,
-            InventoryBalances.item_id == item_id,
+            InventoryStorageBalances.agency_id == agency_id,
+            InventoryStorageBalances.item_id == item_id,
             AgencyStorages.location_id == agency_location_id,
             column.is_not(None),
         )

@@ -6,10 +6,11 @@ from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
+from app.inventory.location_state_service import update_state_trend
+from app.inventory.models import InventoryItemLocationState
 from app.prediction.constants import CONFIDENCE_FULL_SEGMENTS, MIN_TREND_SEGMENTS
-from app.prediction.models import InventoryTrend
 from app.prediction.segments import TrendSegment, build_count_signature, extract_segments
-from app.shared.clock import utc_now
+from app.shared.clock import utc_now_naive
 
 
 @dataclass(frozen=True)
@@ -26,7 +27,7 @@ def train_location_trend(
     agency_id: int,
     item_id: int,
     agency_location_id: int,
-) -> InventoryTrend | None:
+) -> InventoryItemLocationState | None:
     """Train and persist one trend row if count data changed."""
     signature = build_count_signature(session, agency_id, item_id, agency_location_id)
     existing = get_inventory_trend(session, agency_id, item_id, agency_location_id)
@@ -36,22 +37,29 @@ def train_location_trend(
     segments = extract_segments(session, agency_id, item_id, agency_location_id)
     fit = fit_trend(segments)
     if fit is None:
-        if existing:
-            session.delete(existing)
-        return None
+        return update_state_trend(
+            session,
+            agency_id,
+            item_id,
+            agency_location_id,
+            trend_per_day=None,
+            confidence_percent=None,
+            segment_count=0,
+            data_signature=signature,
+            trained_at=utc_now_naive(),
+        )
 
-    trend = existing or InventoryTrend(
-        agency_id=agency_id,
-        item_id=item_id,
-        agency_location_id=agency_location_id,
+    return update_state_trend(
+        session,
+        agency_id,
+        item_id,
+        agency_location_id,
+        trend_per_day=fit.trend_per_day,
+        confidence_percent=fit.confidence_percent,
+        segment_count=fit.segment_count,
+        data_signature=signature,
+        trained_at=utc_now_naive(),
     )
-    trend.trend_per_day = fit.trend_per_day
-    trend.confidence_percent = fit.confidence_percent
-    trend.segment_count = fit.segment_count
-    trend.data_signature = signature
-    trend.trained_at = utc_now()
-    session.add(trend)
-    return trend
 
 
 def get_inventory_trend(
@@ -59,15 +67,15 @@ def get_inventory_trend(
     agency_id: int,
     item_id: int,
     agency_location_id: int,
-) -> InventoryTrend | None:
-    """Return the persisted trend for one agency item/location."""
+) -> InventoryItemLocationState | None:
+    """Return the current state row that owns persisted trend fields."""
     try:
         return (
             session.execute(
-                select(InventoryTrend).where(
-                    InventoryTrend.agency_id == agency_id,
-                    InventoryTrend.item_id == item_id,
-                    InventoryTrend.agency_location_id == agency_location_id,
+                select(InventoryItemLocationState).where(
+                    InventoryItemLocationState.agency_id == agency_id,
+                    InventoryItemLocationState.item_id == item_id,
+                    InventoryItemLocationState.agency_location_id == agency_location_id,
                 )
             )
             .scalars()
@@ -82,7 +90,7 @@ def fit_trend(segments: list[TrendSegment]) -> TrendFit | None:
     if len(segments) < MIN_TREND_SEGMENTS:
         return None
 
-    now = utc_now()
+    now = utc_now_naive()
     if segments[0].end_at.tzinfo is None:
         now = now.replace(tzinfo=None)
     x_values = [(segment.end_at - now).total_seconds() / 86_400 for segment in segments]

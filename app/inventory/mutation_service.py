@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import AgencyStorages
 from app.inventory.balance_service import sync_balances_for_actions
+from app.inventory.location_state_service import sync_location_states_for_actions
 from app.prediction.validation import validate_location_restock
 from app.shared.clock import utc_now
 from app.shared.database import managed_session
@@ -42,6 +43,7 @@ def inventory_operation(
             admin_action,
         )
         sync_balances_for_actions(db, [action])
+        sync_location_states_for_actions(db, [action])
         record_action_log_alerts(db, [action])
         logger.debug(
             "Inventory mutation applied",

@@ -1,133 +1,136 @@
-"""Alert generation and state sync."""
+"""Discrete alert event generation and item/location state safety refresh."""
 
-from collections import Counter
-from datetime import datetime, timedelta
+from dataclasses import dataclass
+from datetime import datetime
 from typing import Any
 
 from loguru import logger
-from sqlalchemy import and_, func, or_, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.location_filters import alert_matches_location_filter, validate_location_filter_ids
-from app.auth.models import Agencies, AgencyEmails, AgencyLocations, AgencyStorages
-from app.auth.queries import list_active_emails
-from app.inventory.balance_service import (
-    get_location_last_counted_at,
-    get_location_last_takeout_at,
-)
+from app.auth.models import Agencies, AgencyLocations, AgencyStorages
+from app.inventory.balance_service import get_location_last_takeout_at
 from app.inventory.constants import OperationType
-from app.inventory.item_queries import get_agency_item, list_items
-from app.inventory.models import ActionLogs, Items
-from app.prediction.estimator import (
-    days_to_threshold,
-    effective_lead_time_days,
-    get_location_item_quantity,
-    project_location_item,
-)
-from app.prediction.segments import get_location_storage_ids
+from app.inventory.item_queries import get_agency_item
+from app.inventory.location_state_service import rebuild_item_location_states, recompute_item_location_state
+from app.inventory.models import ActionLogs, InventoryItemLocationState, Items
 from app.shared.clock import utc_now_naive
 
-from .constants import ALERT_RESEND_SUPPRESSION_DAYS, AlertAction, AlertType
-from .models import AlertRecords
+from .constants import ACTION_ALERT_TYPES, AlertSeverity, AlertSourceType, AlertType, InventoryAlertEventStatus
+from .models import InventoryAlertEvent
 
-STOCK_PRIORITY = (
-    AlertType.STOCKOUT,
-    AlertType.STOCKOUT_PRED,
-    AlertType.LOW,
-    AlertType.LOW_PRED,
-)
+OPEN_EVENT_STATUSES = (InventoryAlertEventStatus.PENDING, InventoryAlertEventStatus.QUEUED, InventoryAlertEventStatus.ERROR)
 
-ACTION_ALERT_TYPES = {
-    OperationType.COUNT: AlertType.COUNT_ACTION,
-    OperationType.RESTOCK: AlertType.RESTOCK_ACTION,
-    OperationType.TAKEOUT: AlertType.TAKEOUT_ACTION,
-    OperationType.TRANSFER: AlertType.TRANSFER_ACTION,
-}
 
-OPEN_ALERT_ACTIONS = (AlertAction.PENDING, AlertAction.SUPPRESSED)
-CONDITION_ALERT_ACTIONS = (AlertAction.PENDING, AlertAction.SUPPRESSED, AlertAction.SENT)
+@dataclass(frozen=True)
+class ScheduledAlertState:
+    """Flat state row used by the scheduled audit without ORM relationship traversal."""
 
-PREFERENCE_BY_TYPE = {
-    AlertType.STOCKOUT: "alert_for_stockout",
-    AlertType.STOCKOUT_PRED: "alert_for_stockout_pred",
-    AlertType.LOW: "alert_for_low",
-    AlertType.LOW_PRED: "alert_for_low_pred",
-    AlertType.STALE_COUNT: "alert_for_stale_count",
-    AlertType.RARE_TAKEOUT: "alert_for_rare_takeout",
-    AlertType.COUNT_ACTION: "alert_for_count",
-    AlertType.RESTOCK_ACTION: "alert_for_restock",
-    AlertType.TAKEOUT_ACTION: "alert_for_takeout",
-    AlertType.TRANSFER_ACTION: "alert_for_transfer",
-}
+    agency_id: int
+    count_last_days: int
+    alert_rare_scan_days: int
+    item_id: int
+    item_name: str
+    location_id: int
+    location_name: str
+    total_quantity: int
+    last_counted_at: datetime | None
+    last_takeout_at: datetime | None
 
 
 def record_action_log_alerts(
     session: Session,
     action_logs: list[ActionLogs],
 ) -> None:
-    """Create recipient-specific scan activity, stock, prediction, and rare-takeout alerts."""
+    """Create discrete action events and refresh affected state-derived alert data."""
     if not action_logs:
         return
 
     now = _now()
     for action in action_logs:
-        _record_scan_activity(session, action, now)
-        _sync_action_rare_takeout_alert(session, action, now)
+        _record_scan_activity_event(session, action, now)
+        _sync_action_rare_takeout_event(session, action, now)
 
-    for agency_id, item_id, location_id in _affected_item_locations(session, action_logs):
-        agency = session.get(Agencies, agency_id)
-        item = get_agency_item(agency_id, item_id, session=session)
-        if agency and agency.active and item:
-            _sync_stock_alerts(session, agency, item, location_id, now, include_predictions=True)
+    affected_item_locations = _affected_item_locations(session, action_logs)
+    for agency_id, item_id, location_id in affected_item_locations:
+        recompute_item_location_state(session, agency_id, item_id, location_id)
+
+    logger.info(
+        "Inventory action alert state refreshed",
+        extra={"action_count": len(action_logs), "affected_item_location_count": len(affected_item_locations)},
+    )
 
 
 def generate_scheduled_alerts(session: Session, agency_id: int | None = None) -> int:
-    """Generate daily audit alerts for active agencies."""
+    """Run the inventory alert safety audit and discrete aging checks."""
     now = _now()
-    stmt = select(Agencies).where(Agencies.active.is_(True))
-    if agency_id is not None:
-        stmt = stmt.where(Agencies.id == agency_id)
-
-    count = 0
-    agencies = list(session.execute(stmt).scalars().all())
+    state_count = rebuild_item_location_states(session, agency_id)
+    agencies = _active_agencies(session, agency_id)
     if agency_id is not None and not agencies:
         logger.warning(
             "Scheduled alert audit could not find an active agency for the requested id",
             extra={"agency_id": agency_id},
         )
 
-    for agency in agencies:
-        agency_count = 0
-        items = list_items(agency.id, session=session)
-        for location in agency.locations:
-            for item in items:
-                _sync_stock_alerts(session, agency, item, location.id, now, include_predictions=True)
-                _sync_stale_count_alert(session, agency, item, location, now)
-                _sync_rare_takeout_alert(session, agency, item, location, now)
-                count += 1
-                agency_count += 1
-        session.flush()
-        action_counts = _alert_action_counts(session, agency.id)
-        pending_type_counts = _pending_alert_type_counts(session, agency.id)
-        logger.debug(
-            "Daily inventory alert audit checked one agency",
-            extra={
-                "agency_id": agency.id,
-                "agency_name": agency.display_name,
-                "rows_checked": agency_count,
-                "action_counts": dict(action_counts),
-                "pending_type_counts": dict(pending_type_counts),
-            },
-        )
+    scheduled_states = _scheduled_alert_states(session, agency_id)
+    event_cache = _event_cache_for_scheduled_states(session, scheduled_states)
+    for state in scheduled_states:
+        _sync_stale_count_state(session, state, event_cache, now)
+        _sync_rare_takeout_state(session, state, event_cache, now)
+    session.flush()
 
     logger.info(
-        "Daily inventory alert audit finished",
-        extra={"agency_id": agency_id, "item_location_checks": count},
+        "Inventory alert safety audit finished",
+        extra={"agency_id": agency_id, "state_rows_checked": state_count, "event_checks": len(scheduled_states)},
     )
-    return count
+    return state_count + len(scheduled_states)
 
 
-def _record_scan_activity(
+def queue_unknown_upc_event(
+    session: Session,
+    agency_id: int,
+    *,
+    unknown_upc_id: int,
+    upc: str,
+    lookup_title: str | None,
+    created_at: datetime,
+) -> InventoryAlertEvent:
+    """Create or refresh one pending unknown-UPC event."""
+    return _upsert_event(
+        session,
+        agency_id=agency_id,
+        alert_type=AlertType.UNKNOWN_UPC,
+        severity=AlertSeverity.WARNING,
+        source_type=AlertSourceType.UNKNOWN_UPC_SCAN,
+        source_id=unknown_upc_id,
+        dedupe_key=f"UNKNOWN_UPC:{unknown_upc_id}",
+        payload={
+            "unknown_upc_id": unknown_upc_id,
+            "upc": upc,
+            "lookup_title": lookup_title,
+            "created_at": created_at.isoformat(),
+        },
+        event_at=created_at,
+        now=_now(),
+    )
+
+
+def cancel_unknown_upc_event(session: Session, agency_id: int, upc: str) -> None:
+    """Cancel pending/queued unknown-UPC events for one UPC."""
+    now = _now()
+    events = session.execute(
+        select(InventoryAlertEvent).where(
+            InventoryAlertEvent.agency_id == agency_id,
+            InventoryAlertEvent.alert_type == AlertType.UNKNOWN_UPC,
+            InventoryAlertEvent.status.in_(OPEN_EVENT_STATUSES),
+        )
+    ).scalars()
+    for event in events:
+        if event.payload_json.get("upc") == upc:
+            _cancel_event(event, now)
+
+
+def _record_scan_activity_event(
     session: Session,
     action: ActionLogs,
     now: datetime,
@@ -139,7 +142,8 @@ def _record_scan_activity(
     item = _action_item(session, action)
     if item is None:
         return
-    details = {
+
+    payload = {
         "action_log_id": action.id,
         "item_id": item.id,
         "item_name": item.name,
@@ -152,10 +156,21 @@ def _record_scan_activity(
         "to_location_name": _storage_history_name(session, action.agency_id, action.to_location_id),
         "time_scanned": _iso(action.time_scanned),
     }
-    _upsert_alert(session, action.agency_id, alert_type, details, now)
+    _upsert_event(
+        session,
+        agency_id=action.agency_id,
+        alert_type=alert_type,
+        severity=AlertSeverity.INFO,
+        source_type=AlertSourceType.ACTION_LOG,
+        source_id=action.id,
+        dedupe_key=f"ACTION_LOG:{action.id}",
+        payload=payload,
+        event_at=action.time_scanned or now,
+        now=now,
+    )
 
 
-def _sync_action_rare_takeout_alert(
+def _sync_action_rare_takeout_event(
     session: Session,
     action: ActionLogs,
     now: datetime,
@@ -165,549 +180,401 @@ def _sync_action_rare_takeout_alert(
     storage = _storage_row(session, action.agency_id, action.from_location_id)
     agency = session.get(Agencies, action.agency_id)
     item = _action_item(session, action)
-    if (
-        not storage
-        or storage.agency_id != action.agency_id
-        or not storage.location
-        or not agency
-        or not agency.active
-        or not item
-        or not action.time_scanned
-    ):
+    if storage is None or storage.location is None or agency is None or item is None:
         return
-    previous_takeout = _previous_location_takeout_at(session, action, storage.location_id)
-    _sync_rare_takeout_alert_for_timestamp(
-        session,
-        agency,
-        item,
-        storage.location,
-        now,
-        previous_takeout,
-    )
+    state = recompute_item_location_state(session, agency.id, item.id, storage.location_id)
+    _sync_rare_takeout_event(session, agency, item, storage.location, state, now)
 
 
-def _sync_stock_alerts(
-    session: Session,
-    agency: Agencies,
-    item: Items,
-    agency_location_id: int,
-    now: datetime,
-    *,
-    include_predictions: bool,
-) -> None:
-    if not include_predictions:
-        return
-
-    location = session.get(AgencyLocations, agency_location_id)
-    if location is None:
-        return
-
-    details_by_type = _stock_details_by_type(session, agency, item, location, include_predictions)
-    active_types = set(details_by_type)
-    identity = _stock_identity(item.id, agency_location_id)
-
-    for alert_type in STOCK_PRIORITY:
-        if alert_type not in active_types:
-            _resolve_matching_condition(session, agency.id, alert_type, identity, now)
-    for recipient in _stock_alert_recipients(session, agency.id, location.id):
-        top_type = next(
-            (alert_type for alert_type in STOCK_PRIORITY if alert_type in active_types and _recipient_enabled(recipient, alert_type)),
-            None,
-        )
-        if top_type is None:
-            continue
-
-        for alert_type in active_types:
-            if alert_type not in STOCK_PRIORITY or not _recipient_enabled(recipient, alert_type):
-                continue
-            action = AlertAction.PENDING if alert_type == top_type else AlertAction.SUPPRESSED
-            _upsert_recipient_alert(
-                session,
-                recipient.id,
-                agency.id,
-                alert_type,
-                details_by_type[alert_type],
-                now,
-                desired_action=action,
-            )
-
-
-def _stock_details_by_type(
+def _sync_stale_count_event(
     session: Session,
     agency: Agencies,
     item: Items,
     location: AgencyLocations,
-    include_predictions: bool,
-) -> dict[AlertType, dict[str, Any]]:
-    if get_location_last_counted_at(session, agency.id, item.id, location.id) is None:
-        return {}
-
-    min_quantity = int(item.min_quantity or 0)
-    lead_time_days = effective_lead_time_days(agency.lead_time_days, item.restock_delivery_days)
-    projection = project_location_item(session, agency.id, item, location.id)
-    current_total = projection.current_quantity
-    base = {
-        "item_id": item.id,
-        "item_name": item.name,
-        "agency_location_id": location.id,
-        "location_name": location.name,
-        "current_total": current_total,
-        "min_quantity": min_quantity,
-        "lead_time_days": lead_time_days,
-    }
-
-    alerts: dict[AlertType, dict[str, Any]] = {}
-    if current_total <= 0:
-        alerts[AlertType.STOCKOUT] = {
-            **base,
-            "stockout_at": _iso(_stockout_reached_at(session, agency.id, item.id, location.id)),
-        }
-    if current_total < min_quantity:
-        alerts[AlertType.LOW] = dict(base)
-
-    if include_predictions and lead_time_days > 0:
-        _add_prediction_alerts(alerts, base, projection, min_quantity, lead_time_days)
-    return alerts
-
-
-def _add_prediction_alerts(
-    alerts: dict[AlertType, dict[str, Any]],
-    base: dict[str, Any],
-    projection,
-    min_quantity: int,
-    lead_time_days: int,
-) -> None:
-    effective_trend = -projection.daily_usage
-    days_stockout = days_to_threshold(projection.current_quantity, effective_trend, 0)
-    days_low = days_to_threshold(projection.current_quantity, effective_trend, min_quantity)
-    if days_stockout is not None and 0 < days_stockout <= lead_time_days:
-        alerts[AlertType.STOCKOUT_PRED] = {
-            **base,
-            "days_until_stockout": round(days_stockout, 1),
-            "confidence_percent": projection.confidence_percent,
-        }
-    if days_low is not None and 0 < days_low <= lead_time_days:
-        alerts[AlertType.LOW_PRED] = {
-            **base,
-            "days_until_low": round(days_low, 1),
-            "confidence_percent": projection.confidence_percent,
-        }
-
-
-def _sync_stale_count_alert(
-    session: Session,
-    agency: Agencies,
-    item: Items,
-    location: AgencyLocations,
+    state: InventoryItemLocationState | None,
     now: datetime,
 ) -> None:
     days = int(agency.count_last_days or 0)
-    identity = _stock_identity(item.id, location.id)
-    if days <= 0:
-        _resolve_matching_condition(session, agency.id, AlertType.STALE_COUNT, identity, now)
+    if days <= 0 or state is None:
+        _cancel_open_events(session, agency.id, _stale_count_key(item.id, location.id, None), now)
         return
 
-    last_counted = get_location_last_counted_at(session, agency.id, item.id, location.id)
-    days_since = _days_since_current_date(now, last_counted)
+    days_since = _days_since_current_date(now, state.last_counted_at)
     if days_since is not None and days_since < days:
-        _resolve_matching_condition(session, agency.id, AlertType.STALE_COUNT, identity, now)
+        _cancel_open_events(session, agency.id, _stale_count_key(item.id, location.id, state.last_counted_at), now)
         return
 
-    details = {
-        **identity,
-        "item_name": item.name,
-        "location_name": location.name,
-        "days_since_last_count": days_since,
-        "current_total": get_location_item_quantity(session, agency.id, item.id, location.id),
-        "last_counted_at": _iso(last_counted),
-    }
-    _upsert_alert(session, agency.id, AlertType.STALE_COUNT, details, now)
+    event_at = state.last_counted_at or now
+    _upsert_event(
+        session,
+        agency_id=agency.id,
+        alert_type=AlertType.STALE_COUNT,
+        severity=AlertSeverity.WARNING,
+        source_type=AlertSourceType.STALE_COUNT_AUDIT,
+        source_id=None,
+        dedupe_key=_stale_count_key(item.id, location.id, state.last_counted_at),
+        payload={
+            "item_id": item.id,
+            "item_name": item.name,
+            "agency_location_id": location.id,
+            "location_name": location.name,
+            "days_since_last_count": days_since,
+            "current_total": state.total_quantity,
+            "last_counted_at": _iso(state.last_counted_at),
+        },
+        event_at=event_at,
+        now=now,
+    )
 
 
-def _sync_rare_takeout_alert(
+def _sync_rare_takeout_event(
     session: Session,
     agency: Agencies,
     item: Items,
     location: AgencyLocations,
+    state: InventoryItemLocationState | None,
     now: datetime,
-) -> None:
-    last_takeout = get_location_last_takeout_at(session, agency.id, item.id, location.id)
-    _sync_rare_takeout_alert_for_timestamp(session, agency, item, location, now, last_takeout)
-
-
-def _sync_rare_takeout_alert_for_timestamp(
-    session: Session,
-    agency: Agencies,
-    item: Items,
-    location: AgencyLocations,
-    now: datetime,
-    last_takeout: datetime | None,
 ) -> None:
     days = int(agency.alert_rare_scan_days or 0)
-    identity = _stock_identity(item.id, location.id)
-    if days <= 0:
-        _resolve_matching_condition(session, agency.id, AlertType.RARE_TAKEOUT, identity, now)
+    if days <= 0 or state is None:
+        _cancel_open_events(session, agency.id, _rare_takeout_key(item.id, location.id, None), now)
         return
 
+    last_takeout = state.last_takeout_at or get_location_last_takeout_at(session, agency.id, item.id, location.id)
     if last_takeout is None:
-        _resolve_matching_condition(session, agency.id, AlertType.RARE_TAKEOUT, identity, now)
+        _cancel_open_events(session, agency.id, _rare_takeout_key(item.id, location.id, None), now)
         return
 
     days_since = _days_since_current_date(now, last_takeout)
     if days_since is not None and days_since < days:
-        _resolve_matching_condition(session, agency.id, AlertType.RARE_TAKEOUT, identity, now)
+        _cancel_open_events(session, agency.id, _rare_takeout_key(item.id, location.id, last_takeout), now)
         return
 
-    details = {
-        **identity,
-        "item_name": item.name,
-        "location_name": location.name,
-        "days_since_last_takeout": days_since,
-        "current_total": get_location_item_quantity(session, agency.id, item.id, location.id),
-        "last_takeout_at": _iso(last_takeout),
-        "rare_scan_days": days,
-    }
-    _upsert_alert(session, agency.id, AlertType.RARE_TAKEOUT, details, now)
+    _upsert_event(
+        session,
+        agency_id=agency.id,
+        alert_type=AlertType.RARE_TAKEOUT,
+        severity=AlertSeverity.WARNING,
+        source_type=AlertSourceType.RARE_TAKEOUT_AUDIT,
+        source_id=None,
+        dedupe_key=_rare_takeout_key(item.id, location.id, last_takeout),
+        payload={
+            "item_id": item.id,
+            "item_name": item.name,
+            "agency_location_id": location.id,
+            "location_name": location.name,
+            "days_since_last_takeout": days_since,
+            "last_takeout_at": _iso(last_takeout),
+            "current_total": state.total_quantity,
+            "rare_scan_days": days,
+        },
+        event_at=last_takeout,
+        now=now,
+    )
 
 
-def _upsert_alert(
+def _sync_stale_count_state(
     session: Session,
+    state: ScheduledAlertState,
+    event_cache: dict[tuple[int, str], InventoryAlertEvent],
+    now: datetime,
+) -> None:
+    days = int(state.count_last_days or 0)
+    if days <= 0:
+        _cancel_cached_event(event_cache, state.agency_id, _stale_count_key(state.item_id, state.location_id, None), now)
+        return
+
+    days_since = _days_since_current_date(now, state.last_counted_at)
+    if days_since is not None and days_since < days:
+        _cancel_cached_event(event_cache, state.agency_id, _stale_count_key(state.item_id, state.location_id, state.last_counted_at), now)
+        return
+
+    event_at = state.last_counted_at or now
+    _upsert_cached_event(
+        session,
+        event_cache,
+        agency_id=state.agency_id,
+        alert_type=AlertType.STALE_COUNT,
+        severity=AlertSeverity.WARNING,
+        source_type=AlertSourceType.STALE_COUNT_AUDIT,
+        source_id=None,
+        dedupe_key=_stale_count_key(state.item_id, state.location_id, state.last_counted_at),
+        payload={
+            "item_id": state.item_id,
+            "item_name": state.item_name,
+            "agency_location_id": state.location_id,
+            "location_name": state.location_name,
+            "days_since_last_count": days_since,
+            "current_total": state.total_quantity,
+            "last_counted_at": _iso(state.last_counted_at),
+        },
+        event_at=event_at,
+        now=now,
+    )
+
+
+def _sync_rare_takeout_state(
+    session: Session,
+    state: ScheduledAlertState,
+    event_cache: dict[tuple[int, str], InventoryAlertEvent],
+    now: datetime,
+) -> None:
+    days = int(state.alert_rare_scan_days or 0)
+    if days <= 0 or state.last_takeout_at is None:
+        _cancel_cached_event(event_cache, state.agency_id, _rare_takeout_key(state.item_id, state.location_id, None), now)
+        return
+
+    days_since = _days_since_current_date(now, state.last_takeout_at)
+    if days_since is not None and days_since < days:
+        _cancel_cached_event(event_cache, state.agency_id, _rare_takeout_key(state.item_id, state.location_id, state.last_takeout_at), now)
+        return
+
+    _upsert_cached_event(
+        session,
+        event_cache,
+        agency_id=state.agency_id,
+        alert_type=AlertType.RARE_TAKEOUT,
+        severity=AlertSeverity.WARNING,
+        source_type=AlertSourceType.RARE_TAKEOUT_AUDIT,
+        source_id=None,
+        dedupe_key=_rare_takeout_key(state.item_id, state.location_id, state.last_takeout_at),
+        payload={
+            "item_id": state.item_id,
+            "item_name": state.item_name,
+            "agency_location_id": state.location_id,
+            "location_name": state.location_name,
+            "days_since_last_takeout": days_since,
+            "last_takeout_at": _iso(state.last_takeout_at),
+            "current_total": state.total_quantity,
+            "rare_scan_days": days,
+        },
+        event_at=state.last_takeout_at,
+        now=now,
+    )
+
+
+def _upsert_event(
+    session: Session,
+    *,
     agency_id: int,
     alert_type: AlertType,
-    details: dict[str, Any],
+    severity: AlertSeverity,
+    source_type: AlertSourceType,
+    source_id: int | None,
+    dedupe_key: str,
+    payload: dict[str, Any],
+    event_at: datetime,
     now: datetime,
-    *,
-    desired_action: AlertAction = AlertAction.PENDING,
-) -> list[AlertRecords]:
-    rows: list[AlertRecords] = []
-    for recipient in _enabled_recipients(session, agency_id, alert_type, details):
-        rows.append(
-            _upsert_recipient_alert(
-                session,
-                recipient.id,
-                agency_id,
-                alert_type,
-                details,
-                now,
-                desired_action=desired_action,
-            )
+) -> InventoryAlertEvent:
+    existing = session.scalar(
+        select(InventoryAlertEvent).where(
+            InventoryAlertEvent.agency_id == agency_id,
+            InventoryAlertEvent.dedupe_key == dedupe_key,
         )
-    return rows
-
-
-def _upsert_recipient_alert(
-    session: Session,
-    agency_email_id: int,
-    agency_id: int,
-    alert_type: AlertType,
-    details: dict[str, Any],
-    now: datetime,
-    *,
-    desired_action: AlertAction,
-) -> AlertRecords:
-    identity = _identity(alert_type, details)
-    existing = _find_open_alert(session, agency_id, agency_email_id, alert_type, identity)
-    action = _dedupe_action(session, agency_id, agency_email_id, alert_type, identity, desired_action, now)
+    )
     if existing is None:
-        alert = AlertRecords(
+        event = InventoryAlertEvent(
             agency_id=agency_id,
-            agency_email_id=agency_email_id,
-            type=alert_type,
-            action=action,
-            details_json=details,
+            alert_type=alert_type,
+            severity=severity,
+            source_type=source_type,
+            source_id=source_id,
+            dedupe_key=dedupe_key,
+            payload_json=payload,
+            event_at=event_at,
             created_at=now,
-            action_at=now,
         )
-        session.add(alert)
-        return alert
+        session.add(event)
+        return event
 
-    existing.details_json = details
-    if existing.action != action:
-        existing.action = action
-        existing.action_at = now
+    _refresh_event(existing, severity, payload, event_at)
     return existing
 
 
-def _dedupe_action(
+def _upsert_cached_event(
     session: Session,
+    event_cache: dict[tuple[int, str], InventoryAlertEvent],
+    *,
     agency_id: int,
-    agency_email_id: int,
     alert_type: AlertType,
-    identity: dict[str, Any],
-    desired_action: AlertAction,
+    severity: AlertSeverity,
+    source_type: AlertSourceType,
+    source_id: int | None,
+    dedupe_key: str,
+    payload: dict[str, Any],
+    event_at: datetime,
     now: datetime,
-) -> AlertAction:
-    if desired_action != AlertAction.PENDING:
-        return desired_action
-    if _recently_sent(session, agency_id, agency_email_id, alert_type, identity, now):
-        return AlertAction.SUPPRESSED
-    return desired_action
-
-
-def _recently_sent(
-    session: Session,
-    agency_id: int,
-    agency_email_id: int,
-    alert_type: AlertType,
-    identity: dict[str, Any],
-    now: datetime,
-) -> bool:
-    since = now - timedelta(days=ALERT_RESEND_SUPPRESSION_DAYS)
-    stmt = (
-        select(AlertRecords)
-        .where(
-            AlertRecords.agency_id == agency_id,
-            AlertRecords.agency_email_id == agency_email_id,
-            AlertRecords.type == alert_type,
-            AlertRecords.action == AlertAction.SENT,
-            AlertRecords.action_at >= since,
+) -> InventoryAlertEvent:
+    existing = event_cache.get((agency_id, dedupe_key))
+    if existing is None:
+        event = InventoryAlertEvent(
+            agency_id=agency_id,
+            alert_type=alert_type,
+            severity=severity,
+            source_type=source_type,
+            source_id=source_id,
+            dedupe_key=dedupe_key,
+            payload_json=payload,
+            event_at=event_at,
+            created_at=now,
         )
-        .order_by(AlertRecords.action_at.desc())
+        session.add(event)
+        event_cache[(agency_id, dedupe_key)] = event
+        return event
+
+    _refresh_event(existing, severity, payload, event_at)
+    return existing
+
+
+def _refresh_event(
+    event: InventoryAlertEvent,
+    severity: AlertSeverity,
+    payload: dict[str, Any],
+    event_at: datetime,
+) -> None:
+    if event.status == InventoryAlertEventStatus.CANCELLED:
+        event.status = InventoryAlertEventStatus.PENDING
+        event.cancelled_at = None
+    event.severity = severity
+    event.payload_json = payload
+    event.event_at = event_at
+    event.last_error_type = None
+    event.last_error_message = None
+    event.last_error_at = None
+
+
+def _cancel_open_events(session: Session, agency_id: int, dedupe_key: str, now: datetime) -> None:
+    event = session.scalar(
+        select(InventoryAlertEvent).where(
+            InventoryAlertEvent.agency_id == agency_id,
+            InventoryAlertEvent.dedupe_key == dedupe_key,
+            InventoryAlertEvent.status.in_(OPEN_EVENT_STATUSES),
+        )
     )
-    return any(_identity(alert_type, alert.details_json) == identity for alert in session.execute(stmt).scalars())
+    if event is not None:
+        _cancel_event(event, now)
 
 
-def _resolve_matching_condition(
-    session: Session,
+def _cancel_cached_event(
+    event_cache: dict[tuple[int, str], InventoryAlertEvent],
     agency_id: int,
-    alert_type: AlertType,
-    identity: dict[str, Any],
+    dedupe_key: str,
     now: datetime,
 ) -> None:
-    for alert in _find_condition_alerts(session, agency_id, alert_type, identity):
-        action = AlertAction.RESOLVED if alert.action == AlertAction.SENT else AlertAction.CLEARED
-        if alert.action != action:
-            alert.action = action
-            alert.action_at = now
+    event = event_cache.get((agency_id, dedupe_key))
+    if event is not None and event.status in OPEN_EVENT_STATUSES:
+        _cancel_event(event, now)
 
 
-def _find_open_alert(
-    session: Session,
-    agency_id: int,
-    agency_email_id: int,
-    alert_type: AlertType,
-    identity: dict[str, Any],
-) -> AlertRecords | None:
-    return next(
-        iter(_find_open_alerts(session, agency_id, alert_type, identity, agency_email_id)),
-        None,
+def _cancel_event(event: InventoryAlertEvent, now: datetime) -> None:
+    event.status = InventoryAlertEventStatus.CANCELLED
+    event.cancelled_at = now
+
+
+def _active_agencies(session: Session, agency_id: int | None) -> list[Agencies]:
+    stmt = select(Agencies).where(Agencies.active.is_(True))
+    if agency_id is not None:
+        stmt = stmt.where(Agencies.id == agency_id)
+    return list(session.execute(stmt).scalars().all())
+
+
+def _scheduled_alert_states(session: Session, agency_id: int | None) -> list[ScheduledAlertState]:
+    stmt = (
+        select(
+            Agencies.id,
+            Agencies.count_last_days,
+            Agencies.alert_rare_scan_days,
+            Items.id,
+            Items.name,
+            AgencyLocations.id,
+            AgencyLocations.name,
+            InventoryItemLocationState.total_quantity,
+            InventoryItemLocationState.last_counted_at,
+            InventoryItemLocationState.last_takeout_at,
+        )
+        .join(Items, Items.agency_id == Agencies.id)
+        .join(AgencyLocations, AgencyLocations.agency_id == Agencies.id)
+        .join(
+            InventoryItemLocationState,
+            (InventoryItemLocationState.agency_id == Agencies.id)
+            & (InventoryItemLocationState.item_id == Items.id)
+            & (InventoryItemLocationState.agency_location_id == AgencyLocations.id),
+        )
+        .where(Agencies.active.is_(True), Items.active.is_(True))
+        .order_by(Agencies.id, Items.id, AgencyLocations.id)
     )
+    if agency_id is not None:
+        stmt = stmt.where(Agencies.id == agency_id)
 
-
-def _find_open_alerts(
-    session: Session,
-    agency_id: int,
-    alert_type: AlertType,
-    identity: dict[str, Any],
-    agency_email_id: int | None = None,
-) -> list[AlertRecords]:
-    filters = [
-        AlertRecords.agency_id == agency_id,
-        AlertRecords.type == alert_type,
-        AlertRecords.action.in_(OPEN_ALERT_ACTIONS),
+    return [
+        ScheduledAlertState(
+            agency_id=row[0],
+            count_last_days=int(row[1] or 0),
+            alert_rare_scan_days=int(row[2] or 0),
+            item_id=row[3],
+            item_name=row[4],
+            location_id=row[5],
+            location_name=row[6],
+            total_quantity=int(row[7] or 0),
+            last_counted_at=row[8],
+            last_takeout_at=row[9],
+        )
+        for row in session.execute(stmt).all()
     ]
-    if agency_email_id is not None:
-        filters.append(AlertRecords.agency_email_id == agency_email_id)
-    alerts = session.execute(select(AlertRecords).where(*filters)).scalars()
-    return [alert for alert in alerts if _identity(alert_type, alert.details_json) == identity]
 
 
-def _find_condition_alerts(
+def _event_cache_for_scheduled_states(
     session: Session,
-    agency_id: int,
-    alert_type: AlertType,
-    identity: dict[str, Any],
-) -> list[AlertRecords]:
-    alerts = session.execute(
-        select(AlertRecords).where(
-            AlertRecords.agency_id == agency_id,
-            AlertRecords.type == alert_type,
-            AlertRecords.action.in_(CONDITION_ALERT_ACTIONS),
+    states: list[ScheduledAlertState],
+) -> dict[tuple[int, str], InventoryAlertEvent]:
+    keys = _scheduled_event_keys(states)
+    if not keys:
+        return {}
+    agency_ids = {agency_id for agency_id, _dedupe_key in keys}
+    dedupe_keys = {dedupe_key for _agency_id, dedupe_key in keys}
+    rows = session.execute(
+        select(InventoryAlertEvent).where(
+            InventoryAlertEvent.agency_id.in_(agency_ids),
+            InventoryAlertEvent.dedupe_key.in_(dedupe_keys),
         )
     ).scalars()
-    return [alert for alert in alerts if _identity(alert_type, alert.details_json) == identity]
+    return {(event.agency_id, event.dedupe_key): event for event in rows}
 
 
-def _identity(alert_type: AlertType, details: dict[str, Any]) -> dict[str, Any]:
-    if alert_type in ACTION_ALERT_TYPES.values():
-        return {"action_log_id": details.get("action_log_id")}
-    return _stock_identity(details.get("item_id"), details.get("agency_location_id"))
-
-
-def _stock_identity(item_id: int | None, agency_location_id: int | None) -> dict[str, Any]:
-    return {"item_id": item_id, "agency_location_id": agency_location_id}
+def _scheduled_event_keys(states: list[ScheduledAlertState]) -> set[tuple[int, str]]:
+    keys: set[tuple[int, str]] = set()
+    for state in states:
+        stale_stamp = None if state.count_last_days <= 0 else state.last_counted_at
+        rare_stamp = None if state.alert_rare_scan_days <= 0 or state.last_takeout_at is None else state.last_takeout_at
+        keys.add((state.agency_id, _stale_count_key(state.item_id, state.location_id, stale_stamp)))
+        keys.add((state.agency_id, _rare_takeout_key(state.item_id, state.location_id, rare_stamp)))
+    return keys
 
 
 def _affected_item_locations(
     session: Session,
     action_logs: list[ActionLogs],
 ) -> set[tuple[int, int, int]]:
+    storage_ids = sorted(
+        {
+            storage_id
+            for action in action_logs
+            for storage_id in (action.from_location_id, action.to_location_id)
+            if action.item_id is not None and storage_id is not None
+        }
+    )
+    if not storage_ids:
+        return set()
+    storages = session.execute(select(AgencyStorages).where(AgencyStorages.id.in_(storage_ids))).scalars()
+    location_by_storage_id = {storage.id: storage.location_id for storage in storages}
     pairs: set[tuple[int, int, int]] = set()
     for action in action_logs:
         if action.item_id is None:
             continue
         for storage_id in (action.from_location_id, action.to_location_id):
-            storage = _storage_row(session, action.agency_id, storage_id)
-            if storage and storage.agency_id == action.agency_id:
-                pairs.add((action.agency_id, action.item_id, storage.location_id))
+            if storage_id is not None and storage_id in location_by_storage_id:
+                pairs.add((action.agency_id, action.item_id, location_by_storage_id[storage_id]))
     return pairs
-
-
-def _previous_location_takeout_at(
-    session: Session,
-    action: ActionLogs,
-    agency_location_id: int,
-) -> datetime | None:
-    if action.item_id is None or action.id is None or action.time_scanned is None:
-        return None
-
-    storage_ids = get_location_storage_ids(session, action.agency_id, agency_location_id)
-    if not storage_ids:
-        return None
-
-    return session.scalar(
-        select(ActionLogs.time_scanned)
-        .where(
-            ActionLogs.agency_id == action.agency_id,
-            ActionLogs.item_id == action.item_id,
-            ActionLogs.operation_type == OperationType.TAKEOUT,
-            ActionLogs.from_location_id.in_(storage_ids),
-            or_(
-                ActionLogs.time_scanned < action.time_scanned,
-                and_(
-                    ActionLogs.time_scanned == action.time_scanned,
-                    ActionLogs.id < action.id,
-                ),
-            ),
-        )
-        .order_by(ActionLogs.time_scanned.desc(), ActionLogs.id.desc())
-    )
-
-
-def _stockout_reached_at(
-    session: Session,
-    agency_id: int,
-    item_id: int,
-    agency_location_id: int,
-) -> datetime | None:
-    storage_ids = get_location_storage_ids(session, agency_id, agency_location_id)
-    if not storage_ids:
-        return None
-
-    rows = session.execute(
-        select(
-            ActionLogs.id,
-            ActionLogs.operation_type,
-            ActionLogs.from_location_id,
-            ActionLogs.to_location_id,
-            ActionLogs.quantity_delta,
-            ActionLogs.time_scanned,
-        )
-        .where(
-            ActionLogs.agency_id == agency_id,
-            ActionLogs.item_id == item_id,
-            (ActionLogs.from_location_id.in_(storage_ids) | ActionLogs.to_location_id.in_(storage_ids)),
-        )
-        .order_by(ActionLogs.time_scanned, ActionLogs.id)
-    ).all()
-    if not rows:
-        return None
-
-    quantities_by_storage = dict.fromkeys(storage_ids, 0)
-    previous_total: int | None = None
-    stockout_at: datetime | None = None
-    for row in rows:
-        if row.operation_type == OperationType.COUNT and row.to_location_id in quantities_by_storage:
-            quantities_by_storage[int(row.to_location_id)] = int(row.quantity_delta)
-        else:
-            if row.to_location_id in quantities_by_storage:
-                quantities_by_storage[int(row.to_location_id)] += int(row.quantity_delta)
-            if row.from_location_id in quantities_by_storage:
-                quantities_by_storage[int(row.from_location_id)] -= int(row.quantity_delta)
-
-        current_total = sum(quantities_by_storage.values())
-        if current_total <= 0 and (previous_total is None or previous_total > 0):
-            stockout_at = row.time_scanned
-        previous_total = current_total
-    return stockout_at
-
-
-def _days_since_current_date(now: datetime, observed_at: datetime | None) -> int | None:
-    if observed_at is None:
-        return None
-    return (now.date() - observed_at.date()).days
-
-
-def _enabled_recipients(
-    session: Session,
-    agency_id: int,
-    alert_type: AlertType,
-    details: dict[str, Any],
-) -> list[AgencyEmails]:
-    preference = PREFERENCE_BY_TYPE[alert_type]
-    recipients = _agency_recipients(session, agency_id)
-    return [recipient for recipient in recipients if bool(getattr(recipient, preference)) and _recipient_allows_alert(session, recipient, details)]
-
-
-def _stock_alert_recipients(
-    session: Session,
-    agency_id: int,
-    agency_location_id: int,
-) -> list[AgencyEmails]:
-    details = {"agency_location_id": agency_location_id}
-    recipients = _agency_recipients(session, agency_id)
-    return [
-        recipient
-        for recipient in recipients
-        if any(_recipient_enabled(recipient, alert_type) for alert_type in STOCK_PRIORITY) and _recipient_allows_alert(session, recipient, details)
-    ]
-
-
-def _recipient_enabled(recipient: AgencyEmails, alert_type: AlertType) -> bool:
-    return bool(getattr(recipient, PREFERENCE_BY_TYPE[alert_type]))
-
-
-def _recipient_allows_alert(
-    session: Session,
-    recipient: AgencyEmails,
-    details: dict[str, Any],
-) -> bool:
-    try:
-        location_ids = validate_location_filter_ids(session, recipient.agency_id, recipient.location_filter_ids)
-    except ValueError as exc:
-        logger.warning(
-            "Alert recipient skipped because of an invalid location filter",
-            extra={
-                "agency_id": recipient.agency_id,
-                "agency_email_id": recipient.id,
-                "error": str(exc),
-            },
-        )
-        return False
-    return alert_matches_location_filter(location_ids, details)
-
-
-def _alert_action_counts(session: Session, agency_id: int) -> Counter[str]:
-    rows = session.execute(select(AlertRecords.action, func.count()).where(AlertRecords.agency_id == agency_id).group_by(AlertRecords.action)).all()
-    return Counter({action.value: count for action, count in rows})
-
-
-def _pending_alert_type_counts(session: Session, agency_id: int) -> Counter[str]:
-    rows = session.execute(
-        select(AlertRecords.type, func.count())
-        .where(
-            AlertRecords.agency_id == agency_id,
-            AlertRecords.action == AlertAction.PENDING,
-        )
-        .group_by(AlertRecords.type)
-    ).all()
-    return Counter({alert_type.value: count for alert_type, count in rows})
-
-
-def _format_counts(counts: Counter[str]) -> str:
-    if not counts:
-        return "none"
-    return ", ".join(f"{key}={counts[key]}" for key in sorted(counts))
 
 
 def _action_item(session: Session, action: ActionLogs) -> Items | None:
@@ -747,11 +614,20 @@ def _storage_row(
     return storage if storage and storage.agency_id == agency_id else None
 
 
-def _agency_recipients(
-    session: Session,
-    agency_id: int,
-) -> list[AgencyEmails]:
-    return list_active_emails(agency_id, session, order_by_id=True)
+def _stale_count_key(item_id: int, agency_location_id: int, last_counted_at: datetime | None) -> str:
+    stamp = _iso(last_counted_at) or "NEVER"
+    return f"STALE_COUNT:item:{item_id}:location:{agency_location_id}:last_count:{stamp}"
+
+
+def _rare_takeout_key(item_id: int, agency_location_id: int, last_takeout_at: datetime | None) -> str:
+    stamp = _iso(last_takeout_at) or "NEVER"
+    return f"RARE_TAKEOUT:item:{item_id}:location:{agency_location_id}:last_takeout:{stamp}"
+
+
+def _days_since_current_date(now: datetime, observed_at: datetime | None) -> int | None:
+    if observed_at is None:
+        return None
+    return (now.date() - observed_at.date()).days
 
 
 def _iso(value: datetime | None) -> str | None:

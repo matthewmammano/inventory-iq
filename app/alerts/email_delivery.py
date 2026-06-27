@@ -5,6 +5,7 @@ from pathlib import Path
 from flask import current_app, render_template
 from loguru import logger
 
+from app.alerts.models import NotificationEmailDelivery
 from app.shared.clock import utc_now
 from app.shared.email_client import (
     EMAIL_RETRY_DELAYS_SECONDS,
@@ -43,6 +44,22 @@ def deliver_batch(batch: EmailBatch) -> bool:
     return sent
 
 
+def deliver_notification_email(delivery: NotificationEmailDelivery) -> bool:
+    """Send a stored notification delivery, or write files in local fallback mode."""
+    if not email_configured():
+        return _write_delivery_file(delivery)
+
+    return send_email(
+        OutboundEmail(
+            subject=delivery.subject,
+            text_body=delivery.body_text,
+            html_body=delivery.body_html,
+            to_email=delivery.recipient_email_snapshot,
+        ),
+        retry_delays_seconds=(),
+    )
+
+
 def _write_batch_file(batch: EmailBatch) -> bool:
     try:
         html_path = _alert_file_path()
@@ -58,6 +75,34 @@ def _write_batch_file(batch: EmailBatch) -> bool:
         logger.exception(
             "Alert email batch file write failed",
             extra={"section_count": len(batch.sections), "summary_count": len(batch.summary)},
+        )
+        return False
+
+
+def _write_delivery_file(delivery: NotificationEmailDelivery) -> bool:
+    try:
+        html_path = _alert_file_path()
+        html_path.write_text(delivery.body_html, encoding="utf-8")
+        html_path.with_suffix(".txt").write_text(delivery.body_text, encoding="utf-8")
+        _prune_alert_files(html_path.parent)
+        logger.info(
+            "Notification email delivery written to local files",
+            extra={
+                "notification_email_delivery_id": delivery.id,
+                "agency_id": delivery.agency_id,
+                "agency_email_id": delivery.agency_email_id,
+                "path": str(html_path),
+            },
+        )
+        return True
+    except OSError:
+        logger.exception(
+            "Notification email delivery file write failed",
+            extra={
+                "notification_email_delivery_id": delivery.id,
+                "agency_id": delivery.agency_id,
+                "agency_email_id": delivery.agency_email_id,
+            },
         )
         return False
 

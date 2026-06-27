@@ -26,11 +26,12 @@ BALANCE_RECONCILIATION_JOB_NAME = "reconcile_inventory_balances"
 JOB_STARTED = "started"
 JOB_SUCCESS = "success"
 JOB_FAILED = "failed"
+EMAIL_DELIVERY_PERIOD_MINUTES = 10
 INVENTORY_AUDIT_LOCAL_HOUR = 7
-INVENTORY_AUDIT_LOCAL_MINUTE = 45
-# Run the balance audit ahead of the 6:00am alert cron and away from the 11:45am job.
+INVENTORY_AUDIT_LOCAL_MINUTE = 50
+# Run the balance audit before daily alert email preparation.
 BALANCE_AUDIT_LOCAL_HOUR = 4
-BALANCE_AUDIT_LOCAL_MINUTE = 15
+BALANCE_AUDIT_LOCAL_MINUTE = 10
 
 _started = False
 
@@ -67,12 +68,12 @@ def _run_due_jobs() -> None:
     now = utc_now()
     _run_daily_inventory_job(now)
     _run_daily_balance_job(now)
-    _run_hourly_email_job(now)
+    _run_email_delivery_job(now)
 
 
-def _run_hourly_email_job(now: datetime) -> None:
-    hour_key = now.strftime("%Y-%m-%dT%H")
-    run_id = _claim_scheduler_run(EMAIL_JOB_NAME, hour_key)
+def _run_email_delivery_job(now: datetime) -> None:
+    period_key = _email_delivery_period_key(now)
+    run_id = _claim_scheduler_run(EMAIL_JOB_NAME, period_key)
     if run_id is None:
         return
 
@@ -83,7 +84,7 @@ def _run_hourly_email_job(now: datetime) -> None:
         raise
 
     _finish_scheduler_run(run_id, JOB_SUCCESS)
-    logger.info("Scheduled alert email job finished", extra=result)
+    logger.info("Scheduled notification email job finished", extra=result | {"period_key": period_key})
 
 
 def _run_daily_inventory_job(now: datetime) -> None:
@@ -172,6 +173,11 @@ def _balance_reconciliation_period_key(now: datetime, timezone: str) -> str | No
     ):
         return None
     return local_now.strftime("%Y-%m-%d")
+
+
+def _email_delivery_period_key(now: datetime) -> str:
+    minute = now.minute - (now.minute % EMAIL_DELIVERY_PERIOD_MINUTES)
+    return now.replace(minute=minute, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M")
 
 
 def _generate_agency_inventory_alerts(agency_id: int) -> int:

@@ -82,6 +82,7 @@ def _configure_app(app: Flask) -> None:
         EMAIL_SENDER_EMAIL=settings.email_sender_email,
         EMAIL_SENDER_NAME=settings.email_sender_name,
         EMAIL_TIMEOUT_SECONDS=settings.email_timeout_seconds,
+        ADMIN_ALERT_EMAIL=settings.admin_alert_email,
     )
     if settings.database_url.startswith("sqlite"):
         Path(app.instance_path).mkdir(parents=True, exist_ok=True)

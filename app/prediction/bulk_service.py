@@ -8,8 +8,9 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.models import Agencies, AgencyLocations
-from app.inventory.balance_service import get_location_item_totals, get_location_last_counted_dates
-from app.inventory.models import Items
+from app.inventory.balance_service import get_location_last_counted_dates
+from app.inventory.location_state_service import recompute_item_location_state
+from app.inventory.models import InventoryItemLocationState, Items
 from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
 from app.prediction.estimator import (
     days_to_threshold,
@@ -17,7 +18,6 @@ from app.prediction.estimator import (
     reorder_date,
 )
 from app.prediction.formatting import rounded_confidence_percent
-from app.prediction.models import InventoryTrend
 from app.shared.timezone_utils import convert_utc_to_local
 
 
@@ -44,15 +44,13 @@ class BulkService:
             agency = session.get(Agencies, agency_id)
             items = BulkService.get_active_items(session, agency_id)
             item_ids = [item.id for item in items]
-            quantities = get_location_item_totals(session, agency_id, agency_location_id, item_ids)
-            trends = BulkService._location_trends(session, agency_id, agency_location_id, item_ids)
+            states = BulkService._location_states(session, agency_id, agency_location_id, items)
             last_counts = BulkService._last_counted_dates(session, agency_id, agency_location_id, item_ids, agency.timezone if agency else "UTC")
             rows = [
                 BulkService._analyze_item(
                     item,
                     agency,
-                    quantities.get(item.id, 0),
-                    trends.get(item.id),
+                    states.get(item.id),
                     last_counts.get(item.id),
                 )
                 for item in items
@@ -90,10 +88,10 @@ class BulkService:
     def _analyze_item(
         item: Items,
         agency: Agencies | None,
-        current_quantity: int,
-        trend: InventoryTrend | None,
+        state: InventoryItemLocationState | None,
         last_counted_at: datetime | None,
     ) -> dict:
+        current_quantity = int(state.total_quantity if state else 0)
         min_qty = int(item.min_quantity or 0)
         max_qty = int(item.max_quantity or 0)
         batch_size = int(item.batch_size or 0)
@@ -101,7 +99,9 @@ class BulkService:
             agency.lead_time_days if agency else None,
             item.restock_delivery_days,
         )
-        trend_per_day = trend.trend_per_day if trend else -float(item.prior_daily_usage or 0)
+        persisted_trend = state.trend_per_day if state is not None else None
+        has_trained_trend = persisted_trend is not None
+        trend_per_day = float(persisted_trend) if persisted_trend is not None else -float(item.prior_daily_usage or 0)
         daily_usage = min(
             max(max(0.0, -float(trend_per_day)), MIN_EFFECTIVE_DAILY_USAGE),
             MAX_EFFECTIVE_DAILY_USAGE,
@@ -132,29 +132,27 @@ class BulkService:
             "days_until_stockout": floor(days_out) if days_out is not None else None,
             "order_amount": order_amount,
             "order_amount_display": BulkService._format_order_amount_display(order_amount, days_low),
-            "confidence_percent": trend.confidence_percent if trend else None,
-            "confidence_display": rounded_confidence_percent(trend.confidence_percent if trend else None),
+            "confidence_percent": state.confidence_percent if has_trained_trend and state else None,
+            "confidence_display": rounded_confidence_percent(state.confidence_percent if has_trained_trend and state else None),
             "daily_usage_rate": daily_usage,
-            "used_fallback": trend is None,
+            "used_fallback": not has_trained_trend,
         }
 
     @staticmethod
-    def _location_trends(
+    def _location_states(
         session: Session,
         agency_id: int,
         agency_location_id: int,
-        item_ids: list[int],
-    ) -> dict[int, InventoryTrend]:
-        if not item_ids:
+        items: list[Items],
+    ) -> dict[int, InventoryItemLocationState]:
+        if not items:
             return {}
-        rows = session.execute(
-            select(InventoryTrend).where(
-                InventoryTrend.agency_id == agency_id,
-                InventoryTrend.agency_location_id == agency_location_id,
-                InventoryTrend.item_id.in_(item_ids),
-            )
-        ).scalars()
-        return {trend.item_id: trend for trend in rows}
+        states: dict[int, InventoryItemLocationState] = {}
+        for item in items:
+            state = recompute_item_location_state(session, agency_id, item.id, agency_location_id)
+            if state is not None:
+                states[item.id] = state
+        return states
 
     @staticmethod
     def _last_counted_dates(

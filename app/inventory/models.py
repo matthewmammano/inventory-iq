@@ -14,6 +14,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     event,
     select,
@@ -22,7 +23,8 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from sqlalchemy.orm import Session as OrmSession
 
-from app.shared.clock import utc_now
+from app.alerts.constants import AlertSeverity, AlertType
+from app.shared.clock import utc_now, utc_now_naive
 from app.shared.database import Base
 from app.shared.timezone_utils import convert_utc_to_local
 from app.shared.validators import (
@@ -298,10 +300,10 @@ class ActionLogs(Base):
         return convert_utc_to_local(self.time_scanned, user_timezone)
 
 
-class InventoryBalances(Base):
+class InventoryStorageBalances(Base):
     """Current per-item, per-storage quantity derived from action history."""
 
-    __tablename__ = "inventory_balances"
+    __tablename__ = "inventory_storage_balances"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"))
@@ -317,13 +319,69 @@ class InventoryBalances(Base):
     storage = relationship("AgencyStorages", lazy="selectin")
 
     __table_args__ = (
-        UniqueConstraint("agency_id", "item_id", "storage_id", name="uq_inventory_balances_agency_item_storage"),
-        Index("idx_inventory_balances_agency_storage", "agency_id", "storage_id"),
-        Index("idx_inventory_balances_agency_item", "agency_id", "item_id"),
+        UniqueConstraint("agency_id", "item_id", "storage_id", name="uq_inventory_storage_balances_agency_item_storage"),
+        Index("idx_inventory_storage_balances_agency_storage", "agency_id", "storage_id"),
+        Index("idx_inventory_storage_balances_agency_item", "agency_id", "item_id"),
     )
 
     @validates("quantity")
     def validate_quantity(self, _key: str, value: int | None) -> int:
         if value is None:
             raise ValueError("quantity cannot be None")
+        return int(value)
+
+
+class InventoryItemLocationState(Base):
+    """Current per-item, per-location rollup, trend, forecast, and stock alert state."""
+
+    __tablename__ = "inventory_item_location_states"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
+    item_id: Mapped[int] = mapped_column(Integer, ForeignKey("items.id"), index=True)
+    agency_location_id: Mapped[int] = mapped_column(Integer, ForeignKey("agency_locations.id"), index=True)
+
+    total_quantity: Mapped[int] = mapped_column(Integer, default=0)
+    min_quantity_snapshot: Mapped[int] = mapped_column(Integer, default=0)
+    lead_time_days_snapshot: Mapped[int] = mapped_column(Integer, default=0)
+    restock_delivery_days_snapshot: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    last_counted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_activity_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_takeout_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    trend_per_day: Mapped[float | None] = mapped_column(Float, nullable=True)
+    confidence_percent: Mapped[float | None] = mapped_column(Float, nullable=True)
+    segment_count: Mapped[int] = mapped_column(Integer, default=0)
+    data_signature: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    trained_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    days_until_low: Mapped[float | None] = mapped_column(Float, nullable=True)
+    days_until_stockout: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    stock_status: Mapped[AlertType | None] = mapped_column(SAEnum(AlertType, native_enum=False, length=32), nullable=True, index=True)
+    forecast_status: Mapped[AlertType | None] = mapped_column(SAEnum(AlertType, native_enum=False, length=32), nullable=True, index=True)
+    effective_alert_type: Mapped[AlertType | None] = mapped_column(SAEnum(AlertType, native_enum=False, length=32), nullable=True, index=True)
+    effective_alert_rank: Mapped[int] = mapped_column(Integer, default=0, index=True)
+    effective_severity: Mapped[AlertSeverity | None] = mapped_column(SAEnum(AlertSeverity, native_enum=False, length=16), nullable=True, index=True)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    state_version_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
+
+    __table_args__ = (
+        UniqueConstraint(
+            "agency_id",
+            "item_id",
+            "agency_location_id",
+            name="uq_inventory_item_location_states_agency_item_location",
+        ),
+        Index("idx_inventory_item_location_states_effective", "agency_id", "effective_alert_type", "effective_severity"),
+        Index("idx_inventory_item_location_states_signature", "data_signature"),
+    )
+
+    @validates("total_quantity", "min_quantity_snapshot", "lead_time_days_snapshot")
+    def validate_state_integer(self, _key: str, value: int | None) -> int:
+        if value is None:
+            return 0
         return int(value)

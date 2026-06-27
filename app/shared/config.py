@@ -36,6 +36,7 @@ class Settings(BaseSettings):
     email_sender_email: str = ""
     email_sender_name: str = "Inventory IQ"
     email_timeout_seconds: int = 4
+    admin_alert_email: str = ""
 
     scheduler_enabled: bool = False
     scheduler_poll_seconds: int = 15

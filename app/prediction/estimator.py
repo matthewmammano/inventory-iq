@@ -5,7 +5,7 @@ from datetime import date, timedelta
 
 from sqlalchemy.orm import Session
 
-from app.inventory.balance_service import get_location_item_total
+from app.inventory.location_state_service import recompute_item_location_state
 from app.inventory.models import Items
 from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
 from app.prediction.usage_model import get_inventory_trend
@@ -37,14 +37,19 @@ def project_location_item(
 ) -> LocationProjection:
     """Return the current truth plus persisted location trend for one item."""
     trend = get_inventory_trend(session, agency_id, item.id, agency_location_id)
+    if trend is None:
+        trend = recompute_item_location_state(session, agency_id, item.id, agency_location_id)
+    trend_per_day = trend.trend_per_day if trend is not None else None
+    has_trained_trend = trend_per_day is not None
+    fallback_trend = -float(item.prior_daily_usage or 0)
     return LocationProjection(
         item_id=item.id,
         agency_location_id=agency_location_id,
         current_quantity=get_location_item_quantity(session, agency_id, item.id, agency_location_id),
-        trend_per_day=trend.trend_per_day if trend else -float(item.prior_daily_usage or 0),
-        confidence_percent=trend.confidence_percent if trend else None,
-        segment_count=trend.segment_count if trend else 0,
-        used_fallback=trend is None,
+        trend_per_day=float(trend_per_day) if trend_per_day is not None else fallback_trend,
+        confidence_percent=trend.confidence_percent if has_trained_trend and trend else None,
+        segment_count=trend.segment_count if has_trained_trend and trend else 0,
+        used_fallback=not has_trained_trend,
     )
 
 
@@ -55,7 +60,10 @@ def get_location_item_quantity(
     agency_location_id: int,
 ) -> int:
     """Current item quantity summed across storages in one agency location."""
-    return get_location_item_total(session, agency_id, item_id, agency_location_id)
+    state = get_inventory_trend(session, agency_id, item_id, agency_location_id)
+    if state is None:
+        state = recompute_item_location_state(session, agency_id, item_id, agency_location_id)
+    return int(state.total_quantity if state else 0)
 
 
 def effective_lead_time_days(

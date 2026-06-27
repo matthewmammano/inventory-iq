@@ -6,7 +6,6 @@ MODEL_MODULES = (
     "app.alerts.models",
     "app.auth.models",
     "app.inventory.models",
-    "app.prediction.models",
     "app.shared.models",
 )
 

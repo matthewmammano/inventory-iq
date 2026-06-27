@@ -10,9 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.alerts.constants import AlertAction, AlertType
-from app.alerts.models import AlertRecords
-from app.auth.queries import list_active_emails
+from app.alerts.alert_service import cancel_unknown_upc_event, queue_unknown_upc_event
 from app.shared.clock import utc_now
 
 from .constants import (
@@ -85,7 +83,7 @@ def record_unknown_upc(session: Session, agency_id: int, upc: str) -> UnknownUpc
             extra={"agency_id": agency_id, "upc": normalized},
         )
         return existing.status if existing is not None else UnknownUpcStatus.PENDING
-    recipient_count = _queue_unknown_upc_alerts(session, agency_id, scan)
+    _queue_unknown_upc_alert(session, agency_id, scan)
     logger.info(
         "Unknown UPC queued for admin review",
         extra={
@@ -97,7 +95,6 @@ def record_unknown_upc(session: Session, agency_id: int, upc: str) -> UnknownUpc
             "closest_item_name": suggested_item_name,
             "closest_score": round(suggestion_score, 3) if suggestion_score is not None else None,
             "suggested_item_id": suggested_item_id,
-            "recipient_count": recipient_count,
         },
     )
     return UnknownUpcStatus.PENDING
@@ -211,23 +208,19 @@ def _ignored_unknown_by_id(session: Session, agency_id: int, unknown_upc_id: int
 
 
 def _queue_unknown_upc_alerts(session: Session, agency_id: int, scan: UnknownUpcScan) -> int:
-    count = 0
-    for recipient in list_active_emails(agency_id, session, order_by_id=True):
-        session.add(
-            AlertRecords(
-                agency_id=agency_id,
-                agency_email_id=recipient.id,
-                type=AlertType.UNKNOWN_UPC,
-                details_json={
-                    "upc": scan.upc,
-                    "lookup_title": scan.lookup_title,
-                    "unknown_upc_id": scan.id,
-                    "created_at": scan.created_at.isoformat(),
-                },
-            )
-        )
-        count += 1
-    return count
+    _queue_unknown_upc_alert(session, agency_id, scan)
+    return 1
+
+
+def _queue_unknown_upc_alert(session: Session, agency_id: int, scan: UnknownUpcScan) -> None:
+    queue_unknown_upc_event(
+        session,
+        agency_id,
+        unknown_upc_id=scan.id,
+        upc=scan.upc,
+        lookup_title=scan.lookup_title,
+        created_at=scan.created_at,
+    )
 
 
 def _closest_item(session: Session, agency_id: int, lookup_title: str | None) -> tuple[int, str, float] | None:
@@ -369,14 +362,4 @@ def _single_token_item_match(shared_tokens: set[str], left_tokens: set[str], rig
 
 
 def _clear_unknown_upc_alerts(session: Session, agency_id: int, upc: str) -> None:
-    alerts = session.execute(
-        select(AlertRecords).where(
-            AlertRecords.agency_id == agency_id,
-            AlertRecords.type == AlertType.UNKNOWN_UPC,
-            AlertRecords.action == AlertAction.PENDING,
-        )
-    ).scalars()
-    for alert in alerts:
-        if alert.details_json.get("upc") == upc:
-            alert.action = AlertAction.CLEARED
-            alert.action_at = utc_now()
+    cancel_unknown_upc_event(session, agency_id, upc)

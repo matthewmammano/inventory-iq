@@ -25,7 +25,7 @@ def build_item_trend_chart(
     count_anchors = extract_count_anchors(session, agency_id, item.id, location.id)
     operation_points = _operation_points(session, agency_id, item.id, storage_ids)
     trend = get_inventory_trend(session, agency_id, item.id, location.id)
-    visible_trend = _visible_trend(trend.trend_per_day) if trend else None
+    visible_trend = _visible_trend(trend.trend_per_day) if trend and trend.trend_per_day is not None else None
     return ItemTrendChartResponse(
         item_id=item.id,
         item_name=item.name,

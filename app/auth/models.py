@@ -10,7 +10,6 @@ from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from app.alerts.models import AlertRecords
 from app.shared.clock import utc_now_naive
 from app.shared.database import Base
 from app.shared.validators import (
@@ -53,7 +52,6 @@ class Agencies(Base, UserMixin):
     items = relationship("Items", backref="agency", lazy="select")
     logs = relationship("ActionLogs", backref="agency", lazy="select")
     emails = relationship("AgencyEmails", backref="agency", lazy="select")
-    alert_records = relationship(AlertRecords, back_populates="agency", lazy="select")
     password_reset_pins = relationship("PasswordResetPins", back_populates="agency", lazy="select")
     item_tags = relationship("AgencyItemTags", backref="agency", lazy="select")
     locations = relationship("AgencyLocations", back_populates="agency", lazy="select")

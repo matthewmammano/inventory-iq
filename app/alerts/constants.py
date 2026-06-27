@@ -1,56 +1,128 @@
-"""Alert constants and enums."""
+"""Alert constants, enums, and notification policy values."""
 
+from dataclasses import dataclass
 from enum import Enum
 
-ALERT_RESEND_SUPPRESSION_DAYS = 7
+from app.inventory.constants import OperationType
+
+CRITICAL_COLOR = "#9F1F1F"
+WARNING_COLOR = "#8A5A00"
+ACTIVITY_COLOR = "#2F6B4F"
 
 
 class AlertType(str, Enum):
-    """Supported inventory alert types."""
+    """Supported stock-state and discrete inventory alert types."""
 
-    STOCKOUT = "stockout"
-    STOCKOUT_PRED = "stockout_pred"
-    LOW = "low"
-    LOW_PRED = "low_pred"
-    STALE_COUNT = "stale_count"
-    RARE_TAKEOUT = "rare_takeout"
-    COUNT_ACTION = "count_action"
-    RESTOCK_ACTION = "restock_action"
-    TAKEOUT_ACTION = "takeout_action"
-    TRANSFER_ACTION = "transfer_action"
-    UNKNOWN_UPC = "unknown_upc"
+    STOCKOUT = "STOCKOUT"
+    STOCKOUT_FORECAST = "STOCKOUT_FORECAST"
+    LOW_STOCK = "LOW_STOCK"
+    LOW_STOCK_FORECAST = "LOW_STOCK_FORECAST"
+    STALE_COUNT = "STALE_COUNT"
+    RARE_TAKEOUT = "RARE_TAKEOUT"
+    COUNT_ACTION = "COUNT_ACTION"
+    RESTOCK_ACTION = "RESTOCK_ACTION"
+    TAKEOUT_ACTION = "TAKEOUT_ACTION"
+    TRANSFER_ACTION = "TRANSFER_ACTION"
+    UNKNOWN_UPC = "UNKNOWN_UPC"
 
     @property
     def color(self) -> str:
-        if self == AlertType.STOCKOUT:
-            return "#9F1F1F"
-        if (
-            self
-            in {
-                AlertType.STOCKOUT_PRED,
-                AlertType.LOW,
-                AlertType.LOW_PRED,
-                AlertType.STALE_COUNT,
-                AlertType.RARE_TAKEOUT,
-            }
-            or self == AlertType.UNKNOWN_UPC
-        ):
-            return "#8A5A00"
-        return "#2F6B4F"
+        return ALERT_DEFINITIONS[self].color
 
 
-class AlertAction(str, Enum):
-    """Lifecycle state for one generated alert row.
+class AlertSeverity(str, Enum):
+    """Normalized urgency for state rows and alert events."""
 
-    PENDING: waiting to be included in an email.
-    SENT: already emailed.
-    SUPPRESSED: intentionally not emailed because a stronger related alert covers it.
-    CLEARED: cancelled before email because the condition disappeared.
-    RESOLVED: emailed earlier, then the condition disappeared.
-    """
+    INFO = "INFO"
+    NOTICE = "NOTICE"
+    WARNING = "WARNING"
+    HIGH = "HIGH"
+    CRITICAL = "CRITICAL"
 
-    PENDING = "pending"
-    SENT = "sent"
-    SUPPRESSED = "suppressed"
-    CLEARED = "cleared"
-    RESOLVED = "resolved"
+
+class InventoryAlertEventStatus(str, Enum):
+    """Lifecycle for one discrete non-stock alert event."""
+
+    PENDING = "PENDING"
+    QUEUED = "QUEUED"
+    NOTIFIED = "NOTIFIED"
+    CANCELLED = "CANCELLED"
+    ERROR = "ERROR"
+
+
+class AlertSourceType(str, Enum):
+    """Traceable source category for a generated discrete alert event."""
+
+    ACTION_LOG = "ACTION_LOG"
+    UNKNOWN_UPC_SCAN = "UNKNOWN_UPC_SCAN"
+    STALE_COUNT_AUDIT = "STALE_COUNT_AUDIT"
+    RARE_TAKEOUT_AUDIT = "RARE_TAKEOUT_AUDIT"
+
+
+class NotificationEmailStatus(str, Enum):
+    """Lifecycle for one rendered recipient email."""
+
+    PENDING = "PENDING"
+    SENT = "SENT"
+    ERROR = "ERROR"
+    CANCELLED = "CANCELLED"
+
+
+class NotificationKind(str, Enum):
+    """Email grouping/cadence category."""
+
+    IMMEDIATE_ALERT = "IMMEDIATE_ALERT"
+    HOURLY_DIGEST = "HOURLY_DIGEST"
+    DAILY_DIGEST = "DAILY_DIGEST"
+
+
+@dataclass(frozen=True)
+class AlertDefinition:
+    """Central metadata for one alert type."""
+
+    label: str
+    color: str
+    preference_field: str | None = None
+    stock_rank: int = 0
+    immediate: bool = False
+    discrete_event: bool = False
+
+
+ALERT_DEFINITIONS = {
+    AlertType.STOCKOUT: AlertDefinition("stockouts", CRITICAL_COLOR, "alert_for_stockout", stock_rank=400),
+    AlertType.STOCKOUT_FORECAST: AlertDefinition(
+        "predicted stockouts",
+        WARNING_COLOR,
+        "alert_for_stockout_pred",
+        stock_rank=300,
+    ),
+    AlertType.LOW_STOCK: AlertDefinition("low stock", WARNING_COLOR, "alert_for_low", stock_rank=200),
+    AlertType.LOW_STOCK_FORECAST: AlertDefinition(
+        "predicted low stock",
+        WARNING_COLOR,
+        "alert_for_low_pred",
+        stock_rank=100,
+    ),
+    AlertType.STALE_COUNT: AlertDefinition("stale counts", WARNING_COLOR, "alert_for_stale_count", discrete_event=True),
+    AlertType.RARE_TAKEOUT: AlertDefinition("rare takeouts", WARNING_COLOR, "alert_for_rare_takeout", discrete_event=True),
+    AlertType.UNKNOWN_UPC: AlertDefinition("unknown UPCs", WARNING_COLOR, immediate=True, discrete_event=True),
+    AlertType.COUNT_ACTION: AlertDefinition("count activity", ACTIVITY_COLOR, "alert_for_count", immediate=True, discrete_event=True),
+    AlertType.RESTOCK_ACTION: AlertDefinition("restock activity", ACTIVITY_COLOR, "alert_for_restock", immediate=True, discrete_event=True),
+    AlertType.TAKEOUT_ACTION: AlertDefinition("takeout activity", ACTIVITY_COLOR, "alert_for_takeout", immediate=True, discrete_event=True),
+    AlertType.TRANSFER_ACTION: AlertDefinition("transfer activity", ACTIVITY_COLOR, "alert_for_transfer", immediate=True, discrete_event=True),
+}
+
+ACTION_ALERT_TYPES = {
+    OperationType.COUNT: AlertType.COUNT_ACTION,
+    OperationType.RESTOCK: AlertType.RESTOCK_ACTION,
+    OperationType.TAKEOUT: AlertType.TAKEOUT_ACTION,
+    OperationType.TRANSFER: AlertType.TRANSFER_ACTION,
+}
+
+STOCK_ALERT_RANK = {alert_type: definition.stock_rank for alert_type, definition in ALERT_DEFINITIONS.items() if definition.stock_rank}
+PREFERENCE_BY_TYPE = {
+    alert_type: definition.preference_field for alert_type, definition in ALERT_DEFINITIONS.items() if definition.preference_field is not None
+}
+LABEL_BY_TYPE = {alert_type: definition.label for alert_type, definition in ALERT_DEFINITIONS.items()}
+IMMEDIATE_ALERT_TYPES = {alert_type for alert_type, definition in ALERT_DEFINITIONS.items() if definition.immediate}
+DISCRETE_EVENT_TYPES = {alert_type for alert_type, definition in ALERT_DEFINITIONS.items() if definition.discrete_event}
