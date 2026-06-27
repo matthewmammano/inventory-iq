@@ -2,7 +2,7 @@
 
 ## Active Plan
 
-- how to separate out item PRIOR usage BY LOCATION!?
+- research better AGENTS.md, combine with that, mainintable code and using PY latest features, never outdated
 
 - under VIEW in admin, add section for viewing ALL sent notifications (regardless of who too, but filtered so no dups shown).
 

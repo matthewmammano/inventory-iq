@@ -14,6 +14,11 @@ Inventory IQ-specific conventions only. Generic engineering rules live in [../AG
 - Tooltips are for optional explanation on dense tables, icon-only actions, calculated values, or advanced concepts.
 - Do not add tooltips to normal buttons like Save, Back, Continue, Add, Link, Print, or Cancel.
 
+## Icons
+
+- Preferred icon source for this project: [Icons8 Material Outlined](https://icons8.com/icons/all--style-material-outlined).
+- Use icons sparingly and only when they clarify dense UI, support compact actions, or match existing project patterns.
+
 ## Flash Messages
 
 - `success`: requested action completed, e.g. `Settings saved.`
