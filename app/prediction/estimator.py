@@ -36,10 +36,10 @@ def project_location_item(
     agency_location_id: int,
 ) -> LocationProjection:
     """Return the current truth plus persisted location trend for one item."""
-    trend = get_inventory_trend(session, agency_id, item.id, agency_location_id)
-    if trend is None:
-        trend = recompute_item_location_state(session, agency_id, item.id, agency_location_id)
-    trend_per_day = trend.trend_per_day if trend is not None else None
+    location_state = get_inventory_trend(session, agency_id, item.id, agency_location_id)
+    if location_state is None:
+        location_state = recompute_item_location_state(session, agency_id, item.id, agency_location_id)
+    trend_per_day = location_state.trend_per_day if location_state is not None else None
     has_trained_trend = trend_per_day is not None
     fallback_trend = -float(item.prior_daily_usage or 0)
     return LocationProjection(
@@ -47,8 +47,8 @@ def project_location_item(
         agency_location_id=agency_location_id,
         current_quantity=get_location_item_quantity(session, agency_id, item.id, agency_location_id),
         trend_per_day=float(trend_per_day) if trend_per_day is not None else fallback_trend,
-        confidence_percent=trend.confidence_percent if has_trained_trend and trend else None,
-        segment_count=trend.segment_count if has_trained_trend and trend else 0,
+        confidence_percent=location_state.confidence_percent if has_trained_trend and location_state else None,
+        segment_count=location_state.segment_count if has_trained_trend and location_state else 0,
         used_fallback=not has_trained_trend,
     )
 
@@ -66,27 +66,9 @@ def get_location_item_quantity(
     return int(state.total_quantity if state else 0)
 
 
-def effective_lead_time_days(
-    agency_lead_time_days: int | None,
-    item_restock_delivery_days: int | None,
-) -> int:
-    """Item restock days override agency lead time when set."""
-    value = item_restock_delivery_days if item_restock_delivery_days is not None else agency_lead_time_days
-    return int(value or 0)
-
-
 def projected_quantity(current_quantity: int, trend_per_day: float, days: float) -> float:
     """Project quantity after a number of days, never below zero."""
     return max(float(current_quantity) + trend_per_day * days, 0.0)
-
-
-def days_to_threshold(current_quantity: int, trend_per_day: float, threshold: float) -> float | None:
-    """Return days until a quantity threshold is reached, if usage is trending down."""
-    if current_quantity <= threshold:
-        return 0.0
-    if trend_per_day >= 0:
-        return None
-    return (float(current_quantity) - threshold) / abs(trend_per_day)
 
 
 def reorder_date(days_until_low: float | None, lead_time_days: int) -> date | None:

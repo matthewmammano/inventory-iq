@@ -1,4 +1,4 @@
-"""Current item/location state derived from storage balances and trend fields."""
+"""Current item/location state derived from storage balances and stock policy."""
 
 from dataclasses import dataclass
 from datetime import datetime
@@ -7,16 +7,19 @@ from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.alerts.constants import STOCK_ALERT_RANK, AlertSeverity, AlertType
 from app.auth.models import Agencies, AgencyLocations, AgencyStorages
-from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
 from app.shared.clock import utc_now_naive
 
+from .location_state_policy import (
+    StockStateEvaluation,
+    effective_lead_time_days,
+    evaluate_stock_state,
+)
 from .models import ActionLogs, InventoryItemLocationState, InventoryStorageBalances, Items
 
 
 @dataclass(frozen=True)
-class LocationStateInput:
+class LocationStateRollup:
     """Rollup values needed to refresh one item/location state row."""
 
     total_quantity: int
@@ -47,7 +50,7 @@ class LocationStateRebuildInput:
 
 def sync_location_states_for_actions(session: Session, actions: list[ActionLogs]) -> None:
     """Refresh item/location state rows affected by committed inventory actions."""
-    keys = _affected_item_location_keys(session, actions)
+    keys = affected_item_location_keys_for_actions(session, actions)
     for agency_id, item_id, agency_location_id in sorted(keys):
         recompute_item_location_state(session, agency_id, item_id, agency_location_id)
     if keys:
@@ -60,25 +63,27 @@ def sync_location_states_for_actions(session: Session, actions: list[ActionLogs]
 
 def rebuild_item_location_states(session: Session, agency_id: int | None = None) -> int:
     """Recompute all item/location state rows for active agencies/items."""
-    rows = _location_state_rebuild_inputs(session, agency_id)
-    states = _state_rows_by_key(session, agency_id)
-    rollups = _location_rollups_by_key(session, agency_id)
+    rebuild_rows = _load_location_state_rebuild_rows(session, agency_id)
+    existing_states = _state_rows_by_key(session, agency_id)
+    location_rollups = _location_rollups_by_key(session, agency_id)
+    desired_keys = {(row.agency_id, row.item_id, row.agency_location_id) for row in rebuild_rows}
     now = utc_now_naive()
-    for row in rows:
-        key = (row.agency_id, row.item_id, row.agency_location_id)
-        state = states.get(key) or InventoryItemLocationState(
-            agency_id=row.agency_id,
-            item_id=row.item_id,
-            agency_location_id=row.agency_location_id,
+    for rebuild_row in rebuild_rows:
+        key = (rebuild_row.agency_id, rebuild_row.item_id, rebuild_row.agency_location_id)
+        state = existing_states.get(key) or InventoryItemLocationState(
+            agency_id=rebuild_row.agency_id,
+            item_id=rebuild_row.item_id,
+            agency_location_id=rebuild_row.agency_location_id,
         )
-        _apply_state_values(state, row.settings, rollups.get(key, _empty_rollup()), now)
+        _apply_state_values(state, rebuild_row.settings, location_rollups.get(key, _empty_location_rollup()), now)
         session.add(state)
+    _delete_obsolete_state_rows(session, existing_states, desired_keys)
     session.flush()
     logger.info(
         "Inventory item/location states rebuilt",
-        extra={"agency_id": agency_id, "state_row_count": len(rows)},
+        extra={"agency_id": agency_id, "state_row_count": len(rebuild_rows)},
     )
-    return len(rows)
+    return len(rebuild_rows)
 
 
 def recompute_item_location_state(
@@ -89,16 +94,18 @@ def recompute_item_location_state(
 ) -> InventoryItemLocationState | None:
     """Refresh one state row from current balances, item settings, and trend fields."""
     settings = _location_state_settings(session, agency_id, item_id, agency_location_id)
+    existing = _existing_location_state(session, agency_id, item_id, agency_location_id)
     if settings is None:
+        if existing is not None:
+            session.delete(existing)
         return None
 
-    existing = _state_row(session, agency_id, item_id, agency_location_id)
     state = existing or InventoryItemLocationState(
         agency_id=agency_id,
         item_id=item_id,
         agency_location_id=agency_location_id,
     )
-    rollup = _location_rollup(session, agency_id, item_id, agency_location_id)
+    rollup = _load_location_rollup(session, agency_id, item_id, agency_location_id)
     now = utc_now_naive()
     _apply_state_values(state, settings, rollup, now)
     session.add(state)
@@ -134,92 +141,27 @@ def update_state_trend(
     )
     if prior_daily_usage is None:
         return state
-    _apply_forecast_fields(state, float(prior_daily_usage))
-    _apply_effective_alert_fields(state)
+    _apply_stock_policy(
+        state,
+        settings=LocationStateSettings(
+            min_quantity=state.min_quantity_snapshot,
+            lead_time_days=state.lead_time_days_snapshot,
+            restock_delivery_days=state.restock_delivery_days_snapshot,
+            prior_daily_usage=float(prior_daily_usage),
+        ),
+    )
     now = utc_now_naive()
     state.state_version_at = _latest_datetime(state.last_activity_at, state.trained_at, now) or now
     state.updated_at = now
     return state
 
 
-def _apply_forecast_fields(state: InventoryItemLocationState, prior_daily_usage: float) -> None:
-    trend_per_day = state.trend_per_day if state.trend_per_day is not None else -float(prior_daily_usage or 0)
-    daily_usage = _effective_daily_usage(trend_per_day)
-    forecast_trend = -daily_usage
-    state.days_until_low = _days_to_threshold(state.total_quantity, forecast_trend, state.min_quantity_snapshot)
-    state.days_until_stockout = _days_to_threshold(state.total_quantity, forecast_trend, 0)
-
-
-def _apply_effective_alert_fields(state: InventoryItemLocationState) -> None:
-    state.stock_status = _stock_status(state.total_quantity, state.min_quantity_snapshot)
-    state.forecast_status = _forecast_status(state)
-    winner = _winning_stock_alert(state.stock_status, state.forecast_status)
-    state.effective_alert_type = winner
-    state.effective_alert_rank = STOCK_ALERT_RANK.get(winner, 0) if winner else 0
-    state.effective_severity = _severity_for_state(state, winner)
-
-
-def _stock_status(total_quantity: int, min_quantity: int) -> AlertType | None:
-    if total_quantity <= 0:
-        return AlertType.STOCKOUT
-    if total_quantity < min_quantity:
-        return AlertType.LOW_STOCK
-    return None
-
-
-def _forecast_status(state: InventoryItemLocationState) -> AlertType | None:
-    if state.lead_time_days_snapshot <= 0:
-        return None
-    if _within_lead_time(state.days_until_stockout, state.lead_time_days_snapshot):
-        return AlertType.STOCKOUT_FORECAST
-    if _within_lead_time(state.days_until_low, state.lead_time_days_snapshot):
-        return AlertType.LOW_STOCK_FORECAST
-    return None
-
-
-def _winning_stock_alert(*alert_types: AlertType | None) -> AlertType | None:
-    winner: AlertType | None = None
-    winner_rank = -1
-    for alert_type in alert_types:
-        if alert_type is None:
-            continue
-        rank = STOCK_ALERT_RANK[alert_type]
-        if rank > winner_rank:
-            winner = alert_type
-            winner_rank = rank
-    return winner
-
-
-def _severity_for_state(state: InventoryItemLocationState, alert_type: AlertType | None) -> AlertSeverity | None:
-    if alert_type == AlertType.STOCKOUT:
-        return AlertSeverity.CRITICAL
-    if alert_type == AlertType.LOW_STOCK:
-        return AlertSeverity.HIGH if state.total_quantity <= max(state.min_quantity_snapshot // 2, 0) else AlertSeverity.WARNING
-    if alert_type == AlertType.STOCKOUT_FORECAST:
-        return _forecast_severity(state.days_until_stockout, state.lead_time_days_snapshot)
-    if alert_type == AlertType.LOW_STOCK_FORECAST:
-        return _forecast_severity(state.days_until_low, state.lead_time_days_snapshot)
-    return None
-
-
-def _forecast_severity(days_until_threshold: float | None, lead_time_days: int) -> AlertSeverity | None:
-    if days_until_threshold is None or days_until_threshold > lead_time_days:
-        return None
-    if days_until_threshold <= 1:
-        return AlertSeverity.CRITICAL
-    if days_until_threshold <= 3:
-        return AlertSeverity.HIGH
-    if days_until_threshold <= 7:
-        return AlertSeverity.WARNING
-    return AlertSeverity.NOTICE
-
-
-def _location_rollup(
+def _load_location_rollup(
     session: Session,
     agency_id: int,
     item_id: int,
     agency_location_id: int,
-) -> LocationStateInput:
+) -> LocationStateRollup:
     row = session.execute(
         select(
             func.coalesce(func.sum(InventoryStorageBalances.quantity), 0),
@@ -234,7 +176,7 @@ def _location_rollup(
             AgencyStorages.location_id == agency_location_id,
         )
     ).one()
-    return LocationStateInput(
+    return LocationStateRollup(
         total_quantity=int(row[0] or 0),
         last_counted_at=row[1],
         last_activity_at=row[2],
@@ -242,8 +184,8 @@ def _location_rollup(
     )
 
 
-def _empty_rollup() -> LocationStateInput:
-    return LocationStateInput(
+def _empty_location_rollup() -> LocationStateRollup:
+    return LocationStateRollup(
         total_quantity=0,
         last_counted_at=None,
         last_activity_at=None,
@@ -254,7 +196,7 @@ def _empty_rollup() -> LocationStateInput:
 def _apply_state_values(
     state: InventoryItemLocationState,
     settings: LocationStateSettings,
-    rollup: LocationStateInput,
+    rollup: LocationStateRollup,
     now: datetime,
 ) -> None:
     state.total_quantity = rollup.total_quantity
@@ -264,10 +206,37 @@ def _apply_state_values(
     state.min_quantity_snapshot = settings.min_quantity
     state.lead_time_days_snapshot = settings.lead_time_days
     state.restock_delivery_days_snapshot = settings.restock_delivery_days
-    _apply_forecast_fields(state, settings.prior_daily_usage)
-    _apply_effective_alert_fields(state)
+    _apply_stock_policy(state, settings=settings)
     state.state_version_at = _latest_datetime(rollup.last_activity_at, state.trained_at, now) or now
     state.updated_at = now
+
+
+def _apply_stock_policy(
+    state: InventoryItemLocationState,
+    *,
+    settings: LocationStateSettings,
+) -> None:
+    evaluation = evaluate_stock_state(
+        total_quantity=state.total_quantity,
+        min_quantity=settings.min_quantity,
+        lead_time_days=settings.lead_time_days,
+        prior_daily_usage=settings.prior_daily_usage,
+        trend_per_day=state.trend_per_day,
+    )
+    _apply_stock_state_evaluation(state, evaluation)
+
+
+def _apply_stock_state_evaluation(
+    state: InventoryItemLocationState,
+    evaluation: StockStateEvaluation,
+) -> None:
+    state.days_until_low = evaluation.days_until_low
+    state.days_until_stockout = evaluation.days_until_stockout
+    state.stock_status = evaluation.stock_status
+    state.forecast_status = evaluation.forecast_status
+    state.effective_alert_type = evaluation.effective_alert_type
+    state.effective_alert_rank = evaluation.effective_alert_rank
+    state.effective_severity = evaluation.effective_severity
 
 
 def _location_state_settings(
@@ -296,13 +265,13 @@ def _location_state_settings(
         return None
     return LocationStateSettings(
         min_quantity=int(row[0] or 0),
-        lead_time_days=_effective_lead_time_days(row[1], row[2]),
+        lead_time_days=effective_lead_time_days(row[1], row[2]),
         restock_delivery_days=row[2],
         prior_daily_usage=float(row[3] or 0),
     )
 
 
-def _location_state_rebuild_inputs(session: Session, agency_id: int | None) -> list[LocationStateRebuildInput]:
+def _load_location_state_rebuild_rows(session: Session, agency_id: int | None) -> list[LocationStateRebuildInput]:
     stmt = (
         select(
             Items.agency_id,
@@ -327,7 +296,7 @@ def _location_state_rebuild_inputs(session: Session, agency_id: int | None) -> l
             agency_location_id=row[2],
             settings=LocationStateSettings(
                 min_quantity=int(row[3] or 0),
-                lead_time_days=_effective_lead_time_days(row[4], row[5]),
+                lead_time_days=effective_lead_time_days(row[4], row[5]),
                 restock_delivery_days=row[5],
                 prior_daily_usage=float(row[6] or 0),
             ),
@@ -350,7 +319,7 @@ def _state_rows_by_key(
 def _location_rollups_by_key(
     session: Session,
     agency_id: int | None,
-) -> dict[tuple[int, int, int], LocationStateInput]:
+) -> dict[tuple[int, int, int], LocationStateRollup]:
     stmt = (
         select(
             InventoryStorageBalances.agency_id,
@@ -367,7 +336,7 @@ def _location_rollups_by_key(
     if agency_id is not None:
         stmt = stmt.where(InventoryStorageBalances.agency_id == agency_id)
     return {
-        (row[0], row[1], row[2]): LocationStateInput(
+        (row[0], row[1], row[2]): LocationStateRollup(
             total_quantity=int(row[3] or 0),
             last_counted_at=row[4],
             last_activity_at=row[5],
@@ -377,10 +346,11 @@ def _location_rollups_by_key(
     }
 
 
-def _affected_item_location_keys(
+def affected_item_location_keys_for_actions(
     session: Session,
     actions: list[ActionLogs],
 ) -> set[tuple[int, int, int]]:
+    """Return agency/item/location keys affected by inventory action storage IDs."""
     storage_ids = sorted(
         {
             storage_id
@@ -403,7 +373,7 @@ def _affected_item_location_keys(
     return keys
 
 
-def _state_row(
+def _existing_location_state(
     session: Session,
     agency_id: int,
     item_id: int,
@@ -418,26 +388,14 @@ def _state_row(
     )
 
 
-def _effective_daily_usage(trend_per_day: float) -> float:
-    usage = max(0.0, -float(trend_per_day))
-    return min(max(usage, MIN_EFFECTIVE_DAILY_USAGE), MAX_EFFECTIVE_DAILY_USAGE)
-
-
-def _days_to_threshold(current_quantity: int, trend_per_day: float, threshold: float) -> float | None:
-    if current_quantity <= threshold:
-        return 0.0
-    if trend_per_day >= 0:
-        return None
-    return round((float(current_quantity) - threshold) / abs(trend_per_day), 1)
-
-
-def _within_lead_time(days_until_threshold: float | None, lead_time_days: int) -> bool:
-    return days_until_threshold is not None and 0 <= days_until_threshold <= lead_time_days
-
-
-def _effective_lead_time_days(agency_lead_time_days: int | None, item_restock_delivery_days: int | None) -> int:
-    value = item_restock_delivery_days if item_restock_delivery_days is not None else agency_lead_time_days
-    return int(value or 0)
+def _delete_obsolete_state_rows(
+    session: Session,
+    existing_rows: dict[tuple[int, int, int], InventoryItemLocationState],
+    desired_keys: set[tuple[int, int, int]],
+) -> None:
+    for key, row in existing_rows.items():
+        if key not in desired_keys:
+            session.delete(row)
 
 
 def _latest_datetime(*values: datetime | None) -> datetime | None:

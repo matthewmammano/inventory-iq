@@ -1,6 +1,7 @@
 """Render and send state-driven inventory notification emails."""
 
 from collections import Counter
+from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -45,7 +46,7 @@ ACTION_TYPES = {
     AlertType.TAKEOUT_ACTION,
     AlertType.TRANSFER_ACTION,
 }
-WARNING_TYPES = {
+WARNING_ALERT_TYPES = {
     AlertType.STOCKOUT_FORECAST,
     AlertType.LOW_STOCK,
     AlertType.LOW_STOCK_FORECAST,
@@ -53,6 +54,27 @@ WARNING_TYPES = {
     AlertType.RARE_TAKEOUT,
     AlertType.UNKNOWN_UPC,
 }
+
+
+@dataclass(frozen=True)
+class RecipientAlertSnapshot:
+    """Recipient-specific alert inputs after preference and location filtering."""
+
+    stock_states: list[InventoryItemLocationState]
+    immediate_events: list[InventoryAlertEvent]
+    scheduled_events: list[InventoryAlertEvent]
+    recap_due: bool
+
+
+@dataclass(frozen=True)
+class RecipientDeliveryRequest:
+    """One rendered email that should exist for a recipient in the current run."""
+
+    notification_kind: NotificationKind
+    delivery_mode: NotificationDelivery
+    send_at: datetime
+    stock_states: list[InventoryItemLocationState]
+    events: list[InventoryAlertEvent]
 
 
 def process_all_alerts(*, force: bool = False) -> dict[str, int]:
@@ -112,54 +134,79 @@ def _prepare_recipient_deliveries(
     *,
     force: bool,
 ) -> int:
+    snapshot = _recipient_alert_snapshot(session, agency, recipient, now)
+    created = 0
+    for request in _delivery_requests_for_recipient(snapshot, now, force=force):
+        created += _upsert_delivery(
+            session,
+            agency,
+            recipient,
+            request.notification_kind,
+            request.delivery_mode,
+            request.send_at,
+            stock_states=request.stock_states,
+            events=request.events,
+            now=now,
+        )
+        queued_event_ids.update(event.id for event in request.events)
+    return created
+
+
+def _recipient_alert_snapshot(
+    session: Session,
+    agency: Agencies,
+    recipient: AgencyEmails,
+    now: datetime,
+) -> RecipientAlertSnapshot:
     stock_states = _stock_states_for_recipient(session, recipient)
     events = _events_for_recipient(session, recipient)
-    created = 0
+    return RecipientAlertSnapshot(
+        stock_states=stock_states,
+        immediate_events=[event for event in events if event.alert_type in IMMEDIATE_EVENT_TYPES],
+        scheduled_events=[event for event in events if event.alert_type not in IMMEDIATE_EVENT_TYPES],
+        recap_due=_recap_is_due(recipient, agency.timezone, now),
+    )
 
-    immediate_events = [event for event in events if event.alert_type in IMMEDIATE_EVENT_TYPES]
-    if immediate_events:
-        created += _upsert_delivery(
-            session,
-            agency,
-            recipient,
-            NotificationKind.ALERTS,
-            NotificationDelivery.IMMEDIATE,
-            _send_at(NotificationDelivery.IMMEDIATE, now, force=force),
-            stock_states=[],
-            events=immediate_events,
-            now=now,
-        )
-        queued_event_ids.update(event.id for event in immediate_events)
 
-    digest_events = [event for event in events if event.alert_type not in IMMEDIATE_EVENT_TYPES]
-    recap_due = _recap_is_due(recipient, agency.timezone, now)
-    if recap_due:
-        created += _upsert_delivery(
-            session,
-            agency,
-            recipient,
-            NotificationKind.RECAPS,
-            NotificationDelivery.SCHEDULED,
-            now,
-            stock_states=stock_states,
-            events=digest_events,
-            now=now,
+def _delivery_requests_for_recipient(
+    snapshot: RecipientAlertSnapshot,
+    now: datetime,
+    *,
+    force: bool,
+) -> list[RecipientDeliveryRequest]:
+    requests: list[RecipientDeliveryRequest] = []
+    if snapshot.immediate_events:
+        requests.append(
+            RecipientDeliveryRequest(
+                notification_kind=NotificationKind.ALERTS,
+                delivery_mode=NotificationDelivery.IMMEDIATE,
+                send_at=_delivery_send_at(NotificationDelivery.IMMEDIATE, now, force=force),
+                stock_states=[],
+                events=snapshot.immediate_events,
+            )
         )
-        queued_event_ids.update(event.id for event in digest_events)
-    elif stock_states or digest_events:
-        created += _upsert_delivery(
-            session,
-            agency,
-            recipient,
-            NotificationKind.ALERTS,
-            NotificationDelivery.SCHEDULED,
-            _send_at(NotificationDelivery.SCHEDULED, now, force=force),
-            stock_states=stock_states,
-            events=digest_events,
-            now=now,
+    if snapshot.recap_due:
+        requests.append(
+            RecipientDeliveryRequest(
+                notification_kind=NotificationKind.RECAPS,
+                delivery_mode=NotificationDelivery.SCHEDULED,
+                send_at=now,
+                stock_states=snapshot.stock_states,
+                events=snapshot.scheduled_events,
+            )
         )
-        queued_event_ids.update(event.id for event in digest_events)
-    return created
+        return requests
+    if snapshot.stock_states or snapshot.scheduled_events:
+        requests.append(
+            RecipientDeliveryRequest(
+                notification_kind=NotificationKind.ALERTS,
+                delivery_mode=NotificationDelivery.SCHEDULED,
+                send_at=_delivery_send_at(NotificationDelivery.SCHEDULED, now, force=force),
+                stock_states=snapshot.stock_states,
+                events=snapshot.scheduled_events,
+            )
+        )
+    return requests
 
 
 def _upsert_delivery(
@@ -174,10 +221,6 @@ def _upsert_delivery(
     events: list[InventoryAlertEvent],
     now: datetime,
 ) -> int:
-    batch = _build_batch(session, agency, recipient, notification_kind, delivery_mode, stock_states, events, now)
-    if batch is None or not batch.sections:
-        return 0
-
     dedupe_key = _delivery_dedupe_key(notification_kind, delivery_mode, send_at)
     existing = session.scalar(
         select(NotificationEmailDelivery).where(
@@ -186,6 +229,10 @@ def _upsert_delivery(
             NotificationEmailDelivery.dedupe_key == dedupe_key,
         )
     )
+    batch = _build_batch(session, agency, recipient, notification_kind, delivery_mode, stock_states, events, now)
+    if batch is None or not batch.sections:
+        _cancel_open_delivery(existing)
+        return 0
     if existing and existing.status == NotificationEmailStatus.SENT:
         return 0
 
@@ -218,6 +265,16 @@ def _upsert_delivery(
     return 1
 
 
+def _cancel_open_delivery(delivery: NotificationEmailDelivery | None) -> None:
+    if delivery is None or delivery.status not in {NotificationEmailStatus.PENDING, NotificationEmailStatus.ERROR}:
+        return
+    delivery.status = NotificationEmailStatus.CANCELLED
+    delivery.next_attempt_at = None
+    delivery.last_error_type = None
+    delivery.last_error_message = None
+    delivery.last_error_at = None
+
+
 def _build_batch(
     session: Session,
     agency: Agencies,
@@ -235,8 +292,8 @@ def _build_batch(
         return None
     if not sections:
         return None
-    severity = _severity(stock_states, events)
-    summary = _summary(stock_states, events)
+    severity = _severity_style(stock_states, events)
+    summary = _summary_items(stock_states, events)
     has_alerts = bool(alert_sections)
     has_recaps = bool(recap_sections)
     return EmailBatch(
@@ -458,11 +515,11 @@ def _stock_row(
     return {
         "item_name": item_names.get(state.item_id, str(state.item_id)),
         "locations": location_names.get(state.agency_location_id, str(state.agency_location_id)),
-        "current_total": _total(state.total_quantity),
+        "current_total": _format_total_quantity(state.total_quantity),
         "min_quantity": state.min_quantity_snapshot,
-        "lead_time_days": _days(state.lead_time_days_snapshot),
+        "lead_time_days": _format_day_count(state.lead_time_days_snapshot),
         "prediction": _state_prediction(state),
-        "confidence": _confidence(state.confidence_percent),
+        "confidence": _format_confidence_percent(state.confidence_percent),
         "last_activity_at": _display_datetime(_iso(state.last_activity_at), timezone),
     }
 
@@ -489,7 +546,7 @@ def _stale_count_section(events: list[InventoryAlertEvent]) -> AlertTableSection
             "item_name": event.payload_json.get("item_name"),
             "location_name": event.payload_json.get("location_name"),
             "days_since_last_count": event.payload_json.get("days_since_last_count") or "Never",
-            "current_total": _total(event.payload_json.get("current_total")),
+            "current_total": _format_total_quantity(event.payload_json.get("current_total")),
         }
         for event in events
         if event.alert_type == AlertType.STALE_COUNT
@@ -514,7 +571,7 @@ def _rare_takeout_section(events: list[InventoryAlertEvent], timezone: str) -> A
             "location_name": event.payload_json.get("location_name"),
             "days_since_last_takeout": event.payload_json.get("days_since_last_takeout"),
             "last_takeout_at": _display_datetime(event.payload_json.get("last_takeout_at"), timezone),
-            "current_total": _total(event.payload_json.get("current_total")),
+            "current_total": _format_total_quantity(event.payload_json.get("current_total")),
         }
         for event in events
         if event.alert_type == AlertType.RARE_TAKEOUT
@@ -537,7 +594,7 @@ def _scan_activity_section(events: list[InventoryAlertEvent], timezone: str) -> 
     rows = [
         {
             "item_name": event.payload_json.get("item_name"),
-            "scan_type": _scan_type(event.payload_json),
+            "scan_type": _format_scan_type(event.payload_json),
             "quantity": event.payload_json.get("quantity"),
             "admin_action": "Yes" if event.payload_json.get("admin_action") else "No",
             "time_scanned": _display_datetime(event.payload_json.get("time_scanned"), timezone),
@@ -736,16 +793,16 @@ def _unknown_upc_is_pending(session: Session, event: InventoryAlertEvent) -> boo
     return False
 
 
-def _summary(stock_states: list[InventoryItemLocationState], events: list[InventoryAlertEvent]) -> list[AlertSummaryItem]:
+def _summary_items(stock_states: list[InventoryItemLocationState], events: list[InventoryAlertEvent]) -> list[AlertSummaryItem]:
     counts = Counter([state.effective_alert_type for state in stock_states if state.effective_alert_type] + [event.alert_type for event in events])
     return [AlertSummaryItem(label=LABEL_BY_TYPE[alert_type], count=count) for alert_type, count in counts.items() if count > 0]
 
 
-def _severity(stock_states: list[InventoryItemLocationState], events: list[InventoryAlertEvent]) -> dict[str, str]:
+def _severity_style(stock_states: list[InventoryItemLocationState], events: list[InventoryAlertEvent]) -> dict[str, str]:
     if any(state.effective_alert_type == AlertType.STOCKOUT for state in stock_states):
         return {"label": "Critical", "color": "#9F1F1F"}
     if any(state.effective_severity in {AlertSeverity.CRITICAL, AlertSeverity.HIGH, AlertSeverity.WARNING} for state in stock_states) or any(
-        event.alert_type in WARNING_TYPES for event in events
+        event.alert_type in WARNING_ALERT_TYPES for event in events
     ):
         return {"label": "Warning", "color": "#8A5A00"}
     return {"label": "Activity", "color": "#2F6B4F"}
@@ -805,7 +862,7 @@ def _delivery_dedupe_key(notification_kind: NotificationKind, delivery_mode: Not
     return f"{notification_kind.value}:{delivery_mode.value}:{stamp}"
 
 
-def _send_at(delivery_mode: NotificationDelivery, now: datetime, *, force: bool) -> datetime:
+def _delivery_send_at(delivery_mode: NotificationDelivery, now: datetime, *, force: bool) -> datetime:
     if force:
         return now
     if delivery_mode == NotificationDelivery.IMMEDIATE:
@@ -840,11 +897,11 @@ def _format_local_datetime(value: datetime) -> str:
     return value.strftime("%B %d, %Y %H:%M")
 
 
-def _total(value: Any) -> str:
+def _format_total_quantity(value: Any) -> str:
     return f"{value} total"
 
 
-def _days(value: Any) -> str:
+def _format_day_count(value: Any) -> str:
     return "" if value is None else f"{value} days"
 
 
@@ -856,12 +913,12 @@ def _state_prediction(state: InventoryItemLocationState) -> str | None:
     return None
 
 
-def _confidence(value: Any) -> str:
+def _format_confidence_percent(value: Any) -> str:
     rounded = rounded_confidence_percent(value)
     return "" if rounded is None else f"{rounded}%"
 
 
-def _scan_type(payload: dict[str, Any]) -> str:
+def _format_scan_type(payload: dict[str, Any]) -> str:
     operation = str(payload.get("operation_type", "")).title()
     from_name = payload.get("from_location_name")
     to_name = payload.get("to_location_name")

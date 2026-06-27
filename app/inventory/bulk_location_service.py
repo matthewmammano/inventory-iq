@@ -14,11 +14,12 @@ from app.inventory.location_operations import (
     save_location_count,
     save_location_restock,
 )
+from app.inventory.location_state_service import sync_location_states_for_actions
 from app.inventory.models import Items
 from app.prediction.bulk_service import BulkService
 from app.shared.clock import utc_now_naive
 
-type QuantityGrid = dict[tuple[int, int], int]
+type StorageQuantityGrid = dict[tuple[int, int], int]
 
 
 @dataclass(frozen=True)
@@ -28,7 +29,7 @@ class LocationQuantityGrid:
     location: AgencyLocations
     items: list[Items]
     storages: list[AgencyStorages]
-    quantities: QuantityGrid
+    quantities: StorageQuantityGrid
 
 
 @dataclass(frozen=True)
@@ -90,10 +91,11 @@ def save_bulk_location_count(
     session: Session,
     agency_id: int,
     agency_location_id: int,
-    quantities: QuantityGrid,
+    storage_quantities: StorageQuantityGrid,
 ) -> int:
     """Save one full-location count and queue related action alerts."""
-    logs = save_location_count(session, agency_id, agency_location_id, quantities)
+    logs = save_location_count(session, agency_id, agency_location_id, storage_quantities)
+    sync_location_states_for_actions(session, logs)
     record_action_log_alerts(session, logs)
     return len(logs)
 
@@ -102,10 +104,11 @@ def save_bulk_location_restock(
     session: Session,
     agency_id: int,
     agency_location_id: int,
-    quantities: QuantityGrid,
+    storage_quantities: StorageQuantityGrid,
 ) -> int:
     """Save one full-location vendor restock and queue related action alerts."""
-    logs = save_location_restock(session, agency_id, agency_location_id, quantities)
+    logs = save_location_restock(session, agency_id, agency_location_id, storage_quantities)
+    sync_location_states_for_actions(session, logs)
     record_action_log_alerts(session, logs)
     return len(logs)
 

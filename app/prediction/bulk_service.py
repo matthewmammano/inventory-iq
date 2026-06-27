@@ -9,14 +9,11 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import Agencies, AgencyLocations
 from app.inventory.balance_service import get_location_last_counted_dates
+from app.inventory.location_state_policy import days_to_threshold, effective_lead_time_days
 from app.inventory.location_state_service import recompute_item_location_state
 from app.inventory.models import InventoryItemLocationState, Items
 from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
-from app.prediction.estimator import (
-    days_to_threshold,
-    effective_lead_time_days,
-    reorder_date,
-)
+from app.prediction.estimator import reorder_date
 from app.prediction.formatting import rounded_confidence_percent
 from app.shared.timezone_utils import convert_utc_to_local
 
@@ -41,17 +38,23 @@ class BulkService:
         agency_location_id: int,
     ) -> list[dict]:
         try:
-            agency = session.get(Agencies, agency_id)
+            agency_settings = session.get(Agencies, agency_id)
             items = BulkService.get_active_items(session, agency_id)
             item_ids = [item.id for item in items]
-            states = BulkService._location_states(session, agency_id, agency_location_id, items)
-            last_counts = BulkService._last_counted_dates(session, agency_id, agency_location_id, item_ids, agency.timezone if agency else "UTC")
+            location_states_by_item_id = BulkService._location_states_by_item_id(session, agency_id, agency_location_id, items)
+            last_counted_at_by_item_id = BulkService._last_counted_at_by_item_id(
+                session,
+                agency_id,
+                agency_location_id,
+                item_ids,
+                agency_settings.timezone if agency_settings else "UTC",
+            )
             rows = [
                 BulkService._analyze_item(
                     item,
-                    agency,
-                    states.get(item.id),
-                    last_counts.get(item.id),
+                    agency_settings,
+                    location_states_by_item_id.get(item.id),
+                    last_counted_at_by_item_id.get(item.id),
                 )
                 for item in items
             ]
@@ -139,7 +142,7 @@ class BulkService:
         }
 
     @staticmethod
-    def _location_states(
+    def _location_states_by_item_id(
         session: Session,
         agency_id: int,
         agency_location_id: int,
@@ -155,7 +158,7 @@ class BulkService:
         return states
 
     @staticmethod
-    def _last_counted_dates(
+    def _last_counted_at_by_item_id(
         session: Session,
         agency_id: int,
         agency_location_id: int,

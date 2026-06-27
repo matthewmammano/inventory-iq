@@ -2,8 +2,7 @@
 
 ## Active Plan
 
-1. migrate both db files in instance/ to latest
-2. now can you plz think hard, generate ideas, and create an entire smoke test db table based off a COPY PASTED version temp of current db (instance\inventory_iq.db) and make sure to repoint it to the new one. use DEV tools to change time / date, log events, act like a real user, create ROBUST test cases, ALL inside the tmp/ folder under a new subfolder to test this COMPHRENSIVELY and THOROUGHLY!! to perfection! think thru it all! test ALL edge cases! investigate code FIRST to gen the right ideas for edge case testing. basically all of the alert / email logic needs to be RE-TESTED. do not send real emails tho to the user! JUST look at instance/alerts OR a version of that in tmp/ instead to read what WOULD'VE been sent. also do freqent DB table checks to make sure all appearing as it SHOULD BE!!!!!!!!
+now can you plz think hard, generate ideas, and create an entire smoke test db table based off a COPY PASTED version temp of current db (instance\inventory_iq.db) and make sure to repoint it to the new one. use DEV tools to change time / date, log events, act like a real user, create ROBUST test cases, ALL inside the tmp/ folder under a new subfolder to test this COMPHRENSIVELY and THOROUGHLY!! to perfection! think thru it all! test ALL edge cases! investigate code FIRST to gen the right ideas for edge case testing. basically all of the alert / email logic needs to be RE-TESTED. do not send real emails tho to the user! JUST look at instance/alerts OR a version of that in tmp/ instead to read what WOULD'VE been sent. also do freqent DB table checks to make sure all appearing as it SHOULD BE!!!!!!!!
 
 - Review Changes screen NEEDS to be scrollable. also needs to be written as CONCISE / COMPACT as possible. instead of "Yes to No" maybe use ICONS (or just checkboxes that are UNEDITABLE maybe PREFERRED) that I approve AND "→". ALSO maybe I'll change.
 
