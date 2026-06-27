@@ -8,7 +8,7 @@ Inventory IQ is a field-friendly inventory system for EMS-style agencies that ne
 - [Data model](docs/DATA_MODEL.md)
 - [Deployment](docs/DEPLOYMENT.md)
 - [Admin workflows](docs/ADMIN_WORKFLOWS.md)
-- [Repo conventions](docs/REPO_CONVENTIONS.md)
+- [Repo conventions](docs/CONVENTIONS.md)
 - [Observability](docs/OBSERVABILITY.md)
 - [Product TODO](docs/TODO.md)
 - [Agent guidance](AGENTS.md)

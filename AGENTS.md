@@ -11,7 +11,7 @@ Read local project docs when they exist. For this repository:
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md): stack, setup, env vars, migrations, commands, and cron tasks.
 - [docs/ADMIN_WORKFLOWS.md](docs/ADMIN_WORKFLOWS.md): admin and scan workflow behavior.
 - [docs/OBSERVABILITY.md](docs/OBSERVABILITY.md): logging, traceability, and diagnostics.
-- [docs/REPO_CONVENTIONS.md](docs/REPO_CONVENTIONS.md): Inventory IQ-specific UI, flash, modal, and email conventions.
+- [docs/CONVENTIONS.md](docs/CONVENTIONS.md): Inventory IQ-specific UI, flash, modal, and email conventions.
 - [docs/TODO.md](docs/TODO.md): active plan, deferred work, and future improvements.
 
 ## Priority Order

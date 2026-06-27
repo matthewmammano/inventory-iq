@@ -35,7 +35,7 @@ routes -> schemas/DTOs -> services -> query/repository-style modules -> shared i
 - Templates live in `app/templates/`.
 - CSS lives under `app/static/css/`; prefer component/page/core separation already present.
 - JavaScript lives under `app/static/js/`; keep scripts page-specific unless behavior is truly shared.
-- UI copy rules live in [REPO_CONVENTIONS.md](REPO_CONVENTIONS.md).
+- UI copy rules live in [CONVENTIONS.md](CONVENTIONS.md).
 
 ## Change Placement
 

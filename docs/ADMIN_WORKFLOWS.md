@@ -1,6 +1,6 @@
 # Admin Workflows
 
-Expected behavior for scan and admin flows. UI wording rules live in [REPO_CONVENTIONS.md](REPO_CONVENTIONS.md).
+Expected behavior for scan and admin flows. UI wording rules live in [CONVENTIONS.md](CONVENTIONS.md).
 
 ## Guest Scan
 

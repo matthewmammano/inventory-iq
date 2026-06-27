@@ -1,6 +1,6 @@
 # Observability
 
-Logging, traceability, and safe diagnostics for Inventory IQ. User-facing message rules live in [REPO_CONVENTIONS.md](REPO_CONVENTIONS.md).
+Logging, traceability, and safe diagnostics for Inventory IQ. User-facing message rules live in [CONVENTIONS.md](CONVENTIONS.md).
 
 ## Logging Setup
 
