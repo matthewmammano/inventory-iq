@@ -46,6 +46,7 @@ ACTION_TYPES = {
     AlertType.TAKEOUT_ACTION,
     AlertType.TRANSFER_ACTION,
 }
+RECAP_SECTION_COLOR = AlertSeverity.INFO.color
 SEVERITY_RANK = {severity: rank for rank, severity in enumerate(SEVERITY_ORDER)}
 
 
@@ -572,7 +573,13 @@ def _stock_section(
     rows = [_stock_row(state, item_names, location_names, timezone) for state in states if state.effective_alert_type == alert_type]
     if not rows:
         return None
-    return AlertTableSection(title=title, note=note, columns=columns, rows=rows)
+    return AlertTableSection(
+        title=title,
+        note=note,
+        color=alert_type.color,
+        columns=columns,
+        rows=rows,
+    )
 
 
 def _stock_row(
@@ -623,6 +630,7 @@ def _stale_count_section(events: list[InventoryAlertEvent]) -> AlertTableSection
     return _simple_section(
         "Stale Counts",
         "Count these item/location pairs before the next incoming delivery or vendor restock.",
+        AlertType.STALE_COUNT.color,
         rows,
         [
             "item_name:Item",
@@ -648,6 +656,7 @@ def _rare_takeout_section(events: list[InventoryAlertEvent], timezone: str) -> A
     return _simple_section(
         "Rare Takeouts",
         "Takeout activity is unusual for this item/location.",
+        AlertType.RARE_TAKEOUT.color,
         rows,
         [
             "item_name:Item",
@@ -674,6 +683,7 @@ def _scan_activity_section(events: list[InventoryAlertEvent], timezone: str) -> 
     return _simple_section(
         "Scan Activity",
         "Configured count, restock, takeout, and transfer notifications.",
+        AlertSeverity.INFO.color,
         rows,
         [
             "item_name:Item",
@@ -698,6 +708,7 @@ def _unknown_upc_section(events: list[InventoryAlertEvent], timezone: str) -> Al
     return _simple_section(
         "Unknown UPCs",
         "These UPCs need admin review before they can scan to an item.",
+        AlertType.UNKNOWN_UPC.color,
         rows,
         ["upc:UPC", "lookup_title:Lookup Name", "created_at:First Seen"],
     )
@@ -706,13 +717,14 @@ def _unknown_upc_section(events: list[InventoryAlertEvent], timezone: str) -> Al
 def _simple_section(
     title: str,
     note: str,
+    color: str,
     rows: list[dict[str, Any]],
     column_specs: list[str],
 ) -> AlertTableSection | None:
     if not rows:
         return None
     columns = [AlertTableColumn(key=spec.split(":", 1)[0], label=spec.split(":", 1)[1]) for spec in column_specs]
-    return AlertTableSection(title=title, note=note, columns=columns, rows=rows)
+    return AlertTableSection(title=title, note=note, color=color, columns=columns, rows=rows)
 
 
 def _summary_sections(
@@ -754,6 +766,7 @@ def _summary_section(
     return _simple_section(
         f"{report_type} Summary",
         f"{report_type} scan totals for the completed reporting period.",
+        RECAP_SECTION_COLOR,
         [
             {
                 "operation_type": operation.value.title(),
@@ -887,7 +900,9 @@ def _unknown_upc_is_pending(session: Session, event: InventoryAlertEvent) -> boo
 
 def _summary_items(stock_states: list[InventoryItemLocationState], events: list[InventoryAlertEvent]) -> list[AlertSummaryItem]:
     counts = Counter([state.effective_alert_type for state in stock_states if state.effective_alert_type] + [event.alert_type for event in events])
-    return [AlertSummaryItem(label=LABEL_BY_TYPE[alert_type], count=count) for alert_type, count in counts.items() if count > 0]
+    return [
+        AlertSummaryItem(label=LABEL_BY_TYPE[alert_type], count=count, color=alert_type.color) for alert_type, count in counts.items() if count > 0
+    ]
 
 
 def _severity_style(stock_states: list[InventoryItemLocationState], events: list[InventoryAlertEvent]) -> AlertSeverity:
@@ -917,12 +932,12 @@ def _subject(agency_name: str, severity_prefix: str, content_mode: EmailContentM
     return f"{severity_prefix} Inventory Alerts - {agency_name}"
 
 
-def _title(agency_name: str, content_mode: EmailContentMode) -> str:
+def _title(_agency_name: str, content_mode: EmailContentMode) -> str:
     if content_mode == EmailContentMode.ALERTS_AND_RECAP:
-        return f"Inventory Alerts and Periodic Recap - {agency_name}"
+        return "Inventory Alerts and Periodic Recap"
     if content_mode == EmailContentMode.RECAP_ONLY:
-        return f"Inventory Periodic Recap - {agency_name}"
-    return f"Inventory Alerts - {agency_name}"
+        return "Inventory Periodic Recap"
+    return "Inventory Alerts"
 
 
 def _intro(timing_mode: EmailTimingMode, content_mode: EmailContentMode) -> str:

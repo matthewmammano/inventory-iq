@@ -106,10 +106,10 @@
       <p class="eyebrow" style="background: {{ batch.severity_color }}14; border: 1px solid {{ batch.severity_color }}33; color: {{ batch.severity_color }};">{{ batch.severity_label }} Inventory Email</p>
       <h1>{{ batch.title }}</h1>
       <p class="note">{{ batch.intro }}</p>
-      <p class="meta">{{ batch.generated_at }}</p>
+      <p class="meta">{{ batch.agency_name }} | {{ batch.generated_at }}</p>
       <div class="summary">
         {% for item in batch.summary %}
-          <div class="summary-box" style="background: {{ batch.severity_color }}14; border-color: {{ batch.severity_color }}33; color: {{ batch.severity_color }};">
+          <div class="summary-box" style="background: {{ item.color }}14; border-color: {{ item.color }}33; color: {{ item.color }};">
             <strong>{{ item.count }}</strong>
             <span>{{ item.label }}</span>
           </div>
@@ -118,14 +118,14 @@
     </div>
 
     {% for section in batch.sections %}
-      <div class="panel" style="border-top: 4px solid {{ batch.severity_color }};">
-        <h2>{{ section.title }}</h2>
+      <div class="panel" style="border-top: 4px solid {{ section.color }};">
+        <h2 style="color: {{ section.color }};">{{ section.title }}</h2>
         <p class="note">{{ section.note }}</p>
         <table>
           <thead>
             <tr>
               {% for column in section.columns %}
-                <th>{{ column.label }}</th>
+                <th style="background: {{ section.color }}14; color: {{ section.color }};">{{ column.label }}</th>
               {% endfor %}
             </tr>
           </thead>

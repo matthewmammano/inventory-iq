@@ -70,10 +70,10 @@ def _build_report_batch(session: Session, agency: Agencies) -> EmailBatch:
         severity_label="Report",
         severity_color=REPORT_COLOR,
         summary=[
-            AlertSummaryItem(label="locations", count=len(sections)),
-            AlertSummaryItem(label="inventory rows", count=rows),
-            AlertSummaryItem(label="stockouts", count=stockouts),
-            AlertSummaryItem(label="below minimum", count=below_min),
+            AlertSummaryItem(label="locations", count=len(sections), color=REPORT_COLOR),
+            AlertSummaryItem(label="inventory rows", count=rows, color=REPORT_COLOR),
+            AlertSummaryItem(label="stockouts", count=stockouts, color=REPORT_COLOR),
+            AlertSummaryItem(label="below minimum", count=below_min, color=REPORT_COLOR),
         ],
         sections=sections,
     )
@@ -107,6 +107,7 @@ def _inventory_sections(
                 AlertTableSection(
                     title=location.name,
                     note="Current inventory counts by storage.",
+                    color=REPORT_COLOR,
                     columns=[
                         AlertTableColumn(key="item", label="Item"),
                         *[AlertTableColumn(key=f"storage_{storage.id}", label=storage.name) for storage in storages],

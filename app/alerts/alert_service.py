@@ -14,7 +14,7 @@ from app.inventory.location_state_service import affected_item_location_keys_for
 from app.inventory.models import ActionLogs, InventoryItemLocationState, Items
 from app.shared.clock import utc_now_naive
 
-from .constants import ACTION_ALERT_TYPES, AlertSeverity, AlertSourceType, AlertType, InventoryAlertEventStatus
+from .constants import ACTION_ALERT_TYPES, ALERT_DEFINITIONS, AlertSeverity, AlertSourceType, AlertType, InventoryAlertEventStatus
 from .models import InventoryAlertEvent
 
 OPEN_EVENT_STATUSES = (InventoryAlertEventStatus.PENDING, InventoryAlertEventStatus.QUEUED, InventoryAlertEventStatus.ERROR)
@@ -117,7 +117,7 @@ def queue_unknown_upc_event(
         session,
         agency_id=agency_id,
         alert_type=AlertType.UNKNOWN_UPC,
-        severity=AlertSeverity.MEDIUM,
+        severity=ALERT_DEFINITIONS[AlertType.UNKNOWN_UPC].severity,
         source_type=AlertSourceType.UNKNOWN_UPC_SCAN,
         source_id=unknown_upc_id,
         dedupe_key=f"UNKNOWN_UPC:{unknown_upc_id}",
@@ -205,7 +205,7 @@ def _sync_stale_count_state(
         session,
         agency_id=state_audit_row.agency_id,
         alert_type=AlertType.STALE_COUNT,
-        severity=AlertSeverity.MEDIUM,
+        severity=ALERT_DEFINITIONS[AlertType.STALE_COUNT].severity,
         source_type=AlertSourceType.STALE_COUNT_AUDIT,
         source_id=None,
         dedupe_key=_stale_count_key(state_audit_row.item_id, state_audit_row.location_id, state_audit_row.last_counted_at),
@@ -240,7 +240,7 @@ def _sync_rare_takeout_state(
         session,
         agency_id=state_audit_row.agency_id,
         alert_type=AlertType.RARE_TAKEOUT,
-        severity=AlertSeverity.MEDIUM,
+        severity=ALERT_DEFINITIONS[AlertType.RARE_TAKEOUT].severity,
         source_type=AlertSourceType.RARE_TAKEOUT_AUDIT,
         source_id=None,
         dedupe_key=_rare_takeout_key(state_audit_row.item_id, state_audit_row.location_id, state_audit_row.last_takeout_at),

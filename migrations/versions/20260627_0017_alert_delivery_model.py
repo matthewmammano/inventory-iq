@@ -15,12 +15,33 @@ depends_on = None
 
 UPGRADE_SEVERITY_MAP = {"WARNING": "MEDIUM", "NOTICE": "LOW"}
 DOWNGRADE_SEVERITY_MAP = {"MEDIUM": "WARNING", "LOW": "NOTICE"}
+EVENT_SEVERITY_BY_TYPE = {
+    "STOCKOUT": "CRITICAL",
+    "STOCKOUT_FORECAST": "HIGH",
+    "LOW_STOCK": "MEDIUM",
+    "LOW_STOCK_FORECAST": "LOW",
+    "STALE_COUNT": "LOW",
+    "RARE_TAKEOUT": "LOW",
+    "UNKNOWN_UPC": "LOW",
+    "COUNT_ACTION": "INFO",
+    "RESTOCK_ACTION": "INFO",
+    "TAKEOUT_ACTION": "INFO",
+    "TRANSFER_ACTION": "INFO",
+}
+STATE_SEVERITY_BY_TYPE = {
+    "STOCKOUT": "CRITICAL",
+    "STOCKOUT_FORECAST": "HIGH",
+    "LOW_STOCK": "MEDIUM",
+    "LOW_STOCK_FORECAST": "LOW",
+}
 
 
 def upgrade() -> None:
     _simplify_notification_deliveries()
     _add_quiet_hours()
     _rewrite_alert_severities(UPGRADE_SEVERITY_MAP)
+    _rewrite_event_severities(EVENT_SEVERITY_BY_TYPE)
+    _rewrite_state_severities(STATE_SEVERITY_BY_TYPE)
 
 
 def downgrade() -> None:
@@ -127,6 +148,31 @@ def _drop_quiet_hours() -> None:
 def _rewrite_alert_severities(mapping: dict[str, str]) -> None:
     _rewrite_column_values("inventory_alert_events", "severity", mapping)
     _rewrite_column_values("inventory_item_location_states", "effective_severity", mapping)
+
+
+def _rewrite_event_severities(severities_by_type: dict[str, str]) -> None:
+    _rewrite_severities("inventory_alert_events", "alert_type", "severity", severities_by_type)
+
+
+def _rewrite_state_severities(severities_by_type: dict[str, str]) -> None:
+    _rewrite_severities("inventory_item_location_states", "effective_alert_type", "effective_severity", severities_by_type)
+
+
+def _rewrite_severities(
+    table_name: str,
+    type_column: str,
+    severity_column: str,
+    severities_by_type: dict[str, str],
+) -> None:
+    if table_name not in _tables() or not {type_column, severity_column}.issubset(_columns(table_name)):
+        return
+
+    bind = op.get_bind()
+    for alert_type, severity in severities_by_type.items():
+        bind.execute(
+            sa.text(f"UPDATE {table_name} SET {severity_column} = :severity WHERE {type_column} = :alert_type"),
+            {"severity": severity, "alert_type": alert_type},
+        )
 
 
 def _rewrite_column_values(table_name: str, column_name: str, mapping: dict[str, str]) -> None:

@@ -8,6 +8,7 @@ class AlertSummaryItem(BaseModel):
 
     label: str
     count: int
+    color: str
 
 
 class AlertTableColumn(BaseModel):
@@ -22,6 +23,7 @@ class AlertTableSection(BaseModel):
 
     title: str
     note: str
+    color: str
     columns: list[AlertTableColumn]
     rows: list[dict[str, str | int | float | None]]
 

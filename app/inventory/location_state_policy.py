@@ -2,7 +2,7 @@
 
 from dataclasses import dataclass
 
-from app.alerts.constants import STOCK_ALERT_RANK, AlertSeverity, AlertType
+from app.alerts.constants import ALERT_DEFINITIONS, STOCK_ALERT_RANK, AlertSeverity, AlertType
 from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
 
 
@@ -41,14 +41,7 @@ def evaluate_stock_state(
         forecast_status=forecast_status,
         effective_alert_type=effective_alert_type,
         effective_alert_rank=STOCK_ALERT_RANK.get(effective_alert_type, 0) if effective_alert_type else 0,
-        effective_severity=stock_alert_severity(
-            effective_alert_type,
-            total_quantity=total_quantity,
-            min_quantity=min_quantity,
-            lead_time_days=lead_time_days,
-            days_until_low=days_until_low,
-            days_until_stockout=days_until_stockout,
-        ),
+        effective_severity=ALERT_DEFINITIONS[effective_alert_type].severity if effective_alert_type else None,
     )
 
 
@@ -88,40 +81,6 @@ def highest_priority_stock_alert(*alert_types: AlertType | None) -> AlertType | 
             winner = alert_type
             winner_rank = rank
     return winner
-
-
-def stock_alert_severity(
-    alert_type: AlertType | None,
-    *,
-    total_quantity: int,
-    min_quantity: int,
-    lead_time_days: int,
-    days_until_low: float | None,
-    days_until_stockout: float | None,
-) -> AlertSeverity | None:
-    """Return the normalized alert severity for the winning stock alert."""
-    if alert_type == AlertType.STOCKOUT:
-        return AlertSeverity.CRITICAL
-    if alert_type == AlertType.LOW_STOCK:
-        return AlertSeverity.HIGH if total_quantity <= max(min_quantity // 2, 0) else AlertSeverity.MEDIUM
-    if alert_type == AlertType.STOCKOUT_FORECAST:
-        return forecast_alert_severity(days_until_stockout, lead_time_days)
-    if alert_type == AlertType.LOW_STOCK_FORECAST:
-        return forecast_alert_severity(days_until_low, lead_time_days)
-    return None
-
-
-def forecast_alert_severity(days_until_threshold: float | None, lead_time_days: int) -> AlertSeverity | None:
-    """Return forecast severity for a threshold expected inside lead time."""
-    if days_until_threshold is None or days_until_threshold > lead_time_days:
-        return None
-    if days_until_threshold <= 1:
-        return AlertSeverity.CRITICAL
-    if days_until_threshold <= 3:
-        return AlertSeverity.HIGH
-    if days_until_threshold <= 7:
-        return AlertSeverity.MEDIUM
-    return AlertSeverity.LOW
 
 
 def effective_daily_usage(trend_per_day: float | None, prior_daily_usage: float) -> float:
