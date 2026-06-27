@@ -69,14 +69,14 @@ gunicorn --log-config gunicorn_logging.conf run:app --bind 0.0.0.0:$PORT --worke
 
 `tasks/` contains production cron/worker entrypoints. `scripts/` is local-only tooling.
 
-Railway cron split, optimized for an Eastern-time agency operations day:
+Railway cron split, optimized for an EST agency operations day:
 
-| Job | Command | Frequency | Eastern target | UTC cron during EDT (UTC-4) | UTC cron during EST (UTC-5) |
-| --- | --- | --- | --- | --- | --- |
-| Email delivery | `python -m tasks.process_email_alerts` | Every 10 minutes | All day | `*/10 * * * *` | `*/10 * * * *` |
-| Retrain forecasts | `python -m tasks.retrain_models` | Daily | `3:43am` | `43 7 * * *` | `43 8 * * *` |
-| Reconcile balances | `python -m tasks.reconcile_inventory_balances` | Daily | `4:17am` | `17 8 * * *` | `17 9 * * *` |
-| Generate safety alerts | `python -m tasks.generate_inventory_alerts` | Daily | `7:46am` | `46 11 * * *` | `46 12 * * *` |
+| Job | Command | Frequency | EST target | UTC cron |
+| --- | --- | --- | --- | --- |
+| Email delivery | `python -m tasks.process_email_alerts` | Every 10 minutes | All day | `*/10 * * * *` |
+| Retrain forecasts | `python -m tasks.retrain_models` | Daily | `3:43am EST` | `43 8 * * *` |
+| Reconcile balances | `python -m tasks.reconcile_inventory_balances` | Daily | `4:17am EST` | `17 9 * * *` |
+| Generate safety alerts | `python -m tasks.generate_inventory_alerts` | Daily | `7:46am EST` | `46 12 * * *` |
 
 Timing rules:
 
@@ -89,7 +89,7 @@ Timing rules:
 - Run the safety alert audit shortly before `8:00am` Eastern and off the 10-minute email grid so generated stale/rare events are ready for the next sender run.
 - Keep scheduling and user-facing timestamps in each agency's local timezone, but store persisted timestamps in UTC or UTC-naive form in the database.
 
-Railway cron expressions are typically configured in UTC. If the scheduler cannot use an America/New_York timezone setting, update the three daily UTC cron expressions when Eastern time switches between EDT and EST. The every-10-minute email cron does not need seasonal adjustment.
+Railway cron expressions are configured in UTC here and mapped to EST targets. The every-10-minute email cron does not need seasonal adjustment.
 
 The in-process scheduler is for dev/demo only and is disabled in production.
 
