@@ -1,20 +1,35 @@
-"""Simplify notification delivery rows to final outbound emails.
+"""Apply alert delivery model updates.
 
-Revision ID: 20260627_0018
-Revises: 20260627_0017
+Revision ID: 20260627_0017
+Revises: 20260626_0016
 Create Date: 2026-06-27
 """
 
 import sqlalchemy as sa
 from alembic import op
 
-revision = "20260627_0018"
-down_revision = "20260627_0017"
+revision = "20260627_0017"
+down_revision = "20260626_0016"
 branch_labels = None
 depends_on = None
 
+UPGRADE_SEVERITY_MAP = {"WARNING": "MEDIUM", "NOTICE": "LOW"}
+DOWNGRADE_SEVERITY_MAP = {"MEDIUM": "WARNING", "LOW": "NOTICE"}
+
 
 def upgrade() -> None:
+    _simplify_notification_deliveries()
+    _add_quiet_hours()
+    _rewrite_alert_severities(UPGRADE_SEVERITY_MAP)
+
+
+def downgrade() -> None:
+    _rewrite_alert_severities(DOWNGRADE_SEVERITY_MAP)
+    _drop_quiet_hours()
+    _restore_notification_delivery_legacy_columns()
+
+
+def _simplify_notification_deliveries() -> None:
     if "notification_email_deliveries" not in _tables():
         return
 
@@ -35,9 +50,9 @@ def upgrade() -> None:
             if column_name in columns:
                 batch_op.drop_column(column_name)
 
-    indexes = _indexes("notification_email_deliveries")
-    if "idx_notification_email_deliveries_recipient_send" in indexes:
+    if "idx_notification_email_deliveries_recipient_send" in _indexes("notification_email_deliveries"):
         op.drop_index("idx_notification_email_deliveries_recipient_send", table_name="notification_email_deliveries")
+
     _delete_duplicate_recipient_send_rows()
     with op.batch_alter_table("notification_email_deliveries") as batch_op:
         if "uq_notification_email_deliveries_recipient_send" not in _unique_constraints("notification_email_deliveries"):
@@ -47,7 +62,7 @@ def upgrade() -> None:
             )
 
 
-def downgrade() -> None:
+def _restore_notification_delivery_legacy_columns() -> None:
     if "notification_email_deliveries" not in _tables():
         return
 
@@ -55,19 +70,10 @@ def downgrade() -> None:
         if "uq_notification_email_deliveries_recipient_send" in _unique_constraints("notification_email_deliveries"):
             batch_op.drop_constraint("uq_notification_email_deliveries_recipient_send", type_="unique")
 
-    if "idx_notification_email_deliveries_recipient_send" not in _indexes("notification_email_deliveries"):
-        op.create_index(
-            "idx_notification_email_deliveries_recipient_send",
-            "notification_email_deliveries",
-            ["agency_id", "agency_email_id", "send_at"],
-        )
-
     columns = _columns("notification_email_deliveries")
     with op.batch_alter_table("notification_email_deliveries") as batch_op:
         if "notification_kind" not in columns:
-            batch_op.add_column(sa.Column("notification_kind", sa.String(length=32), nullable=False, server_default="ALERTS"))
-        if "delivery" not in columns:
-            batch_op.add_column(sa.Column("delivery", sa.String(length=16), nullable=False, server_default="SCHEDULED"))
+            batch_op.add_column(sa.Column("notification_kind", sa.String(length=32), nullable=False, server_default="HOURLY_DIGEST"))
         if "dedupe_key" not in columns:
             batch_op.add_column(sa.Column("dedupe_key", sa.String(length=255), nullable=True))
 
@@ -76,10 +82,9 @@ def downgrade() -> None:
     indexes = _indexes("notification_email_deliveries")
     if "ix_notification_email_deliveries_notification_kind" not in indexes:
         op.create_index("ix_notification_email_deliveries_notification_kind", "notification_email_deliveries", ["notification_kind"])
-    if "ix_notification_email_deliveries_delivery" not in indexes:
-        op.create_index("ix_notification_email_deliveries_delivery", "notification_email_deliveries", ["delivery"])
     if "ix_notification_email_deliveries_dedupe_key" not in indexes:
         op.create_index("ix_notification_email_deliveries_dedupe_key", "notification_email_deliveries", ["dedupe_key"])
+
     with op.batch_alter_table("notification_email_deliveries") as batch_op:
         if "uq_notification_email_deliveries_recipient_dedupe" not in _unique_constraints("notification_email_deliveries"):
             batch_op.create_unique_constraint(
@@ -88,8 +93,52 @@ def downgrade() -> None:
             )
 
 
-def _tables() -> set[str]:
-    return set(sa.inspect(op.get_bind()).get_table_names())
+def _add_quiet_hours() -> None:
+    if "agency_emails" not in _tables():
+        return
+
+    columns = _columns("agency_emails")
+    with op.batch_alter_table("agency_emails") as batch_op:
+        if "quiet_start_time" not in columns:
+            batch_op.add_column(sa.Column("quiet_start_time", sa.String(length=5), nullable=True))
+        if "quiet_end_time" not in columns:
+            batch_op.add_column(sa.Column("quiet_end_time", sa.String(length=5), nullable=True))
+        if "ck_agency_emails_quiet_hours_pair" not in _check_constraints("agency_emails"):
+            batch_op.create_check_constraint(
+                "ck_agency_emails_quiet_hours_pair",
+                "(quiet_start_time IS NULL AND quiet_end_time IS NULL) OR (quiet_start_time IS NOT NULL AND quiet_end_time IS NOT NULL)",
+            )
+
+
+def _drop_quiet_hours() -> None:
+    if "agency_emails" not in _tables():
+        return
+
+    columns = _columns("agency_emails")
+    with op.batch_alter_table("agency_emails") as batch_op:
+        if "ck_agency_emails_quiet_hours_pair" in _check_constraints("agency_emails"):
+            batch_op.drop_constraint("ck_agency_emails_quiet_hours_pair", type_="check")
+        if "quiet_end_time" in columns:
+            batch_op.drop_column("quiet_end_time")
+        if "quiet_start_time" in columns:
+            batch_op.drop_column("quiet_start_time")
+
+
+def _rewrite_alert_severities(mapping: dict[str, str]) -> None:
+    _rewrite_column_values("inventory_alert_events", "severity", mapping)
+    _rewrite_column_values("inventory_item_location_states", "effective_severity", mapping)
+
+
+def _rewrite_column_values(table_name: str, column_name: str, mapping: dict[str, str]) -> None:
+    if table_name not in _tables() or column_name not in _columns(table_name):
+        return
+
+    bind = op.get_bind()
+    for old_value, new_value in mapping.items():
+        bind.execute(
+            sa.text(f"UPDATE {table_name} SET {column_name} = :new_value WHERE {column_name} = :old_value"),
+            {"new_value": new_value, "old_value": old_value},
+        )
 
 
 def _delete_duplicate_recipient_send_rows() -> None:
@@ -116,6 +165,10 @@ def _delete_duplicate_recipient_send_rows() -> None:
     )
 
 
+def _tables() -> set[str]:
+    return set(sa.inspect(op.get_bind()).get_table_names())
+
+
 def _columns(table_name: str) -> set[str]:
     return {column["name"] for column in sa.inspect(op.get_bind()).get_columns(table_name)}
 
@@ -126,3 +179,7 @@ def _indexes(table_name: str) -> set[str]:
 
 def _unique_constraints(table_name: str) -> set[str]:
     return {constraint["name"] for constraint in sa.inspect(op.get_bind()).get_unique_constraints(table_name) if constraint["name"] is not None}
+
+
+def _check_constraints(table_name: str) -> set[str]:
+    return {constraint["name"] for constraint in sa.inspect(op.get_bind()).get_check_constraints(table_name) if constraint["name"] is not None}
