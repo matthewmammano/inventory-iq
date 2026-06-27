@@ -49,3 +49,4 @@ Inventory IQ-specific conventions only. Generic engineering rules live in [../AG
 - Alert and restock projections must be phrased as estimates, not guarantees.
 - Preferred restock estimate wording: `Estimated from recent usage trends. Review current stock before ordering.`
 - Online UPC lookup suggestions are uncertain and must be worded as assistance, not truth.
+- Show timestamps in the user's or agency's local timezone in the UI, but keep stored timestamps in the backend/database as UTC or UTC-naive values.

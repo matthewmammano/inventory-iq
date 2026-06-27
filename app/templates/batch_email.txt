@@ -2,6 +2,8 @@
 Severity: {{ batch.severity_label }}
 Generated {{ batch.generated_at }}
 
+{{ batch.intro }}
+
 Summary
 {% for item in batch.summary -%}
 - {{ item.count }} {{ item.label }}
@@ -15,4 +17,4 @@ Summary
 {% endfor %}
 
 {% endfor %}
-Automated Inventory IQ alert. Please do not reply to this email.
+Automated Inventory IQ notification. Please do not reply to this email.

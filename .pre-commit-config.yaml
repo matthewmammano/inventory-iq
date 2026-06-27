@@ -4,7 +4,7 @@
 repos:
   # Ruff - Fast Python linter (replaces flake8, isort, pyupgrade)
   - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.8.4
+    rev: v0.15.20
     hooks:
       - id: ruff
         args: [--fix]
@@ -12,7 +12,7 @@ repos:
 
   # Trailing whitespace and file cleanup
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
+    rev: v6.0.0
     hooks:
       - id: trailing-whitespace
       - id: end-of-file-fixer
@@ -30,13 +30,13 @@ repos:
 
   # Secret scanning
   - repo: https://github.com/gitleaks/gitleaks
-    rev: v8.24.2
+    rev: v8.30.0
     hooks:
       - id: gitleaks
 
   # Python security checks
   - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.3
+    rev: 1.9.4
     hooks:
       - id: bandit
         args: [-r, app]
@@ -44,13 +44,13 @@ repos:
 
   # Python type checks
   - repo: https://github.com/RobertCraigie/pyright-python
-    rev: v1.1.394
+    rev: v1.1.411
     hooks:
       - id: pyright
         args: [app, scripts, tasks]
 
   - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.15.0
+    rev: v2.1.0
     hooks:
       - id: mypy
         additional_dependencies: [types-cachetools]
@@ -59,7 +59,7 @@ repos:
 
   # Jinja template linting
   - repo: https://github.com/djlint/djLint
-    rev: v1.36.4
+    rev: v1.39.4
     hooks:
       - id: djlint
         args: [--profile=jinja, --lint]

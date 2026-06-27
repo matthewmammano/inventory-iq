@@ -15,6 +15,7 @@ from .constants import (
     AlertSourceType,
     AlertType,
     InventoryAlertEventStatus,
+    NotificationDelivery,
     NotificationEmailStatus,
     NotificationKind,
 )
@@ -66,6 +67,7 @@ class NotificationEmailDelivery(Base):
     agency_email_id: Mapped[int] = mapped_column(Integer, ForeignKey("agency_emails.id"), index=True)
     recipient_email_snapshot: Mapped[str] = mapped_column(String(255))
     notification_kind: Mapped[NotificationKind] = mapped_column(SAEnum(NotificationKind, native_enum=False, length=32), index=True)
+    delivery: Mapped[NotificationDelivery] = mapped_column(SAEnum(NotificationDelivery, native_enum=False, length=16), index=True)
     status: Mapped[NotificationEmailStatus] = mapped_column(
         SAEnum(NotificationEmailStatus, native_enum=False, length=16),
         default=NotificationEmailStatus.PENDING,
@@ -93,4 +95,4 @@ class NotificationEmailDelivery(Base):
     )
 
     def __repr__(self) -> str:
-        return f"<NotificationEmailDelivery {self.id}: {self.notification_kind.value} {self.status.value}>"
+        return f"<NotificationEmailDelivery {self.id}: {self.notification_kind.value} {self.delivery.value} {self.status.value}>"

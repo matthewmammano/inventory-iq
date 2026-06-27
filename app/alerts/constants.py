@@ -1,7 +1,7 @@
 """Alert constants, enums, and notification policy values."""
 
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 
 from app.inventory.constants import OperationType
 
@@ -10,7 +10,7 @@ WARNING_COLOR = "#8A5A00"
 ACTIVITY_COLOR = "#2F6B4F"
 
 
-class AlertType(str, Enum):
+class AlertType(StrEnum):
     """Supported stock-state and discrete inventory alert types."""
 
     STOCKOUT = "STOCKOUT"
@@ -30,7 +30,7 @@ class AlertType(str, Enum):
         return ALERT_DEFINITIONS[self].color
 
 
-class AlertSeverity(str, Enum):
+class AlertSeverity(StrEnum):
     """Normalized urgency for state rows and alert events."""
 
     INFO = "INFO"
@@ -40,7 +40,7 @@ class AlertSeverity(str, Enum):
     CRITICAL = "CRITICAL"
 
 
-class InventoryAlertEventStatus(str, Enum):
+class InventoryAlertEventStatus(StrEnum):
     """Lifecycle for one discrete non-stock alert event."""
 
     PENDING = "PENDING"
@@ -50,7 +50,7 @@ class InventoryAlertEventStatus(str, Enum):
     ERROR = "ERROR"
 
 
-class AlertSourceType(str, Enum):
+class AlertSourceType(StrEnum):
     """Traceable source category for a generated discrete alert event."""
 
     ACTION_LOG = "ACTION_LOG"
@@ -59,7 +59,7 @@ class AlertSourceType(str, Enum):
     RARE_TAKEOUT_AUDIT = "RARE_TAKEOUT_AUDIT"
 
 
-class NotificationEmailStatus(str, Enum):
+class NotificationEmailStatus(StrEnum):
     """Lifecycle for one rendered recipient email."""
 
     PENDING = "PENDING"
@@ -68,12 +68,18 @@ class NotificationEmailStatus(str, Enum):
     CANCELLED = "CANCELLED"
 
 
-class NotificationKind(str, Enum):
-    """Email grouping/cadence category."""
+class NotificationKind(StrEnum):
+    """High-level content category for one rendered email."""
 
-    IMMEDIATE_ALERT = "IMMEDIATE_ALERT"
-    HOURLY_DIGEST = "HOURLY_DIGEST"
-    DAILY_DIGEST = "DAILY_DIGEST"
+    ALERTS = "ALERTS"
+    RECAPS = "RECAPS"
+
+
+class NotificationDelivery(StrEnum):
+    """Delivery timing policy for one rendered email."""
+
+    IMMEDIATE = "IMMEDIATE"
+    SCHEDULED = "SCHEDULED"
 
 
 @dataclass(frozen=True)
@@ -124,5 +130,5 @@ PREFERENCE_BY_TYPE = {
     alert_type: definition.preference_field for alert_type, definition in ALERT_DEFINITIONS.items() if definition.preference_field is not None
 }
 LABEL_BY_TYPE = {alert_type: definition.label for alert_type, definition in ALERT_DEFINITIONS.items()}
-IMMEDIATE_ALERT_TYPES = {alert_type for alert_type, definition in ALERT_DEFINITIONS.items() if definition.immediate}
+IMMEDIATE_EVENT_TYPES = {alert_type for alert_type, definition in ALERT_DEFINITIONS.items() if definition.immediate}
 DISCRETE_EVENT_TYPES = {alert_type for alert_type, definition in ALERT_DEFINITIONS.items() if definition.discrete_event}

@@ -34,6 +34,7 @@ class EmailBatch(BaseModel):
     generated_at: str
     subject: str
     title: str
+    intro: str
     severity_label: str
     severity_color: str
     summary: list[AlertSummaryItem] = Field(default_factory=list)

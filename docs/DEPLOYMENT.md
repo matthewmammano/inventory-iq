@@ -74,18 +74,20 @@ Railway cron split, optimized for an Eastern-time agency operations day:
 | Job | Command | Frequency | Eastern target | UTC cron during EDT (UTC-4) | UTC cron during EST (UTC-5) |
 | --- | --- | --- | --- | --- | --- |
 | Email delivery | `python -m tasks.process_email_alerts` | Every 10 minutes | All day | `*/10 * * * *` | `*/10 * * * *` |
-| Retrain forecasts | `python -m tasks.retrain_models` | Daily | `3:40am` | `40 7 * * *` | `40 8 * * *` |
-| Reconcile balances | `python -m tasks.reconcile_inventory_balances` | Daily | `4:10am` | `10 8 * * *` | `10 9 * * *` |
-| Generate safety alerts | `python -m tasks.generate_inventory_alerts` | Daily | `7:50am` | `50 11 * * *` | `50 12 * * *` |
+| Retrain forecasts | `python -m tasks.retrain_models` | Daily | `3:43am` | `43 7 * * *` | `43 8 * * *` |
+| Reconcile balances | `python -m tasks.reconcile_inventory_balances` | Daily | `4:17am` | `17 8 * * *` | `17 9 * * *` |
+| Generate safety alerts | `python -m tasks.generate_inventory_alerts` | Daily | `7:46am` | `46 11 * * *` | `46 12 * * *` |
 
 Timing rules:
 
 - `process_email_alerts` prepares email rows and sends rows where `send_at <= now`.
-- Immediate alert emails use `send_at = now`, so they send on the next 10-minute cron run.
-- Hourly digest emails use the next top-of-hour `send_at`.
-- Daily digest emails use `8:00am` in the agency timezone and are picked up by the next 10-minute email cron.
+- Alert emails use `notification_kind=ALERTS`; recap/report emails use `notification_kind=RECAPS`.
+- Delivery timing is separate: `delivery=IMMEDIATE` sends on the next 10-minute cron, while `delivery=SCHEDULED` uses `send_at`.
+- Scheduled alert emails use the next top-of-hour `send_at`.
+- Recap emails are prepared during the 8:00am agency-local window. If alerts are present, the recap email leads with alerts and then shows recap sections.
 - Run retraining before balance reconciliation so forecast fields are fresh before the morning safety alert audit.
-- Run the safety alert audit shortly before `8:00am` Eastern so daily notification preparation sees current state.
+- Run the safety alert audit shortly before `8:00am` Eastern and off the 10-minute email grid so generated stale/rare events are ready for the next sender run.
+- Keep scheduling and user-facing timestamps in each agency's local timezone, but store persisted timestamps in UTC or UTC-naive form in the database.
 
 Railway cron expressions are typically configured in UTC. If the scheduler cannot use an America/New_York timezone setting, update the three daily UTC cron expressions when Eastern time switches between EDT and EST. The every-10-minute email cron does not need seasonal adjustment.
 

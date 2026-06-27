@@ -1,10 +1,10 @@
 """Constants and enums for inventory module."""
 
-from enum import Enum
+from enum import StrEnum
 from typing import Final
 
 
-class OperationType(str, Enum):
+class OperationType(StrEnum):
     """Inventory operation types."""
 
     COUNT = "COUNT"
@@ -13,7 +13,7 @@ class OperationType(str, Enum):
     TRANSFER = "TRANSFER"
 
 
-class UnknownUpcStatus(str, Enum):
+class UnknownUpcStatus(StrEnum):
     PENDING = "PENDING"
     RESOLVED = "RESOLVED"
     IGNORE = "IGNORE"

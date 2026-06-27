@@ -66,6 +66,7 @@ def _build_report_batch(session: Session, agency: Agencies) -> EmailBatch:
         generated_at=_display_now(agency.timezone),
         subject=f"Inventory Levels Report - {agency.display_name}",
         title=f"Inventory Levels Report - {agency.display_name}",
+        intro="This email includes the current inventory count report requested from the admin panel.",
         severity_label="Report",
         severity_color=REPORT_COLOR,
         summary=[

@@ -28,6 +28,8 @@ Core persistence rules for Inventory IQ. Schema changes require Alembic migratio
 - Stock/forecast alerts are current state, not alert event rows.
 - `inventory_alert_events` stores discrete non-stock facts only.
 - `notification_email_deliveries` stores rendered subject/body text as the sent-email audit record.
+- Notification deliveries separate content (`notification_kind`: `ALERTS` or `RECAPS`) from timing (`delivery`: `IMMEDIATE` or `SCHEDULED`) and always use `send_at` as the due time.
+- Time values are stored in the backend/database as UTC or UTC-naive timestamps for simplicity; convert to each agency's local timezone only when presenting, scheduling, or comparing against local business windows.
 - Balance reconciliation may rebuild derived state from history when drift is detected.
 - Inventory quantities are non-negative unless a future product decision explicitly changes that rule.
 - Item soft delete uses `items.active`; do not hard-delete item history.

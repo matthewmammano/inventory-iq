@@ -51,10 +51,12 @@ Implementation plan for replacing the current recipient-specific `alert_records`
   - `SENT`: email provider accepted the message.
   - `ERROR`: send failed; retry later.
   - `CANCELLED`: recipient disabled, preferences changed, or developer override before send.
-- [ ] Define `NotificationKind`:
-  - `IMMEDIATE_ALERT`
-  - `HOURLY_DIGEST`
-  - `DAILY_DIGEST`
+- [ ] Define `NotificationKind` by content:
+  - `ALERTS`: alert-driven email content.
+  - `RECAPS`: periodic recap/report email content.
+- [ ] Define `NotificationDelivery` by timing:
+  - `IMMEDIATE`: due on the next sender run.
+  - `SCHEDULED`: due at the stored `send_at`.
 
 ## Schema Plan
 
@@ -77,7 +79,7 @@ Implementation plan for replacing the current recipient-specific `alert_records`
   - Do not store stockout, low-stock, or forecast rows here.
 - [ ] Add `notification_email_deliveries`.
   - One row per recipient email.
-  - Fields: `agency_id`, `agency_email_id`, `recipient_email_snapshot`, `notification_kind`, `status`, `send_at`, `next_attempt_at`, `dedupe_key`, `alert_event_ids_json`, `subject`, `preview_text`, `body_html`, `body_text`, `attempt_count`, `last_error_type`, `last_error_message`, `last_error_at`, `created_at`, `sent_at`.
+  - Fields: `agency_id`, `agency_email_id`, `recipient_email_snapshot`, `notification_kind`, `delivery`, `status`, `send_at`, `next_attempt_at`, `dedupe_key`, `alert_event_ids_json`, `subject`, `preview_text`, `body_html`, `body_text`, `attempt_count`, `last_error_type`, `last_error_message`, `last_error_at`, `created_at`, `sent_at`.
   - Constraint: `next_attempt_at` must be null or greater than/equal to `send_at`.
   - Effective retry time is `max(send_at, next_attempt_at or send_at)`.
 
@@ -140,10 +142,14 @@ Implementation plan for replacing the current recipient-specific `alert_records`
 - [ ] Apply recipient preferences and location filters before rendering.
 - [ ] Render email content once and store it on `notification_email_deliveries`.
 - [ ] Use `recipient_email_snapshot` so sent history keeps the actual destination even if the recipient record changes later.
-- [ ] Use `send_at` to delay digest-style messages.
-  - Immediate events: `send_at = now`; the next email cron run sends them.
-  - Hourly digest stock/forecast items: next hour.
-  - Daily digest/report items: configured daily window.
+- [ ] Keep content type separate from delivery timing.
+  - Alert emails: `notification_kind=ALERTS`.
+  - Recap/report emails: `notification_kind=RECAPS`.
+  - Next-cron alerts: `delivery=IMMEDIATE`, `send_at=now`.
+  - Scheduled alerts: `delivery=SCHEDULED`, `send_at` rounded to the next hour.
+  - Periodic recaps: `delivery=SCHEDULED`, prepared during the configured morning window.
+- [ ] When a periodic recap includes alerts, render alert sections first and recap sections second.
+- [ ] Make combined recap email header/body text explicitly say it includes both current alerts and periodic recap content.
 - [x] Do not create link tables; the stored email body is the audit record.
 
 ## Email Sending Logic
@@ -163,6 +169,10 @@ Implementation plan for replacing the current recipient-specific `alert_records`
 - [ ] On item/settings edits: recompute affected item/location states immediately.
 - [ ] On model retraining: update trend fields and forecast fields in `inventory_item_location_states`.
 - [ ] Every 10 minutes: send due `notification_email_deliveries`.
+- [ ] Run daily operational jobs off the 10-minute email grid.
+  - Retraining: 3:43am Eastern.
+  - Reconciliation: 4:17am Eastern.
+  - Safety alert audit: 7:46am Eastern.
 - [ ] Hourly or daily: safety audit/rebuild derived state only; do not make this the primary alert source.
 
 ## Migration Order

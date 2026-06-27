@@ -66,6 +66,7 @@ temp/
 *.rej
 
 # Repo-local tool caches
+.tmp-pre-commit/
 .pre-commit-cache/
 
 # Frontend artifacts, if added later
