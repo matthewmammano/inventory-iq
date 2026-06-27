@@ -279,7 +279,7 @@ def _backfill_item_location_states() -> None:
              AND balances.item_id = items.id
              AND balances.storage_id = storages.id
             {trend_join}
-            WHERE items.active = 1 AND agencies.active = 1
+            WHERE items.active IS TRUE AND agencies.active IS TRUE
             GROUP BY
                 items.agency_id,
                 items.id,
