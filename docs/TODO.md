@@ -2,9 +2,20 @@
 
 ## Active Plan
 
-now can you plz think hard, generate ideas, and create an entire smoke test db table based off a COPY PASTED version temp of current db (instance\inventory_iq.db) and make sure to repoint it to the new one. use DEV tools to change time / date, log events, act like a real user, create ROBUST test cases, ALL inside the tmp/ folder under a new subfolder to test this COMPHRENSIVELY and THOROUGHLY!! to perfection! think thru it all! test ALL edge cases! investigate code FIRST to gen the right ideas for edge case testing. basically all of the alert / email logic needs to be RE-TESTED. do not send real emails tho to the user! JUST look at instance/alerts OR a version of that in tmp/ instead to read what WOULD'VE been sent. also do freqent DB table checks to make sure all appearing as it SHOULD BE!!!!!!!!
+- certain pages REQUIRE keyboard use (as touchscreen / on-screen keyboard not best UI). investigate restricting some pages to keyboard-only use and make sure it is clear to users that they need a keyboard for that page. how to do? how to NOT ban users with keyboard AND touchscreen, only non-keyboard users.
+
+- RAILWAY combine ENV vars and secrets into ONE place for all my COMPUTE (crons and web and DB) and make sure they are all in sync.
+
+- why are there errors in the DB set for emails sending?
+
+- fix SO MANY VALIDATION FORM ISSUES. like mandatory fields, mandatory in combo, certain values, etc.
+  - i want some things highlighted BEFORE save attempted (just on type / CSS). other things ON submit need a flash.
+  - need a way to specify restrictions form / values but in JUST ONE PLACE for both FRONTEND and BACKEND validation so that in sync and DRY!
+  - EXAMPLE FLASH to UI UNACCEPTABLE: 3 validation errors for AdminItemForm tag_ids Input should be a valid list [type=list_type, input_value=None, input_type=NoneType] For further information visit <https://errors.pydantic.dev/2.13/v/list_type> min_quantity Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='', input_type=str] For further information visit <https://errors.pydantic.dev/2.13/v/int_parsing> max_quantity Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='', input_type=str] For further information visit <https://errors.pydantic.dev/2.13/v/int_parsing>
 
 - Review Changes screen NEEDS to be scrollable. also needs to be written as CONCISE / COMPACT as possible. instead of "Yes to No" maybe use ICONS (or just checkboxes that are UNEDITABLE maybe PREFERRED) that I approve AND "→". ALSO maybe I'll change.
+
+- `class AlertSeverity(StrEnum)` is the BEST coding work of art I have ever done! Can you check EVERY OTHER class, datatype, and function in the codebase to see if they can be improved to be as elegant and maintainable as that one? (like using different Enum types, or dataclasses, or Pydantic models, computed fields, etc). Make sure you check THOROUGHLY with agents AND/OR regex searching marking each as possible refactoring candidate. Then make a list of all the candidates and we can review together with LOC saved estimates AND clear coding clarity benefits.
 
 - remove timezone COMPLETELY from ADMIN UI SETTINGS... just editable by me in DB TABLE manually!
 

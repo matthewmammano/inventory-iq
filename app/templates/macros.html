@@ -11,10 +11,10 @@
     <a href="{{ url }}" class="header-action">{{ text }}</a>
 {% endmacro %}
 
-{% macro history_table(action_logs, user_timezone, timezone_hint) %}
+{% macro history_table(action_logs, user_timezone) %}
     <div class="table-wrap">
         <table>
-            <thead><tr><th>Time{% if timezone_hint %} ({{ timezone_hint }}){% endif %}</th><th>Item</th><th>Type</th><th>Qty</th><th>From</th><th>To</th><th>Admin?</th></tr></thead>
+            <thead><tr><th>Time</th><th>Item</th><th>Type</th><th>Qty</th><th>From</th><th>To</th><th>Admin?</th></tr></thead>
             <tbody>
                 {% for log in action_logs %}
                 <tr>

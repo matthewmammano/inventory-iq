@@ -2,7 +2,8 @@
 
 from collections import Counter
 from dataclasses import dataclass
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime, time, timedelta
+from enum import StrEnum
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -28,12 +29,11 @@ from .constants import (
     IMMEDIATE_EVENT_TYPES,
     LABEL_BY_TYPE,
     PREFERENCE_BY_TYPE,
+    SEVERITY_ORDER,
     AlertSeverity,
     AlertType,
     InventoryAlertEventStatus,
-    NotificationDelivery,
     NotificationEmailStatus,
-    NotificationKind,
 )
 from .email_delivery import deliver_notification_email
 from .models import InventoryAlertEvent, NotificationEmailDelivery
@@ -46,14 +46,23 @@ ACTION_TYPES = {
     AlertType.TAKEOUT_ACTION,
     AlertType.TRANSFER_ACTION,
 }
-WARNING_ALERT_TYPES = {
-    AlertType.STOCKOUT_FORECAST,
-    AlertType.LOW_STOCK,
-    AlertType.LOW_STOCK_FORECAST,
-    AlertType.STALE_COUNT,
-    AlertType.RARE_TAKEOUT,
-    AlertType.UNKNOWN_UPC,
-}
+SEVERITY_RANK = {severity: rank for rank, severity in enumerate(SEVERITY_ORDER)}
+
+
+class EmailContentMode(StrEnum):
+    """Code-only content shape for rendered notification copy."""
+
+    ALERTS_ONLY = "ALERTS_ONLY"
+    RECAP_ONLY = "RECAP_ONLY"
+    ALERTS_AND_RECAP = "ALERTS_AND_RECAP"
+
+
+class EmailTimingMode(StrEnum):
+    """Code-only reason a notification send time was selected."""
+
+    IMMEDIATE = "IMMEDIATE"
+    NEXT_HOUR = "NEXT_HOUR"
+    MORNING_RECAP = "MORNING_RECAP"
 
 
 @dataclass(frozen=True)
@@ -67,35 +76,42 @@ class RecipientAlertSnapshot:
 
 
 @dataclass(frozen=True)
-class RecipientDeliveryRequest:
-    """One rendered email that should exist for a recipient in the current run."""
+class EmailPlan:
+    """Code-only plan for one rendered email before it is stored."""
 
-    notification_kind: NotificationKind
-    delivery_mode: NotificationDelivery
+    timing_mode: EmailTimingMode
     send_at: datetime
     stock_states: list[InventoryItemLocationState]
     events: list[InventoryAlertEvent]
+    include_recaps: bool
 
 
-def process_all_alerts(*, force: bool = False) -> dict[str, int]:
+def process_all_alerts(*, force: bool = False, agency_id: int | None = None) -> dict[str, int]:
     """Render pending notification deliveries and send due rows."""
     now = _now()
-    stats = {"created": 0, "processed": 0, "sent": 0, "failed": 0}
+    stats = {"created": 0, "processed": 0, "sent": 0, "failed": 0, "suppressed": 0}
     with get_session() as session:
-        stats["created"] = prepare_notification_deliveries(session, now, force=force)
-        send_stats = send_due_notification_deliveries(session, now, force=force)
+        stats["created"] = prepare_notification_deliveries(session, now, force=force, agency_id=agency_id)
+        session.flush()
+        send_stats = send_due_notification_deliveries(session, now, force=force, agency_id=agency_id)
         stats.update(send_stats)
         session.commit()
-    logger.info("Notification email run finished", extra=stats | {"force": force})
+    logger.info("Notification email run finished", extra=stats | {"force": force, "agency_id": agency_id})
     return stats
 
 
-def prepare_notification_deliveries(session: Session, now: datetime | None = None, *, force: bool = False) -> int:
+def prepare_notification_deliveries(
+    session: Session,
+    now: datetime | None = None,
+    *,
+    force: bool = False,
+    agency_id: int | None = None,
+) -> int:
     """Create or refresh pending rendered email deliveries from current state/events."""
     now = now or _now()
     created = 0
     queued_event_ids: set[int] = set()
-    for agency in _active_agencies(session):
+    for agency in _active_agencies(session, agency_id):
         for recipient in list_active_emails(agency.id, session, order_by_id=True):
             created += _prepare_recipient_deliveries(session, agency, recipient, now, queued_event_ids, force=force)
 
@@ -109,12 +125,22 @@ def prepare_notification_deliveries(session: Session, now: datetime | None = Non
     return created
 
 
-def send_due_notification_deliveries(session: Session, now: datetime | None = None, *, force: bool = False) -> dict[str, int]:
+def send_due_notification_deliveries(
+    session: Session,
+    now: datetime | None = None,
+    *,
+    force: bool = False,
+    agency_id: int | None = None,
+) -> dict[str, int]:
     """Send due delivery rows once and update delivery status."""
     now = now or _now()
-    stats = {"processed": 0, "sent": 0, "failed": 0}
-    deliveries = _due_deliveries(session, now, force=force)
+    stats = {"processed": 0, "sent": 0, "failed": 0, "suppressed": 0}
+    deliveries = _due_deliveries(session, now, force=force, agency_id=agency_id)
     for delivery in deliveries:
+        if quiet_until := _quiet_until_for_delivery(session, delivery, now):
+            _postpone_delivery_for_quiet_hours(delivery, quiet_until)
+            stats["suppressed"] += 1
+            continue
         stats["processed"] += 1
         if deliver_notification_email(delivery):
             _mark_delivery_sent(session, delivery, now)
@@ -136,19 +162,15 @@ def _prepare_recipient_deliveries(
 ) -> int:
     snapshot = _recipient_alert_snapshot(session, agency, recipient, now)
     created = 0
-    for request in _delivery_requests_for_recipient(snapshot, now, force=force):
-        created += _upsert_delivery(
+    for plan in _email_plans_for_recipient(snapshot, recipient, agency.timezone, now, force=force):
+        created += _upsert_delivery_from_plan(
             session,
             agency,
             recipient,
-            request.notification_kind,
-            request.delivery_mode,
-            request.send_at,
-            stock_states=request.stock_states,
-            events=request.events,
+            plan,
             now=now,
         )
-        queued_event_ids.update(event.id for event in request.events)
+        queued_event_ids.update(event.id for event in plan.events)
     return created
 
 
@@ -168,68 +190,126 @@ def _recipient_alert_snapshot(
     )
 
 
-def _delivery_requests_for_recipient(
+def _email_plans_for_recipient(
     snapshot: RecipientAlertSnapshot,
+    recipient: AgencyEmails,
+    timezone: str,
     now: datetime,
     *,
     force: bool,
-) -> list[RecipientDeliveryRequest]:
-    requests: list[RecipientDeliveryRequest] = []
+) -> list[EmailPlan]:
+    plans: list[EmailPlan] = []
     if snapshot.immediate_events:
-        requests.append(
-            RecipientDeliveryRequest(
-                notification_kind=NotificationKind.ALERTS,
-                delivery_mode=NotificationDelivery.IMMEDIATE,
-                send_at=_delivery_send_at(NotificationDelivery.IMMEDIATE, now, force=force),
+        plans.append(
+            _email_plan(
+                recipient,
+                timezone,
+                EmailTimingMode.IMMEDIATE,
+                now,
+                force=force,
                 stock_states=[],
                 events=snapshot.immediate_events,
+                include_recaps=False,
             )
         )
     if snapshot.recap_due:
-        requests.append(
-            RecipientDeliveryRequest(
-                notification_kind=NotificationKind.RECAPS,
-                delivery_mode=NotificationDelivery.SCHEDULED,
-                send_at=now,
+        plans.append(
+            _email_plan(
+                recipient,
+                timezone,
+                EmailTimingMode.MORNING_RECAP,
+                now,
+                force=force,
                 stock_states=snapshot.stock_states,
                 events=snapshot.scheduled_events,
+                include_recaps=True,
             )
         )
-        return requests
+        return _merge_email_plans(plans)
     if snapshot.stock_states or snapshot.scheduled_events:
-        requests.append(
-            RecipientDeliveryRequest(
-                notification_kind=NotificationKind.ALERTS,
-                delivery_mode=NotificationDelivery.SCHEDULED,
-                send_at=_delivery_send_at(NotificationDelivery.SCHEDULED, now, force=force),
+        plans.append(
+            _email_plan(
+                recipient,
+                timezone,
+                EmailTimingMode.NEXT_HOUR,
+                now,
+                force=force,
                 stock_states=snapshot.stock_states,
                 events=snapshot.scheduled_events,
+                include_recaps=False,
             )
         )
-    return requests
+    return _merge_email_plans(plans)
 
 
-def _upsert_delivery(
+def _merge_email_plans(plans: list[EmailPlan]) -> list[EmailPlan]:
+    merged: dict[datetime, EmailPlan] = {}
+    for plan in plans:
+        existing = merged.get(plan.send_at)
+        if existing is None:
+            merged[plan.send_at] = plan
+            continue
+        merged[plan.send_at] = EmailPlan(
+            timing_mode=_merged_timing_mode(existing.timing_mode, plan.timing_mode),
+            send_at=plan.send_at,
+            stock_states=[*existing.stock_states, *plan.stock_states],
+            events=[*existing.events, *plan.events],
+            include_recaps=existing.include_recaps or plan.include_recaps,
+        )
+    return list(merged.values())
+
+
+def _merged_timing_mode(left: EmailTimingMode, right: EmailTimingMode) -> EmailTimingMode:
+    if EmailTimingMode.MORNING_RECAP in {left, right}:
+        return EmailTimingMode.MORNING_RECAP
+    if EmailTimingMode.IMMEDIATE in {left, right}:
+        return EmailTimingMode.IMMEDIATE
+    return EmailTimingMode.NEXT_HOUR
+
+
+def _email_plan(
+    recipient: AgencyEmails,
+    timezone: str,
+    timing_mode: EmailTimingMode,
+    now: datetime,
+    *,
+    force: bool,
+    stock_states: list[InventoryItemLocationState],
+    events: list[InventoryAlertEvent],
+    include_recaps: bool,
+) -> EmailPlan:
+    send_at = _send_at_for_timing(timing_mode, now, force=force)
+    return EmailPlan(
+        timing_mode=timing_mode,
+        send_at=_send_at_after_quiet_hours(recipient, timezone, send_at),
+        stock_states=stock_states,
+        events=events,
+        include_recaps=include_recaps,
+    )
+
+
+def _upsert_delivery_from_plan(
     session: Session,
     agency: Agencies,
     recipient: AgencyEmails,
-    notification_kind: NotificationKind,
-    delivery_mode: NotificationDelivery,
-    send_at: datetime,
+    plan: EmailPlan,
     *,
-    stock_states: list[InventoryItemLocationState],
-    events: list[InventoryAlertEvent],
     now: datetime,
 ) -> int:
-    dedupe_key = _delivery_dedupe_key(notification_kind, delivery_mode, send_at)
     existing = session.scalar(
         select(NotificationEmailDelivery).where(
             NotificationEmailDelivery.agency_id == agency.id,
             NotificationEmailDelivery.agency_email_id == recipient.id,
-            NotificationEmailDelivery.dedupe_key == dedupe_key,
+            NotificationEmailDelivery.send_at == plan.send_at,
         )
     )
-    batch = _build_batch(session, agency, recipient, notification_kind, delivery_mode, stock_states, events, now)
+    batch = _build_batch(
+        session,
+        agency,
+        recipient,
+        plan,
+        now,
+    )
     if batch is None or not batch.sections:
         _cancel_open_delivery(existing)
         return 0
@@ -242,18 +322,13 @@ def _upsert_delivery(
         agency_id=agency.id,
         agency_email_id=recipient.id,
         recipient_email_snapshot=recipient.email,
-        notification_kind=notification_kind,
-        delivery=delivery_mode,
-        dedupe_key=dedupe_key,
         created_at=now,
     )
     email_delivery.status = NotificationEmailStatus.PENDING
     email_delivery.recipient_email_snapshot = recipient.email
-    email_delivery.notification_kind = notification_kind
-    email_delivery.delivery = delivery_mode
-    email_delivery.send_at = send_at
+    email_delivery.send_at = plan.send_at
     email_delivery.next_attempt_at = None
-    email_delivery.alert_event_ids_json = [event.id for event in events]
+    email_delivery.alert_event_ids_json = [event.id for event in plan.events]
     email_delivery.subject = batch.subject
     email_delivery.preview_text = _preview_text(batch)
     email_delivery.body_html = body_html
@@ -279,32 +354,26 @@ def _build_batch(
     session: Session,
     agency: Agencies,
     recipient: AgencyEmails,
-    notification_kind: NotificationKind,
-    delivery_mode: NotificationDelivery,
-    stock_states: list[InventoryItemLocationState],
-    events: list[InventoryAlertEvent],
+    plan: EmailPlan,
     now: datetime,
 ) -> EmailBatch | None:
-    alert_sections = _build_sections(session, stock_states, events, agency.timezone)
-    recap_sections = _summary_sections(session, agency, recipient, now) if notification_kind == NotificationKind.RECAPS else []
+    alert_sections = _build_sections(session, plan.stock_states, plan.events, agency.timezone)
+    recap_sections = _summary_sections(session, agency, recipient, now) if plan.include_recaps else []
     sections = [*alert_sections, *recap_sections]
-    if notification_kind == NotificationKind.RECAPS and not recap_sections:
-        return None
     if not sections:
         return None
-    severity = _severity_style(stock_states, events)
-    summary = _summary_items(stock_states, events)
-    has_alerts = bool(alert_sections)
-    has_recaps = bool(recap_sections)
+    severity = _severity_style(plan.stock_states, plan.events)
+    summary = _summary_items(plan.stock_states, plan.events)
+    content_mode = _content_mode(has_alerts=bool(alert_sections), has_recaps=bool(recap_sections))
     return EmailBatch(
         agency_email=recipient.email,
         agency_name=agency.display_name,
         generated_at=_display_now(agency.timezone, now),
-        subject=_subject(agency.display_name, severity["label"], notification_kind, has_alerts=has_alerts),
-        title=_title(agency.display_name, notification_kind, has_alerts=has_alerts),
-        intro=_intro(notification_kind, delivery_mode, has_alerts=has_alerts, has_recaps=has_recaps),
-        severity_label=severity["label"],
-        severity_color=severity["color"],
+        subject=_subject(agency.display_name, severity.subject_prefix, content_mode),
+        title=_title(agency.display_name, content_mode),
+        intro=_intro(plan.timing_mode, content_mode),
+        severity_label=severity.email_label,
+        severity_color=severity.color,
         summary=summary,
         sections=sections,
     )
@@ -332,7 +401,7 @@ def _events_for_recipient(session: Session, recipient: AgencyEmails) -> list[Inv
         select(InventoryAlertEvent)
         .where(
             InventoryAlertEvent.agency_id == recipient.agency_id,
-            InventoryAlertEvent.status == InventoryAlertEventStatus.PENDING,
+            InventoryAlertEvent.status.in_([InventoryAlertEventStatus.PENDING, InventoryAlertEventStatus.QUEUED]),
             InventoryAlertEvent.alert_type.in_(DISCRETE_EVENT_TYPES),
         )
         .order_by(InventoryAlertEvent.event_at, InventoryAlertEvent.id)
@@ -697,8 +766,16 @@ def _summary_section(
     )
 
 
-def _due_deliveries(session: Session, now: datetime, *, force: bool) -> list[NotificationEmailDelivery]:
+def _due_deliveries(
+    session: Session,
+    now: datetime,
+    *,
+    force: bool,
+    agency_id: int | None,
+) -> list[NotificationEmailDelivery]:
     filters = []
+    if agency_id is not None:
+        filters.append(NotificationEmailDelivery.agency_id == agency_id)
     if not force:
         filters.append(
             or_(
@@ -742,6 +819,19 @@ def _mark_delivery_failed(delivery: NotificationEmailDelivery, now: datetime) ->
     _send_developer_delivery_failure_alert(delivery)
 
 
+def _quiet_until_for_delivery(session: Session, delivery: NotificationEmailDelivery, now: datetime) -> datetime | None:
+    recipient = session.get(AgencyEmails, delivery.agency_email_id)
+    agency = session.get(Agencies, delivery.agency_id)
+    if recipient is None or agency is None:
+        return None
+    return _quiet_end_utc(recipient, agency.timezone, now)
+
+
+def _postpone_delivery_for_quiet_hours(delivery: NotificationEmailDelivery, quiet_until: datetime) -> None:
+    delivery.send_at = max(delivery.send_at, quiet_until)
+    delivery.next_attempt_at = None
+
+
 def _send_developer_delivery_failure_alert(delivery: NotificationEmailDelivery) -> None:
     admin_email = str(current_app.config.get("ADMIN_ALERT_EMAIL") or "").strip()
     if not admin_email:
@@ -753,8 +843,7 @@ def _send_developer_delivery_failure_alert(delivery: NotificationEmailDelivery) 
         f"Agency ID: {delivery.agency_id}\n"
         f"Agency Email ID: {delivery.agency_email_id}\n"
         f"Recipient Domain: {email_domain(delivery.recipient_email_snapshot)}\n"
-        f"Notification Kind: {delivery.notification_kind.value}\n"
-        f"Delivery: {delivery.delivery.value}\n"
+        f"Send At: {delivery.send_at}\n"
         f"Attempt Count: {delivery.attempt_count}\n"
         f"Next Attempt At: {delivery.next_attempt_at}\n"
         f"Error Type: {delivery.last_error_type}\n"
@@ -774,8 +863,11 @@ def _send_developer_delivery_failure_alert(delivery: NotificationEmailDelivery) 
         )
 
 
-def _active_agencies(session: Session) -> list[Agencies]:
-    return list(session.execute(select(Agencies).where(Agencies.active.is_(True)).order_by(Agencies.id)).scalars().all())
+def _active_agencies(session: Session, agency_id: int | None = None) -> list[Agencies]:
+    stmt = select(Agencies).where(Agencies.active.is_(True)).order_by(Agencies.id)
+    if agency_id is not None:
+        stmt = stmt.where(Agencies.id == agency_id)
+    return list(session.execute(stmt).scalars().all())
 
 
 def _unknown_upc_is_pending(session: Session, event: InventoryAlertEvent) -> bool:
@@ -798,51 +890,55 @@ def _summary_items(stock_states: list[InventoryItemLocationState], events: list[
     return [AlertSummaryItem(label=LABEL_BY_TYPE[alert_type], count=count) for alert_type, count in counts.items() if count > 0]
 
 
-def _severity_style(stock_states: list[InventoryItemLocationState], events: list[InventoryAlertEvent]) -> dict[str, str]:
+def _severity_style(stock_states: list[InventoryItemLocationState], events: list[InventoryAlertEvent]) -> AlertSeverity:
+    severity = AlertSeverity.INFO
     if any(state.effective_alert_type == AlertType.STOCKOUT for state in stock_states):
-        return {"label": "Critical", "color": "#9F1F1F"}
-    if any(state.effective_severity in {AlertSeverity.CRITICAL, AlertSeverity.HIGH, AlertSeverity.WARNING} for state in stock_states) or any(
-        event.alert_type in WARNING_ALERT_TYPES for event in events
-    ):
-        return {"label": "Warning", "color": "#8A5A00"}
-    return {"label": "Activity", "color": "#2F6B4F"}
+        severity = AlertSeverity.CRITICAL
+    for state in stock_states:
+        severity = _higher_severity(severity, state.effective_severity)
+    for event in events:
+        severity = _higher_severity(severity, event.severity)
+    return severity
 
 
-def _subject(agency_name: str, severity_label: str, notification_kind: NotificationKind, *, has_alerts: bool) -> str:
-    prefix = {
-        "Critical": "[CRITICAL]",
-        "Warning": "[WARNING]",
-        "Activity": "[ACTIVITY]",
-    }[severity_label]
-    if notification_kind == NotificationKind.RECAPS and has_alerts:
-        return f"{prefix} Inventory Alerts and Periodic Recap - {agency_name}"
-    if notification_kind == NotificationKind.RECAPS:
+def _content_mode(*, has_alerts: bool, has_recaps: bool) -> EmailContentMode:
+    if has_alerts and has_recaps:
+        return EmailContentMode.ALERTS_AND_RECAP
+    if has_recaps:
+        return EmailContentMode.RECAP_ONLY
+    return EmailContentMode.ALERTS_ONLY
+
+
+def _subject(agency_name: str, severity_prefix: str, content_mode: EmailContentMode) -> str:
+    if content_mode == EmailContentMode.ALERTS_AND_RECAP:
+        return f"{severity_prefix} Inventory Alerts and Periodic Recap - {agency_name}"
+    if content_mode == EmailContentMode.RECAP_ONLY:
         return f"Inventory Periodic Recap - {agency_name}"
-    return f"{prefix} Inventory Alerts - {agency_name}"
+    return f"{severity_prefix} Inventory Alerts - {agency_name}"
 
 
-def _title(agency_name: str, notification_kind: NotificationKind, *, has_alerts: bool) -> str:
-    if notification_kind == NotificationKind.RECAPS and has_alerts:
+def _title(agency_name: str, content_mode: EmailContentMode) -> str:
+    if content_mode == EmailContentMode.ALERTS_AND_RECAP:
         return f"Inventory Alerts and Periodic Recap - {agency_name}"
-    if notification_kind == NotificationKind.RECAPS:
+    if content_mode == EmailContentMode.RECAP_ONLY:
         return f"Inventory Periodic Recap - {agency_name}"
     return f"Inventory Alerts - {agency_name}"
 
 
-def _intro(
-    notification_kind: NotificationKind,
-    delivery_mode: NotificationDelivery,
-    *,
-    has_alerts: bool,
-    has_recaps: bool,
-) -> str:
-    if notification_kind == NotificationKind.RECAPS and has_alerts and has_recaps:
+def _intro(timing_mode: EmailTimingMode, content_mode: EmailContentMode) -> str:
+    if content_mode == EmailContentMode.ALERTS_AND_RECAP:
         return "This email includes current inventory alerts first, followed by your periodic recap."
-    if notification_kind == NotificationKind.RECAPS:
+    if content_mode == EmailContentMode.RECAP_ONLY:
         return "This email includes your periodic inventory recap."
-    if delivery_mode == NotificationDelivery.IMMEDIATE:
+    if timing_mode == EmailTimingMode.IMMEDIATE:
         return "This email includes alert activity configured for immediate notification."
     return "This email includes grouped inventory alerts scheduled for review."
+
+
+def _higher_severity(left: AlertSeverity, right: AlertSeverity | None) -> AlertSeverity:
+    if right is None:
+        return left
+    return right if SEVERITY_RANK[right] < SEVERITY_RANK[left] else left
 
 
 def _preview_text(batch: EmailBatch) -> str:
@@ -852,29 +948,60 @@ def _preview_text(batch: EmailBatch) -> str:
     return ", ".join(parts)[:255]
 
 
-def _delivery_dedupe_key(notification_kind: NotificationKind, delivery_mode: NotificationDelivery, send_at: datetime) -> str:
-    if delivery_mode == NotificationDelivery.IMMEDIATE:
-        stamp = send_at.strftime("%Y-%m-%dT%H:%M")
-    elif notification_kind == NotificationKind.ALERTS:
-        stamp = send_at.strftime("%Y-%m-%dT%H")
-    else:
-        stamp = send_at.strftime("%Y-%m-%d")
-    return f"{notification_kind.value}:{delivery_mode.value}:{stamp}"
-
-
-def _delivery_send_at(delivery_mode: NotificationDelivery, now: datetime, *, force: bool) -> datetime:
-    if force:
-        return now
-    if delivery_mode == NotificationDelivery.IMMEDIATE:
-        return now
-    return _round_up_hour(now)
-
-
 def _round_up_hour(value: datetime) -> datetime:
     rounded = value.replace(minute=0, second=0, microsecond=0)
     if rounded < value:
         rounded += timedelta(hours=1)
     return rounded
+
+
+def _send_at_for_timing(timing_mode: EmailTimingMode, now: datetime, *, force: bool) -> datetime:
+    if force or timing_mode in {EmailTimingMode.IMMEDIATE, EmailTimingMode.MORNING_RECAP}:
+        return now
+    return _round_up_hour(now)
+
+
+def _send_at_after_quiet_hours(recipient: AgencyEmails, timezone: str, send_at: datetime) -> datetime:
+    return _quiet_end_utc(recipient, timezone, send_at) or send_at
+
+
+def _quiet_end_utc(recipient: AgencyEmails, timezone: str, instant_utc: datetime) -> datetime | None:
+    try:
+        quiet_start = _parse_quiet_time(recipient.quiet_start_time)
+        quiet_end = _parse_quiet_time(recipient.quiet_end_time)
+    except ValueError as exc:
+        logger.warning(
+            "Notification quiet hours ignored because stored values are invalid",
+            extra={"agency_id": recipient.agency_id, "agency_email_id": recipient.id, "error": str(exc)},
+        )
+        return None
+    if quiet_start is None or quiet_end is None or quiet_start == quiet_end:
+        return None
+
+    local_now = _local_now(timezone, instant_utc)
+    if not _time_is_quiet(local_now.time(), quiet_start, quiet_end):
+        return None
+    return _utc_naive(_local_quiet_end(local_now, quiet_start, quiet_end))
+
+
+def _parse_quiet_time(value: str | None) -> time | None:
+    if not value:
+        return None
+    hour, minute = (int(part) for part in value.split(":", maxsplit=1))
+    return time(hour=hour, minute=minute)
+
+
+def _time_is_quiet(local_time: time, quiet_start: time, quiet_end: time) -> bool:
+    if quiet_start < quiet_end:
+        return quiet_start <= local_time < quiet_end
+    return local_time >= quiet_start or local_time < quiet_end
+
+
+def _local_quiet_end(local_now: datetime, quiet_start: time, quiet_end: time) -> datetime:
+    quiet_end_today = local_now.replace(hour=quiet_end.hour, minute=quiet_end.minute, second=0, microsecond=0)
+    if quiet_start < quiet_end or local_now.time() < quiet_end:
+        return quiet_end_today
+    return quiet_end_today + timedelta(days=1)
 
 
 def _display_now(timezone: str, now: datetime) -> str:

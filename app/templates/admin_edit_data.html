@@ -112,7 +112,7 @@
                     <td>{{ delete_toggle("delete_tag_ids", "Delete Tag", tag.id) }}</td>
                 </tr>
                 {% endfor %}
-                <tr data-row-label="New Tag"><td>{{ bare_input("new_tag_tag_name", "", "Tag Name", "maxlength=50 placeholder='e.g. Airway'") }}</td><td>{{ bare_input("new_tag_color", "#2F6B4F", "Color", "type=color") }}</td><td></td></tr>
+                <tr data-row-label="New Tag"><td>{{ bare_input("new_tag_tag_name", "", "Tag Name", "maxlength=50 placeholder='e.g. Airway'") }}</td><td>{{ bare_input("new_tag_color", "#FFFFFF", "Color", "type=color") }}</td><td></td></tr>
             </tbody></table></div>
         </form>
     </section>
@@ -120,11 +120,12 @@
     <section class="panel tab-panel{% if active_tab != 'notifications' %} hidden{% endif %}" id="notifications">
         <form id="edit-form-notifications" method="POST" data-edit-form>
             <input type="hidden" name="tab" value="notifications">
-            <div class="table-wrap"><table><thead><tr><th>Email</th><th>Locations</th><th>Alerts</th><th>Summaries</th><th>Delete?</th></tr></thead><tbody>
+            <div class="table-wrap"><table><thead><tr><th>Email</th><th>Locations</th><th>Quiet Hours</th><th>Alerts</th><th>Summaries</th><th>Delete?</th></tr></thead><tbody>
                 {% for email in notifications %}
                 <tr data-row-label="{{ email.email }}">
                     <td><input type="hidden" name="email_ids" value="{{ email.id }}">{{ bare_input("email_" ~ email.id ~ "_email", email.email, "Email Address", "type=email maxlength=128 required") }}</td>
                     <td>{{ checkbox_list("Location Filters", "email_" ~ email.id ~ "_location_filter_ids", locations, email.location_filter_ids|default([], true), "Location Filters") }}<small>Blank means all locations.</small></td>
+                    <td>{{ input("email_" ~ email.id ~ "_quiet_start_time", email.quiet_start_time, "Quiet Start", "type=time") }}{{ input("email_" ~ email.id ~ "_quiet_end_time", email.quiet_end_time, "Quiet End", "type=time") }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
                     <td>{% for field, label in notification_alert_fields %}{{ check("email_" ~ email.id ~ "_" ~ field, email|attr(field), label) }}{% endfor %}</td>
                     <td>{% for field, label in notification_summary_fields %}{{ check("email_" ~ email.id ~ "_" ~ field, email|attr(field), label) }}{% endfor %}</td>
                     <td>{{ delete_toggle("delete_email_ids", "Delete Notification", email.id) }}</td>
@@ -133,6 +134,7 @@
                 <tr data-new-email-row data-email-index="0" data-row-label="New Notification">
                     <td><input type="hidden" name="new_email_keys" value="new_email_0">{{ bare_input("new_email_0_email", "", "Email Address", "type=email maxlength=128 placeholder='name@example.com'") }}</td>
                     <td>{{ checkbox_list("Location Filters", "new_email_0_location_filter_ids", locations, [], "Location Filters") }}</td>
+                    <td>{{ input("new_email_0_quiet_start_time", "", "Quiet Start", "type=time") }}{{ input("new_email_0_quiet_end_time", "", "Quiet End", "type=time") }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
                     <td>{% for field, label in notification_alert_fields %}{{ check("new_email_0_" ~ field, false, label) }}{% endfor %}</td>
                     <td>{% for field, label in notification_summary_fields %}{{ check("new_email_0_" ~ field, false, label) }}{% endfor %}</td>
                     <td></td>

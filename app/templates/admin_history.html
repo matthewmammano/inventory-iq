@@ -24,7 +24,7 @@
     </section>
     {% else %}
     <section class="panel">
-        {{ history_table(action_logs, user_timezone, timezone_hint) }}
+        {{ history_table(action_logs, user_timezone) }}
 
         <div class="button-row history-pagination">
             {% if has_next_page %}

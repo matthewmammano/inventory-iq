@@ -103,7 +103,7 @@ def stock_alert_severity(
     if alert_type == AlertType.STOCKOUT:
         return AlertSeverity.CRITICAL
     if alert_type == AlertType.LOW_STOCK:
-        return AlertSeverity.HIGH if total_quantity <= max(min_quantity // 2, 0) else AlertSeverity.WARNING
+        return AlertSeverity.HIGH if total_quantity <= max(min_quantity // 2, 0) else AlertSeverity.MEDIUM
     if alert_type == AlertType.STOCKOUT_FORECAST:
         return forecast_alert_severity(days_until_stockout, lead_time_days)
     if alert_type == AlertType.LOW_STOCK_FORECAST:
@@ -120,8 +120,8 @@ def forecast_alert_severity(days_until_threshold: float | None, lead_time_days: 
     if days_until_threshold <= 3:
         return AlertSeverity.HIGH
     if days_until_threshold <= 7:
-        return AlertSeverity.WARNING
-    return AlertSeverity.NOTICE
+        return AlertSeverity.MEDIUM
+    return AlertSeverity.LOW
 
 
 def effective_daily_usage(trend_per_day: float | None, prior_daily_usage: float) -> float:

@@ -21,7 +21,6 @@
             <div class="section-label">Squad Display</div>
             <div class="settings-options">
                 <div class="setting-row"><div><div class="setting-name">Image</div><p>Logo or image shown in the header</p></div><input class="small-input" name="image" maxlength="1020" value="{{ current_user.image or '' }}" data-label="Image" data-original="{{ current_user.image or '' }}"></div>
-                <div class="setting-row"><div><div class="setting-name">Timezone</div><p>Used for history, alerts, and temporary login codes</p></div><select class="small-input" name="timezone" required data-label="Timezone" data-original="{{ current_user.timezone }}">{% for timezone in timezone_choices %}<option value="{{ timezone }}" {% if timezone == current_user.timezone %}selected{% endif %}>{{ timezone }}</option>{% endfor %}</select></div>
                 <div class="setting-row"><div><div class="setting-name">Admin PIN</div><p>Four digits used to enter admin mode</p></div><input class="small-input" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required value="{{ current_user.pin }}" data-label="Admin PIN" data-original="{{ current_user.pin }}"></div>
             </div>
         </section>

@@ -80,7 +80,6 @@ from app.prediction.history_service import build_item_trend_chart
 from app.shared.cache import ttl_cache
 from app.shared.constants import ADMIN_TIMEOUT
 from app.shared.database import get_session
-from app.shared.timezone_utils import get_timezone_hint
 from app.shared.utils import (
     get_squad_from_request,
     is_static_request,
@@ -91,16 +90,6 @@ from app.shared.validators import parse_optional_int
 
 HISTORY_PAGE_SIZE = 50
 HISTORY_PRINT_LIMIT = 5000
-TIMEZONE_CHOICES = (
-    "America/New_York",
-    "America/Chicago",
-    "America/Denver",
-    "America/Phoenix",
-    "America/Los_Angeles",
-    "America/Anchorage",
-    "Pacific/Honolulu",
-    "UTC",
-)
 
 
 @bp.before_request
@@ -236,7 +225,6 @@ def admin_panel_views(squad: str) -> Any:
         notification_summary_fields=NOTIFICATION_SUMMARY_FIELDS,
         admin=True,
         user_timezone=current_user.timezone,
-        timezone_hint=get_timezone_hint(current_user.timezone),
     )
 
 
@@ -820,7 +808,6 @@ def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
         has_next_page=has_next_page,
         admin=True,
         user_timezone=current_user.timezone,
-        timezone_hint=get_timezone_hint(current_user.timezone),
         today_date=_local_today(current_user.timezone).isoformat(),
     )
 
@@ -856,7 +843,6 @@ def admin_history_print(squad: str, agency_location_id: int | None = None) -> An
         end_date=end_date,
         admin=True,
         user_timezone=current_user.timezone,
-        timezone_hint=get_timezone_hint(current_user.timezone),
     )
 
 
@@ -960,15 +946,8 @@ def settings_page(squad: str) -> Any:
         "admin_settings.html",
         squad=squad,
         contact_phone=current_app.config.get("CONTACT_PHONE", ""),
-        timezone_choices=_settings_timezone_choices(current_user.timezone),
         admin=True,
     )
-
-
-def _settings_timezone_choices(current_timezone: str) -> tuple[str, ...]:
-    if current_timezone in TIMEZONE_CHOICES:
-        return TIMEZONE_CHOICES
-    return (current_timezone, *TIMEZONE_CHOICES)
 
 
 def _save_settings(squad: str) -> Any:

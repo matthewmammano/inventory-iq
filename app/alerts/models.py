@@ -15,9 +15,7 @@ from .constants import (
     AlertSourceType,
     AlertType,
     InventoryAlertEventStatus,
-    NotificationDelivery,
     NotificationEmailStatus,
-    NotificationKind,
 )
 
 
@@ -66,8 +64,6 @@ class NotificationEmailDelivery(Base):
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
     agency_email_id: Mapped[int] = mapped_column(Integer, ForeignKey("agency_emails.id"), index=True)
     recipient_email_snapshot: Mapped[str] = mapped_column(String(255))
-    notification_kind: Mapped[NotificationKind] = mapped_column(SAEnum(NotificationKind, native_enum=False, length=32), index=True)
-    delivery: Mapped[NotificationDelivery] = mapped_column(SAEnum(NotificationDelivery, native_enum=False, length=16), index=True)
     status: Mapped[NotificationEmailStatus] = mapped_column(
         SAEnum(NotificationEmailStatus, native_enum=False, length=16),
         default=NotificationEmailStatus.PENDING,
@@ -75,7 +71,6 @@ class NotificationEmailDelivery(Base):
     )
     send_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
-    dedupe_key: Mapped[str] = mapped_column(String(255), index=True)
     alert_event_ids_json: Mapped[list[int]] = mapped_column(JSON, default=list)
     subject: Mapped[str] = mapped_column(String(255))
     preview_text: Mapped[str] = mapped_column(String(255))
@@ -89,10 +84,10 @@ class NotificationEmailDelivery(Base):
     sent_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
 
     __table_args__ = (
-        UniqueConstraint("agency_id", "agency_email_id", "dedupe_key", name="uq_notification_email_deliveries_recipient_dedupe"),
         CheckConstraint("next_attempt_at IS NULL OR next_attempt_at >= send_at", name="ck_notification_email_next_attempt_after_send"),
         Index("idx_notification_email_deliveries_status_send", "status", "send_at"),
+        UniqueConstraint("agency_id", "agency_email_id", "send_at", name="uq_notification_email_deliveries_recipient_send"),
     )
 
     def __repr__(self) -> str:
-        return f"<NotificationEmailDelivery {self.id}: {self.notification_kind.value} {self.delivery.value} {self.status.value}>"
+        return f"<NotificationEmailDelivery {self.id}: {self.status.value} {self.send_at}>"

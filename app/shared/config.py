@@ -1,5 +1,6 @@
 """Environment configuration via pydantic-settings."""
 
+from pathlib import Path
 from typing import Literal
 
 from dotenv import load_dotenv
@@ -16,6 +17,8 @@ PROD_REQUIRED_FIELDS = (
     "email_api_key",
     "email_sender_email",
 )
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+DEFAULT_INSTANCE_PATH = PROJECT_ROOT / "instance"
 
 
 class Settings(BaseSettings):
@@ -28,6 +31,7 @@ class Settings(BaseSettings):
         default="dev",
     )
     database_url: str = DEV_DATABASE_URL
+    instance_path: str = ""
     secret_key: str = ""
 
     # Blank email settings are allowed in dev; prod startup rejects blanks below.
@@ -83,6 +87,11 @@ class Settings(BaseSettings):
     @property
     def is_prod(self) -> bool:
         return self.app_env == "prod"
+
+    @property
+    def resolved_instance_path(self) -> Path:
+        configured = str(self.instance_path or "").strip()
+        return Path(configured).expanduser().resolve() if configured else DEFAULT_INSTANCE_PATH
 
 
 settings = Settings()

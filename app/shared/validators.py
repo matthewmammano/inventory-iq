@@ -60,6 +60,22 @@ def validate_timezone(value: str) -> str:
     return value
 
 
+def validate_hhmm_time(value: str | None, field_name: str, *, allow_none: bool = True) -> str | None:
+    """Validate a 24-hour HH:MM local clock preference."""
+    if value is None or value == "":
+        if allow_none:
+            return None
+        raise ValueError(f"{field_name} cannot be empty")
+    value = validate_string_length(value.strip(), field_name, 5, allow_none=False, allow_empty=False) or ""
+    parts = value.split(":", maxsplit=1)
+    if len(parts) != 2 or not all(part.isdigit() for part in parts):
+        raise ValueError(f"{field_name} must use HH:MM")
+    hour, minute = (int(part) for part in parts)
+    if hour > 23 or minute > 59:
+        raise ValueError(f"{field_name} must use HH:MM")
+    return f"{hour:02d}:{minute:02d}"
+
+
 def validate_image_url(value: str | None) -> str | None:
     """Validate image URL or local path."""
     if not value:

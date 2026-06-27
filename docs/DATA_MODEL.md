@@ -28,12 +28,13 @@ Core persistence rules for Inventory IQ. Schema changes require Alembic migratio
 - Stock/forecast alerts are current state, not alert event rows.
 - `inventory_alert_events` stores discrete non-stock facts only.
 - `notification_email_deliveries` stores rendered subject/body text as the sent-email audit record.
-- Notification deliveries separate content (`notification_kind`: `ALERTS` or `RECAPS`) from timing (`delivery`: `IMMEDIATE` or `SCHEDULED`) and always use `send_at` as the due time.
+- Notification deliveries store final rendered outbound emails. Use `send_at` as the due time; the rendered subject/body determines whether the email contains alerts, recap sections, or both.
 - Time values are stored in the backend/database as UTC or UTC-naive timestamps for simplicity; convert to each agency's local timezone only when presenting, scheduling, or comparing against local business windows.
 - Balance reconciliation may rebuild derived state from history when drift is detected.
 - Inventory quantities are non-negative unless a future product decision explicitly changes that rule.
 - Item soft delete uses `items.active`; do not hard-delete item history.
 - Notification recipient state uses `agency_emails.active`; do not conflate it with `agencies.email`.
+- Notification recipient quiet hours live on `agency_emails` as local `HH:MM` preferences; delivery timestamps remain UTC/UTC-naive and are shifted outside quiet windows at planning/send time.
 - Primary item UPCs use the private generated prefix enforced by `Items`.
 - Secondary UPCs are real package aliases and must not use the private generated prefix.
 - Unknown UPCs are unique per agency and move through review statuses.

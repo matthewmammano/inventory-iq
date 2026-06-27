@@ -6,7 +6,7 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from loguru import logger
-from pydantic import BaseModel, EmailStr, Field, field_validator
+from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -14,7 +14,7 @@ from app.auth.location_filters import validate_location_filter_ids
 from app.auth.models import Agencies, AgencyEmails, AgencyItemTags
 from app.inventory.models import Items, ItemSecondaryUpc, validate_upc_code
 from app.shared.email_client import EMAIL_RETRY_DELAYS_SECONDS, OutboundEmail, send_email
-from app.shared.validators import validate_image_url, validate_pin, validate_string_length, validate_timezone
+from app.shared.validators import validate_hhmm_time, validate_image_url, validate_pin, validate_string_length
 
 NOTIFICATION_ALERT_FIELDS = (
     ("alert_for_stockout", "Stockout"),
@@ -98,6 +98,8 @@ class AdminNotificationForm(BaseModel):
     email: EmailStr
     active: bool = True
     location_filter_ids: list[int] | None = None
+    quiet_start_time: str | None = None
+    quiet_end_time: str | None = None
     alert_for_stockout: bool = True
     alert_for_stockout_pred: bool = True
     alert_for_low: bool = True
@@ -113,10 +115,20 @@ class AdminNotificationForm(BaseModel):
     monthly_summary: bool = True
     yearly_summary: bool = True
 
+    @field_validator("quiet_start_time", "quiet_end_time")
+    @classmethod
+    def validate_quiet_time_value(cls, value: str | None, info) -> str | None:
+        return validate_hhmm_time(value, info.field_name or "quiet time")
+
+    @model_validator(mode="after")
+    def validate_quiet_hours_pair(self):
+        if bool(self.quiet_start_time) != bool(self.quiet_end_time):
+            raise ValueError("Quiet hours need both a start time and an end time.")
+        return self
+
 
 class AdminSettingsForm(BaseModel):
     image: str | None = None
-    timezone: str
     pin: str
     user_count_allow: bool = False
     user_restock_allow: bool = False
@@ -128,11 +140,6 @@ class AdminSettingsForm(BaseModel):
     @classmethod
     def validate_image(cls, value: str | None) -> str | None:
         return validate_image_url(value)
-
-    @field_validator("timezone")
-    @classmethod
-    def validate_timezone_value(cls, value: str) -> str:
-        return validate_timezone(value)
 
     @field_validator("pin")
     @classmethod
@@ -323,6 +330,8 @@ def _submitted_row_values(form: Any, prefix: str) -> dict[str, Any]:
         "restock_delivery_days": _blank_to_none(form.get(f"{prefix}restock_delivery_days")),
         "prior_daily_usage": form.get(f"{prefix}prior_daily_usage") or 0,
         "secondary_upcs": _submitted_secondary_upcs(form, prefix),
+        "quiet_start_time": _blank_to_none(form.get(f"{prefix}quiet_start_time")),
+        "quiet_end_time": _blank_to_none(form.get(f"{prefix}quiet_end_time")),
     } | {field: _checkbox_is_checked(form, f"{prefix}{field}") for field in _NOTIFICATION_FLAGS}
 
 

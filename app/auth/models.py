@@ -5,7 +5,7 @@ import string
 from datetime import UTC, datetime
 
 from flask_login import UserMixin
-from sqlalchemy import JSON, Boolean, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -14,6 +14,7 @@ from app.shared.clock import utc_now_naive
 from app.shared.database import Base
 from app.shared.validators import (
     validate_email_format,
+    validate_hhmm_time,
     validate_image_url,
     validate_pin,
     validate_positive_integer,
@@ -138,6 +139,8 @@ class AgencyEmails(Base):
     email: Mapped[str] = mapped_column(String(128), unique=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     location_filter_ids: Mapped[list[int] | None] = mapped_column(MutableList.as_mutable(JSON), nullable=True)
+    quiet_start_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    quiet_end_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
 
     alert_for_stockout: Mapped[bool] = mapped_column(Boolean, default=True)
     alert_for_stockout_pred: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -155,13 +158,30 @@ class AgencyEmails(Base):
     monthly_summary: Mapped[bool] = mapped_column(Boolean, default=True)
     yearly_summary: Mapped[bool] = mapped_column(Boolean, default=True)
 
+    __table_args__ = (
+        CheckConstraint(
+            "(quiet_start_time IS NULL AND quiet_end_time IS NULL) OR (quiet_start_time IS NOT NULL AND quiet_end_time IS NOT NULL)",
+            name="ck_agency_emails_quiet_hours_pair",
+        ),
+    )
+
     @validates("email")
     def validate_email(self, _key: str, value: str | None) -> str | None:
-        return validate_email_format(value, max_length=255, allow_none=False)
+        return validate_email_format(value, max_length=128, allow_none=False)
 
     @validates("location_filter_ids")
     def validate_location_filter_ids(self, _key: str, value: list[int] | None) -> list[int] | None:
         return normalize_location_filter_ids(value)
+
+    @validates("quiet_start_time", "quiet_end_time")
+    def validate_quiet_time(self, key: str, value: str | None) -> str | None:
+        return validate_hhmm_time(value, key)
+
+    @property
+    def quiet_hours_label(self) -> str:
+        if self.quiet_start_time and self.quiet_end_time:
+            return f"{self.quiet_start_time}-{self.quiet_end_time}"
+        return "None"
 
 
 class AgencyLocations(Base):

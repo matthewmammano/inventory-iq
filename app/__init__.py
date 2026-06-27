@@ -68,7 +68,7 @@ def _setup_process_logging() -> None:
 
 
 def _instance_path() -> Path:
-    return Path(__file__).resolve().parent.parent / "instance"
+    return settings.resolved_instance_path
 
 
 def _configure_app(app: Flask) -> None:

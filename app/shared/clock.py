@@ -6,14 +6,13 @@ and alert tests controllable without changing business logic.
 
 import json
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 from loguru import logger
 
 from app.shared.config import settings
 
-INSTANCE_DIR = Path(__file__).resolve().parents[2] / "instance"
+INSTANCE_DIR = settings.resolved_instance_path
 CLOCK_FILE = INSTANCE_DIR / "dev_clock.json"
 
 

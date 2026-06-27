@@ -8,7 +8,7 @@
    Applied to current inventory counts to show stock status
    ============================================================================= */
 
-/* Critical: Negative inventory (user error or system issue) */
+/* 🔴 Critical: Negative inventory (user error or system issue) */
 .inventory-level-negative {
     background-color: #dc2626;
     color: white;
@@ -17,7 +17,7 @@
     border-radius: 4px;
 }
 
-/* Warning: Zero inventory (out of stock) */
+/* 🟡 Medium: Zero inventory (out of stock) */
 .inventory-level-zero {
     background-color: #fee2e2;
     color: #991b1b;
@@ -35,7 +35,7 @@
    Applied to order amounts in restock reports to show urgency
    ============================================================================= */
 
-/* Critical: Large orders needed (100+ units) */
+/* 🔴 Critical: Large orders needed (100+ units) */
 .order-quantity-critical {
     background-color: #7f1d1d;
     color: white;
