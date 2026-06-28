@@ -1321,30 +1321,30 @@ body.loading-active > *:not(.loading-overlay) {
   margin: 14px 0;
 }
 
-.edit-review-backdrop {
+.change-review-backdrop {
   justify-items: center;
   align-items: center;
 }
 
-.edit-review-modal {
+.change-review-modal {
   width: min(540px, 100%);
   max-height: min(80vh, 720px);
   display: flex;
   flex-direction: column;
 }
 
-.edit-review-modal .change-list {
+.change-review-modal .change-list {
   min-height: 0;
   overflow: auto;
   gap: 12px;
 }
 
-.edit-review-modal .change-record {
+.change-review-modal .change-record {
   display: grid;
   gap: 4px;
 }
 
-.edit-review-modal .change-record-title {
+.change-review-modal .change-record-title {
   margin: 0;
   padding: 6px 0 4px;
   color: var(--color-ink);
@@ -1352,7 +1352,7 @@ body.loading-active > *:not(.loading-overlay) {
   line-height: 1.2;
 }
 
-.edit-review-modal .change-record-items {
+.change-review-modal .change-record-items {
   display: grid;
   gap: 4px;
 }
@@ -1371,7 +1371,7 @@ body.loading-active > *:not(.loading-overlay) {
   box-shadow: var(--shadow-button);
 }
 
-.edit-review-modal .change-item {
+.change-review-modal .change-item {
   display: flex;
   flex-wrap: wrap;
   align-items: baseline;
@@ -1383,24 +1383,24 @@ body.loading-active > *:not(.loading-overlay) {
   font-weight: 600;
 }
 
-.edit-review-modal .change-item:hover,
-.edit-review-modal .change-item.selected {
+.change-review-modal .change-item:hover,
+.change-review-modal .change-item.selected {
   box-shadow: none;
 }
 
-.edit-review-modal .change-item-label {
+.change-review-modal .change-item-label {
   min-width: 0;
 }
 
-.edit-review-modal .change-item-value,
-.edit-review-modal .change-item-arrow {
+.change-review-modal .change-item-value,
+.change-review-modal .change-item-arrow {
   color: var(--color-muted);
   font-size: 0.85rem;
   font-weight: 500;
   word-break: break-word;
 }
 
-.edit-review-modal .change-item-checkbox {
+.change-review-modal .change-item-checkbox {
   --change-checkbox-icon: url("https://img.icons8.com/?size=100&id=83310&format=png&color=000000");
   display: inline-flex;
   align-items: center;
@@ -1419,11 +1419,11 @@ body.loading-active > *:not(.loading-overlay) {
   -webkit-mask-size: contain;
 }
 
-.edit-review-modal .change-item-checkbox.is-checked {
+.change-review-modal .change-item-checkbox.is-checked {
   --change-checkbox-icon: url("https://img.icons8.com/?size=100&id=83319&format=png&color=000000");
 }
 
-.edit-review-modal .change-item-arrow {
+.change-review-modal .change-item-arrow {
   color: var(--color-ink);
 }
 

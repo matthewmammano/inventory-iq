@@ -1,4 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
+    const changeReview = window.InventoryChangeReview;
     const saveButton = document.querySelector("#edit-save-button");
     const backLink = document.querySelector("#edit-back-link");
     const modal = document.querySelector("#edit-confirm-modal");
@@ -11,7 +12,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let modalMode = "save";
     let pendingTab = null;
 
-    if (!saveButton || !backLink || !modal || !changeList || !confirmButton || !cancelButton) return;
+    if (!changeReview || !saveButton || !backLink || !modal || !changeList || !confirmButton || !cancelButton) return;
 
     const panels = () => [...document.querySelectorAll(".tab-panel")];
     const activePanel = () => panels().find((panel) => !panel.classList.contains("hidden"));
@@ -41,6 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const changes = (form = activeForm()) => fields(form)
         .map((field) => ({
             field,
+            kind: field.type === "checkbox" ? "boolean" : "text",
             label: field.dataset.label,
             from: originalDisplayOf(field),
             to: displayOf(field),
@@ -121,7 +123,7 @@ document.addEventListener("DOMContentLoaded", () => {
         confirmButton.textContent = mode === "save" ? "Yes, Save" : "Leave Without Saving";
         confirmButton.classList.toggle("danger-button", mode !== "save");
         confirmButton.classList.toggle("success-button", mode === "save");
-        changeList.replaceChildren(...groupedChangeItems(pending));
+        changeList.replaceChildren(...changeReview.renderGroupedItems(pending, (change) => rowLabel(change.field)));
         modal.classList.remove("hidden");
         return true;
     }
@@ -219,25 +221,6 @@ document.addEventListener("DOMContentLoaded", () => {
     renderDirtyState();
 });
 
-function changeItem(change) {
-    const item = document.createElement("div");
-    item.className = "change-item";
-
-    const label = document.createElement("span");
-    label.className = "change-item-label";
-    label.textContent = `${change.label}:`;
-
-    const arrow = document.createElement("span");
-    arrow.className = "change-item-arrow";
-    arrow.textContent = "->";
-
-    const from = renderChangeValue(change.field, change.from);
-    const to = renderChangeValue(change.field, change.to);
-
-    item.append(label, from, arrow, to);
-    return item;
-}
-
 function rowLabel(field) {
     const row = field.closest("tr");
     const typed = row?.querySelector("input[name$='_name'], input[type='email']")?.value.trim();
@@ -248,53 +231,4 @@ function rowLabel(field) {
 function upcCheckDigit(upc11) {
     const total = [...upc11].reduce((sum, digit, index) => sum + Number(digit) * (index % 2 === 0 ? 3 : 1), 0);
     return String((10 - (total % 10)) % 10);
-}
-
-function renderChangeValue(field, value) {
-    if (field.type !== "checkbox") {
-        const text = document.createElement("span");
-        text.className = "change-item-value";
-        text.textContent = truncateValue(value);
-        text.title = value;
-        return text;
-    }
-
-    const wrap = document.createElement("span");
-    wrap.className = "change-item-checkbox";
-    const checked = value === "Yes" || value === "Selected" || value === "Delete";
-    wrap.classList.toggle("is-checked", checked);
-    wrap.setAttribute("role", "img");
-    wrap.setAttribute("aria-label", checked ? "Checked" : "Unchecked");
-    wrap.title = checked ? "Checked" : "Unchecked";
-    return wrap;
-}
-
-function truncateValue(value) {
-    return value.length > 20 ? `${value.slice(0, 20)}...` : value;
-}
-
-function groupedChangeItems(changes) {
-    const records = new Map();
-
-    changes.forEach((change) => {
-        const label = rowLabel(change.field) || "Changes";
-        if (!records.has(label)) records.set(label, []);
-        records.get(label).push(change);
-    });
-
-    return [...records.entries()].map(([label, recordChanges]) => {
-        const group = document.createElement("section");
-        group.className = "change-record";
-
-        const heading = document.createElement("h3");
-        heading.className = "change-record-title";
-        heading.textContent = label;
-
-        const items = document.createElement("div");
-        items.className = "change-record-items";
-        items.append(...recordChanges.map(changeItem));
-
-        group.append(heading, items);
-        return group;
-    });
 }

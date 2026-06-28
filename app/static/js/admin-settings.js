@@ -1,11 +1,11 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const MAX_MODAL_CHANGES = 5;
+    const changeReview = window.InventoryChangeReview;
     const fields = [...document.querySelectorAll("[data-label]")];
     const form = document.querySelector("#settings-form");
     const saveButton = document.querySelector("#save-button");
     const backLink = document.querySelector("#back-link");
     const modal = document.querySelector("#confirm-modal");
-    if (!fields.length || !form || !saveButton || !backLink || !modal) return;
+    if (!changeReview || !fields.length || !form || !saveButton || !backLink || !modal) return;
 
     const modalTitle = document.querySelector("#modal-title");
     const modalMessage = document.querySelector("#modal-message");
@@ -18,9 +18,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const displayOf = (field) => field.tagName === "SELECT"
         ? field.selectedOptions[0]?.textContent.trim()
         : valueOf(field);
-    const displayValue = (value) => value || "Not selected";
+    const displayValue = (value) => value || "Empty";
     const changes = () => fields
         .map((field) => ({
+            kind: field.classList.contains("switch") ? "boolean" : "text",
             label: field.dataset.label,
             from: field.dataset.originalDisplay || displayValue(field.dataset.original),
             to: displayValue(displayOf(field)),
@@ -57,7 +58,7 @@ document.addEventListener("DOMContentLoaded", () => {
         confirmButton.textContent = mode === "back" ? "Leave Without Saving" : "Yes, Save";
         confirmButton.classList.toggle("danger-button", mode === "back");
         confirmButton.classList.toggle("success-button", mode !== "back");
-        changeList.replaceChildren(...limitedChangeItems(pending, MAX_MODAL_CHANGES));
+        changeList.replaceChildren(...pending.map(changeReview.renderChangeItem));
         modal.classList.remove("hidden");
     }
 
@@ -90,23 +91,4 @@ function bindField(field, renderDirtyState) {
         if (input) input.value = field.textContent.trim() === "On" ? "1" : "0";
         renderDirtyState();
     });
-}
-
-function changeItem(change) {
-    const item = document.createElement("div");
-    item.className = "change-item";
-    item.textContent = `${change.label}: ${change.from} to ${change.to}`;
-    return item;
-}
-
-function limitedChangeItems(changes, maxVisible) {
-    const items = changes.slice(0, maxVisible).map(changeItem);
-    const hiddenCount = changes.length - items.length;
-    if (hiddenCount > 0) {
-        const summary = document.createElement("div");
-        summary.className = "change-item";
-        summary.textContent = `...and ${hiddenCount} more change${hiddenCount === 1 ? "" : "s"}`;
-        items.push(summary);
-    }
-    return items;
 }
