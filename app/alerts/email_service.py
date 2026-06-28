@@ -374,7 +374,7 @@ def _build_batch(
         subject=_subject(agency.display_name, severity.subject_prefix, content_mode),
         title=_title(agency.display_name, content_mode),
         intro=_intro(plan.timing_mode, content_mode),
-        severity_label=severity.email_label,
+        severity_label=severity.value,
         severity_color=severity.color,
         summary=summary,
         sections=sections,

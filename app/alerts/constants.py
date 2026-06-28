@@ -44,20 +44,16 @@ class AlertSeverity(StrEnum):
         return _META[self][1]
 
     @property
-    def email_label(self) -> str:
-        return f"{self.emoji} {self.value}"
-
-    @property
     def subject_prefix(self) -> str:
-        return f"[{self.value}]"
+        return f"{self.emoji} [{self.value}]"
 
 
 _META = {
-    AlertSeverity.CRITICAL: ("🔴", "#9F1F1F"),
-    AlertSeverity.HIGH: ("🟠", "#B45309"),
-    AlertSeverity.MEDIUM: ("🟡", "#8A5A00"),
-    AlertSeverity.LOW: ("🔵", "#2563EB"),
-    AlertSeverity.INFO: ("🟢", "#2F6B4F"),
+    AlertSeverity.CRITICAL: ("🟥", "#9F1F1F"),
+    AlertSeverity.HIGH: ("🟧", "#C05E14"),
+    AlertSeverity.MEDIUM: ("🟨", "#AA9B13"),
+    AlertSeverity.LOW: ("🟩", "#0A813C"),
+    AlertSeverity.INFO: ("🟦", "#2563EB"),
 }
 
 

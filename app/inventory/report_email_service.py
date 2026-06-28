@@ -5,6 +5,7 @@ from datetime import datetime
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.alerts.constants import AlertSeverity
 from app.alerts.email_delivery import deliver_batch
 from app.alerts.schema import AlertSummaryItem, AlertTableColumn, AlertTableSection, EmailBatch
 from app.auth.models import Agencies, AgencyEmails
@@ -12,7 +13,7 @@ from app.inventory.location_operations import build_location_count_rows
 from app.shared.clock import utc_now
 from app.shared.timezone_utils import convert_utc_to_local
 
-REPORT_COLOR = "#2F6B4F"
+REPORT_SEVERITY = AlertSeverity.INFO
 ReportRow = dict[str, str | int | float | None]
 
 
@@ -67,13 +68,13 @@ def _build_report_batch(session: Session, agency: Agencies) -> EmailBatch:
         subject=f"Inventory Levels Report - {agency.display_name}",
         title=f"Inventory Levels Report - {agency.display_name}",
         intro="This email includes the current inventory count report requested from the admin panel.",
-        severity_label="Report",
-        severity_color=REPORT_COLOR,
+        severity_label=REPORT_SEVERITY.value,
+        severity_color=REPORT_SEVERITY.color,
         summary=[
-            AlertSummaryItem(label="locations", count=len(sections), color=REPORT_COLOR),
-            AlertSummaryItem(label="inventory rows", count=rows, color=REPORT_COLOR),
-            AlertSummaryItem(label="stockouts", count=stockouts, color=REPORT_COLOR),
-            AlertSummaryItem(label="below minimum", count=below_min, color=REPORT_COLOR),
+            AlertSummaryItem(label="locations", count=len(sections), color=REPORT_SEVERITY.color),
+            AlertSummaryItem(label="inventory rows", count=rows, color=REPORT_SEVERITY.color),
+            AlertSummaryItem(label="stockouts", count=stockouts, color=REPORT_SEVERITY.color),
+            AlertSummaryItem(label="below minimum", count=below_min, color=REPORT_SEVERITY.color),
         ],
         sections=sections,
     )
@@ -107,7 +108,7 @@ def _inventory_sections(
                 AlertTableSection(
                     title=location.name,
                     note="Current inventory counts by storage.",
-                    color=REPORT_COLOR,
+                    color=REPORT_SEVERITY.color,
                     columns=[
                         AlertTableColumn(key="item", label="Item"),
                         *[AlertTableColumn(key=f"storage_{storage.id}", label=storage.name) for storage in storages],

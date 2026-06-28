@@ -2,6 +2,11 @@
 
 ## Active Plan
 
+- change alert emails to be ONLY REPORT or ALERT types, not both. It is FINE if a DAILY report is generated AND some other ALERTS need to be sent. IF alerts wait to be sent till next morning, or whatever... I FORGET THE EXACT TIME... let's set the auto time for REPORTS to be set to a SLIGHTLY different hour but still in the morning. So most of the time users will not receive alerts at same time, sometimes it's fine though.
+  - FIX daily, weekly, monthly reports. I don't think they all work, preview a bunch, add graphs, etc.
+  - Decide difference from ADMIN GEN email VS REPORT email.
+  - REALLY look through all this logic and make sure 100% it works!
+
 - certain pages REQUIRE keyboard use (as touchscreen / on-screen keyboard not best UI). investigate restricting some pages to keyboard-only use and make sure it is clear to users that they need a keyboard for that page. how to do? how to NOT ban users with keyboard AND touchscreen, only non-keyboard users.
 
 - RAILWAY combine ENV vars and secrets into ONE place for all my COMPUTE (crons and web and DB) and make sure they are all in sync.
@@ -13,7 +18,14 @@
   - need a way to specify restrictions form / values but in JUST ONE PLACE for both FRONTEND and BACKEND validation so that in sync and DRY!
   - EXAMPLE FLASH to UI UNACCEPTABLE: 3 validation errors for AdminItemForm tag_ids Input should be a valid list [type=list_type, input_value=None, input_type=NoneType] For further information visit <https://errors.pydantic.dev/2.13/v/list_type> min_quantity Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='', input_type=str] For further information visit <https://errors.pydantic.dev/2.13/v/int_parsing> max_quantity Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='', input_type=str] For further information visit <https://errors.pydantic.dev/2.13/v/int_parsing>
 
-- Review Changes screen NEEDS to be scrollable. also needs to be written as CONCISE / COMPACT as possible. instead of "Yes to No" maybe use ICONS (or just checkboxes that are UNEDITABLE maybe PREFERRED) that I approve AND "→". ALSO maybe I'll change.
+- EARLIER failure on RESTOCK for item with OLD COUNT needed... like on SCAN before entering NUMBER it SHOULD take the user THIS page instead to choose a NEW FROM/TO location (<https://inventoryiq.priorityonetechnologies.com/inventory/Point%20Boro%20First%20Aid%20Squad/admin-panel/scan-items>).
+
+- this page (<https://inventoryiq.priorityonetechnologies.com/inventory/Point%20Boro%20First%20Aid%20Squad/admin-panel/bulk-actions/1/edit?item_ids=3,5>) needs to REMOVE the "Save Changes" button on top, since "Save Bulk Updates" already exists on page bottom.
+
+- make print screen for HISTORY have KV layout better instead of JUST values... like "Agency: Point Boro" instead of just "Point Boro" for everything in the header.
+
+- Review Changes screen NEEDS to be scrollable. also needs to be written as CONCISE / COMPACT as possible. instead of "Yes to No" maybe use ICONS (or just checkboxes that are UNEDITABLE maybe PREFERRED) that I approve AND "→". ALSO maybe I'll change. Same with "blank to 09:00" fix to better something. Also "saved 2 row(s)" is not specific enough, must also have a descriptor like "for notification settings" for ALL types of changes.
+  - Pretty much ALL flash(...) messages needs specifics in an f-string so search regex for ANY flash without one, and make sure it MUST be justifed, else include more details in the flash message using f-string. FIX bolding in flash(...) too because it is not working in some cases. Also make sure flash(...) messages are consistent across the codebase, and that they are all clear and concise.
 
 - `class AlertSeverity(StrEnum)` is the BEST coding work of art I have ever done! Can you check EVERY OTHER class, datatype, and function in the codebase to see if they can be improved to be as elegant and maintainable as that one? (like using different Enum types, or dataclasses, or Pydantic models, computed fields, etc). Make sure you check THOROUGHLY with agents AND/OR regex searching marking each as possible refactoring candidate. Then make a list of all the candidates and we can review together with LOC saved estimates AND clear coding clarity benefits.
 
