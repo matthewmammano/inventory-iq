@@ -2,6 +2,8 @@
 
 import threading
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
@@ -23,6 +25,8 @@ GLOBAL_SCHEDULER_AGENCY_ID = 0
 EMAIL_JOB_NAME = "process_alert_emails"
 INVENTORY_AUDIT_JOB_NAME = "generate_inventory_alerts"
 BALANCE_RECONCILIATION_JOB_NAME = "reconcile_inventory_balances"
+RETRAIN_MODELS_JOB_NAME = "retrain_models"
+SUMMARY_REPORTS_JOB_NAME = "generate_summary_reports"
 JOB_STARTED = "started"
 JOB_SUCCESS = "success"
 JOB_FAILED = "failed"
@@ -73,17 +77,17 @@ def _run_due_jobs() -> None:
 
 def _run_email_delivery_job(now: datetime) -> None:
     period_key = _email_delivery_period_key(now)
-    run_id = _claim_scheduler_run(EMAIL_JOB_NAME, period_key)
+    run_id = claim_scheduler_run(EMAIL_JOB_NAME, period_key)
     if run_id is None:
         return
 
     try:
         result = process_all_alerts()
     except Exception as exc:
-        _finish_scheduler_run(run_id, JOB_FAILED, str(exc))
+        finish_scheduler_run(run_id, JOB_FAILED, str(exc))
         raise
 
-    _finish_scheduler_run(run_id, JOB_SUCCESS)
+    finish_scheduler_run(run_id, JOB_SUCCESS)
     logger.info("Scheduled notification email job finished", extra=result | {"period_key": period_key})
 
 
@@ -94,15 +98,15 @@ def _run_daily_inventory_job(now: datetime) -> None:
         if period_key is None:
             continue
 
-        run_id = _claim_scheduler_run(INVENTORY_AUDIT_JOB_NAME, period_key, agency_id)
+        run_id = claim_scheduler_run(INVENTORY_AUDIT_JOB_NAME, period_key, agency_id)
         if run_id is None:
             continue
 
         try:
             total += _generate_agency_inventory_alerts(agency_id)
-            _finish_scheduler_run(run_id, JOB_SUCCESS)
+            finish_scheduler_run(run_id, JOB_SUCCESS)
         except Exception as exc:
-            _finish_scheduler_run(run_id, JOB_FAILED, str(exc))
+            finish_scheduler_run(run_id, JOB_FAILED, str(exc))
             logger.exception(
                 "Scheduled inventory alert audit failed",
                 extra={"agency_id": agency_id, "period_key": period_key},
@@ -120,7 +124,7 @@ def _run_daily_balance_job(now: datetime) -> None:
         if period_key is None:
             continue
 
-        run_id = _claim_scheduler_run(BALANCE_RECONCILIATION_JOB_NAME, period_key, agency_id)
+        run_id = claim_scheduler_run(BALANCE_RECONCILIATION_JOB_NAME, period_key, agency_id)
         if run_id is None:
             continue
 
@@ -129,9 +133,9 @@ def _run_daily_balance_job(now: datetime) -> None:
             result = _reconcile_agency_inventory_balances(agency_id)
             total_mismatches += result.mismatch_count
             total_repaired_rows += result.repaired_row_count
-            _finish_scheduler_run(run_id, JOB_SUCCESS)
+            finish_scheduler_run(run_id, JOB_SUCCESS)
         except Exception as exc:
-            _finish_scheduler_run(run_id, JOB_FAILED, str(exc))
+            finish_scheduler_run(run_id, JOB_FAILED, str(exc))
             logger.exception(
                 "Scheduled inventory balance audit failed",
                 extra={"agency_id": agency_id, "period_key": period_key},
@@ -180,6 +184,15 @@ def _email_delivery_period_key(now: datetime) -> str:
     return now.replace(minute=minute, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M")
 
 
+def scheduler_daily_period_key(now: datetime | None = None) -> str:
+    current = now or utc_now()
+    return current.strftime("%Y-%m-%d")
+
+
+def scheduler_email_period_key(now: datetime | None = None) -> str:
+    return _email_delivery_period_key(now or utc_now())
+
+
 def _generate_agency_inventory_alerts(agency_id: int) -> int:
     with get_session() as session:
         count = generate_scheduled_alerts(session, agency_id)
@@ -224,7 +237,7 @@ def _reconcile_agency_inventory_balances(
         return result
 
 
-def _claim_scheduler_run(
+def claim_scheduler_run(
     job_name: str,
     period_key: str,
     agency_id: int = GLOBAL_SCHEDULER_AGENCY_ID,
@@ -255,7 +268,7 @@ def _claim_scheduler_run(
         return run.id
 
 
-def _finish_scheduler_run(run_id: int, status: str, error: str | None = None) -> None:
+def finish_scheduler_run(run_id: int, status: str, error: str | None = None) -> None:
     with get_session() as session:
         run = session.get(SchedulerRun, run_id)
         if run is None:
@@ -265,6 +278,24 @@ def _finish_scheduler_run(run_id: int, status: str, error: str | None = None) ->
         run.finished_at = utc_now().replace(tzinfo=None)
         run.error = error[:1000] if error else None
         session.commit()
+
+
+@contextmanager
+def claimed_scheduler_run(
+    job_name: str,
+    period_key: str,
+    agency_id: int = GLOBAL_SCHEDULER_AGENCY_ID,
+) -> Iterator[int | None]:
+    run_id = claim_scheduler_run(job_name, period_key, agency_id)
+    if run_id is None:
+        yield None
+        return
+    try:
+        yield run_id
+    except Exception as exc:
+        finish_scheduler_run(run_id, JOB_FAILED, str(exc))
+        raise
+    finish_scheduler_run(run_id, JOB_SUCCESS)
 
 
 def _poll_seconds() -> float:

@@ -364,6 +364,7 @@ class InventoryItemLocationState(Base):
     effective_alert_type: Mapped[AlertType | None] = mapped_column(SAEnum(AlertType, native_enum=False, length=32), nullable=True, index=True)
     effective_alert_rank: Mapped[int] = mapped_column(Integer, default=0, index=True)
     effective_severity: Mapped[AlertSeverity | None] = mapped_column(SAEnum(AlertSeverity, native_enum=False, length=16), nullable=True, index=True)
+    effective_alert_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     state_version_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, index=True)

@@ -40,6 +40,7 @@ from .models import InventoryAlertEvent, NotificationEmailDelivery
 from .schema import AlertSummaryItem, AlertTableColumn, AlertTableSection, EmailBatch
 
 ERROR_RETRY_DELAY = timedelta(minutes=15)
+STOCK_ALERT_RESEND_COOLDOWN = timedelta(days=7)
 ACTION_TYPES = {
     AlertType.COUNT_ACTION,
     AlertType.RESTOCK_ACTION,
@@ -163,8 +164,18 @@ def _prepare_recipient_deliveries(
     force: bool,
 ) -> int:
     snapshot = _recipient_alert_snapshot(session, agency, recipient, now)
+    stock_states = _eligible_stock_states(
+        snapshot.stock_states,
+        _recent_sent_stock_alert_keys(session, recipient.id, now),
+    )
     created = 0
-    for plan in _email_plans_for_recipient(snapshot, recipient, agency.timezone, now, force=force):
+    filtered_snapshot = RecipientAlertSnapshot(
+        stock_states=stock_states,
+        immediate_events=snapshot.immediate_events,
+        scheduled_events=snapshot.scheduled_events,
+        recap_due=snapshot.recap_due,
+    )
+    for plan in _email_plans_for_recipient(filtered_snapshot, recipient, agency.timezone, now, force=force):
         created += _upsert_delivery_from_plan(
             session,
             agency,
@@ -331,6 +342,7 @@ def _upsert_delivery_from_plan(
     email_delivery.send_at = plan.send_at
     email_delivery.next_attempt_at = None
     email_delivery.alert_event_ids_json = [event.id for event in plan.events]
+    email_delivery.state_alert_keys_json = [key for state in plan.stock_states if (key := _stock_alert_key(state)) is not None]
     email_delivery.subject = batch.subject
     email_delivery.preview_text = _preview_text(batch)
     email_delivery.body_html = body_html
@@ -396,6 +408,38 @@ def _stock_states_for_recipient(session: Session, recipient: AgencyEmails) -> li
         )
     ).scalars()
     return [state for state in rows if _recipient_allows_state(session, recipient, state)]
+
+
+def _eligible_stock_states(
+    states: list[InventoryItemLocationState],
+    recent_state_keys: set[str],
+) -> list[InventoryItemLocationState]:
+    return [state for state in states if (key := _stock_alert_key(state)) is None or key not in recent_state_keys]
+
+
+def _recent_sent_stock_alert_keys(
+    session: Session,
+    agency_email_id: int,
+    now: datetime,
+) -> set[str]:
+    cutoff = now - STOCK_ALERT_RESEND_COOLDOWN
+    rows = session.execute(
+        select(NotificationEmailDelivery.state_alert_keys_json).where(
+            NotificationEmailDelivery.agency_email_id == agency_email_id,
+            NotificationEmailDelivery.status == NotificationEmailStatus.SENT,
+            func.coalesce(NotificationEmailDelivery.sent_at, NotificationEmailDelivery.send_at) >= cutoff,
+        )
+    ).scalars()
+    return {key for keys in rows for key in (keys or []) if isinstance(key, str) and key}
+
+
+def _stock_alert_key(state: InventoryItemLocationState) -> str | None:
+    if state.effective_alert_type is None or state.effective_alert_started_at is None:
+        return None
+    return (
+        f"STATE:{state.agency_id}:{state.item_id}:{state.agency_location_id}:"
+        f"{state.effective_alert_type.value}:{state.effective_alert_started_at.isoformat()}"
+    )
 
 
 def _events_for_recipient(session: Session, recipient: AgencyEmails) -> list[InventoryAlertEvent]:

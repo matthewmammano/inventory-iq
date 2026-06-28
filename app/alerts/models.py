@@ -72,6 +72,7 @@ class NotificationEmailDelivery(Base):
     send_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
     alert_event_ids_json: Mapped[list[int]] = mapped_column(JSON, default=list)
+    state_alert_keys_json: Mapped[list[str]] = mapped_column(JSON, default=list)
     subject: Mapped[str] = mapped_column(String(255))
     preview_text: Mapped[str] = mapped_column(String(255))
     body_html: Mapped[str] = mapped_column(Text)
