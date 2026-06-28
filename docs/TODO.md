@@ -7,6 +7,8 @@
   - Decide difference from ADMIN GEN email VS REPORT email.
   - REALLY look through all this logic and make sure 100% it works!
 
+- hash the PIN in db and make sure it is not stored in plaintext anywhere.
+
 - certain pages REQUIRE keyboard use (as touchscreen / on-screen keyboard not best UI). investigate restricting some pages to keyboard-only use and make sure it is clear to users that they need a keyboard for that page. how to do? how to NOT ban users with keyboard AND touchscreen, only non-keyboard users.
 
 - RAILWAY combine ENV vars and secrets into ONE place for all my COMPUTE (crons and web and DB) and make sure they are all in sync.
@@ -19,8 +21,6 @@
   - EXAMPLE FLASH to UI UNACCEPTABLE: 3 validation errors for AdminItemForm tag_ids Input should be a valid list [type=list_type, input_value=None, input_type=NoneType] For further information visit <https://errors.pydantic.dev/2.13/v/list_type> min_quantity Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='', input_type=str] For further information visit <https://errors.pydantic.dev/2.13/v/int_parsing> max_quantity Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='', input_type=str] For further information visit <https://errors.pydantic.dev/2.13/v/int_parsing>
 
 - EARLIER failure on RESTOCK for item with OLD COUNT needed... like on SCAN before entering NUMBER it SHOULD take the user THIS page instead to choose a NEW FROM/TO location (<https://inventoryiq.priorityonetechnologies.com/inventory/Point%20Boro%20First%20Aid%20Squad/admin-panel/scan-items>).
-
-- this page (<https://inventoryiq.priorityonetechnologies.com/inventory/Point%20Boro%20First%20Aid%20Squad/admin-panel/bulk-actions/1/edit?item_ids=3,5>) needs to REMOVE the "Save Changes" button on top, since "Save Bulk Updates" already exists on page bottom.
 
 - make print screen for HISTORY have KV layout better instead of JUST values... like "Agency: Point Boro" instead of just "Point Boro" for everything in the header.
 
