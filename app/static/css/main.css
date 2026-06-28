@@ -1321,6 +1321,42 @@ body.loading-active > *:not(.loading-overlay) {
   margin: 14px 0;
 }
 
+.edit-review-backdrop {
+  justify-items: center;
+  align-items: center;
+}
+
+.edit-review-modal {
+  width: min(540px, 100%);
+  max-height: min(80vh, 720px);
+  display: flex;
+  flex-direction: column;
+}
+
+.edit-review-modal .change-list {
+  min-height: 0;
+  overflow: auto;
+  gap: 12px;
+}
+
+.edit-review-modal .change-record {
+  display: grid;
+  gap: 4px;
+}
+
+.edit-review-modal .change-record-title {
+  margin: 0;
+  padding: 6px 0 4px;
+  color: var(--color-ink);
+  font-size: 0.98rem;
+  line-height: 1.2;
+}
+
+.edit-review-modal .change-record-items {
+  display: grid;
+  gap: 4px;
+}
+
 .change-item {
   padding: 10px;
   border: 1px solid var(--color-soft-line);
@@ -1333,6 +1369,62 @@ body.loading-active > *:not(.loading-overlay) {
 .change-item.selected {
   background: #fffefa;
   box-shadow: var(--shadow-button);
+}
+
+.edit-review-modal .change-item {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.edit-review-modal .change-item:hover,
+.edit-review-modal .change-item.selected {
+  box-shadow: none;
+}
+
+.edit-review-modal .change-item-label {
+  min-width: 0;
+}
+
+.edit-review-modal .change-item-value,
+.edit-review-modal .change-item-arrow {
+  color: var(--color-muted);
+  font-size: 0.85rem;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.edit-review-modal .change-item-checkbox {
+  --change-checkbox-icon: url("https://img.icons8.com/?size=100&id=83310&format=png&color=000000");
+  display: inline-flex;
+  align-items: center;
+  margin: auto 0;
+  width: 0.95rem;
+  height: 0.95rem;
+  background: transparent;
+  background-color: var(--color-muted);
+  mask-image: var(--change-checkbox-icon);
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-image: var(--change-checkbox-icon);
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+}
+
+.edit-review-modal .change-item-checkbox.is-checked {
+  --change-checkbox-icon: url("https://img.icons8.com/?size=100&id=83319&format=png&color=000000");
+}
+
+.edit-review-modal .change-item-arrow {
+  color: var(--color-ink);
 }
 
 @media (orientation: landscape) and (max-height: 560px) {

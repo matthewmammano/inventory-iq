@@ -1,5 +1,4 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const MAX_MODAL_CHANGES = 7;
     const saveButton = document.querySelector("#edit-save-button");
     const backLink = document.querySelector("#edit-back-link");
     const modal = document.querySelector("#edit-confirm-modal");
@@ -31,13 +30,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const displayOf = (field) => {
         if (field.type === "checkbox") return checkboxDisplay(field, field.checked);
         if (field.type === "color") return field.value.toUpperCase();
-        return field.value || "blank";
+        return field.value || "Empty";
     };
     const originalDisplayOf = (field) => {
         if (field.dataset.originalDisplay) return field.dataset.originalDisplay;
         if (field.type === "checkbox") return checkboxDisplay(field, field.dataset.original === "1");
         if (field.type === "color") return (field.dataset.original || "").toUpperCase();
-        return field.dataset.original || "blank";
+        return field.dataset.original || "Empty";
     };
     const changes = (form = activeForm()) => fields(form)
         .map((field) => ({
@@ -122,7 +121,7 @@ document.addEventListener("DOMContentLoaded", () => {
         confirmButton.textContent = mode === "save" ? "Yes, Save" : "Leave Without Saving";
         confirmButton.classList.toggle("danger-button", mode !== "save");
         confirmButton.classList.toggle("success-button", mode === "save");
-        changeList.replaceChildren(...limitedChangeItems(pending, MAX_MODAL_CHANGES));
+        changeList.replaceChildren(...groupedChangeItems(pending));
         modal.classList.remove("hidden");
         return true;
     }
@@ -223,14 +222,20 @@ document.addEventListener("DOMContentLoaded", () => {
 function changeItem(change) {
     const item = document.createElement("div");
     item.className = "change-item";
-    item.textContent = changeText(change);
-    return item;
-}
 
-function changeText(change) {
-    const context = rowLabel(change.field);
-    const detail = change.field.dataset.reviewText || `${change.label}: ${change.from} to ${change.to}`;
-    return context ? `${context}: ${detail}` : detail;
+    const label = document.createElement("span");
+    label.className = "change-item-label";
+    label.textContent = `${change.label}:`;
+
+    const arrow = document.createElement("span");
+    arrow.className = "change-item-arrow";
+    arrow.textContent = "->";
+
+    const from = renderChangeValue(change.field, change.from);
+    const to = renderChangeValue(change.field, change.to);
+
+    item.append(label, from, arrow, to);
+    return item;
 }
 
 function rowLabel(field) {
@@ -245,14 +250,51 @@ function upcCheckDigit(upc11) {
     return String((10 - (total % 10)) % 10);
 }
 
-function limitedChangeItems(changes, maxVisible) {
-    const items = changes.slice(0, maxVisible).map(changeItem);
-    const hiddenCount = changes.length - items.length;
-    if (hiddenCount > 0) {
-        const summary = document.createElement("div");
-        summary.className = "change-item";
-        summary.textContent = `...and ${hiddenCount} more change${hiddenCount === 1 ? "" : "s"}`;
-        items.push(summary);
+function renderChangeValue(field, value) {
+    if (field.type !== "checkbox") {
+        const text = document.createElement("span");
+        text.className = "change-item-value";
+        text.textContent = truncateValue(value);
+        text.title = value;
+        return text;
     }
-    return items;
+
+    const wrap = document.createElement("span");
+    wrap.className = "change-item-checkbox";
+    const checked = value === "Yes" || value === "Selected" || value === "Delete";
+    wrap.classList.toggle("is-checked", checked);
+    wrap.setAttribute("role", "img");
+    wrap.setAttribute("aria-label", checked ? "Checked" : "Unchecked");
+    wrap.title = checked ? "Checked" : "Unchecked";
+    return wrap;
+}
+
+function truncateValue(value) {
+    return value.length > 20 ? `${value.slice(0, 20)}...` : value;
+}
+
+function groupedChangeItems(changes) {
+    const records = new Map();
+
+    changes.forEach((change) => {
+        const label = rowLabel(change.field) || "Changes";
+        if (!records.has(label)) records.set(label, []);
+        records.get(label).push(change);
+    });
+
+    return [...records.entries()].map(([label, recordChanges]) => {
+        const group = document.createElement("section");
+        group.className = "change-record";
+
+        const heading = document.createElement("h3");
+        heading.className = "change-record-title";
+        heading.textContent = label;
+
+        const items = document.createElement("div");
+        items.className = "change-record-items";
+        items.append(...recordChanges.map(changeItem));
+
+        group.append(heading, items);
+        return group;
+    });
 }

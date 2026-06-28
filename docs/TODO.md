@@ -15,10 +15,16 @@
 
 - why are there errors in the DB set for emails sending?
 
+- email
+  - FIX html spacing between grouping thingys on GMAIL.
+  - also INVESTIGATE how is it possible to show 0.0 days until low predicted low stock.... HOW?!
+  - fix email ORDERING for example Predicted Stockouts should be ordered by prediction days until stockout
+
 - fix SO MANY VALIDATION FORM ISSUES. like mandatory fields, mandatory in combo, certain values, etc.
   - i want some things highlighted BEFORE save attempted (just on type / CSS). other things ON submit need a flash.
   - need a way to specify restrictions form / values but in JUST ONE PLACE for both FRONTEND and BACKEND validation so that in sync and DRY!
   - EXAMPLE FLASH to UI UNACCEPTABLE: 3 validation errors for AdminItemForm tag_ids Input should be a valid list [type=list_type, input_value=None, input_type=NoneType] For further information visit <https://errors.pydantic.dev/2.13/v/list_type> min_quantity Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='', input_type=str] For further information visit <https://errors.pydantic.dev/2.13/v/int_parsing> max_quantity Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='', input_type=str] For further information visit <https://errors.pydantic.dev/2.13/v/int_parsing>
+  - upc red when invalid check digit / length frontend BEFORE submit
 
 - EARLIER failure on RESTOCK for item with OLD COUNT needed... like on SCAN before entering NUMBER it SHOULD take the user THIS page instead to choose a NEW FROM/TO location (<https://inventoryiq.priorityonetechnologies.com/inventory/Point%20Boro%20First%20Aid%20Squad/admin-panel/scan-items>).
 
