@@ -22,8 +22,6 @@
 
 - EARLIER failure on RESTOCK for item with OLD COUNT needed... like on SCAN before entering NUMBER it SHOULD take the user THIS page instead to choose a NEW FROM/TO location (<https://inventoryiq.priorityonetechnologies.com/inventory/Point%20Boro%20First%20Aid%20Squad/admin-panel/scan-items>).
 
-- make print screen for HISTORY have KV layout better instead of JUST values... like "Agency: Point Boro" instead of just "Point Boro" for everything in the header.
-
 - Review Changes screen NEEDS to be scrollable. also needs to be written as CONCISE / COMPACT as possible. instead of "Yes to No" maybe use ICONS (or just checkboxes that are UNEDITABLE maybe PREFERRED) that I approve AND "→". ALSO maybe I'll change. Same with "blank to 09:00" fix to better something. Also "saved 2 row(s)" is not specific enough, must also have a descriptor like "for notification settings" for ALL types of changes.
   - Pretty much ALL flash(...) messages needs specifics in an f-string so search regex for ANY flash without one, and make sure it MUST be justifed, else include more details in the flash message using f-string. FIX bolding in flash(...) too because it is not working in some cases. Also make sure flash(...) messages are consistent across the codebase, and that they are all clear and concise.
 
