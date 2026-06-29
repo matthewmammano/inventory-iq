@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 
 from flask_login import UserMixin
 from sqlalchemy import JSON, Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, Text, UniqueConstraint
+from sqlalchemy import Enum as SAEnum
 from sqlalchemy.ext.mutable import MutableList
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -25,6 +26,7 @@ from app.shared.validators import (
 
 from .constants import BLACK_HEX, WHITE_HEX
 from .location_filters import normalize_location_filter_ids
+from .notification_preferences import AlertEmailFrequency
 
 
 class Agencies(Base, UserMixin):
@@ -147,6 +149,10 @@ class AgencyEmails(Base):
     location_filter_ids: Mapped[list[int] | None] = mapped_column(MutableList.as_mutable(JSON), nullable=True)
     quiet_start_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
     quiet_end_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
+    alert_frequency: Mapped[AlertEmailFrequency] = mapped_column(
+        SAEnum(AlertEmailFrequency, native_enum=False, length=16),
+        default=AlertEmailFrequency.HOURLY,
+    )
 
     alert_for_stockout: Mapped[bool] = mapped_column(Boolean, default=True)
     alert_for_stockout_pred: Mapped[bool] = mapped_column(Boolean, default=True)

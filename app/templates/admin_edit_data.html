@@ -20,6 +20,15 @@
 <input class="table-input {{ classes }}" name="{{ name }}" value="{{ value if value is not none else '' }}" aria-label="{{ label }}" data-original="{{ value if value is not none else '' }}" data-label="{{ label }}" {{ attrs|safe }}>
 {%- endmacro %}
 
+{% macro select_input(name, value, label, options) -%}
+{% set selected_value = value.value if value.value is defined else value %}
+<label class="edit-field"><span>{{ label }}</span><select class="table-input" name="{{ name }}" data-label="{{ label }}" data-original="{{ selected_value }}">
+    {% for option_value, option_label in options %}
+    <option value="{{ option_value }}" {% if selected_value == option_value %}selected{% endif %}>{{ option_label }}</option>
+    {% endfor %}
+</select></label>
+{%- endmacro %}
+
 {% macro delete_toggle(name, label, value="", attrs="") -%}
 <label class="delete-toggle-label">
     <input class="delete-toggle-input" type="checkbox" name="{{ name }}" {% if value %}value="{{ value }}" {% endif %}data-original="0" data-original-display="Keep" data-off-display="Keep" data-on-display="Delete" data-review-text="{{ label|replace('Delete ', '') }} will be hidden after saving." data-label="{{ label }}" {{ attrs|safe }}>
@@ -120,11 +129,12 @@
     <section class="panel tab-panel{% if active_tab != 'notifications' %} hidden{% endif %}" id="notifications">
         <form id="edit-form-notifications" method="POST" data-edit-form>
             <input type="hidden" name="tab" value="notifications">
-            <div class="table-wrap"><table><thead><tr><th>Email</th><th>Locations</th><th>Quiet Hours</th><th>Alerts</th><th>Summaries</th><th>Delete?</th></tr></thead><tbody>
+            <div class="table-wrap"><table><thead><tr><th>Email</th><th>Locations</th><th>Schedule</th><th>Quiet Hours</th><th>Alerts</th><th>Summaries</th><th>Delete?</th></tr></thead><tbody>
                 {% for email in notifications %}
                 <tr data-row-label="{{ email.email }}">
                     <td><input type="hidden" name="email_ids" value="{{ email.id }}">{{ bare_input("email_" ~ email.id ~ "_email", email.email, "Email Address", validation_attrs("email_128", required=True)) }}</td>
                     <td>{{ checkbox_list("Location Filters", "email_" ~ email.id ~ "_location_filter_ids", locations, email.location_filter_ids|default([], true), "Location Filters") }}<small>Blank means all locations.</small></td>
+                    <td>{{ select_input("email_" ~ email.id ~ "_alert_frequency", email.alert_frequency, "Alert Frequency", alert_email_frequency_choices) }}</td>
                     <td>{{ input("email_" ~ email.id ~ "_quiet_start_time", email.quiet_start_time, "Quiet Start", validation_attrs("hhmm_time", pair_with="email_" ~ email.id ~ "_quiet_end_time")) }}{{ input("email_" ~ email.id ~ "_quiet_end_time", email.quiet_end_time, "Quiet End", validation_attrs("hhmm_time", pair_with="email_" ~ email.id ~ "_quiet_start_time")) }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
                     <td>{% for field, label in notification_alert_fields %}{{ check("email_" ~ email.id ~ "_" ~ field, email|attr(field), label) }}{% endfor %}</td>
                     <td>{% for field, label in notification_summary_fields %}{{ check("email_" ~ email.id ~ "_" ~ field, email|attr(field), label) }}{% endfor %}</td>
@@ -134,6 +144,7 @@
                 <tr data-new-email-row data-email-index="0" data-row-label="New Notification">
                     <td><input type="hidden" name="new_email_keys" value="new_email_0">{{ bare_input("new_email_0_email", "", "Email Address", validation_attrs("email_128", placeholder="name@example.com")) }}</td>
                     <td>{{ checkbox_list("Location Filters", "new_email_0_location_filter_ids", locations, [], "Location Filters") }}</td>
+                    <td>{{ select_input("new_email_0_alert_frequency", "HOURLY", "Alert Frequency", alert_email_frequency_choices) }}</td>
                     <td>{{ input("new_email_0_quiet_start_time", "", "Quiet Start", validation_attrs("hhmm_time", pair_with="new_email_0_quiet_end_time")) }}{{ input("new_email_0_quiet_end_time", "", "Quiet End", validation_attrs("hhmm_time", pair_with="new_email_0_quiet_start_time")) }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
                     <td>{% for field, label in notification_alert_fields %}{{ check("new_email_0_" ~ field, false, label) }}{% endfor %}</td>
                     <td>{% for field, label in notification_summary_fields %}{{ check("new_email_0_" ~ field, false, label) }}{% endfor %}</td>

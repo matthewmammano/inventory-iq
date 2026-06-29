@@ -11,6 +11,24 @@ class NotificationPreferenceGroup(StrEnum):
     SUMMARY = "summary"
 
 
+class AlertEmailFrequency(StrEnum):
+    INSTANT = "INSTANT"
+    HOURLY = "HOURLY"
+    DAILY = "DAILY"
+
+    @property
+    def label(self) -> str:
+        return ALERT_EMAIL_FREQUENCY_LABELS[self]
+
+
+ALERT_EMAIL_FREQUENCY_LABELS = {
+    AlertEmailFrequency.INSTANT: "Instant (10 min)",
+    AlertEmailFrequency.HOURLY: "Hourly",
+    AlertEmailFrequency.DAILY: "Daily",
+}
+ALERT_EMAIL_FREQUENCY_CHOICES = tuple((frequency.value, frequency.label) for frequency in AlertEmailFrequency)
+
+
 @dataclass(frozen=True)
 class NotificationPreference:
     field: str

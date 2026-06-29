@@ -34,7 +34,7 @@ Core persistence rules for Inventory IQ. Schema changes require Alembic migratio
 - Inventory quantities are non-negative unless a future product decision explicitly changes that rule.
 - Item soft delete uses `items.active`; do not hard-delete item history.
 - Notification recipient state uses `agency_emails.active`; do not conflate it with `agencies.email`.
-- Notification recipient quiet hours live on `agency_emails` as local `HH:MM` preferences; delivery timestamps remain UTC/UTC-naive and are shifted outside quiet windows at planning/send time.
+- Notification recipient alert frequency and quiet hours live on `agency_emails`; delivery timestamps remain UTC/UTC-naive and are grouped or shifted at planning/send time.
 - Primary item UPCs use the private generated prefix enforced by `Items`.
 - Secondary UPCs are real package aliases and must not use the private generated prefix.
 - Unknown UPCs are unique per agency and move through review statuses.

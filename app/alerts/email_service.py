@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.location_filters import alert_matches_location_filter, validate_location_filter_ids
 from app.auth.models import Agencies, AgencyEmails, AgencyLocations
-from app.auth.notification_preferences import SUMMARY_NOTIFICATION_PREFERENCES, due_summary_preferences
+from app.auth.notification_preferences import SUMMARY_NOTIFICATION_PREFERENCES, AlertEmailFrequency, due_summary_preferences
 from app.auth.queries import list_active_emails
 from app.inventory.constants import UnknownUpcStatus
 from app.inventory.models import ActionLogs, InventoryItemLocationState, Items, UnknownUpcScan
@@ -42,6 +42,7 @@ from .schema import AlertSummaryItem, AlertTableColumn, AlertTableSection, Email
 
 ERROR_RETRY_DELAY = timedelta(minutes=15)
 STOCK_ALERT_RESEND_COOLDOWN = timedelta(days=7)
+DAILY_EMAIL_LOCAL_HOUR = 8
 ACTION_TYPES = {
     AlertType.COUNT_ACTION,
     AlertType.RESTOCK_ACTION,
@@ -65,6 +66,7 @@ class EmailTimingMode(StrEnum):
 
     IMMEDIATE = "IMMEDIATE"
     NEXT_HOUR = "NEXT_HOUR"
+    DAILY_ALERT = "DAILY_ALERT"
     MORNING_RECAP = "MORNING_RECAP"
 
 
@@ -213,16 +215,17 @@ def _email_plans_for_recipient(
     force: bool,
 ) -> list[EmailPlan]:
     plans: list[EmailPlan] = []
-    if snapshot.immediate_events:
+    alert_events = [*snapshot.immediate_events, *snapshot.scheduled_events]
+    if snapshot.stock_states or alert_events:
         plans.append(
             _email_plan(
                 recipient,
                 timezone,
-                EmailTimingMode.IMMEDIATE,
+                _alert_timing_mode(recipient.alert_frequency),
                 now,
                 force=force,
-                stock_states=[],
-                events=snapshot.immediate_events,
+                stock_states=snapshot.stock_states,
+                events=alert_events,
                 include_recaps=False,
             )
         )
@@ -240,19 +243,6 @@ def _email_plans_for_recipient(
             )
         )
         return _merge_email_plans(plans)
-    if snapshot.stock_states or snapshot.scheduled_events:
-        plans.append(
-            _email_plan(
-                recipient,
-                timezone,
-                EmailTimingMode.NEXT_HOUR,
-                now,
-                force=force,
-                stock_states=snapshot.stock_states,
-                events=snapshot.scheduled_events,
-                include_recaps=False,
-            )
-        )
     return _merge_email_plans(plans)
 
 
@@ -278,6 +268,8 @@ def _merged_timing_mode(left: EmailTimingMode, right: EmailTimingMode) -> EmailT
         return EmailTimingMode.MORNING_RECAP
     if EmailTimingMode.IMMEDIATE in {left, right}:
         return EmailTimingMode.IMMEDIATE
+    if EmailTimingMode.DAILY_ALERT in {left, right}:
+        return EmailTimingMode.DAILY_ALERT
     return EmailTimingMode.NEXT_HOUR
 
 
@@ -292,7 +284,7 @@ def _email_plan(
     events: list[InventoryAlertEvent],
     include_recaps: bool,
 ) -> EmailPlan:
-    send_at = _send_at_for_timing(timing_mode, now, force=force)
+    send_at = _send_at_for_timing(timing_mode, now, timezone, force=force)
     return EmailPlan(
         timing_mode=timing_mode,
         send_at=_send_at_after_quiet_hours(recipient, timezone, send_at),
@@ -1040,10 +1032,30 @@ def _round_up_hour(value: datetime) -> datetime:
     return rounded
 
 
-def _send_at_for_timing(timing_mode: EmailTimingMode, now: datetime, *, force: bool) -> datetime:
+def _alert_timing_mode(frequency: AlertEmailFrequency) -> EmailTimingMode:
+    if frequency == AlertEmailFrequency.INSTANT:
+        return EmailTimingMode.IMMEDIATE
+    if frequency == AlertEmailFrequency.DAILY:
+        return EmailTimingMode.DAILY_ALERT
+    return EmailTimingMode.NEXT_HOUR
+
+
+def _send_at_for_timing(timing_mode: EmailTimingMode, now: datetime, timezone: str, *, force: bool) -> datetime:
     if force or timing_mode in {EmailTimingMode.IMMEDIATE, EmailTimingMode.MORNING_RECAP}:
         return now
+    if timing_mode == EmailTimingMode.DAILY_ALERT:
+        return _daily_alert_send_at(timezone, now)
     return _round_up_hour(now)
+
+
+def _daily_alert_send_at(timezone: str, now: datetime) -> datetime:
+    local = _local_now(timezone, now)
+    if local.hour == DAILY_EMAIL_LOCAL_HOUR:
+        return now
+    target = local.replace(hour=DAILY_EMAIL_LOCAL_HOUR, minute=0, second=0, microsecond=0)
+    if local.hour > DAILY_EMAIL_LOCAL_HOUR:
+        target += timedelta(days=1)
+    return _utc_naive(target)
 
 
 def _send_at_after_quiet_hours(recipient: AgencyEmails, timezone: str, send_at: datetime) -> datetime:
@@ -1159,7 +1171,7 @@ def _recap_is_due(recipient: AgencyEmails, timezone: str, now: datetime) -> bool
 
 def _is_daily_email_window(timezone: str, now: datetime) -> bool:
     local = _local_now(timezone, now)
-    return local.hour == 8
+    return local.hour == DAILY_EMAIL_LOCAL_HOUR
 
 
 def _local_now(timezone: str, now: datetime) -> datetime:

@@ -15,6 +15,7 @@ from app.auth.models import Agencies, AgencyEmails, AgencyItemTags
 from app.auth.notification_preferences import (
     NOTIFICATION_FIELDS,
     NOTIFICATION_PREFERENCES,
+    AlertEmailFrequency,
 )
 from app.inventory.constants import UPC_GENERATION_PREFIX
 from app.inventory.models import Items, ItemSecondaryUpc, validate_upc_code
@@ -79,6 +80,7 @@ class AdminNotificationFormBase(BaseModel):
     location_filter_ids: list[int] | None = None
     quiet_start_time: QuietTime = None
     quiet_end_time: QuietTime = None
+    alert_frequency: AlertEmailFrequency = AlertEmailFrequency.HOURLY
 
     @model_validator(mode="after")
     def validate_quiet_hours_pair(self):
@@ -313,6 +315,7 @@ def _submitted_row_values(form: Any, prefix: str) -> dict[str, Any]:
         "secondary_upcs": _submitted_secondary_upcs(form, prefix),
         "quiet_start_time": _blank_to_none(form.get(f"{prefix}quiet_start_time")),
         "quiet_end_time": _blank_to_none(form.get(f"{prefix}quiet_end_time")),
+        "alert_frequency": form.get(f"{prefix}alert_frequency") or AlertEmailFrequency.HOURLY,
     } | {field: _checkbox_is_checked(form, f"{prefix}{field}") for field in NOTIFICATION_FIELDS}
 
 

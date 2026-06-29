@@ -9,9 +9,6 @@
   - Decide difference from ADMIN GEN email VS REPORT email.
   - REALLY look through all this logic and make sure 100% it works!
 
-- admin setting allow configuration
-  - allow admins to select frequency of alerts: instant (10 min), hourly, daily
-
 - certain pages REQUIRE keyboard use (as touchscreen / on-screen keyboard not best UI). investigate restricting some pages to keyboard-only use and make sure it is clear to users that they need a keyboard for that page. how to do? how to NOT ban users with keyboard AND touchscreen, only non-keyboard users.
 
 - RAILWAY combine ENV vars and secrets into ONE place for all my COMPUTE (crons and web and DB) and make sure they are all in sync.

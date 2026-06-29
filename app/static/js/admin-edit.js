@@ -31,12 +31,14 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     const displayOf = (field) => {
         if (field.type === "checkbox") return checkboxDisplay(field, field.checked);
+        if (field.tagName === "SELECT") return field.selectedOptions[0]?.textContent.trim() || field.value;
         if (field.type === "color") return field.value.toUpperCase();
         return field.value || "Empty";
     };
     const originalDisplayOf = (field) => {
         if (field.dataset.originalDisplay) return field.dataset.originalDisplay;
         if (field.type === "checkbox") return checkboxDisplay(field, field.dataset.original === "1");
+        if (field.tagName === "SELECT") return field.querySelector(`option[value="${field.dataset.original}"]`)?.textContent.trim() || field.dataset.original;
         if (field.type === "color") return (field.dataset.original || "").toUpperCase();
         return field.dataset.original || "Empty";
     };
@@ -194,6 +196,10 @@ document.addEventListener("DOMContentLoaded", () => {
             if (input.type !== "hidden" && input.type !== "checkbox") input.value = "";
             input.dataset.original = input.type === "checkbox" ? "0" : "";
             delete input.dataset.dirtyBound;
+        });
+        clone.querySelectorAll("select").forEach((select) => {
+            select.value = select.dataset.original || "";
+            delete select.dataset.dirtyBound;
         });
         delete clone.dataset.dynamicBound;
         resetValidationState(clone);

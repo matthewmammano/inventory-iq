@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.auth.device_locations import current_device_token, get_or_create_device, save_device_location, set_device_cookie
 from app.auth.models import Agencies, AgencyLocations
-from app.auth.notification_preferences import ALERT_NOTIFICATION_FIELDS, SUMMARY_NOTIFICATION_FIELDS
+from app.auth.notification_preferences import ALERT_EMAIL_FREQUENCY_CHOICES, ALERT_NOTIFICATION_FIELDS, SUMMARY_NOTIFICATION_FIELDS
 from app.auth.queries import list_active_emails, list_tags, list_top_locations
 from app.inventory import admin_bp as bp
 from app.inventory.admin_edit_service import (
@@ -194,6 +194,7 @@ def _admin_edit_data(session: Session, agency_id: int) -> dict[str, Any]:
         "tags": list_tags(agency_id, session),
         "locations": list_top_locations(agency_id, session),
         "notifications": list_active_emails(agency_id, session),
+        "alert_email_frequency_choices": ALERT_EMAIL_FREQUENCY_CHOICES,
         "notification_alert_fields": ALERT_NOTIFICATION_FIELDS,
         "notification_summary_fields": SUMMARY_NOTIFICATION_FIELDS,
     }

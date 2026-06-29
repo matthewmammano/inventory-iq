@@ -106,12 +106,13 @@
         {% else %}
         <div class="table-wrap">
             <table>
-                <thead><tr><th>Email</th><th>Locations</th><th>Quiet Hours</th>{% for _field, label in notification_alert_fields %}<th>{{ label }}</th>{% endfor %}{% for _field, label in notification_summary_fields %}<th>{{ label }}</th>{% endfor %}</tr></thead>
+                <thead><tr><th>Email</th><th>Locations</th><th>Alert Frequency</th><th>Quiet Hours</th>{% for _field, label in notification_alert_fields %}<th>{{ label }}</th>{% endfor %}{% for _field, label in notification_summary_fields %}<th>{{ label }}</th>{% endfor %}</tr></thead>
                 <tbody>
                     {% for email in notifications %}
                     <tr>
                         <td>{{ email.email }}</td>
                         <td>{% if email.location_filter_ids %}{{ email.location_filter_ids|join(", ") }}{% else %}All{% endif %}</td>
+                        <td>{{ email.alert_frequency.label }}</td>
                         <td>{{ email.quiet_hours_label }}</td>
                         {% for field, label in notification_alert_fields %}<td>{{ readonly_check(email|attr(field), label) }}</td>{% endfor %}
                         {% for field, label in notification_summary_fields %}<td>{{ readonly_check(email|attr(field), label) }}</td>{% endfor %}
