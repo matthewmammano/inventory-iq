@@ -78,6 +78,10 @@ def _parsed_required_non_negative_int(field_name: str):
     return BeforeValidator(parse)
 
 
+def _blank_to_none(value: Any) -> Any:
+    return None if isinstance(value, str) and not value.strip() else value
+
+
 DisplayName = Annotated[str, _required_string("display_name", 50)]
 EmailAddress128 = Annotated[str, _validated_email(128)]
 ImageSource = Annotated[str | None, AfterValidator(validate_image_url)]
@@ -95,6 +99,7 @@ TagName = Annotated[str, _required_string("tag_name", 50)]
 OptionalParsedInt = Annotated[int | None, BeforeValidator(parse_optional_int)]
 RequiredCountInput = Annotated[int, _parsed_required_non_negative_int("Quantity")]
 AdminPin = Annotated[str, AfterValidator(validate_pin)]
+AdminPinChange = Annotated[str | None, BeforeValidator(_blank_to_none), AfterValidator(lambda value: validate_pin(value) if value else None)]
 TagColor = Annotated[str, AfterValidator(normalize_hex_color)]
 NonNegativeFloat = Annotated[float, _required_non_negative_float("value")]
 

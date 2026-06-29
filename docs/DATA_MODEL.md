@@ -4,7 +4,7 @@ Core persistence rules for Inventory IQ. Schema changes require Alembic migratio
 
 ## Ownership
 
-- `agencies`: tenant/admin account root.
+- `agencies`: tenant/admin account root, including hashed login password and hashed admin PIN.
 - `agency_locations`: top-level physical locations per agency.
 - `agency_storages`: storage units inside locations.
 - `agency_devices`: browser/device default location records.

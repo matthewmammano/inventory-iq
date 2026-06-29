@@ -28,7 +28,7 @@
             <div class="section-label">Squad Display</div>
             <div class="settings-options">
                 <div class="setting-row"><div><div class="setting-name">Image</div><p>Logo or image shown in the header</p></div>{{ setting_input("image", current_user.image or "", "Image", validation_attrs("image_source")) }}</div>
-                <div class="setting-row"><div><div class="setting-name">Admin PIN</div><p>Four digits used to enter admin mode</p></div>{{ setting_input("pin", current_user.pin, "Admin PIN", validation_attrs("pin4")) }}</div>
+                <div class="setting-row"><div><div class="setting-name">Admin PIN</div><p>Enter a new four-digit PIN only when changing it</p></div>{{ setting_input("pin", "", "Admin PIN", validation_attrs("pin4", required=False, input_type="password", placeholder="Enter new 4-digit PIN")) }}</div>
             </div>
         </section>
 

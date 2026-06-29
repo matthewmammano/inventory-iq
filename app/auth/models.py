@@ -39,7 +39,7 @@ class Agencies(Base, UserMixin):
     image: Mapped[str | None] = mapped_column(Text)
     timezone: Mapped[str] = mapped_column(String(50), default="America/New_York")
     password: Mapped[str | None] = mapped_column(Text)
-    pin: Mapped[str] = mapped_column(String(4))
+    pin: Mapped[str] = mapped_column(Text)
     user_count_allow: Mapped[bool] = mapped_column(Boolean, default=False)
     user_restock_allow: Mapped[bool] = mapped_column(Boolean, default=False)
 
@@ -70,6 +70,15 @@ class Agencies(Base, UserMixin):
             return False
         return check_password_hash(self.password, password)
 
+    def set_pin(self, pin: str) -> None:
+        """Set the admin PIN hash."""
+        validate_pin(pin)
+        self.pin = generate_password_hash(pin)
+
+    def check_pin(self, pin: str) -> bool:
+        """Check the admin PIN hash."""
+        return check_password_hash(self.pin, pin)
+
     @property
     def agency_context(self) -> dict[str, str | int | None]:
         """Context dict for Flask-Login."""
@@ -87,10 +96,6 @@ class Agencies(Base, UserMixin):
     @validates("email")
     def validate_email(self, _key: str, value: str | None) -> str | None:
         return validate_email_format(value, max_length=128, allow_none=False)
-
-    @validates("pin")
-    def validate_pin_field(self, _key: str, value: str) -> str:
-        return validate_pin(value)
 
     @validates("image")
     def validate_image(self, _key: str, value: str | None) -> str | None:

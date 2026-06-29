@@ -9,8 +9,6 @@
   - Decide difference from ADMIN GEN email VS REPORT email.
   - REALLY look through all this logic and make sure 100% it works!
 
-- hash the PIN in db and make sure it is not stored in plaintext anywhere.
-
 - admin setting allow configuration
   - allow admins to select frequency of alerts: instant (10 min), hourly, daily
 

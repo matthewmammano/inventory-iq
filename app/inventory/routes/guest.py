@@ -126,7 +126,7 @@ def admin_login(squad: str) -> Any:
             flash("Temporary PIN sent to the account email.", "success")
             return _admin_login_response(squad, token)
         pin = request.form.get("password", "")
-        if agency.pin and pin == agency.pin:
+        if agency.check_pin(pin):
             session["admin"] = True
             session["admin_last_active"] = datetime.now(UTC).timestamp()
             logger.info("Admin PIN login succeeded", extra={"agency_id": agency.id, "squad": squad})

@@ -20,13 +20,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const displayOf = (field) => field.tagName === "SELECT"
         ? field.selectedOptions[0]?.textContent.trim()
         : valueOf(field);
-    const displayValue = (value) => value || "Empty";
+    const displayValue = (field, value) => field.type === "password" && value ? "Hidden" : value || "Empty";
     const changes = () => fields
         .map((field) => ({
             kind: field.classList.contains("switch") ? "boolean" : "text",
             label: field.dataset.label,
-            from: field.dataset.originalDisplay || displayValue(field.dataset.original),
-            to: displayValue(displayOf(field)),
+            from: field.dataset.originalDisplay || displayValue(field, field.dataset.original),
+            to: displayValue(field, displayOf(field)),
             changed: field.dataset.original !== valueOf(field),
         }))
         .filter((change) => change.changed);

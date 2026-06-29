@@ -20,7 +20,7 @@ from app.inventory.constants import UPC_GENERATION_PREFIX
 from app.inventory.models import Items, ItemSecondaryUpc, validate_upc_code
 from app.shared.email_client import EMAIL_RETRY_DELAYS_SECONDS, OutboundEmail, send_email
 from app.shared.validation_types import (
-    AdminPin,
+    AdminPinChange,
     EmailAddress128,
     ImageSource,
     Increments,
@@ -110,7 +110,7 @@ class AdminNotificationForm(AdminNotificationFormBase):
 
 class AdminSettingsForm(BaseModel):
     image: ImageSource = None
-    pin: AdminPin
+    pin: AdminPinChange = None
     user_count_allow: bool = False
     user_restock_allow: bool = False
     lead_time_days: PositiveInt
@@ -211,7 +211,10 @@ def save_admin_settings(session: Session, agency: Agencies, values: dict[str, An
     from app.alerts.alert_service import generate_scheduled_alerts
 
     settings = AdminSettingsForm.model_validate(values)
-    changed = _apply_model_values_if_changed(agency, settings)
+    changed = _apply_model_values_if_changed(agency, settings, exclude={"pin"})
+    if settings.pin and not agency.check_pin(settings.pin):
+        agency.set_pin(settings.pin)
+        changed = True
     if changed:
         generate_scheduled_alerts(session, agency.id)
     logger.info("Admin settings submitted", extra={"agency_id": agency.id, "changed": changed})
@@ -239,7 +242,7 @@ def send_temporary_time_pin(session: Session, agency: Agencies) -> bool:
     if not sent:
         logger.error("Temporary admin PIN email failed", extra={"agency_id": agency.id})
         return False
-    agency.pin = code
+    agency.set_pin(code)
     logger.info("Temporary admin PIN set and emailed", extra={"agency_id": agency.id})
     return True
 
