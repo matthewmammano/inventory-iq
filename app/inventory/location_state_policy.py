@@ -1,6 +1,7 @@
 """Pure stock-state policy helpers for item/location derived state."""
 
 from dataclasses import dataclass
+from math import ceil
 
 from app.alerts.constants import ALERT_DEFINITIONS, STOCK_ALERT_RANK, AlertSeverity, AlertType
 from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
@@ -103,7 +104,7 @@ def days_to_threshold(
     if trend_per_day >= 0:
         return None
     value = (float(current_quantity) - threshold) / abs(trend_per_day)
-    return round(value, round_digits) if round_digits is not None else value
+    return _round_up(value, round_digits) if round_digits is not None else value
 
 
 def is_within_lead_time(days_until_threshold: float | None, lead_time_days: int) -> bool:
@@ -118,3 +119,9 @@ def effective_lead_time_days(
     """Item restock days override agency lead time when set."""
     value = item_restock_delivery_days if item_restock_delivery_days is not None else agency_lead_time_days
     return int(value or 0)
+
+
+def _round_up(value: float, digits: int) -> float:
+    """Round positive threshold predictions up so tiny positive values stay visible."""
+    factor = 10**digits
+    return ceil(value * factor) / factor

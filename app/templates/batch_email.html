@@ -51,15 +51,20 @@
       font-size: 13px;
     }
     .summary {
-      display: grid;
-      gap: 12px;
-      grid-template-columns: repeat(auto-fit, minmax(180px, 240px));
-      justify-content: start;
+      font-size: 0;
       margin-top: 14px;
+    }
+    .summary-item {
+      box-sizing: border-box;
+      display: inline-block;
+      padding: 0 12px 12px 0;
+      vertical-align: top;
+      width: 220px;
     }
     .summary-box {
       border: 1px solid #d9dee7;
       border-radius: 5px;
+      display: block;
       padding: 10px;
     }
     .summary-box strong {
@@ -110,9 +115,11 @@
       <p class="meta">{{ batch.agency_name }} | {{ batch.generated_at }}</p>
       <div class="summary">
         {% for item in batch.summary %}
-          <div class="summary-box" style="background: {{ item.color }}14; border-color: {{ item.color }}33; color: {{ item.color }};">
-            <strong>{{ item.count }}</strong>
-            <span>{{ item.label }}</span>
+          <div class="summary-item">
+            <div class="summary-box" style="background: {{ item.color }}14; border-color: {{ item.color }}33; color: {{ item.color }};">
+              <strong>{{ item.count }}</strong>
+              <span>{{ item.label }}</span>
+            </div>
           </div>
         {% endfor %}
       </div>

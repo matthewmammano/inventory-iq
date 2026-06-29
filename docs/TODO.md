@@ -15,16 +15,6 @@
 
 - why are there errors in the DB set for emails sending?
 
-- email
-  - FIX html spacing between grouping thingys on GMAIL.
-  - also INVESTIGATE how is it possible to show 0.0 days until low predicted low stock.... HOW?!
-  - fix email ORDERING for example Predicted Stockouts should be ordered by prediction days until stockout
-
-- validation follow-up
-  - smoke test every page now using shared `validation_attrs(...)` and `form-validation.js`, especially dynamic edit rows and grouped radio choices.
-  - continue replacing any remaining hand-written template validation attributes with shared Python-owned validation metadata.
-  - audit flash copy after validation failures so every save/result message stays specific without exposing backend internals.
-
 - for item trend graph. add time scales for ALL TIME, 1YO, 6MO, 1MO, 1WEEK, but better rephrase it. gray out the button if unable (not enough context in that item's history).
 
 - `class AlertSeverity(StrEnum)` is the BEST coding work of art I have ever done! Can you check EVERY OTHER class, datatype, and function in the codebase to see if they can be improved to be as elegant and maintainable as that one? (like using different Enum types, or dataclasses, or Pydantic models, computed fields, etc). Make sure you check THOROUGHLY with agents AND/OR regex searching marking each as possible refactoring candidate. Then make a list of all the candidates and we can review together with LOC saved estimates AND clear coding clarity benefits.

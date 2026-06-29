@@ -631,7 +631,13 @@ def _stock_section(
     *,
     timezone: str = "UTC",
 ) -> AlertTableSection | None:
-    rows = [_stock_row(state, item_names, location_names, timezone) for state in states if state.effective_alert_type == alert_type]
+    rows = [
+        _stock_row(state, item_names, location_names, timezone)
+        for state in sorted(
+            (state for state in states if state.effective_alert_type == alert_type),
+            key=lambda state: _stock_section_sort_key(state, item_names, alert_type),
+        )
+    ]
     if not rows:
         return None
     return AlertTableSection(
@@ -682,11 +688,13 @@ def _stale_count_section(events: list[InventoryAlertEvent]) -> AlertTableSection
         {
             "item_name": event.payload_json.get("item_name"),
             "location_name": event.payload_json.get("location_name"),
-            "days_since_last_count": event.payload_json.get("days_since_last_count") or "Never",
+            "days_since_last_count": event.payload_json.get("days_since_last_count", "Never"),
             "current_total": _format_total_quantity(event.payload_json.get("current_total")),
         }
-        for event in events
-        if event.alert_type == AlertType.STALE_COUNT
+        for event in sorted(
+            (event for event in events if event.alert_type == AlertType.STALE_COUNT),
+            key=lambda event: -int(event.payload_json.get("days_since_last_count") or 0),
+        )
     ]
     return _simple_section(
         "Stale Counts",
@@ -711,8 +719,10 @@ def _rare_takeout_section(events: list[InventoryAlertEvent], timezone: str) -> A
             "last_takeout_at": _display_datetime(event.payload_json.get("last_takeout_at"), timezone),
             "current_total": _format_total_quantity(event.payload_json.get("current_total")),
         }
-        for event in events
-        if event.alert_type == AlertType.RARE_TAKEOUT
+        for event in sorted(
+            (event for event in events if event.alert_type == AlertType.RARE_TAKEOUT),
+            key=lambda event: -int(event.payload_json.get("days_since_last_takeout") or 0),
+        )
     ]
     return _simple_section(
         "Rare Takeouts",
@@ -738,8 +748,11 @@ def _scan_activity_section(events: list[InventoryAlertEvent], timezone: str) -> 
             "admin_action": "Yes" if event.payload_json.get("admin_action") else "No",
             "time_scanned": _display_datetime(event.payload_json.get("time_scanned"), timezone),
         }
-        for event in events
-        if event.alert_type in ACTION_TYPES
+        for event in sorted(
+            (event for event in events if event.alert_type in ACTION_TYPES),
+            key=lambda event: _sort_datetime_value(event.payload_json.get("time_scanned")) or datetime.min,
+            reverse=True,
+        )
     ]
     return _simple_section(
         "Scan Activity",
@@ -763,8 +776,10 @@ def _unknown_upc_section(events: list[InventoryAlertEvent], timezone: str) -> Al
             "lookup_title": event.payload_json.get("lookup_title") or "Not found",
             "created_at": _display_datetime(event.payload_json.get("created_at"), timezone),
         }
-        for event in events
-        if event.alert_type == AlertType.UNKNOWN_UPC
+        for event in sorted(
+            (event for event in events if event.alert_type == AlertType.UNKNOWN_UPC),
+            key=lambda event: _sort_datetime_value(event.payload_json.get("created_at")) or datetime.min,
+        )
     ]
     return _simple_section(
         "Unknown UPCs",
@@ -835,6 +850,32 @@ def _summary_section(
         ],
         ["operation_type:Operation", "scan_count:Scans", "quantity_total:Quantity"],
     )
+
+
+def _stock_section_sort_key(
+    state: InventoryItemLocationState,
+    item_names: dict[int, str],
+    alert_type: AlertType,
+) -> tuple[Any, ...]:
+    item_name = item_names.get(state.item_id, str(state.item_id)).lower()
+    if alert_type == AlertType.STOCKOUT:
+        return (item_name, state.agency_location_id)
+    if alert_type == AlertType.STOCKOUT_FORECAST:
+        return (state.days_until_stockout is None, state.days_until_stockout or 0.0, item_name, state.agency_location_id)
+    if alert_type == AlertType.LOW_STOCK:
+        return (state.total_quantity, item_name, state.agency_location_id)
+    return (state.days_until_low is None, state.days_until_low or 0.0, item_name, state.agency_location_id)
+
+
+def _sort_datetime_value(value: Any) -> datetime | None:
+    if not value:
+        return None
+    if isinstance(value, datetime):
+        return value
+    try:
+        return datetime.fromisoformat(str(value))
+    except ValueError:
+        return None
 
 
 def _due_deliveries(
