@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.location_filters import alert_matches_location_filter, validate_location_filter_ids
 from app.auth.models import Agencies, AgencyEmails, AgencyLocations
+from app.auth.notification_preferences import SUMMARY_NOTIFICATION_PREFERENCES, due_summary_preferences
 from app.auth.queries import list_active_emails
 from app.inventory.constants import UnknownUpcStatus
 from app.inventory.models import ActionLogs, InventoryItemLocationState, Items, UnknownUpcScan
@@ -802,16 +803,13 @@ def _summary_sections(
     now: datetime,
 ) -> list[AlertTableSection]:
     local_now = _local_now(agency.timezone, now)
-    sections: list[AlertTableSection] = []
-    for report_type, enabled, bounds in (
-        ("Daily", recipient.daily_summary, _prior_day_bounds(local_now)),
-        ("Weekly", recipient.weekly_summary and local_now.weekday() == 0, _prior_week_bounds(local_now)),
-        ("Monthly", recipient.monthly_summary and local_now.day == 1, _prior_month_bounds(local_now)),
-        ("Yearly", recipient.yearly_summary and local_now.month == 1 and local_now.day == 1, _prior_year_bounds(local_now)),
-    ):
-        if enabled and (section := _summary_section(session, agency.id, report_type, bounds)):
-            sections.append(section)
-    return sections
+    return [
+        section
+        for preference in due_summary_preferences(local_now)
+        if bool(getattr(recipient, preference.field))
+        and preference.bounds is not None
+        and (section := _summary_section(session, agency.id, preference.label, preference.bounds(local_now)))
+    ]
 
 
 def _summary_section(
@@ -1151,16 +1149,11 @@ def _now() -> datetime:
 
 def _recap_is_due(recipient: AgencyEmails, timezone: str, now: datetime) -> bool:
     local_now = _local_now(timezone, now)
-    has_recap_enabled = any((recipient.daily_summary, recipient.weekly_summary, recipient.monthly_summary, recipient.yearly_summary))
+    has_recap_enabled = any(bool(getattr(recipient, preference.field)) for preference in SUMMARY_NOTIFICATION_PREFERENCES)
     if not has_recap_enabled:
         return False
     return _is_daily_email_window(timezone, now) and any(
-        (
-            recipient.daily_summary,
-            recipient.weekly_summary and local_now.weekday() == 0,
-            recipient.monthly_summary and local_now.day == 1,
-            recipient.yearly_summary and local_now.month == 1 and local_now.day == 1,
-        )
+        bool(getattr(recipient, preference.field)) for preference in due_summary_preferences(local_now)
     )
 
 
@@ -1172,27 +1165,6 @@ def _is_daily_email_window(timezone: str, now: datetime) -> bool:
 def _local_now(timezone: str, now: datetime) -> datetime:
     aware = now.replace(tzinfo=UTC) if now.tzinfo is None else now
     return aware.astimezone(ZoneInfo(timezone or "UTC"))
-
-
-def _prior_day_bounds(local_now: datetime) -> tuple[datetime, datetime]:
-    end_local = local_now.replace(hour=0, minute=0, second=0, microsecond=0)
-    return _utc_naive(end_local - timedelta(days=1)), _utc_naive(end_local)
-
-
-def _prior_week_bounds(local_now: datetime) -> tuple[datetime, datetime]:
-    end_local = (local_now - timedelta(days=local_now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
-    return _utc_naive(end_local - timedelta(days=7)), _utc_naive(end_local)
-
-
-def _prior_month_bounds(local_now: datetime) -> tuple[datetime, datetime]:
-    end_local = local_now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
-    previous_month = (end_local - timedelta(days=1)).replace(day=1)
-    return _utc_naive(previous_month), _utc_naive(end_local)
-
-
-def _prior_year_bounds(local_now: datetime) -> tuple[datetime, datetime]:
-    end_local = local_now.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-    return _utc_naive(end_local.replace(year=end_local.year - 1)), _utc_naive(end_local)
 
 
 def _utc_naive(value: datetime) -> datetime:

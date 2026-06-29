@@ -1,6 +1,7 @@
 """Admin blueprint routes for inventory management."""
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass
 from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -13,11 +14,10 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.auth.models import Agencies, AgencyLocations
+from app.auth.notification_preferences import ALERT_NOTIFICATION_FIELDS, SUMMARY_NOTIFICATION_FIELDS
 from app.auth.queries import list_active_emails, list_tags, list_top_locations
 from app.inventory import admin_bp as bp
 from app.inventory.admin_edit_service import (
-    NOTIFICATION_ALERT_FIELDS,
-    NOTIFICATION_SUMMARY_FIELDS,
     save_admin_items,
     save_admin_notifications,
     save_admin_settings,
@@ -42,7 +42,7 @@ from app.inventory.location_operations import (
     build_location_count_rows,
     get_location_storages,
 )
-from app.inventory.models import ActionLogs, Items, UnknownUpcScan
+from app.inventory.models import ActionLogs, Items, UnknownUpcScan, validate_upc_code
 from app.inventory.report_email_service import send_inventory_count_report
 from app.inventory.scan_flow import (
     handle_scan_item_get,
@@ -90,6 +90,23 @@ from app.shared.validators import parse_optional_int
 
 HISTORY_PAGE_SIZE = 50
 HISTORY_PRINT_LIMIT = 5000
+SAVE_RETRY_MESSAGE = "Changes could not be saved. Review entries and try again."
+
+
+@dataclass(frozen=True)
+class AdminEditTabConfig:
+    save: Callable[[Session, int, Any], int]
+    row_label: str
+
+    def flash_message(self, changed: int) -> str:
+        return f"Saved {changed} {self.row_label} row(s)." if changed else f"No {self.row_label} changes entered."
+
+
+EDIT_TAB_CONFIGS = {
+    "items": AdminEditTabConfig(save_admin_items, "item"),
+    "tags": AdminEditTabConfig(save_admin_tags, "tag"),
+    "notifications": AdminEditTabConfig(save_admin_notifications, "notification setting"),
+}
 
 
 @bp.before_request
@@ -153,24 +170,20 @@ def admin_edit_data(squad: str) -> Any:
 def _save_admin_edit_data(squad: str) -> Any:
     tab = request.form.get("tab", "items")
     try:
+        config = EDIT_TAB_CONFIGS.get(tab)
+        if config is None:
+            raise ValueError("Choose a valid edit tab.")
         with get_session() as s:
-            if tab == "items":
-                changed = save_admin_items(s, current_user.id, request.form)
-            elif tab == "tags":
-                changed = save_admin_tags(s, current_user.id, request.form)
-            elif tab == "notifications":
-                changed = save_admin_notifications(s, current_user.id, request.form)
-            else:
-                raise ValueError("Choose a valid edit tab.")
+            changed = config.save(s, current_user.id, request.form)
             s.commit()
-        flash(f"Saved {changed} row(s)." if changed else "No changes entered.", "success" if changed else "info")
+        flash(config.flash_message(changed), "success" if changed else "info")
         return redirect(url_for("admin.admin_panel", squad=squad))
     except (ValueError, ValidationError) as exc:
-        logger.info("Admin edit save rejected", extra={"tab": tab, "error": str(exc)})
-        flash(str(exc), "error")
+        logger.warning("Admin edit validation reached backend", extra={"tab": tab, "error": str(exc)})
+        flash(SAVE_RETRY_MESSAGE, "error")
     except Exception:
         logger.exception("Admin edit save failed unexpectedly", extra={"tab": tab})
-        flash("Changes could not be saved. Please try again.", "error")
+        flash(SAVE_RETRY_MESSAGE, "error")
     return redirect(url_for("admin.admin_edit_data", squad=squad, tab=tab))
 
 
@@ -180,8 +193,8 @@ def _admin_edit_data(session: Session, agency_id: int) -> dict[str, Any]:
         "tags": list_tags(agency_id, session),
         "locations": list_top_locations(agency_id, session),
         "notifications": list_active_emails(agency_id, session),
-        "notification_alert_fields": NOTIFICATION_ALERT_FIELDS,
-        "notification_summary_fields": NOTIFICATION_SUMMARY_FIELDS,
+        "notification_alert_fields": ALERT_NOTIFICATION_FIELDS,
+        "notification_summary_fields": SUMMARY_NOTIFICATION_FIELDS,
     }
 
 
@@ -221,8 +234,8 @@ def admin_panel_views(squad: str) -> Any:
         locations=view_data["locations"],
         tags=view_data["tags"],
         notifications=view_data["notifications"],
-        notification_alert_fields=NOTIFICATION_ALERT_FIELDS,
-        notification_summary_fields=NOTIFICATION_SUMMARY_FIELDS,
+        notification_alert_fields=ALERT_NOTIFICATION_FIELDS,
+        notification_summary_fields=SUMMARY_NOTIFICATION_FIELDS,
         admin=True,
         user_timezone=current_user.timezone,
     )
@@ -306,6 +319,9 @@ def _save_pending_upc_review(squad: str) -> Any:
 
 def _add_pending_upc(squad: str) -> Any:
     upc = request.form.get("upc", "").strip()
+    if validation_message := _pending_upc_error(upc):
+        flash(validation_message, "warning")
+        return redirect(url_for("admin.pending_upcs", squad=squad))
     try:
         with get_session() as s:
             status = record_unknown_upc(s, current_user.id, upc)
@@ -315,9 +331,29 @@ def _add_pending_upc(squad: str) -> Any:
         flash("Barcode ready to link." if is_pending else unknown_upc_scan_message(status), "success" if is_pending else "warning")
         return redirect(url_for("admin.pending_upcs", squad=squad, focus_upc=upc))
     except ValueError as exc:
-        logger.info("Pending UPC add rejected", extra={"error": str(exc)})
-        flash(str(exc), "error")
+        logger.warning("Pending UPC validation reached backend", extra={"error": str(exc)})
+        flash(_pending_upc_service_error(str(exc)), "warning")
         return redirect(url_for("admin.pending_upcs", squad=squad))
+
+
+def _pending_upc_error(upc: str) -> str:
+    if not upc:
+        return "Enter a UPC."
+    if not upc.isdigit():
+        return "UPC must contain digits only."
+    if len(upc) != 12:
+        return "UPC must be 12 digits."
+    try:
+        validate_upc_code(upc)
+    except ValueError:
+        return "Invalid UPC code."
+    return ""
+
+
+def _pending_upc_service_error(error: str) -> str:
+    if error == "Private UPCs must already be linked as primary item UPCs.":
+        return "Private item UPCs are already linked."
+    return SAVE_RETRY_MESSAGE
 
 
 def _focused_upcs(scans: list[UnknownUpcScan], status: UnknownUpcStatus, focus_upc: str) -> list[UnknownUpcScan]:
@@ -713,12 +749,12 @@ def _bulk_rows(
         for storage in storages:
             key = (item.id, storage.id)
             count_required = storage.id in required.get(item.id, set())
-            count_value = submitted_counts.get(key, "" if count_required else counts.get(key, 0))
+            count_value = submitted_counts.get(key, "")
             cells.append(
                 {
                     "storage": storage,
                     "count_value": count_value,
-                    "count_original": "" if count_required else counts.get(key, 0),
+                    "count_original": "",
                     "restock_value": submitted_restocks.get(key, ""),
                     "count_required": count_required,
                     "invalid": key in invalid_cells,
@@ -957,18 +993,18 @@ def _save_settings(squad: str) -> Any:
             if agency is None:
                 raise ValueError("Agency not found.")
             changed = save_admin_settings(s, agency, request.form.to_dict())
-            flash("Settings saved." if changed else "No settings changes entered.", "success" if changed else "info")
+            flash("Saved settings." if changed else "No settings changes entered.", "success" if changed else "info")
             s.commit()
         return redirect(url_for("admin.settings_page", squad=squad))
     except (ValueError, ValidationError) as exc:
-        logger.info(
-            "Admin settings rejected",
+        logger.warning(
+            "Admin settings validation reached backend",
             extra={"error": str(exc)},
         )
-        flash(str(exc), "error")
+        flash(SAVE_RETRY_MESSAGE, "error")
     except Exception:
         logger.exception("Admin settings save failed unexpectedly", extra={"squad": squad})
-        flash("Settings could not be saved. Try again.", "error")
+        flash(SAVE_RETRY_MESSAGE, "error")
     return redirect(url_for("admin.settings_page", squad=squad))
 
 

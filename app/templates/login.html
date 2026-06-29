@@ -11,10 +11,10 @@
     <p>Use your agency email and password to access inventory.</p>
     <form method="POST" class="auth-form">
         <label for="email">Email</label>
-        <input id="email" type="email" name="email" autocomplete="username" required>
+        <input id="email" name="email" autocomplete="username" data-label="Email" {{ validation_attrs("email_128", required=True) }}>
 
         <label for="password">Password</label>
-        <input id="password" type="password" name="password" autocomplete="current-password" required>
+        <input id="password" type="password" name="password" autocomplete="current-password" data-label="Password" {{ validation_attrs("required_text") }}>
 
         <button type="submit" class="success-button full-button">Login</button>
     </form>

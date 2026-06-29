@@ -6,10 +6,9 @@ from loguru import logger
 
 from app.shared.database import get_session
 from app.shared.email_addresses import email_domain
+from app.shared.validators import PASSWORD_REQUIREMENTS_MESSAGE, validate_password_strength
 
 from . import bp
-from .constants import PASSWORD_REQUIREMENTS_MESSAGE
-from .models import validate_password_strength
 from .password_reset_service import create_password_reset_pin, reset_password_with_pin
 from .queries import get_agency_by_email
 

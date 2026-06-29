@@ -28,6 +28,7 @@ Guest capabilities depend on agency settings:
 - Save only explicit changes.
 - Flash changed versus unchanged outcomes distinctly.
 - Keep item selection and grid behavior consistent with existing bulk templates and scripts.
+- Bulk quantity validation should highlight invalid cells before save, require counts before stale-item restocks, and keep the final write blocked on backend validation.
 
 ## View/Edit Data
 
@@ -35,6 +36,8 @@ Guest capabilities depend on agency settings:
 - Preserve soft-delete behavior for items and recipient rows.
 - Keep login email and notification recipient emails separate.
 - New item management must not ship partial behavior; see [TODO.md](TODO.md).
+- Edit screens should use shared Python-defined validation rules for both server validation and generated input attributes.
+- Review-before-save modals should show concise user-facing labels and values, while failed saves should flash short retry guidance instead of raw validation internals.
 
 ## History And Reports
 
@@ -47,6 +50,7 @@ Guest capabilities depend on agency settings:
 - Unknown UPC scans are held for admin classification.
 - Online lookup suggestions are uncertain and must be worded as assistance, not truth.
 - Linking a UPC should preserve agency-level uniqueness rules from [DATA_MODEL.md](DATA_MODEL.md).
+- UPC entry should validate length, digits, and check digit in the browser before submit when practical, then re-check the same rules in Python.
 
 ## Restock And Forecasting
 

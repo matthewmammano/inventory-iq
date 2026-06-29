@@ -57,14 +57,14 @@
         {% else %}
             {% set print_action = url_for('admin.admin_history_print', squad=squad) %}
         {% endif %}
-        <form method="GET" action="{{ print_action }}" class="stack" data-history-print-form>
+        <form method="GET" action="{{ print_action }}" class="stack" data-history-print-form data-validation-submit="manual">
             <label class="setting-row">
                 <span class="setting-name">Start Date</span>
-                <input id="history-print-start" type="date" name="start_date" min="2000-01-01" max="{{ today_date }}">
+                <input id="history-print-start" name="start_date" data-label="Start Date" {{ validation_attrs("iso_date", min_date="2000-01-01", max_date=today_date) }}>
             </label>
             <label class="setting-row">
                 <span class="setting-name">End Date</span>
-                <input id="history-print-end" type="date" name="end_date" min="2000-01-01" max="{{ today_date }}">
+                <input id="history-print-end" name="end_date" data-label="End Date" {{ validation_attrs("iso_date", compare_to="start_date", compare_mode="date_gte", compare_message="End Date must be on or after Start Date.", min_date="2000-01-01", max_date=today_date) }}>
             </label>
             <div class="button-row">
                 <button class="success-button" type="submit">Print</button>

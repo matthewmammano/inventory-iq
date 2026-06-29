@@ -23,10 +23,10 @@
     </div>
     <form method="POST" class="panel-body stack">
         <input type="hidden" name="item_id" value="{{ item_id }}">
-        <div class="choice-grid">
+        <div class="choice-grid" data-validate-group="required_choice" data-group-name="agency_location_id" data-label="Location">
             {% for location in locations %}
             <label class="radio-card">
-                <input type="radio" name="agency_location_id" value="{{ location.id }}" required>
+                <input type="radio" name="agency_location_id" value="{{ location.id }}">
                 <span class="choice-card"><h2>{{ location.name }}</h2></span>
             </label>
             {% endfor %}

@@ -35,6 +35,9 @@ routes -> schemas/DTOs -> services -> query/repository-style modules -> shared i
 - Templates live in `app/templates/`.
 - CSS lives under `app/static/css/`; prefer component/page/core separation already present.
 - JavaScript lives under `app/static/js/`; keep scripts page-specific unless behavior is truly shared.
+- Shared form validation metadata lives in `app/shared/validation_types.py` and `app/shared/form_validation.py`.
+- Pydantic field aliases and validators own the canonical rules; templates consume those rules through `validation_attrs(...)`.
+- Frontend validation scripts may enforce the same rule earlier in the browser, but they should not become the primary source of truth.
 - UI copy rules live in [CONVENTIONS.md](CONVENTIONS.md).
 
 ## Change Placement

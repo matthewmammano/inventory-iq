@@ -60,17 +60,17 @@
                             <th class="thin-col" scope="row">{{ item.name|bold_item_name }}</th>
                             <td>
                                 <input type="hidden" name="item_ids" value="{{ item.id }}">
-                                {{ input("item_" ~ item.id ~ "_name", item.name, "Item Name", "maxlength=100 required") }}
-                                {{ input("item_" ~ item.id ~ "_image", item.image, "Image", "maxlength=1020 placeholder='https://example.com/image.jpg'") }}
-                                {{ input("item_" ~ item.id ~ "_increments", item.increments, "Increments", "maxlength=50 placeholder='e.g. each'") }}
+                                {{ input("item_" ~ item.id ~ "_name", item.name, "Item Name", validation_attrs("item_name")) }}
+                                {{ input("item_" ~ item.id ~ "_image", item.image, "Image", validation_attrs("image_source", placeholder="https://example.com/image.jpg")) }}
+                                {{ input("item_" ~ item.id ~ "_increments", item.increments, "Increments", validation_attrs("increments", placeholder="e.g. each")) }}
                                 <div class="expanded-option">{{ check("item_" ~ item.id ~ "_guest_quick_adjust", item.guest_quick_adjust, "Expanded ±5, ±10") }}</div>
                             </td>
                             <td class="thin-col">
-                                {{ input("item_" ~ item.id ~ "_min_quantity", item.min_quantity, "Minimum Quantity", "type=number min=1 required") }}
-                                {{ input("item_" ~ item.id ~ "_max_quantity", item.max_quantity, "Maximum Quantity", "type=number min=1 required") }}
-                                {{ input("item_" ~ item.id ~ "_batch_size", item.batch_size, "Order Size", "type=number min=1 required") }}
-                                {{ input("item_" ~ item.id ~ "_restock_delivery_days", item.restock_delivery_days, "Lead Time Override", "type=number min=1 placeholder='e.g. 7'") }}
-                                {{ input("item_" ~ item.id ~ "_prior_daily_usage", item.prior_daily_usage, "Prior Daily Usage", "type=number min=0 step=any required") }}
+                                {{ input("item_" ~ item.id ~ "_min_quantity", item.min_quantity, "Minimum Quantity", validation_attrs("positive_int")) }}
+                                {{ input("item_" ~ item.id ~ "_max_quantity", item.max_quantity, "Maximum Quantity", validation_attrs("positive_int", compare_to="item_" ~ item.id ~ "_min_quantity", compare_mode="number_gt", compare_message="Maximum Quantity must be greater than Minimum Quantity.")) }}
+                                {{ input("item_" ~ item.id ~ "_batch_size", item.batch_size, "Order Size", validation_attrs("positive_int")) }}
+                                {{ input("item_" ~ item.id ~ "_restock_delivery_days", item.restock_delivery_days, "Lead Time Override", validation_attrs("optional_positive_int", placeholder="e.g. 7")) }}
+                                {{ input("item_" ~ item.id ~ "_prior_daily_usage", item.prior_daily_usage, "Prior Daily Usage", validation_attrs("non_negative_number", required=True)) }}
                             </td>
                             <td>
                                 {{ checkbox_list("Tags", "item_" ~ item.id ~ "_tag_ids", tags, item.tag_ids, "Tags") }}
@@ -78,21 +78,21 @@
                             <td>
                                 {% for code in item.secondary_upcs %}
                                 <div class="upc-edit-row">
-                                    {{ bare_input("item_" ~ item.id ~ "_secondary_upcs", code.upc, "Secondary UPC", "maxlength=12 inputmode=numeric", "upc-existing-input") }}
+                                    {{ bare_input("item_" ~ item.id ~ "_secondary_upcs", code.upc, "Secondary UPC", validation_attrs("upc12"), "upc-existing-input") }}
                                     {{ delete_toggle("delete_secondary_upc_" ~ item.id ~ "_" ~ loop.index, "Delete Secondary UPC", "", "data-clear-field") }}
                                 </div>
                                 {% endfor %}
-                                <div class="upc-edit-row" data-upc-add-row>{{ bare_input("item_" ~ item.id ~ "_secondary_upcs", "", "Add UPC", "maxlength=12 inputmode=numeric data-upc-add-input") }}</div>
+                                <div class="upc-edit-row" data-upc-add-row>{{ bare_input("item_" ~ item.id ~ "_secondary_upcs", "", "Add UPC", validation_attrs("upc12") ~ " data-upc-add-input") }}</div>
                             </td>
                             <td>{{ delete_toggle("delete_item_ids", "Delete Item", item.id) }}</td>
                         </tr>
                         {% endfor %}
                         <tr data-row-label="New Item">
                             <th class="thin-col" scope="row">New Item</th>
-                            <td>{{ input("new_item_name", "", "Item Name", "maxlength=100 placeholder='e.g. Adult BVM'") }}{{ input("new_item_image", "", "Image", "maxlength=1020 placeholder='https://example.com/image.jpg'") }}{{ input("new_item_increments", "", "Increments", "maxlength=50 placeholder='e.g. each'") }}<div class="expanded-option">{{ check("new_item_guest_quick_adjust", false, "Expanded ±5, ±10") }}</div></td>
-                            <td class="thin-col">{{ input("new_item_min_quantity", "", "Minimum Quantity", "type=number min=1 placeholder='e.g. 5'") }}{{ input("new_item_max_quantity", "", "Maximum Quantity", "type=number min=1 placeholder='e.g. 20'") }}{{ input("new_item_batch_size", 1, "Order Size", "type=number min=1") }}{{ input("new_item_restock_delivery_days", "", "Lead Time Override", "type=number min=1 placeholder='e.g. 7'") }}{{ input("new_item_prior_daily_usage", 0, "Prior Daily Usage", "type=number min=0 step=any") }}</td>
+                            <td>{{ input("new_item_name", "", "Item Name", validation_attrs("item_name", required=False, placeholder="e.g. Adult BVM")) }}{{ input("new_item_image", "", "Image", validation_attrs("image_source", placeholder="https://example.com/image.jpg")) }}{{ input("new_item_increments", "", "Increments", validation_attrs("increments", placeholder="e.g. each")) }}<div class="expanded-option">{{ check("new_item_guest_quick_adjust", false, "Expanded ±5, ±10") }}</div></td>
+                            <td class="thin-col">{{ input("new_item_min_quantity", "", "Minimum Quantity", validation_attrs("optional_positive_int", placeholder="e.g. 5", required_when='[name=\"new_item_name\"]')) }}{{ input("new_item_max_quantity", "", "Maximum Quantity", validation_attrs("optional_positive_int", placeholder="e.g. 20", required_when='[name=\"new_item_name\"]', compare_to="new_item_min_quantity", compare_mode="number_gt", compare_message="Maximum Quantity must be greater than Minimum Quantity.")) }}{{ input("new_item_batch_size", 1, "Order Size", validation_attrs("optional_positive_int")) }}{{ input("new_item_restock_delivery_days", "", "Lead Time Override", validation_attrs("optional_positive_int", placeholder="e.g. 7")) }}{{ input("new_item_prior_daily_usage", 0, "Prior Daily Usage", validation_attrs("non_negative_number")) }}</td>
                             <td>{{ checkbox_list("Tags", "new_item_tag_ids", tags, [], "Tags") }}</td>
-                            <td><div class="upc-edit-row" data-upc-add-row>{{ bare_input("new_item_secondary_upcs", "", "Add UPC", "maxlength=12 inputmode=numeric data-upc-add-input") }}</div></td>
+                            <td><div class="upc-edit-row" data-upc-add-row>{{ bare_input("new_item_secondary_upcs", "", "Add UPC", validation_attrs("upc12") ~ " data-upc-add-input") }}</div></td>
                             <td></td>
                         </tr>
                     </tbody>
@@ -107,12 +107,12 @@
             <div class="table-wrap"><table><thead><tr><th>Name</th><th>Color</th><th>Delete?</th></tr></thead><tbody>
                 {% for tag in tags %}
                 <tr data-row-label="{{ tag.tag_name }}">
-                    <td><input type="hidden" name="tag_ids" value="{{ tag.id }}">{{ bare_input("tag_" ~ tag.id ~ "_tag_name", tag.tag_name, "Tag Name", "maxlength=50 required") }}</td>
-                    <td>{{ bare_input("tag_" ~ tag.id ~ "_color", tag.color, "Color", "type=color required") }}</td>
+                    <td><input type="hidden" name="tag_ids" value="{{ tag.id }}">{{ bare_input("tag_" ~ tag.id ~ "_tag_name", tag.tag_name, "Tag Name", validation_attrs("tag_name")) }}</td>
+                    <td>{{ bare_input("tag_" ~ tag.id ~ "_color", tag.color, "Color", validation_attrs("hex_color", required=True)) }}</td>
                     <td>{{ delete_toggle("delete_tag_ids", "Delete Tag", tag.id) }}</td>
                 </tr>
                 {% endfor %}
-                <tr data-row-label="New Tag"><td>{{ bare_input("new_tag_tag_name", "", "Tag Name", "maxlength=50 placeholder='e.g. Airway'") }}</td><td>{{ bare_input("new_tag_color", "#FFFFFF", "Color", "type=color") }}</td><td></td></tr>
+                <tr data-row-label="New Tag"><td>{{ bare_input("new_tag_tag_name", "", "Tag Name", validation_attrs("tag_name", required=False, placeholder="e.g. Airway")) }}</td><td>{{ bare_input("new_tag_color", "#FFFFFF", "Color", validation_attrs("hex_color")) }}</td><td></td></tr>
             </tbody></table></div>
         </form>
     </section>
@@ -123,18 +123,18 @@
             <div class="table-wrap"><table><thead><tr><th>Email</th><th>Locations</th><th>Quiet Hours</th><th>Alerts</th><th>Summaries</th><th>Delete?</th></tr></thead><tbody>
                 {% for email in notifications %}
                 <tr data-row-label="{{ email.email }}">
-                    <td><input type="hidden" name="email_ids" value="{{ email.id }}">{{ bare_input("email_" ~ email.id ~ "_email", email.email, "Email Address", "type=email maxlength=128 required") }}</td>
+                    <td><input type="hidden" name="email_ids" value="{{ email.id }}">{{ bare_input("email_" ~ email.id ~ "_email", email.email, "Email Address", validation_attrs("email_128", required=True)) }}</td>
                     <td>{{ checkbox_list("Location Filters", "email_" ~ email.id ~ "_location_filter_ids", locations, email.location_filter_ids|default([], true), "Location Filters") }}<small>Blank means all locations.</small></td>
-                    <td>{{ input("email_" ~ email.id ~ "_quiet_start_time", email.quiet_start_time, "Quiet Start", "type=time") }}{{ input("email_" ~ email.id ~ "_quiet_end_time", email.quiet_end_time, "Quiet End", "type=time") }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
+                    <td>{{ input("email_" ~ email.id ~ "_quiet_start_time", email.quiet_start_time, "Quiet Start", validation_attrs("hhmm_time", pair_with="email_" ~ email.id ~ "_quiet_end_time")) }}{{ input("email_" ~ email.id ~ "_quiet_end_time", email.quiet_end_time, "Quiet End", validation_attrs("hhmm_time", pair_with="email_" ~ email.id ~ "_quiet_start_time")) }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
                     <td>{% for field, label in notification_alert_fields %}{{ check("email_" ~ email.id ~ "_" ~ field, email|attr(field), label) }}{% endfor %}</td>
                     <td>{% for field, label in notification_summary_fields %}{{ check("email_" ~ email.id ~ "_" ~ field, email|attr(field), label) }}{% endfor %}</td>
                     <td>{{ delete_toggle("delete_email_ids", "Delete Notification", email.id) }}</td>
                 </tr>
                 {% endfor %}
                 <tr data-new-email-row data-email-index="0" data-row-label="New Notification">
-                    <td><input type="hidden" name="new_email_keys" value="new_email_0">{{ bare_input("new_email_0_email", "", "Email Address", "type=email maxlength=128 placeholder='name@example.com'") }}</td>
+                    <td><input type="hidden" name="new_email_keys" value="new_email_0">{{ bare_input("new_email_0_email", "", "Email Address", validation_attrs("email_128", placeholder="name@example.com")) }}</td>
                     <td>{{ checkbox_list("Location Filters", "new_email_0_location_filter_ids", locations, [], "Location Filters") }}</td>
-                    <td>{{ input("new_email_0_quiet_start_time", "", "Quiet Start", "type=time") }}{{ input("new_email_0_quiet_end_time", "", "Quiet End", "type=time") }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
+                    <td>{{ input("new_email_0_quiet_start_time", "", "Quiet Start", validation_attrs("hhmm_time", pair_with="new_email_0_quiet_end_time")) }}{{ input("new_email_0_quiet_end_time", "", "Quiet End", validation_attrs("hhmm_time", pair_with="new_email_0_quiet_start_time")) }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
                     <td>{% for field, label in notification_alert_fields %}{{ check("new_email_0_" ~ field, false, label) }}{% endfor %}</td>
                     <td>{% for field, label in notification_summary_fields %}{{ check("new_email_0_" ~ field, false, label) }}{% endfor %}</td>
                     <td></td>

@@ -1,11 +1,12 @@
 document.addEventListener("DOMContentLoaded", () => {
     const changeReview = window.InventoryChangeReview;
+    const formValidation = window.InventoryFormValidation;
     const fields = [...document.querySelectorAll("[data-label]")];
     const form = document.querySelector("#settings-form");
     const saveButton = document.querySelector("#save-button");
     const backLink = document.querySelector("#back-link");
     const modal = document.querySelector("#confirm-modal");
-    if (!changeReview || !fields.length || !form || !saveButton || !backLink || !modal) return;
+    if (!changeReview || !formValidation || !fields.length || !form || !saveButton || !backLink || !modal) return;
 
     const modalTitle = document.querySelector("#modal-title");
     const modalMessage = document.querySelector("#modal-message");
@@ -28,26 +29,16 @@ document.addEventListener("DOMContentLoaded", () => {
             changed: field.dataset.original !== valueOf(field),
         }))
         .filter((change) => change.changed);
-    const invalidFields = () => fields.filter((field) => !field.checkValidity());
-
     function renderDirtyState() {
         const pending = changes();
         saveButton.classList.toggle("hidden", pending.length === 0);
         fields.forEach((field) => field.classList.toggle("changed", field.dataset.original !== valueOf(field)));
-        fields.forEach((field) => field.classList.toggle("invalid", !field.checkValidity()));
     }
 
-    function openModal(mode) {
+    async function openModal(mode) {
         const pending = changes();
         if (pending.length === 0) return;
-        const invalid = invalidFields();
-        if (invalid.length) {
-            invalid.forEach((field) => field.classList.add("invalid"));
-            invalid[0].focus();
-            return;
-        }
-        if (!form.checkValidity()) {
-            form.reportValidity();
+        if (mode !== "back" && !(await formValidation.validateForm(form))) {
             return;
         }
         modalMode = mode;

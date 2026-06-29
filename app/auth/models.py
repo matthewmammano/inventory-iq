@@ -1,6 +1,5 @@
 """SQLAlchemy ORM models for auth domain."""
 
-import re
 import string
 from datetime import UTC, datetime
 
@@ -13,16 +12,18 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from app.shared.clock import utc_now_naive
 from app.shared.database import Base
 from app.shared.validators import (
+    normalize_hex_color,
     validate_email_format,
     validate_hhmm_time,
     validate_image_url,
+    validate_password_strength,
     validate_pin,
     validate_positive_integer,
     validate_string_length,
     validate_timezone,
 )
 
-from .constants import BLACK_HEX, PASSWORD_MIN_LENGTH, PASSWORD_REQUIREMENTS_MESSAGE, WHITE_HEX
+from .constants import BLACK_HEX, WHITE_HEX
 from .location_filters import normalize_location_filter_ids
 
 
@@ -288,20 +289,4 @@ class AgencyItemTags(Base):
 
     @validates("color")
     def validate_color(self, _key: str, value: str | None) -> str:
-        if not value or not isinstance(value, str):
-            raise TypeError("Color must be a string")
-        value = value.strip()
-        if not re.match(r"^#[0-9A-Fa-f]{6}$", value):
-            raise ValueError("Color must be valid hex format: #rrggbb")
-        return value.upper()
-
-
-def validate_password_strength(password: str) -> str:
-    if (
-        len(password) < PASSWORD_MIN_LENGTH
-        or not any(char.isalpha() for char in password)
-        or not any(char.isdigit() for char in password)
-        or not any(char in string.punctuation for char in password)
-    ):
-        raise ValueError(PASSWORD_REQUIREMENTS_MESSAGE)
-    return password
+        return normalize_hex_color(value)

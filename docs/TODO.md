@@ -9,6 +9,9 @@
 
 - hash the PIN in db and make sure it is not stored in plaintext anywhere.
 
+- admin setting allow configuration
+  - allow admins to select frequency of alerts: instant (10 min), hourly, daily
+
 - certain pages REQUIRE keyboard use (as touchscreen / on-screen keyboard not best UI). investigate restricting some pages to keyboard-only use and make sure it is clear to users that they need a keyboard for that page. how to do? how to NOT ban users with keyboard AND touchscreen, only non-keyboard users.
 
 - RAILWAY combine ENV vars and secrets into ONE place for all my COMPUTE (crons and web and DB) and make sure they are all in sync.
@@ -20,22 +23,16 @@
   - also INVESTIGATE how is it possible to show 0.0 days until low predicted low stock.... HOW?!
   - fix email ORDERING for example Predicted Stockouts should be ordered by prediction days until stockout
 
-- fix SO MANY VALIDATION FORM ISSUES. like mandatory fields, mandatory in combo, certain values, etc.
-  - i want some things highlighted BEFORE save attempted (just on type / CSS). other things ON submit need a flash.
-  - need a way to specify restrictions form / values but in JUST ONE PLACE for both FRONTEND and BACKEND validation so that in sync and DRY!
-  - EXAMPLE FLASH to UI UNACCEPTABLE: 3 validation errors for AdminItemForm tag_ids Input should be a valid list [type=list_type, input_value=None, input_type=NoneType] For further information visit <https://errors.pydantic.dev/2.13/v/list_type> min_quantity Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='', input_type=str] For further information visit <https://errors.pydantic.dev/2.13/v/int_parsing> max_quantity Input should be a valid integer, unable to parse string as an integer [type=int_parsing, input_value='', input_type=str] For further information visit <https://errors.pydantic.dev/2.13/v/int_parsing>
-  - upc red when invalid check digit / length frontend BEFORE submit
+- validation follow-up
+  - smoke test every page now using shared `validation_attrs(...)` and `form-validation.js`, especially dynamic edit rows and grouped radio choices.
+  - continue replacing any remaining hand-written template validation attributes with shared Python-owned validation metadata.
+  - audit flash copy after validation failures so every save/result message stays specific without exposing backend internals.
 
-- EARLIER failure on RESTOCK for item with OLD COUNT needed... like on SCAN before entering NUMBER it SHOULD take the user THIS page instead to choose a NEW FROM/TO location (<https://inventoryiq.priorityonetechnologies.com/inventory/Point%20Boro%20First%20Aid%20Squad/admin-panel/scan-items>).
-
-- Review Changes screen NEEDS to be scrollable. also needs to be written as CONCISE / COMPACT as possible. instead of "Yes to No" maybe use ICONS (or just checkboxes that are UNEDITABLE maybe PREFERRED) that I approve AND "→". ALSO maybe I'll change. Same with "blank to 09:00" fix to better something. Also "saved 2 row(s)" is not specific enough, must also have a descriptor like "for notification settings" for ALL types of changes.
-  - Pretty much ALL flash(...) messages needs specifics in an f-string so search regex for ANY flash without one, and make sure it MUST be justifed, else include more details in the flash message using f-string. FIX bolding in flash(...) too because it is not working in some cases. Also make sure flash(...) messages are consistent across the codebase, and that they are all clear and concise.
+- for item trend graph. add time scales for ALL TIME, 1YO, 6MO, 1MO, 1WEEK, but better rephrase it. gray out the button if unable (not enough context in that item's history).
 
 - `class AlertSeverity(StrEnum)` is the BEST coding work of art I have ever done! Can you check EVERY OTHER class, datatype, and function in the codebase to see if they can be improved to be as elegant and maintainable as that one? (like using different Enum types, or dataclasses, or Pydantic models, computed fields, etc). Make sure you check THOROUGHLY with agents AND/OR regex searching marking each as possible refactoring candidate. Then make a list of all the candidates and we can review together with LOC saved estimates AND clear coding clarity benefits.
 
 - remove timezone COMPLETELY from ADMIN UI SETTINGS... just editable by me in DB TABLE manually!
-
-- per each specific agency_notification_email enable a QUIET time hours range to suppress sending emails during that time. (like 10pm-7am or whatever). this is a per-agency per-email alerted setting, not global.
 
 - research better AGENTS.md, combine with that, mainintable code and using PY latest features, never outdated
 

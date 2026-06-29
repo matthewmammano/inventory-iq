@@ -1,5 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
     const changeReview = window.InventoryChangeReview;
+    const formValidation = window.InventoryFormValidation;
     const saveButton = document.querySelector("#edit-save-button");
     const backLink = document.querySelector("#edit-back-link");
     const modal = document.querySelector("#edit-confirm-modal");
@@ -12,7 +13,7 @@ document.addEventListener("DOMContentLoaded", () => {
     let modalMode = "save";
     let pendingTab = null;
 
-    if (!changeReview || !saveButton || !backLink || !modal || !changeList || !confirmButton || !cancelButton) return;
+    if (!changeReview || !formValidation || !saveButton || !backLink || !modal || !changeList || !confirmButton || !cancelButton) return;
 
     const panels = () => [...document.querySelectorAll(".tab-panel")];
     const activePanel = () => panels().find((panel) => !panel.classList.contains("hidden"));
@@ -49,9 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
             changed: valueOf(field) !== comparableValue(field, field.dataset.original || ""),
         }))
         .filter((change) => change.changed);
-    const invalidFields = (form) => fields(form).filter((field) => !field.checkValidity());
-    const isValidEmail = (value) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
-    const isValidUpc = (value) => /^\d{12}$/.test(value) && upcCheckDigit(value.slice(0, 11)) === value[11];
+    const isCompleteUpc = (value) => /^\d{12}$/.test(value);
     const bindDirtyFields = (container = document) => fields(container)
         .filter((field) => !field.dataset.dirtyBound)
         .forEach((field) => {
@@ -75,6 +74,8 @@ document.addEventListener("DOMContentLoaded", () => {
                 field.value = field.dataset.original || "";
             }
         });
+        resetValidationState(form);
+        formValidation.bind(form);
     }
 
     function bindDynamicRows(container = document) {
@@ -87,10 +88,26 @@ document.addEventListener("DOMContentLoaded", () => {
         container.querySelectorAll("[data-new-email-row]:not([data-dynamic-bound])").forEach((row) => {
             row.dataset.dynamicBound = "1";
             row.querySelector("input[type='email']")?.addEventListener("input", (event) => {
-                if (isValidEmail(event.target.value) && !row.nextElementSibling?.matches("[data-new-email-row]")) {
-                    addBlankEmailRow(row);
-                }
+                formValidation.validateField(event.target).then((valid) => {
+                    if (valid && !row.nextElementSibling?.matches("[data-new-email-row]")) {
+                        addBlankEmailRow(row);
+                    }
+                });
             });
+        });
+        formValidation.bind(container);
+    }
+
+    function resetValidationState(container) {
+        container.querySelectorAll(".field-hint").forEach((hint) => hint.remove());
+        container.querySelectorAll("[data-validate]").forEach((field) => {
+            delete field.dataset.touched;
+            delete field.dataset.validationBound;
+            delete field.dataset.invalidState;
+            delete field.dataset.externalError;
+            field.classList.remove("invalid");
+            field.closest("td")?.classList.remove("invalid-cell");
+            field.setCustomValidity("");
         });
     }
 
@@ -101,19 +118,15 @@ document.addEventListener("DOMContentLoaded", () => {
         saveButton.setAttribute("form", form?.id || "");
         fields().forEach((field) => {
             field.classList.toggle("changed", valueOf(field) !== comparableValue(field, field.dataset.original || ""));
-            field.classList.toggle("invalid", !field.checkValidity());
         });
     }
 
-    function openModal(mode, nextTab = null) {
+    async function openModal(mode, nextTab = null) {
         const form = activeForm();
         const source = mode === "back" ? document : form;
         const pending = changes(source);
         if (!form || pending.length === 0) return false;
-        const invalid = invalidFields(form);
-        if (mode === "save" && invalid.length) {
-            invalid[0].focus();
-            form.reportValidity();
+        if (mode === "save" && !(await formValidation.validateForm(form))) {
             return true;
         }
         modalMode = mode;
@@ -142,6 +155,7 @@ document.addEventListener("DOMContentLoaded", () => {
         cloneInput.dataset.original = "";
         delete cloneInput.dataset.dynamicBound;
         clone.dataset.addedRow = "1";
+        resetValidationState(clone);
         row.after(clone);
         bindDirtyFields(clone);
         bindDynamicRows(clone);
@@ -158,7 +172,7 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         emptyRows.slice(1).filter((row) => row.dataset.addedRow).forEach((row) => row.remove());
         const addRows = rows();
-        if (addRows.length > 0 && addRows.every((row) => isValidUpc(row.querySelector("[data-upc-add-input]").value.trim()))) {
+        if (addRows.length > 0 && addRows.every((row) => isCompleteUpc(row.querySelector("[data-upc-add-input]").value.trim()))) {
             addBlankUpcRow(addRows.at(-1).querySelector("[data-upc-add-input]"));
         }
     }
@@ -173,6 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
         clone.querySelector("input[name='new_email_keys']").value = newPrefix;
         clone.querySelectorAll("[name]").forEach((field) => {
             field.name = field.name.replace(oldPrefix, newPrefix);
+            if (field.dataset.pairWith) field.dataset.pairWith = field.dataset.pairWith.replace(oldPrefix, newPrefix);
         });
         clone.querySelectorAll("input").forEach((input) => {
             input.checked = false;
@@ -181,6 +196,7 @@ document.addEventListener("DOMContentLoaded", () => {
             delete input.dataset.dirtyBound;
         });
         delete clone.dataset.dynamicBound;
+        resetValidationState(clone);
         row.after(clone);
         bindDirtyFields(clone);
         bindDynamicRows(clone);
@@ -190,7 +206,9 @@ document.addEventListener("DOMContentLoaded", () => {
         tab.addEventListener("click", (event) => {
             event.preventDefault();
             if (tab.classList.contains("active")) return;
-            if (!openModal("tab", tab.dataset.tab)) showTab(tab.dataset.tab);
+            openModal("tab", tab.dataset.tab).then((opened) => {
+                if (!opened) showTab(tab.dataset.tab);
+            });
         });
     });
     bindDirtyFields();
@@ -226,9 +244,4 @@ function rowLabel(field) {
     const typed = row?.querySelector("input[name$='_name'], input[type='email']")?.value.trim();
     const label = row?.dataset.rowLabel || row?.querySelector("th")?.textContent.trim() || "";
     return typed && label.startsWith("New ") ? typed : label;
-}
-
-function upcCheckDigit(upc11) {
-    const total = [...upc11].reduce((sum, digit, index) => sum + Number(digit) * (index % 2 === 0 ? 3 : 1), 0);
-    return String((10 - (total % 10)) % 10);
 }

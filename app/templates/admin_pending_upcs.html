@@ -23,10 +23,10 @@
                 <td>{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                 <td>
                     <div class="upc-review-actions">
-                        <form method="POST" class="inline-form upc-review-link">
+                        <form method="POST" class="inline-form upc-review-link" data-validation-submit="manual" novalidate>
                             <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
                             <input type="hidden" name="action" value="resolve">
-                            <select class="upc-review-select" name="item_id" required>
+                            <select class="upc-review-select" name="item_id">
                                 <option value="">Select item</option>
                                 {% for item in items %}
                                 <option value="{{ item.id }}" {% if scan.suggested_item_id == item.id %}selected{% endif %}>{{ item.name }}</option>
@@ -66,9 +66,9 @@
             <h2>Scan or Enter Barcode</h2>
             <p>What item should this barcode open?</p>
         </div>
-        <form method="POST" class="inline-form upc-add-form">
+        <form method="POST" class="inline-form upc-add-form" data-validation-submit="manual" novalidate>
             <input type="hidden" name="action" value="add">
-            <input name="upc" inputmode="numeric" pattern="\d{12}" maxlength="12" placeholder="12-digit UPC" autocomplete="off" autofocus required>
+            <input name="upc" placeholder="12-digit UPC" autocomplete="off" autofocus inputmode="numeric" maxlength="12">
             <button class="success-button" type="submit">Add</button>
         </form>
     </div>

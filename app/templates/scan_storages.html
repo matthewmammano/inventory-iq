@@ -9,7 +9,7 @@
 {% endblock %}
 
 {% block content %}
-<form id="scan-form" method="POST" action="{{ url_for('admin.scan_storages' if admin else 'guest.scan_storages', squad=squad) }}" class="stack">
+<form id="scan-form" method="POST" action="{{ url_for('admin.scan_storages' if admin else 'guest.scan_storages', squad=squad) }}" class="stack" data-validation-submit="manual">
     <input type="hidden" name="item_id" value="{{ item.id }}">
     <input type="hidden" name="same_location_error" id="same_location_error" value="0">
     {% if not admin %}
@@ -21,19 +21,19 @@
             <h2>From</h2>
             {% if user_restock_allow and to_locations|length > 0 %}
             <label class="radio-card">
-                <input type="radio" name="from_location_id" value="-1" {% if auto_from_id == -1 %}checked{% endif %} required>
+                <input type="radio" name="from_location_id" value="-1" {% if auto_from_id == -1 %}checked{% endif %}>
                 <span class="choice">RESTOCK</span>
             </label>
             {% endif %}
             {% if user_count_allow and to_locations|length > 0 %}
             <label class="radio-card">
-                <input type="radio" name="from_location_id" value="-2" {% if auto_from_id == -2 %}checked{% endif %} required>
+                <input type="radio" name="from_location_id" value="-2" {% if auto_from_id == -2 %}checked{% endif %}>
                 <span class="choice">COUNT</span>
             </label>
             {% endif %}
             {% for location in from_locations %}
             <label class="radio-card">
-                <input type="radio" name="from_location_id" value="{{ location.id }}" {% if auto_from_id == location.id %}checked{% endif %} required>
+                <input type="radio" name="from_location_id" value="{{ location.id }}" {% if auto_from_id == location.id %}checked{% endif %}>
                 <span class="choice">{{ location.name if show_storage_only else location.full_name }}</span>
             </label>
             {% endfor %}
@@ -42,12 +42,12 @@
         <div class="group" id="to-storage-options">
             <h2>To</h2>
             <label class="radio-card">
-                <input type="radio" name="to_location_id" value="-1" {% if auto_to_id == -1 %}checked{% endif %} required>
+                <input type="radio" name="to_location_id" value="-1" {% if auto_to_id == -1 %}checked{% endif %}>
                 <span class="choice">TAKE</span>
             </label>
             {% for location in to_locations %}
             <label class="radio-card">
-                <input type="radio" name="to_location_id" value="{{ location.id }}" {% if auto_to_id == location.id %}checked{% endif %} required>
+                <input type="radio" name="to_location_id" value="{{ location.id }}" {% if auto_to_id == location.id %}checked{% endif %}>
                 <span class="choice">{{ location.name if show_storage_only else location.full_name }}</span>
             </label>
             {% endfor %}

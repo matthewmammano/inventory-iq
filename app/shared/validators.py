@@ -1,10 +1,15 @@
 """Shared validation helpers used by ORM models and Pydantic schemas."""
 
+import re
+import string
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from email_validator import EmailNotValidError, validate_email
 from loguru import logger
+
+PASSWORD_MIN_LENGTH = 10
+PASSWORD_REQUIREMENTS_MESSAGE = "Password must be at least 10 characters and include a letter, number, and symbol."  # nosec B105 - user-facing validation copy
 
 
 def validate_string_length(
@@ -90,8 +95,13 @@ def validate_image_url(value: str | None) -> str | None:
 
 def validate_pin(value: str) -> str:
     """Validate PIN format (exactly 4 digits)."""
-    if not value or not value.isdigit() or len(value) != 4:
-        raise ValueError("PIN must be exactly 4 digits")
+    return validate_pin_length(value, 4)
+
+
+def validate_pin_length(value: str, digits: int) -> str:
+    """Validate fixed-length numeric PIN values."""
+    if not value or not value.isdigit() or len(value) != digits:
+        raise ValueError(f"PIN must be exactly {digits} digits")
     return value
 
 
@@ -115,6 +125,28 @@ def validate_non_negative_integer(value: int | None, field_name: str, *, allow_n
     if not isinstance(value, int) or value < 0:
         raise ValueError(f"{field_name} must be a non-negative integer")
     return value
+
+
+def normalize_hex_color(value: str | None) -> str:
+    """Validate and normalize #RRGGBB color strings."""
+    if not value or not isinstance(value, str):
+        raise TypeError("Color must be a string")
+    normalized = value.strip()
+    if not re.match(r"^#[0-9A-Fa-f]{6}$", normalized):
+        raise ValueError("Color must be valid hex format: #rrggbb")
+    return normalized.upper()
+
+
+def validate_password_strength(password: str) -> str:
+    """Validate password complexity used by account login."""
+    if (
+        len(password) < PASSWORD_MIN_LENGTH
+        or not any(char.isalpha() for char in password)
+        or not any(char.isdigit() for char in password)
+        or not any(char in string.punctuation for char in password)
+    ):
+        raise ValueError(PASSWORD_REQUIREMENTS_MESSAGE)
+    return password
 
 
 def parse_optional_int(value: int | str | None) -> int | None:

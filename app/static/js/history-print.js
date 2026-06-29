@@ -5,6 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const form = document.querySelector("[data-history-print-form]");
     const printArea = document.querySelector("#history-print-area");
     const dateInputs = [...document.querySelectorAll("#history-print-start, #history-print-end")];
+    const formValidation = window.InventoryFormValidation;
 
     openButton?.addEventListener("click", () => modal?.classList.remove("hidden"));
     closeButton?.addEventListener("click", () => modal?.classList.add("hidden"));
@@ -15,8 +16,8 @@ document.addEventListener("DOMContentLoaded", () => {
     });
     form?.addEventListener("submit", async (event) => {
         event.preventDefault();
-        if (!form.reportValidity()) return;
-        if (!printArea) return;
+        if (!form || !formValidation || !printArea) return;
+        if (!(await formValidation.validateForm(form))) return;
         const url = `${form.action}?${new URLSearchParams(new FormData(form))}`;
         window.InventoryLoadingOverlay?.show({ immediate: true });
         try {
@@ -29,7 +30,11 @@ document.addEventListener("DOMContentLoaded", () => {
             window.print();
         } catch (error) {
             window.InventoryLoadingOverlay?.hide();
-            window.alert(error.message || "Could not load print history.");
+            const message = error.message || "Could not load print history.";
+            const target = form.querySelector(message.startsWith("Start date") ? "[name='start_date']" : "[name='end_date']");
+            if (!target) return;
+            formValidation.setExternalError(target, message);
+            await formValidation.validateField(target);
         }
     });
 

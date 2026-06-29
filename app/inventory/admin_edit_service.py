@@ -6,119 +6,79 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from loguru import logger
-from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, model_validator
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth.location_filters import validate_location_filter_ids
 from app.auth.models import Agencies, AgencyEmails, AgencyItemTags
+from app.auth.notification_preferences import (
+    NOTIFICATION_FIELDS,
+    NOTIFICATION_PREFERENCES,
+)
+from app.inventory.constants import UPC_GENERATION_PREFIX
 from app.inventory.models import Items, ItemSecondaryUpc, validate_upc_code
 from app.shared.email_client import EMAIL_RETRY_DELAYS_SECONDS, OutboundEmail, send_email
-from app.shared.validators import validate_hhmm_time, validate_image_url, validate_pin, validate_string_length
-
-NOTIFICATION_ALERT_FIELDS = (
-    ("alert_for_stockout", "Stockout"),
-    ("alert_for_stockout_pred", "Pred Stockout"),
-    ("alert_for_low", "Low"),
-    ("alert_for_low_pred", "Pred Low"),
-    ("alert_for_stale_count", "Stale Count"),
-    ("alert_for_rare_takeout", "Rare Takeout"),
-    ("alert_for_count", "Count"),
-    ("alert_for_restock", "Restock"),
-    ("alert_for_takeout", "Takeout"),
-    ("alert_for_transfer", "Transfer"),
+from app.shared.validation_types import (
+    AdminPin,
+    EmailAddress128,
+    ImageSource,
+    Increments,
+    ItemName,
+    NonNegativeFloat,
+    OptionalPositiveInt,
+    PositiveInt,
+    QuietTime,
+    TagColor,
+    TagName,
 )
-NOTIFICATION_SUMMARY_FIELDS = (
-    ("daily_summary", "Daily"),
-    ("weekly_summary", "Weekly"),
-    ("monthly_summary", "Monthly"),
-    ("yearly_summary", "Yearly"),
-)
-_NOTIFICATION_FLAGS = tuple(field for field, _label in (*NOTIFICATION_ALERT_FIELDS, *NOTIFICATION_SUMMARY_FIELDS))
 
 
 class AdminItemForm(BaseModel):
     id: int | None = None
-    name: str
+    name: ItemName
     active: bool = True
     guest_quick_adjust: bool = False
-    increments: str | None = None
+    increments: Increments = None
     tag_ids: list[int] = Field(default_factory=list)
-    image: str | None = None
-    min_quantity: int = Field(gt=0)
-    max_quantity: int = Field(gt=0)
-    batch_size: int = Field(gt=0)
-    restock_delivery_days: int | None = Field(default=None, gt=0)
-    prior_daily_usage: float = Field(ge=0)
+    image: ImageSource = None
+    min_quantity: PositiveInt
+    max_quantity: PositiveInt
+    batch_size: PositiveInt
+    restock_delivery_days: OptionalPositiveInt = None
+    prior_daily_usage: NonNegativeFloat
     secondary_upcs: list[str] = Field(default_factory=list)
 
-    @field_validator("name")
-    @classmethod
-    def validate_name(cls, value: str) -> str:
-        return validate_string_length(value, "name", 100, allow_none=False, allow_empty=False) or ""
+    @model_validator(mode="after")
+    def validate_quantity_bounds(self):
+        if self.max_quantity <= self.min_quantity:
+            raise ValueError("Maximum quantity must be greater than minimum quantity.")
+        return self
 
-    @field_validator("increments")
-    @classmethod
-    def validate_increments(cls, value: str | None) -> str | None:
-        return validate_string_length(value, "increments", 50, allow_none=True, allow_empty=True)
-
-    @field_validator("image")
-    @classmethod
-    def validate_image(cls, value: str | None) -> str | None:
-        return validate_image_url(value)
-
-    @field_validator("secondary_upcs")
-    @classmethod
-    def validate_secondary_upcs(cls, values: list[str]) -> list[str]:
-        normalized = [validate_upc_code(value) for value in values if value]
+    @model_validator(mode="after")
+    def validate_secondary_upcs(self):
+        values = self.secondary_upcs
+        normalized = [_validate_secondary_upc(value) for value in values if value]
         if len(normalized) != len(set(normalized)):
             raise ValueError("Secondary UPCs must be unique.")
-        return normalized
+        self.secondary_upcs = normalized
+        return self
 
 
 class AdminTagForm(BaseModel):
     id: int | None = None
-    tag_name: str
-    color: str = Field(pattern=r"^#[0-9A-Fa-f]{6}$")
+    tag_name: TagName
+    color: TagColor
     active: bool = True
 
-    @field_validator("tag_name")
-    @classmethod
-    def validate_tag_name(cls, value: str) -> str:
-        return validate_string_length(value, "tag_name", 50, allow_none=False, allow_empty=False) or ""
 
-    @field_validator("color")
-    @classmethod
-    def normalize_color(cls, value: str) -> str:
-        return value.upper()
-
-
-class AdminNotificationForm(BaseModel):
+class AdminNotificationFormBase(BaseModel):
     id: int | None = None
-    email: EmailStr
+    email: EmailAddress128
     active: bool = True
     location_filter_ids: list[int] | None = None
-    quiet_start_time: str | None = None
-    quiet_end_time: str | None = None
-    alert_for_stockout: bool = True
-    alert_for_stockout_pred: bool = True
-    alert_for_low: bool = True
-    alert_for_low_pred: bool = True
-    alert_for_stale_count: bool = True
-    alert_for_rare_takeout: bool = False
-    alert_for_count: bool = True
-    alert_for_restock: bool = True
-    alert_for_takeout: bool = False
-    alert_for_transfer: bool = False
-    daily_summary: bool = False
-    weekly_summary: bool = True
-    monthly_summary: bool = True
-    yearly_summary: bool = True
-
-    @field_validator("quiet_start_time", "quiet_end_time")
-    @classmethod
-    def validate_quiet_time_value(cls, value: str | None, info) -> str | None:
-        return validate_hhmm_time(value, info.field_name or "quiet time")
+    quiet_start_time: QuietTime = None
+    quiet_end_time: QuietTime = None
 
     @model_validator(mode="after")
     def validate_quiet_hours_pair(self):
@@ -127,24 +87,35 @@ class AdminNotificationForm(BaseModel):
         return self
 
 
+def _notification_default(field: str) -> bool:
+    return next(preference.default for preference in NOTIFICATION_PREFERENCES if preference.field == field)
+
+
+class AdminNotificationForm(AdminNotificationFormBase):
+    alert_for_stockout: bool = _notification_default("alert_for_stockout")
+    alert_for_stockout_pred: bool = _notification_default("alert_for_stockout_pred")
+    alert_for_low: bool = _notification_default("alert_for_low")
+    alert_for_low_pred: bool = _notification_default("alert_for_low_pred")
+    alert_for_stale_count: bool = _notification_default("alert_for_stale_count")
+    alert_for_rare_takeout: bool = _notification_default("alert_for_rare_takeout")
+    alert_for_count: bool = _notification_default("alert_for_count")
+    alert_for_restock: bool = _notification_default("alert_for_restock")
+    alert_for_takeout: bool = _notification_default("alert_for_takeout")
+    alert_for_transfer: bool = _notification_default("alert_for_transfer")
+    daily_summary: bool = _notification_default("daily_summary")
+    weekly_summary: bool = _notification_default("weekly_summary")
+    monthly_summary: bool = _notification_default("monthly_summary")
+    yearly_summary: bool = _notification_default("yearly_summary")
+
+
 class AdminSettingsForm(BaseModel):
-    image: str | None = None
-    pin: str
+    image: ImageSource = None
+    pin: AdminPin
     user_count_allow: bool = False
     user_restock_allow: bool = False
-    lead_time_days: int = Field(gt=0)
-    count_last_days: int = Field(gt=0)
-    alert_rare_scan_days: int = Field(gt=0)
-
-    @field_validator("image")
-    @classmethod
-    def validate_image(cls, value: str | None) -> str | None:
-        return validate_image_url(value)
-
-    @field_validator("pin")
-    @classmethod
-    def validate_pin_value(cls, value: str) -> str:
-        return validate_pin(value)
+    lead_time_days: PositiveInt
+    count_last_days: PositiveInt
+    alert_rare_scan_days: PositiveInt
 
 
 def save_admin_items(session: Session, agency_id: int, form: Any) -> int:
@@ -247,6 +218,13 @@ def save_admin_settings(session: Session, agency: Agencies, values: dict[str, An
     return changed
 
 
+def _validate_secondary_upc(value: str) -> str:
+    normalized = validate_upc_code(value)
+    if normalized.startswith(UPC_GENERATION_PREFIX):
+        raise ValueError("Secondary UPCs cannot use generated item UPCs.")
+    return normalized
+
+
 def send_temporary_time_pin(session: Session, agency: Agencies) -> bool:
     code = _local_time_code(agency.timezone)
     body = (
@@ -297,7 +275,7 @@ def _submitted_notification_forms(form: Any) -> list[AdminNotificationForm]:
             | {
                 "id": email_id,
                 "active": str(email_id) not in form.getlist("delete_email_ids"),
-                "location_filter_ids": _submitted_int_list(form.getlist(f"email_{email_id}_location_filter_ids")),
+                "location_filter_ids": _submitted_optional_int_list(form.getlist(f"email_{email_id}_location_filter_ids")),
             }
         )
         for email_id in _submitted_ids(form, "email_ids")
@@ -308,7 +286,7 @@ def _submitted_notification_forms(form: Any) -> list[AdminNotificationForm]:
         rows.append(
             AdminNotificationForm.model_validate(
                 _submitted_row_values(form, f"{prefix}_")
-                | {"active": True, "location_filter_ids": _submitted_int_list(form.getlist(f"{prefix}_location_filter_ids"))}
+                | {"active": True, "location_filter_ids": _submitted_optional_int_list(form.getlist(f"{prefix}_location_filter_ids"))}
             )
         )
     return rows
@@ -332,7 +310,7 @@ def _submitted_row_values(form: Any, prefix: str) -> dict[str, Any]:
         "secondary_upcs": _submitted_secondary_upcs(form, prefix),
         "quiet_start_time": _blank_to_none(form.get(f"{prefix}quiet_start_time")),
         "quiet_end_time": _blank_to_none(form.get(f"{prefix}quiet_end_time")),
-    } | {field: _checkbox_is_checked(form, f"{prefix}{field}") for field in _NOTIFICATION_FLAGS}
+    } | {field: _checkbox_is_checked(form, f"{prefix}{field}") for field in NOTIFICATION_FIELDS}
 
 
 def _sync_secondary_upcs(session: Session, agency_id: int, item: Items, upcs: Sequence[str]) -> None:
@@ -414,8 +392,12 @@ def _submitted_ids(form: Any, key: str) -> list[int]:
     return [int(value) for value in form.getlist(key) if str(value).isdigit()]
 
 
-def _submitted_int_list(values: list[str]) -> list[int] | None:
-    ids = [int(value) for value in values if str(value).isdigit()]
+def _submitted_int_list(values: list[str]) -> list[int]:
+    return [int(value) for value in values if str(value).isdigit()]
+
+
+def _submitted_optional_int_list(values: list[str]) -> list[int] | None:
+    ids = _submitted_int_list(values)
     return ids or None
 
 

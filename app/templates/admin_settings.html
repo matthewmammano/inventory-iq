@@ -20,8 +20,8 @@
         <section class="settings-section">
             <div class="section-label">Squad Display</div>
             <div class="settings-options">
-                <div class="setting-row"><div><div class="setting-name">Image</div><p>Logo or image shown in the header</p></div><input class="small-input" name="image" maxlength="1020" value="{{ current_user.image or '' }}" data-label="Image" data-original="{{ current_user.image or '' }}"></div>
-                <div class="setting-row"><div><div class="setting-name">Admin PIN</div><p>Four digits used to enter admin mode</p></div><input class="small-input" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" required value="{{ current_user.pin }}" data-label="Admin PIN" data-original="{{ current_user.pin }}"></div>
+                <div class="setting-row"><div><div class="setting-name">Image</div><p>Logo or image shown in the header</p></div><input class="small-input" name="image" value="{{ current_user.image or '' }}" data-label="Image" data-original="{{ current_user.image or '' }}" {{ validation_attrs("image_source") }}></div>
+                <div class="setting-row"><div><div class="setting-name">Admin PIN</div><p>Four digits used to enter admin mode</p></div><input class="small-input" name="pin" value="{{ current_user.pin }}" data-label="Admin PIN" data-original="{{ current_user.pin }}" {{ validation_attrs("pin4") }}></div>
             </div>
         </section>
 
@@ -36,9 +36,9 @@
         <section class="settings-section">
             <div class="section-label">Alert Thresholds</div>
             <div class="settings-options">
-                <div class="setting-row"><div><div class="setting-name">Lead Time Days</div><p>Used for predicted low stock and stockout warnings</p></div><input class="small-input" type="number" name="lead_time_days" min="1" value="{{ current_user.lead_time_days }}" data-label="Lead Time Days" data-original="{{ current_user.lead_time_days }}"></div>
-                <div class="setting-row"><div><div class="setting-name">Stale Count Days</div><p>Warn when a location has not been counted recently</p></div><input class="small-input" type="number" name="count_last_days" min="1" value="{{ current_user.count_last_days }}" data-label="Stale Count Days" data-original="{{ current_user.count_last_days }}"></div>
-                <div class="setting-row"><div><div class="setting-name">Rare Takeout Days</div><p>Warn when takeout activity is unusual for a location</p></div><input class="small-input" type="number" name="alert_rare_scan_days" min="1" value="{{ current_user.alert_rare_scan_days }}" data-label="Rare Takeout Days" data-original="{{ current_user.alert_rare_scan_days }}"></div>
+                <div class="setting-row"><div><div class="setting-name">Lead Time Days</div><p>Used for predicted low stock and stockout warnings</p></div><input class="small-input" name="lead_time_days" value="{{ current_user.lead_time_days }}" data-label="Lead Time Days" data-original="{{ current_user.lead_time_days }}" {{ validation_attrs("positive_int") }}></div>
+                <div class="setting-row"><div><div class="setting-name">Stale Count Days</div><p>Warn when a location has not been counted recently</p></div><input class="small-input" name="count_last_days" value="{{ current_user.count_last_days }}" data-label="Stale Count Days" data-original="{{ current_user.count_last_days }}" {{ validation_attrs("positive_int") }}></div>
+                <div class="setting-row"><div><div class="setting-name">Rare Takeout Days</div><p>Warn when takeout activity is unusual for a location</p></div><input class="small-input" name="alert_rare_scan_days" value="{{ current_user.alert_rare_scan_days }}" data-label="Rare Takeout Days" data-original="{{ current_user.alert_rare_scan_days }}" {{ validation_attrs("positive_int") }}></div>
             </div>
         </section>
 
