@@ -536,6 +536,11 @@ td.danger-text {
   align-items: center;
 }
 
+.setting-control {
+  display: grid;
+  gap: 4px;
+}
+
 .setting-name,
 .current-location {
   color: var(--color-ink);

@@ -8,6 +8,7 @@ from typing import Annotated, Any
 from pydantic import AfterValidator, BeforeValidator
 
 from app.shared.validators import (
+    PASSWORD_MIN_LENGTH,
     PASSWORD_REQUIREMENTS_MESSAGE,
     normalize_hex_color,
     parse_optional_int,
@@ -109,6 +110,7 @@ class FieldSpec:
     pattern: str | None = None
     maxlength: int | None = None
     min_value: int | float | None = None
+    password_min_length: int | None = None
     step: str | None = None
     required: bool = False
     placeholder: str | None = None
@@ -140,9 +142,7 @@ class FieldRuleName(StrEnum):
 
 
 FIELD_SPECS: Mapping[FieldRuleName, FieldSpec] = {
-    FieldRuleName.EMAIL_128: FieldSpec(
-        "Email Address", "Enter a valid email address.", EmailAddress128, ("email",), input_type="email", maxlength=128
-    ),
+    FieldRuleName.EMAIL_128: FieldSpec("Email Address", "Enter a valid email address.", EmailAddress128, ("email",), maxlength=128),
     FieldRuleName.HEX_COLOR: FieldSpec("Color", "Choose a valid color.", TagColor, ("hex_color",), input_type="color"),
     FieldRuleName.HHMM_TIME: FieldSpec("Time", "Use HH:MM time.", QuietTime, ("hhmm_time",), input_type="time"),
     FieldRuleName.IMAGE_SOURCE: FieldSpec("Image", "Image must load from a valid URL.", ImageSource, ("image_source",), maxlength=1020),
@@ -155,7 +155,14 @@ FIELD_SPECS: Mapping[FieldRuleName, FieldSpec] = {
     FieldRuleName.NON_NEGATIVE_INT: FieldSpec(
         "Quantity", "Enter 0 or higher.", QuantityDelta, ("non_negative_int",), input_type="number", min_value=0
     ),
-    FieldRuleName.PASSWORD: FieldSpec("Password", PASSWORD_REQUIREMENTS_MESSAGE, Password, ("password",), required=True),
+    FieldRuleName.PASSWORD: FieldSpec(
+        "Password",
+        PASSWORD_REQUIREMENTS_MESSAGE,
+        Password,
+        ("password",),
+        password_min_length=PASSWORD_MIN_LENGTH,
+        required=True,
+    ),
     FieldRuleName.PIN4: FieldSpec(
         "Admin PIN", "PIN must be exactly 4 digits.", AdminPin, ("pin4",), inputmode="numeric", pattern="[0-9]{4}", maxlength=4, required=True
     ),

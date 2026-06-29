@@ -2,6 +2,8 @@
 
 ## Active Plan
 
+- design a better favicon, logo, front page for NON USERS!!! like an about page with features and everything!
+
 - change alert emails to be ONLY REPORT or ALERT types, not both. It is FINE if a DAILY report is generated AND some other ALERTS need to be sent. IF alerts wait to be sent till next morning, or whatever... I FORGET THE EXACT TIME... let's set the auto time for REPORTS to be set to a SLIGHTLY different hour but still in the morning. So most of the time users will not receive alerts at same time, sometimes it's fine though.
   - FIX daily, weekly, monthly reports. I don't think they all work, preview a bunch, add graphs, etc.
   - Decide difference from ADMIN GEN email VS REPORT email.

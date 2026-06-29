@@ -8,8 +8,15 @@
     <a class="header-action" id="back-link" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
 {% endblock %}
 
+{% macro setting_input(name, value, label, attrs) -%}
+<div class="setting-control">
+    <small class="field-hint hidden" data-for="{{ name }}"></small>
+    <input class="small-input" name="{{ name }}" value="{{ value }}" data-label="{{ label }}" data-original="{{ value }}" {{ attrs|safe }}>
+</div>
+{%- endmacro %}
+
 {% block content %}
-<form id="settings-form" method="POST" action="{{ url_for('admin.settings_page', squad=squad) }}" class="panel">
+<form id="settings-form" method="POST" action="{{ url_for('admin.settings_page', squad=squad) }}" class="panel" data-validation-submit="manual">
     <div class="panel-header">
         <div>
             <h2>Admin Settings</h2>
@@ -20,8 +27,27 @@
         <section class="settings-section">
             <div class="section-label">Squad Display</div>
             <div class="settings-options">
-                <div class="setting-row"><div><div class="setting-name">Image</div><p>Logo or image shown in the header</p></div><input class="small-input" name="image" value="{{ current_user.image or '' }}" data-label="Image" data-original="{{ current_user.image or '' }}" {{ validation_attrs("image_source") }}></div>
-                <div class="setting-row"><div><div class="setting-name">Admin PIN</div><p>Four digits used to enter admin mode</p></div><input class="small-input" name="pin" value="{{ current_user.pin }}" data-label="Admin PIN" data-original="{{ current_user.pin }}" {{ validation_attrs("pin4") }}></div>
+                <div class="setting-row"><div><div class="setting-name">Image</div><p>Logo or image shown in the header</p></div>{{ setting_input("image", current_user.image or "", "Image", validation_attrs("image_source")) }}</div>
+                <div class="setting-row"><div><div class="setting-name">Admin PIN</div><p>Four digits used to enter admin mode</p></div>{{ setting_input("pin", current_user.pin, "Admin PIN", validation_attrs("pin4")) }}</div>
+            </div>
+        </section>
+
+        <section class="settings-section">
+            <div class="section-label">This Device</div>
+            <div class="settings-options">
+                {% set selected_location = namespace(name="No default") %}
+                {% for location in locations %}
+                    {% if selected_location_id == location.id %}{% set selected_location.name = location.name %}{% endif %}
+                {% endfor %}
+                <div class="setting-row">
+                    <div><div class="setting-name">Default Location</div><p>Location this browser uses for guest scanning</p></div>
+                    <select class="small-select" name="device_location_id" data-label="Device Default Location" data-original="{{ selected_location_id or '' }}" data-original-display="{{ selected_location.name }}">
+                        <option value="">No default</option>
+                        {% for location in locations %}
+                        <option value="{{ location.id }}" {% if selected_location_id == location.id %}selected{% endif %}>{{ location.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
             </div>
         </section>
 
@@ -36,9 +62,9 @@
         <section class="settings-section">
             <div class="section-label">Alert Thresholds</div>
             <div class="settings-options">
-                <div class="setting-row"><div><div class="setting-name">Lead Time Days</div><p>Used for predicted low stock and stockout warnings</p></div><input class="small-input" name="lead_time_days" value="{{ current_user.lead_time_days }}" data-label="Lead Time Days" data-original="{{ current_user.lead_time_days }}" {{ validation_attrs("positive_int") }}></div>
-                <div class="setting-row"><div><div class="setting-name">Stale Count Days</div><p>Warn when a location has not been counted recently</p></div><input class="small-input" name="count_last_days" value="{{ current_user.count_last_days }}" data-label="Stale Count Days" data-original="{{ current_user.count_last_days }}" {{ validation_attrs("positive_int") }}></div>
-                <div class="setting-row"><div><div class="setting-name">Rare Takeout Days</div><p>Warn when takeout activity is unusual for a location</p></div><input class="small-input" name="alert_rare_scan_days" value="{{ current_user.alert_rare_scan_days }}" data-label="Rare Takeout Days" data-original="{{ current_user.alert_rare_scan_days }}" {{ validation_attrs("positive_int") }}></div>
+                <div class="setting-row"><div><div class="setting-name">Lead Time Days</div><p>Used for predicted low stock and stockout warnings</p></div>{{ setting_input("lead_time_days", current_user.lead_time_days, "Lead Time Days", validation_attrs("positive_int")) }}</div>
+                <div class="setting-row"><div><div class="setting-name">Stale Count Days</div><p>Warn when a location has not been counted recently</p></div>{{ setting_input("count_last_days", current_user.count_last_days, "Stale Count Days", validation_attrs("positive_int")) }}</div>
+                <div class="setting-row"><div><div class="setting-name">Rare Takeout Days</div><p>Warn when takeout activity is unusual for a location</p></div>{{ setting_input("alert_rare_scan_days", current_user.alert_rare_scan_days, "Rare Takeout Days", validation_attrs("positive_int")) }}</div>
             </div>
         </section>
 

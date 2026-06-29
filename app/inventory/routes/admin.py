@@ -6,13 +6,14 @@ from datetime import UTC, date, datetime, time, timedelta, tzinfo
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from flask import current_app, flash, redirect, render_template, request, url_for
+from flask import current_app, flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user
 from loguru import logger
 from pydantic import ValidationError
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload, selectinload
 
+from app.auth.device_locations import current_device_token, get_or_create_device, save_device_location, set_device_cookie
 from app.auth.models import Agencies, AgencyLocations
 from app.auth.notification_preferences import ALERT_NOTIFICATION_FIELDS, SUMMARY_NOTIFICATION_FIELDS
 from app.auth.queries import list_active_emails, list_tags, list_top_locations
@@ -978,24 +979,45 @@ def settings_page(squad: str) -> Any:
     if request.method == "POST":
         return _save_settings(squad)
 
-    return render_template(
-        "admin_settings.html",
-        squad=squad,
-        contact_phone=current_app.config.get("CONTACT_PHONE", ""),
-        admin=True,
+    return _render_settings_page(squad)
+
+
+def _render_settings_page(squad: str) -> Any:
+    token = current_device_token()
+    with get_session() as s:
+        locations = list_top_locations(current_user.id, s)
+        device = get_or_create_device(current_user.id, token, s)
+        selected_location_id = device.agency_location_id
+        s.commit()
+    response = make_response(
+        render_template(
+            "admin_settings.html",
+            squad=squad,
+            contact_phone=current_app.config.get("CONTACT_PHONE", ""),
+            locations=locations,
+            selected_location_id=selected_location_id,
+            admin=True,
+        )
     )
+    set_device_cookie(response, token)
+    return response
 
 
 def _save_settings(squad: str) -> Any:
+    token = current_device_token()
     try:
         with get_session() as s:
             agency = s.get(Agencies, current_user.id)
             if agency is None:
                 raise ValueError("Agency not found.")
-            changed = save_admin_settings(s, agency, request.form.to_dict())
+            settings_changed = save_admin_settings(s, agency, request.form.to_dict())
+            device_changed = _save_device_default_location(s, token)
+            changed = settings_changed or device_changed
             flash("Saved settings." if changed else "No settings changes entered.", "success" if changed else "info")
             s.commit()
-        return redirect(url_for("admin.settings_page", squad=squad))
+        response = make_response(redirect(url_for("admin.settings_page", squad=squad)))
+        set_device_cookie(response, token)
+        return response
     except (ValueError, ValidationError) as exc:
         logger.warning(
             "Admin settings validation reached backend",
@@ -1005,7 +1027,22 @@ def _save_settings(squad: str) -> Any:
     except Exception:
         logger.exception("Admin settings save failed unexpectedly", extra={"squad": squad})
         flash(SAVE_RETRY_MESSAGE, "error")
-    return redirect(url_for("admin.settings_page", squad=squad))
+    response = make_response(redirect(url_for("admin.settings_page", squad=squad)))
+    set_device_cookie(response, token)
+    return response
+
+
+def _save_device_default_location(session: Session, token: str) -> bool:
+    device = get_or_create_device(current_user.id, token, session)
+    location_id = parse_optional_int(request.form.get("device_location_id"))
+    if device.agency_location_id == location_id:
+        return False
+    save_device_location(current_user.id, token, location_id, session)
+    logger.info(
+        "Admin settings changed device default location",
+        extra={"agency_id": current_user.id, "agency_location_id": location_id},
+    )
+    return True
 
 
 @bp.route("/<squad>/admin-panel/scan-items", methods=["GET", "POST"])

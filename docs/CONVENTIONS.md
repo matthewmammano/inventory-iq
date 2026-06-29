@@ -39,14 +39,15 @@ Inventory IQ-specific conventions only. Generic engineering rules live in [../AG
 
 ## Validation Pattern
 
-- Python owns validation rules. Prefer reusable typed aliases in `app/shared/validation_types.py` backed by helpers in `app/shared/validators.py`.
-- Reuse those aliases in schemas and service-layer form models before adding one-off `field_validator` logic.
-- When an HTML input needs matching browser validation, generate attributes with `validation_attrs(...)` instead of hand-writing `type`, `pattern`, `maxlength`, or duplicate rule strings in templates.
-- Keep frontend validation messages concise and user-facing. Do not surface raw Pydantic errors, exception names, or internal field paths in flashes.
-- Use frontend validation for immediate feedback, highlight state, grouped required choices, paired fields, and submit blocking. Backend validation still decides whether the write is valid.
-- If a rule has cross-field behavior such as paired quiet hours, min/max comparisons, or required-if-present logic, keep the canonical rule in Python and mirror only the UI behavior needed for early feedback.
-- When parsing form posts, preserve the real target type. Empty checkbox lists that represent `list[int]` should stay empty lists, while optional scoped filters may still normalize to `None`.
-- Shared validation JS belongs in `app/static/js/form-validation.js`. Page scripts may integrate with it, but should avoid re-implementing generic validators like email, PIN, UPC, quantity, or password checks.
+- Python owns validation. Add reusable rules in `app/shared/validation_types.py` as `FieldRuleName` + `FieldSpec`, backed by Pydantic aliases and helpers in `app/shared/validators.py`; reuse those aliases in form/service models before adding one-off validators.
+- Templates get frontend attributes only through `validation_attrs(...)`; do not hand-write duplicate `type`, `pattern`, `maxlength`, `min`, rule names, or user-facing rule messages.
+- Shared browser validation lives in `app/static/js/form-validation.js` as `window.InventoryFormValidation`; page scripts may call `validateForm`, `validateField`, or `setExternalError`, but must not reimplement generic email, PIN, password, UPC, quantity, date, color, image, paired-field, comparison, or required-choice logic.
+- Use inline `.field-hint` messages and `.invalid` styling for user-fixable field errors. Place hints above dense inputs using the shared wrappers/patterns, never in a way that widens table columns or settings rows.
+- Default to live validation for edit/admin forms so invalid values show immediately. Use `data-validation-live="submit"` for auth/simple selection flows where errors should appear only after a submit attempt. Use `data-validation-submit="manual"` only when a page script owns a review modal, scanner flow, or custom submit sequence.
+- Keep backend validation authoritative and safe. Frontend validation is for fast feedback only; backend failures should return concise field errors when useful, or one generic user message plus safe Loguru context when the issue is unexpected.
+- Avoid browser-native validation popups. Forms using shared validation should rely on `novalidate` or the shared script's `form.noValidate = true`.
+- Cross-field rules such as quiet-hour pairs, min/max comparisons, required-if-present fields, and count-before-restock behavior keep the canonical rule in Python and mirror only the UI behavior needed for early feedback.
+- When parsing form posts, preserve the real target type. Empty checkbox lists that represent `list[int]` stay empty lists, while optional scoped filters may still normalize to `None`.
 
 ## Notification Emails
 

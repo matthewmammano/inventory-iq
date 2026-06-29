@@ -19,6 +19,10 @@
     function bindField(field) {
         field.dataset.validationBound = "1";
         if (DIGIT_RULES.has(field.dataset.validate)) field.addEventListener("input", () => filterDigits(field));
+        if (submitOnly(field)) {
+            ["change", "input"].forEach((eventName) => field.addEventListener(eventName, () => clearFieldState(field)));
+            return;
+        }
         const liveEvents = validators(field).includes("image_source") ? ["change"] : ["change", "input"];
         field.addEventListener("blur", () => markTouched(field));
         field.addEventListener("blur", () => validateField(field));
@@ -32,6 +36,10 @@
 
     function bindGroup(group) {
         group.dataset.validationBound = "1";
+        if (submitOnly(group)) {
+            groupFields(group).forEach((field) => field.addEventListener("change", () => clearGroupState(group)));
+            return;
+        }
         groupFields(group).forEach((field) => {
             field.addEventListener("change", () => {
                 delete group.dataset.externalError;
@@ -75,6 +83,15 @@
     }
 
     async function validateBeforeSubmit(form, event, extraCheck = null) {
+        if (!hasAsyncValidation(form)) {
+            if (extraCheck && !(await extraCheck())) {
+                event.preventDefault();
+                return false;
+            }
+            if (validateFormSync(form)) return true;
+            event.preventDefault();
+            return false;
+        }
         if (form.dataset.validationReady === "1") {
             delete form.dataset.validationReady;
             return true;
@@ -87,8 +104,18 @@
         return true;
     }
 
+    function validateFormSync(form) {
+        const valid = nodes(form).map((node) => validateAnySync(node, { force: true })).every(Boolean);
+        if (!valid) focusFirstInvalid(form);
+        return valid;
+    }
+
     function validateAny(node, options = {}) {
         return node.matches("[data-validate-group]") ? validateGroup(node, options) : validateField(node, options);
+    }
+
+    function validateAnySync(node, options = {}) {
+        return node.matches("[data-validate-group]") ? validateGroup(node, options) : validateFieldSync(node, options);
     }
 
     async function validateField(field, options = {}) {
@@ -99,7 +126,15 @@
         return !message;
     }
 
-    async function validateGroup(group, options = {}) {
+    function validateFieldSync(field, options = {}) {
+        if (field.disabled) return true;
+        if (options.force) markTouched(field);
+        const message = fieldErrorSync(field);
+        renderFieldState(field, message, options);
+        return !message;
+    }
+
+    function validateGroup(group, options = {}) {
         if (options.force) markTouched(group);
         const message = groupError(group);
         renderGroupState(group, message, options);
@@ -119,6 +154,19 @@
         return comparisonError(field, value);
     }
 
+    function fieldErrorSync(field) {
+        const value = field.value.trim();
+        const paired = pairedField(field);
+        if (paired && Boolean(value) !== Boolean(paired.value.trim())) return "Enter both quiet hours times.";
+        if (!value) return field.required || requiredWhen(field) ? `${label(field)} is required.` : externalError(field);
+        if (externalError(field)) return externalError(field);
+        for (const validator of validators(field)) {
+            const message = validateRule(validator, field, value);
+            if (message) return message;
+        }
+        return comparisonError(field, value);
+    }
+
     function groupError(group) {
         if (group.dataset.validateGroup === "required_choice" && !groupFields(group).some((field) => field.checked)) {
             return `${label(group)} is required.`;
@@ -126,7 +174,7 @@
         return externalError(group);
     }
 
-    async function validateRule(validator, field, value) {
+    function validateRule(validator, field, value) {
         if (validator === "email" && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) return field.dataset.errorMessage;
         if (validator === "hex_color" && !/^#[0-9A-Fa-f]{6}$/.test(value)) return field.dataset.errorMessage;
         if (validator === "hhmm_time" && !/^([01]\d|2[0-3]):[0-5]\d$/.test(value)) return field.dataset.errorMessage;
@@ -134,7 +182,7 @@
         if (validator === "max_length" && field.dataset.maxLength && value.length > Number(field.dataset.maxLength)) return field.dataset.errorMessage;
         if (validator === "non_negative_int" && (!/^\d+$/.test(value) || Number(value) < 0)) return field.dataset.errorMessage;
         if (validator === "non_negative_number" && (Number.isNaN(Number(value)) || Number(value) < 0)) return field.dataset.errorMessage;
-        if (validator === "password" && !isStrongPassword(value)) return field.dataset.errorMessage;
+        if (validator === "password") return passwordError(value, field);
         if (validator === "pin4" && !/^\d{4}$/.test(value)) return field.dataset.errorMessage;
         if (validator === "pin6" && !/^\d{6}$/.test(value)) return field.dataset.errorMessage;
         if (validator === "positive_int" && (!/^\d+$/.test(value) || Number(value) < 1)) return field.dataset.errorMessage;
@@ -157,8 +205,19 @@
         return "";
     }
 
-    function isStrongPassword(value) {
-        return value.length >= 10 && /[A-Za-z]/.test(value) && /\d/.test(value) && PASSWORD_SYMBOL_PATTERN.test(value);
+    function isStrongPassword(value, minLength = 10) {
+        return value.length >= minLength && /[A-Za-z]/.test(value) && /\d/.test(value) && PASSWORD_SYMBOL_PATTERN.test(value);
+    }
+
+    function passwordError(value, field) {
+        const minLength = Number(field.dataset.passwordMinLength || 10);
+        if (isStrongPassword(value, minLength)) return "";
+        const missing = [];
+        if (value.length < minLength) missing.push(`${minLength}+ characters`);
+        if (!/[A-Za-z]/.test(value)) missing.push("a letter");
+        if (!/\d/.test(value)) missing.push("a number");
+        if (!PASSWORD_SYMBOL_PATTERN.test(value)) missing.push("a symbol");
+        return missing.length ? `Add ${missing.join(", ")}.` : field.dataset.errorMessage;
     }
 
     function upcError(value) {
@@ -202,6 +261,20 @@
         field.closest("td")?.classList.toggle("invalid-cell", show);
     }
 
+    function clearFieldState(field) {
+        delete field.dataset.touched;
+        delete field.dataset.externalError;
+        field.dataset.invalidState = "0";
+        field.setCustomValidity("");
+        field.classList.remove("invalid");
+        const hint = field.parentElement?.querySelector(`.field-hint[data-for="${hintKey(field)}"]`);
+        if (hint) {
+            hint.textContent = "";
+            hint.classList.add("hidden");
+        }
+        field.closest("td")?.classList.remove("invalid-cell");
+    }
+
     function renderGroupState(group, message, { silent = false } = {}) {
         const show = shouldShow(group, message, silent);
         group.dataset.invalidState = message ? "1" : "0";
@@ -209,6 +282,18 @@
         const hint = ensureHint(group);
         hint.textContent = show ? message : "";
         hint.classList.toggle("hidden", !show);
+    }
+
+    function clearGroupState(group) {
+        delete group.dataset.touched;
+        delete group.dataset.externalError;
+        group.dataset.invalidState = "0";
+        invalidTargets(group).forEach((target) => target.classList.remove("invalid"));
+        const hint = group.querySelector(`.field-hint[data-for="${hintKey(group)}"]`);
+        if (hint) {
+            hint.textContent = "";
+            hint.classList.add("hidden");
+        }
     }
 
     function shouldShow(node, message, silent) {
@@ -222,7 +307,7 @@
         const hint = document.createElement("small");
         hint.className = "field-hint hidden";
         hint.dataset.for = hintKey(node);
-        if (node.matches(".table-input") || node.parentElement?.matches(".edit-field")) {
+        if (node.matches(".table-input, .small-input, .small-select") || node.parentElement?.matches(".edit-field")) {
             node.insertAdjacentElement("beforebegin", hint);
             return hint;
         }
@@ -255,6 +340,14 @@
 
     function validators(field) {
         return (field.dataset.validators || "").split(",").filter(Boolean);
+    }
+
+    function hasAsyncValidation(form) {
+        return fields(form).some((field) => validators(field).includes("image_source") && field.value.trim());
+    }
+
+    function submitOnly(node) {
+        return node.closest("form")?.dataset.validationLive === "submit";
     }
 
     function relatedFields(field) {

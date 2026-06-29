@@ -9,12 +9,15 @@
 <section class="auth-panel">
     <h2>Sign in</h2>
     <p>Use your agency email and password to access inventory.</p>
-    <form method="POST" class="auth-form">
+    {% set field_errors = field_errors|default({}, true) %}
+    <form method="POST" class="auth-form" data-validation-live="submit" novalidate>
         <label for="email">Email</label>
-        <input id="email" name="email" autocomplete="username" data-label="Email" {{ validation_attrs("email_128", required=True) }}>
+        <small class="field-hint{% if not field_errors.get('email') %} hidden{% endif %}" data-for="email">{{ field_errors.get('email', '') }}</small>
+        <input id="email" class="{% if field_errors.get('email') %}invalid{% endif %}" name="email" autocomplete="username" value="{{ email_value|default('', true) }}" data-label="Email" {{ validation_attrs("email_128", required=True) }}>
 
         <label for="password">Password</label>
-        <input id="password" type="password" name="password" autocomplete="current-password" data-label="Password" {{ validation_attrs("required_text") }}>
+        <small class="field-hint{% if not field_errors.get('password') %} hidden{% endif %}" data-for="password">{{ field_errors.get('password', '') }}</small>
+        <input id="password" class="{% if field_errors.get('password') %}invalid{% endif %}" type="password" name="password" autocomplete="current-password" data-label="Password" {{ validation_attrs("required_text") }}>
 
         <button type="submit" class="success-button full-button">Login</button>
     </form>

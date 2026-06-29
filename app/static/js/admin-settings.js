@@ -14,6 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const confirmButton = document.querySelector("#confirm-button");
     const loadingOverlay = window.InventoryLoadingOverlay;
     let modalMode = "save";
+    let submitting = false;
 
     const valueOf = (field) => field.classList.contains("switch") ? field.textContent.trim() : field.value;
     const displayOf = (field) => field.tagName === "SELECT"
@@ -37,9 +38,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     async function openModal(mode) {
         const pending = changes();
-        if (pending.length === 0) return;
+        if (pending.length === 0) return false;
         if (mode !== "back" && !(await formValidation.validateForm(form))) {
-            return;
+            return true;
         }
         modalMode = mode;
         modalTitle.textContent = mode === "back" ? "Unsaved Changes" : "Review Changes";
@@ -51,9 +52,15 @@ document.addEventListener("DOMContentLoaded", () => {
         confirmButton.classList.toggle("success-button", mode !== "back");
         changeList.replaceChildren(...pending.map(changeReview.renderChangeItem));
         modal.classList.remove("hidden");
+        return true;
     }
 
     fields.forEach((field) => bindField(field, renderDirtyState));
+    form.addEventListener("submit", async (event) => {
+        if (submitting) return;
+        event.preventDefault();
+        await openModal("save");
+    });
     saveButton.addEventListener("click", () => openModal("save"));
     backLink.addEventListener("click", (event) => {
         if (changes().length === 0) return;
@@ -61,12 +68,18 @@ document.addEventListener("DOMContentLoaded", () => {
         openModal("back");
     });
     document.querySelector("#cancel-modal").addEventListener("click", () => modal.classList.add("hidden"));
-    confirmButton.addEventListener("click", () => {
+    confirmButton.addEventListener("click", async () => {
         if (modalMode === "back") {
             loadingOverlay?.show({ immediate: true });
             window.location.href = backLink.href;
             return;
         }
+        if (!(await formValidation.validateForm(form))) {
+            modal.classList.add("hidden");
+            return;
+        }
+        submitting = true;
+        loadingOverlay?.show({ immediate: true });
         form.requestSubmit();
     });
 });

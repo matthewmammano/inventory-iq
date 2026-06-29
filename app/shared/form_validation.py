@@ -37,6 +37,8 @@ def validation_attrs(
         attrs["data-max-length"] = rule.maxlength
     if rule.min_value is not None:
         attrs["min"] = rule.min_value
+    if rule.password_min_length is not None:
+        attrs["data-password-min-length"] = rule.password_min_length
     if rule.step:
         attrs["step"] = rule.step
     if rule.placeholder:

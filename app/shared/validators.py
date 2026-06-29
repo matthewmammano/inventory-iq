@@ -139,14 +139,23 @@ def normalize_hex_color(value: str | None) -> str:
 
 def validate_password_strength(password: str) -> str:
     """Validate password complexity used by account login."""
-    if (
-        len(password) < PASSWORD_MIN_LENGTH
-        or not any(char.isalpha() for char in password)
-        or not any(char.isdigit() for char in password)
-        or not any(char in string.punctuation for char in password)
-    ):
-        raise ValueError(PASSWORD_REQUIREMENTS_MESSAGE)
+    if message := password_requirements_error(password):
+        raise ValueError(message)
     return password
+
+
+def password_requirements_error(password: str) -> str:
+    """Return the user-facing password requirement still missing, or empty when valid."""
+    missing = []
+    if len(password) < PASSWORD_MIN_LENGTH:
+        missing.append(f"{PASSWORD_MIN_LENGTH}+ characters")
+    if not any(char.isalpha() for char in password):
+        missing.append("a letter")
+    if not any(char.isdigit() for char in password):
+        missing.append("a number")
+    if not any(char in string.punctuation for char in password):
+        missing.append("a symbol")
+    return f"Add {', '.join(missing)}." if missing else ""
 
 
 def parse_optional_int(value: int | str | None) -> int | None:
