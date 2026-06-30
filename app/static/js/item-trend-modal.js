@@ -3,15 +3,32 @@
     const chart = document.querySelector("#item-trend-chart");
     const title = document.querySelector("#item-trend-title");
     const summary = document.querySelector("#item-trend-summary");
+    const scales = document.querySelector("#item-trend-scales");
     const close = document.querySelector("#item-trend-close");
-    if (!modal || !chart || !title || !summary || !close) return;
+    if (!modal || !chart || !title || !summary || !scales || !close) return;
+
+    const DAY_MS = 86_400_000;
+    const RANGE_OPTIONS = [
+        { key: "all", label: "Full History", days: null },
+        { key: "year", label: "Past Year", days: 365 },
+        { key: "sixMonths", label: "Past 6 Months", days: 183 },
+        { key: "month", label: "Past Month", days: 30 },
+        { key: "week", label: "Past Week", days: 7 },
+    ];
+    let activeRangeKey = "all";
+    let activePayload = null;
 
     const open = async (url) => {
         modal.classList.remove("hidden");
         chart.innerHTML = '<div class="item-trend-empty">Loading...</div>';
+        scales.innerHTML = "";
+        title.textContent = "Item Trend";
+        summary.textContent = "";
         const response = await fetch(url, { headers: { Accept: "application/json" } });
         if (!response.ok) throw new Error("Trend fetch failed");
-        render(await response.json());
+        activePayload = await response.json();
+        activeRangeKey = "all";
+        render(activePayload);
     };
 
     const render = (payload) => {
@@ -19,13 +36,64 @@
         summary.textContent = payload.trend_per_day === null
             ? "No trained trend yet"
             : `${formatTrendRate(payload.trend_per_day)}, ${Math.round(payload.confidence_percent || 0)}% confidence`;
-        const points = [...payload.count_points, ...payload.operation_points, ...payload.trendline_points];
+        const rangeOptions = availableRanges(payload);
+        if (!rangeOptions.some((option) => option.key === activeRangeKey && !option.disabled)) {
+            activeRangeKey = "all";
+        }
+        renderScaleButtons(rangeOptions);
+        const filteredPayload = filterPayload(payload, activeRangeKey);
+        const points = [...filteredPayload.count_points, ...filteredPayload.operation_points, ...filteredPayload.trendline_points];
         if (!points.length) {
             chart.innerHTML = '<div class="item-trend-empty">No history yet</div>';
             return;
         }
-        chart.innerHTML = buildSvg(payload, scale(points));
+        chart.innerHTML = buildSvg(filteredPayload, scale(points));
     };
+
+    const renderScaleButtons = (rangeOptions) => {
+        scales.innerHTML = rangeOptions.map((option) => `
+            <button
+                class="item-trend-scale-button${option.key === activeRangeKey ? " is-active" : ""}"
+                type="button"
+                data-range-key="${option.key}"
+                aria-pressed="${option.key === activeRangeKey}"
+                ${option.disabled ? 'disabled title="Not enough history for this range"' : ""}>
+                ${option.label}
+            </button>
+        `).join("");
+    };
+
+    const availableRanges = (payload) => {
+        const historySpanMs = historySpan(payload);
+        return RANGE_OPTIONS.map((option) => ({
+            ...option,
+            disabled: option.days !== null && historySpanMs < option.days * DAY_MS,
+        }));
+    };
+
+    const historySpan = (payload) => {
+        const historyPoints = [...payload.count_points, ...payload.operation_points];
+        if (historyPoints.length < 2) return 0;
+        const times = historyPoints.map((point) => new Date(point.at).getTime());
+        return Math.max(...times) - Math.min(...times);
+    };
+
+    const filterPayload = (payload, rangeKey) => {
+        const range = RANGE_OPTIONS.find((option) => option.key === rangeKey);
+        if (!range || range.days === null) return payload;
+        const cutoff = latestPointTime(payload) - range.days * DAY_MS;
+        return {
+            ...payload,
+            count_points: payload.count_points.filter((point) => new Date(point.at).getTime() >= cutoff),
+            operation_points: payload.operation_points.filter((point) => new Date(point.at).getTime() >= cutoff),
+            trendline_points: payload.trendline_points.filter((point) => new Date(point.at).getTime() >= cutoff),
+        };
+    };
+
+    const latestPointTime = (payload) => Math.max(
+        ...[...payload.count_points, ...payload.operation_points, ...payload.trendline_points]
+            .map((point) => new Date(point.at).getTime()),
+    );
 
     const scale = (points) => {
         const times = points.map((point) => new Date(point.at).getTime());
@@ -83,8 +151,16 @@
 
     document.querySelectorAll("[data-trend-url]").forEach((button) => {
         button.addEventListener("click", () => open(button.dataset.trendUrl).catch(() => {
+            activePayload = null;
+            scales.innerHTML = "";
             chart.innerHTML = '<div class="item-trend-empty">Could not load trend</div>';
         }));
+    });
+    scales.addEventListener("click", (event) => {
+        const button = event.target.closest("[data-range-key]");
+        if (!button || button.disabled || !activePayload) return;
+        activeRangeKey = button.dataset.rangeKey;
+        render(activePayload);
     });
     close.addEventListener("click", () => modal.classList.add("hidden"));
     modal.addEventListener("click", (event) => {

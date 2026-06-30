@@ -15,11 +15,7 @@
 
 - why are there errors in the DB set for emails sending?
 
-- for item trend graph. add time scales for ALL TIME, 1YO, 6MO, 1MO, 1WEEK, but better rephrase it. gray out the button if unable (not enough context in that item's history).
-
 - `class AlertSeverity(StrEnum)` is the BEST coding work of art I have ever done! Can you check EVERY OTHER class, datatype, and function in the codebase to see if they can be improved to be as elegant and maintainable as that one? (like using different Enum types, or dataclasses, or Pydantic models, computed fields, etc). Make sure you check THOROUGHLY with agents AND/OR regex searching marking each as possible refactoring candidate. Then make a list of all the candidates and we can review together with LOC saved estimates AND clear coding clarity benefits.
-
-- remove timezone COMPLETELY from ADMIN UI SETTINGS... just editable by me in DB TABLE manually!
 
 - research better AGENTS.md, combine with that, mainintable code and using PY latest features, never outdated
 
