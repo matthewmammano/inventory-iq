@@ -86,8 +86,26 @@
             ...payload,
             count_points: payload.count_points.filter((point) => new Date(point.at).getTime() >= cutoff),
             operation_points: payload.operation_points.filter((point) => new Date(point.at).getTime() >= cutoff),
-            trendline_points: payload.trendline_points.filter((point) => new Date(point.at).getTime() >= cutoff),
+            trendline_points: visibleTrendlinePoints(payload.trendline_points, cutoff),
         };
+    };
+
+    const visibleTrendlinePoints = (trendlinePoints, cutoff) => {
+        if (trendlinePoints.length < 2) return trendlinePoints.filter((point) => new Date(point.at).getTime() >= cutoff);
+        const [startPoint, endPoint] = trendlinePoints;
+        const startTime = new Date(startPoint.at).getTime();
+        const endTime = new Date(endPoint.at).getTime();
+        if (endTime <= cutoff) return [];
+        if (startTime >= cutoff) return trendlinePoints;
+        const ratio = (cutoff - startTime) / Math.max(endTime - startTime, 1);
+        return [
+            {
+                ...startPoint,
+                at: new Date(cutoff).toISOString(),
+                quantity: roundQuantity(startPoint.quantity + ((endPoint.quantity - startPoint.quantity) * ratio)),
+            },
+            endPoint,
+        ];
     };
 
     const latestPointTime = (payload) => Math.max(
@@ -116,15 +134,16 @@
             <text x="26" y="40" font-size="15" font-weight="800" fill="#20242a">Quantity (units)</text>
             <text x="68" y="342" font-size="14" font-weight="800" fill="#20242a">${dateLabel(s.minDate)}</text>
             <text x="912" y="342" text-anchor="end" font-size="14" font-weight="800" fill="#20242a">${dateLabel(s.maxDate)}</text>
-            <text x="490" y="342" text-anchor="middle" font-size="14" font-weight="800" fill="#20242a">Date</text>
-            <text x="26" y="74" font-size="13" fill="#605f56">${Math.ceil(s.maxQuantity)}</text>
-            <text x="40" y="310" font-size="13" fill="#605f56">0</text>
+            ${yAxisLabels(s).map((label) => `
+                <text x="40" y="${label.y}" text-anchor="end" font-size="13" fill="#605f56">${label.value}</text>
+            `).join("")}
             <line x1="68" y1="306" x2="912" y2="306" stroke="#81734c" stroke-width="2"/>
             <line x1="68" y1="70" x2="68" y2="306" stroke="#81734c" stroke-width="2"/>
             ${polyline(payload.count_points, s, "#1f4e79", 3)}
             ${payload.operation_points.map((p) => dot(p, s, 4, "#9b5b18")).join("")}
             ${payload.count_points.map((p) => dot(p, s, 8, "#1f4e79")).join("")}
             ${polyline(payload.trendline_points, s, "#9f3434", 5)}
+            ${currentEstimateMarker(payload.trendline_points, s)}
         </svg>`;
 
     const polyline = (points, s, color, width) => points.length < 2 ? "" :
@@ -133,7 +152,39 @@
     const dot = (point, s, radius, color) =>
         `<circle cx="${s.x(point.at)}" cy="${s.y(point.quantity)}" r="${radius}" fill="${color}"><title>${point.operation}: ${point.quantity}</title></circle>`;
 
+    const currentEstimateMarker = (trendlinePoints, s) => {
+        if (!trendlinePoints.length) return "";
+        const point = trendlinePoints[trendlinePoints.length - 1];
+        const x = s.x(point.at);
+        const y = s.y(point.quantity);
+        return `
+            <circle cx="${x}" cy="${y}" r="10" fill="#ffffff" stroke="#9f3434" stroke-width="3">
+                <title>Current estimate: ${point.quantity}</title>
+            </circle>
+            <circle cx="${x}" cy="${y}" r="4" fill="#9f3434" aria-hidden="true"></circle>
+        `;
+    };
+
+    const yAxisLabels = (s) => {
+        const maxLabelValue = Math.ceil(s.maxQuantity);
+        const labels = [
+            { value: maxLabelValue, quantity: s.maxQuantity },
+            { value: 0, quantity: 0 },
+        ];
+        if (s.maxQuantity > 6) {
+            labels.splice(
+                1,
+                0,
+                { value: Math.round(s.maxQuantity * 0.75), quantity: s.maxQuantity * 0.75 },
+                { value: Math.round(s.maxQuantity * 0.5), quantity: s.maxQuantity * 0.5 },
+                { value: Math.round(s.maxQuantity * 0.25), quantity: s.maxQuantity * 0.25 },
+            );
+        }
+        return labels.map((label) => ({ ...label, y: s.y(label.quantity) + 4 }));
+    };
+
     const dateLabel = (date) => date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+    const roundQuantity = (value) => Math.round(value * 100) / 100;
 
     const formatTrendRate = (trendPerDay) => {
         const dailyRate = Math.abs(trendPerDay);

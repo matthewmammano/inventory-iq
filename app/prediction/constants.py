@@ -8,9 +8,9 @@ COUNT_CLUSTER_HOURS: Final[int] = 24
 RESTOCK_VALIDATION_DAYS: Final[int] = 30
 
 RECENCY_WEIGHT_30_DAYS: Final[float] = 1.0
-RECENCY_WEIGHT_90_DAYS: Final[float] = 0.75
-RECENCY_WEIGHT_365_DAYS: Final[float] = 0.40
-RECENCY_WEIGHT_OLD: Final[float] = 0.15
+RECENCY_WEIGHT_90_DAYS: Final[float] = 0.8
+RECENCY_WEIGHT_365_DAYS: Final[float] = 0.5
+RECENCY_WEIGHT_OLD: Final[float] = 0.25
 
 MODEL_SIGNATURE_VERSION: Final[str] = "location-trend-v1"
 

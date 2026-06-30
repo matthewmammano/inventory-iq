@@ -60,8 +60,8 @@
                         </td>
                         <td data-sort-value="{{ row['item'].increments }}">{{ row['item'].increments }}</td>
                         <td class="{{ row.get('current_total_class', '') }}" data-sort-value="{{ row['current_total'] }}">{{ row['current_total'] }}</td>
-                        <td class="{{ row.get('projected_total_class', '') }}" data-sort-value="{{ row['projected_lead_time_total'] }}">{{ row['projected_lead_time_total'] }}</td>
-                        <td data-sort-value="{{ row['daily_usage_rate'] if row['daily_usage_rate'] >= 0 else 999999 }}">{{ "%.1f"|format(row['daily_usage_rate']) if row['daily_usage_rate'] >= 0 else 'N/A' }}</td>
+                        <td class="{{ row.get('projected_total_class', '') }}" data-sort-value="{{ row['projected_lead_time_total'] if row['projected_lead_time_total'] is not none else 999999 }}">{{ row['projected_lead_time_total'] if row['projected_lead_time_total'] is not none else 'N/A' }}</td>
+                        <td data-sort-value="{{ row['daily_usage_rate'] if row['daily_usage_rate'] is not none else 999999 }}">{{ "%.1f"|format(row['daily_usage_rate']) if row['daily_usage_rate'] is not none else 'N/A' }}</td>
                         <td class="{{ row.get('min_quantity_class', '') }}" data-sort-value="{{ row['min_quantity'] }}">{{ row['min_quantity'] if row['min_quantity'] > 0 else '-' }}</td>
                         <td data-sort-value="{{ row['gap_to_min'] }}">{{ row['gap_to_min'] if row['gap_to_min'] > 0 else '' }}</td>
                         <td data-sort-value="{{ row['max_quantity'] }}">{{ row['max_quantity'] if row['max_quantity'] > 0 else '-' }}</td>
@@ -70,7 +70,7 @@
                         <td class="{{ row.get('days_class', '') }}" data-sort-value="{{ row['days_until_stockout'] if row['days_until_stockout'] is not none else 999999 }}">{% if row['days_until_stockout'] is not none %}{{ row['days_until_stockout'] if row['days_until_stockout'] <= 365 else 365 }}{% else %}N/A{% endif %}</td>
                         <td data-sort-value="{{ row['suggested_reorder_date'].strftime('%Y-%m-%d') if row['suggested_reorder_date'] else '9999-12-31' }}">{{ row['suggested_reorder_date'].strftime('%Y-%m-%d') if row['suggested_reorder_date'] else 'N/A' }}</td>
                         <td data-sort-value="{{ row['last_counted_at'].strftime('%Y-%m-%d') if row['last_counted_at'] else '9999-12-31' }}">{{ row['last_counted_at'].strftime('%Y-%m-%d') if row['last_counted_at'] else 'N/A' }}</td>
-                        <td data-sort-value="{{ row['confidence_display'] if row['confidence_display'] is not none else -1 }}">{{ row['confidence_display'] ~ '%' if row['confidence_display'] is not none else '' }}</td>
+                        <td data-sort-value="{{ row['confidence_display'] if row['confidence_display'] is not none else -1 }}">{{ row['confidence_display'] ~ '%' if row['confidence_display'] is not none else 'N/A' }}</td>
                         <td class="{{ row.get('order_class', '') }}" data-sort-value="{{ row['order_amount'] if row['order_amount'] is not none else -1 }}">{{ row['order_amount_display'] }}</td>
                     </tr>
                     {% endfor %}

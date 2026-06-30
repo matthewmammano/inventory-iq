@@ -103,33 +103,32 @@ class BulkService:
             item.restock_delivery_days,
         )
         persisted_trend = state.trend_per_day if state is not None else None
-        has_trained_trend = persisted_trend is not None
-        trend_per_day = float(persisted_trend) if persisted_trend is not None else -float(item.prior_daily_usage or 0)
-        daily_usage = min(
-            max(max(0.0, -float(trend_per_day)), MIN_EFFECTIVE_DAILY_USAGE),
-            MAX_EFFECTIVE_DAILY_USAGE,
-        )
-
-        days_low = days_to_threshold(current_quantity, -daily_usage, min_qty)
-        days_out = days_to_threshold(current_quantity, -daily_usage, 0)
-        order_amount = BulkService._calculate_order_amount(
-            current_total=current_quantity,
-            max_qty=max_qty,
-            daily_usage=daily_usage,
-            delivery_days=lead_time_days,
-            batch_size=batch_size,
-            days_until_low=days_low,
+        has_trained_trend = persisted_trend is not None and last_counted_at is not None
+        daily_usage = BulkService._trained_daily_usage(persisted_trend) if has_trained_trend else None
+        days_low = days_to_threshold(current_quantity, -daily_usage, min_qty) if daily_usage is not None else None
+        days_out = days_to_threshold(current_quantity, -daily_usage, 0) if daily_usage is not None else None
+        order_amount = (
+            BulkService._calculate_order_amount(
+                current_total=current_quantity,
+                max_qty=max_qty,
+                daily_usage=daily_usage,
+                delivery_days=lead_time_days,
+                batch_size=batch_size,
+                days_until_low=days_low,
+            )
+            if daily_usage is not None
+            else None
         )
 
         return {
             "item": item,
             "current_total": current_quantity,
-            "projected_lead_time_total": round(current_quantity - daily_usage * lead_time_days),
+            "projected_lead_time_total": round(current_quantity - daily_usage * lead_time_days) if daily_usage is not None else None,
             "min_quantity": min_qty,
             "max_quantity": max_qty,
             "gap_to_min": max(min_qty - current_quantity, 0),
             "lead_time_days": lead_time_days,
-            "suggested_reorder_date": reorder_date(days_low, lead_time_days),
+            "suggested_reorder_date": reorder_date(days_low, lead_time_days) if days_low is not None else None,
             "last_counted_at": last_counted_at,
             "days_until_low": days_low,
             "days_until_stockout": floor(days_out) if days_out is not None else None,
@@ -140,6 +139,15 @@ class BulkService:
             "daily_usage_rate": daily_usage,
             "used_fallback": not has_trained_trend,
         }
+
+    @staticmethod
+    def _trained_daily_usage(trend_per_day: float | None) -> float | None:
+        if trend_per_day is None:
+            return None
+        return min(
+            max(max(0.0, -float(trend_per_day)), MIN_EFFECTIVE_DAILY_USAGE),
+            MAX_EFFECTIVE_DAILY_USAGE,
+        )
 
     @staticmethod
     def _location_states_by_item_id(

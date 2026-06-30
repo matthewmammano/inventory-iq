@@ -4,6 +4,8 @@
 
 - design a better favicon, logo, front page for NON USERS!!! like an about page with features and everything!
 
+- for INVENTORY LEVELS and RESTOCK admin panel pages, can you add an option to EMAIL to any of those email accounts using HTML or EXCEL output. ALSO add this option for HISTORY just email as EXCEL. idk best plan to do all these at once please.
+
 - change alert emails to be ONLY REPORT or ALERT types, not both. It is FINE if a DAILY report is generated AND some other ALERTS need to be sent. IF alerts wait to be sent till next morning, or whatever... I FORGET THE EXACT TIME... let's set the auto time for REPORTS to be set to a SLIGHTLY different hour but still in the morning. So most of the time users will not receive alerts at same time, sometimes it's fine though.
   - FIX daily, weekly, monthly reports. I don't think they all work, preview a bunch, add graphs, etc.
   - Decide difference from ADMIN GEN email VS REPORT email.
@@ -14,6 +16,8 @@
 - RAILWAY combine ENV vars and secrets into ONE place for all my COMPUTE (crons and web and DB) and make sure they are all in sync.
 
 - why are there errors in the DB set for emails sending?
+
+- on a scan of a new item, anything without a COUNT ever, then alert the user that ADMIN must provide a COUNT operation... but scan still went through fine.
 
 - `class AlertSeverity(StrEnum)` is the BEST coding work of art I have ever done! Can you check EVERY OTHER class, datatype, and function in the codebase to see if they can be improved to be as elegant and maintainable as that one? (like using different Enum types, or dataclasses, or Pydantic models, computed fields, etc). Make sure you check THOROUGHLY with agents AND/OR regex searching marking each as possible refactoring candidate. Then make a list of all the candidates and we can review together with LOC saved estimates AND clear coding clarity benefits.
 
