@@ -88,6 +88,12 @@ class AdminNotificationFormBase(BaseModel):
             raise ValueError("Quiet hours need both a start time and an end time.")
         return self
 
+    @model_validator(mode="after")
+    def validate_location_filters(self):
+        if self.active and not self.location_filter_ids:
+            raise ValueError("Select at least one location.")
+        return self
+
 
 def _notification_default(field: str) -> bool:
     return next(preference.default for preference in NOTIFICATION_PREFERENCES if preference.field == field)
@@ -280,7 +286,7 @@ def _submitted_notification_forms(form: Any) -> list[AdminNotificationForm]:
             | {
                 "id": email_id,
                 "active": str(email_id) not in form.getlist("delete_email_ids"),
-                "location_filter_ids": _submitted_optional_int_list(form.getlist(f"email_{email_id}_location_filter_ids")),
+                "location_filter_ids": _submitted_int_list(form.getlist(f"email_{email_id}_location_filter_ids")),
             }
         )
         for email_id in _submitted_ids(form, "email_ids")
@@ -291,7 +297,7 @@ def _submitted_notification_forms(form: Any) -> list[AdminNotificationForm]:
         rows.append(
             AdminNotificationForm.model_validate(
                 _submitted_row_values(form, f"{prefix}_")
-                | {"active": True, "location_filter_ids": _submitted_optional_int_list(form.getlist(f"{prefix}_location_filter_ids"))}
+                | {"active": True, "location_filter_ids": _submitted_int_list(form.getlist(f"{prefix}_location_filter_ids"))}
             )
         )
     return rows
@@ -400,11 +406,6 @@ def _submitted_ids(form: Any, key: str) -> list[int]:
 
 def _submitted_int_list(values: list[str]) -> list[int]:
     return [int(value) for value in values if str(value).isdigit()]
-
-
-def _submitted_optional_int_list(values: list[str]) -> list[int] | None:
-    ids = _submitted_int_list(values)
-    return ids or None
 
 
 def _checkbox_is_checked(form: Any, key: str) -> bool:

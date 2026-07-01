@@ -38,6 +38,7 @@
         group.dataset.validationBound = "1";
         if (submitOnly(group)) {
             groupFields(group).forEach((field) => field.addEventListener("change", () => clearGroupState(group)));
+            dependencyTargets(group).forEach((field) => ["change", "input"].forEach((eventName) => field.addEventListener(eventName, () => clearGroupState(group))));
             return;
         }
         groupFields(group).forEach((field) => {
@@ -47,6 +48,9 @@
                 validateGroup(group);
             });
             field.addEventListener("blur", () => markTouched(group));
+        });
+        dependencyTargets(group).forEach((field) => {
+            ["change", "input"].forEach((eventName) => field.addEventListener(eventName, () => validateGroup(group, { silent: true })));
         });
         validateGroup(group, { silent: true });
     }
@@ -69,6 +73,13 @@
 
     function groupFields(group) {
         return [...group.querySelectorAll(`input[name="${group.dataset.groupName}"]`)];
+    }
+
+    function dependencyTargets(group) {
+        return [group.dataset.requiredWhen, group.dataset.skipWhen]
+            .filter(Boolean)
+            .map((selector) => group.closest("tr, form")?.querySelector(selector))
+            .filter(Boolean);
     }
 
     function unbound(node) {
@@ -168,7 +179,8 @@
     }
 
     function groupError(group) {
-        if (group.dataset.validateGroup === "required_choice" && !groupFields(group).some((field) => field.checked)) {
+        if (skipWhen(group)) return "";
+        if (group.dataset.validateGroup === "required_choice" && requiredForGroup(group) && !groupFields(group).some((field) => field.checked)) {
             return `${label(group)} is required.`;
         }
         return externalError(group);
@@ -307,6 +319,10 @@
         const hint = document.createElement("small");
         hint.className = "field-hint hidden";
         hint.dataset.for = hintKey(node);
+        if (node.matches("[data-validate-group]")) {
+            node.appendChild(hint);
+            return hint;
+        }
         if (node.matches(".table-input, .small-input, .small-select") || node.parentElement?.matches(".edit-field")) {
             node.insertAdjacentElement("beforebegin", hint);
             return hint;
@@ -364,6 +380,19 @@
     function requiredWhen(field) {
         const selector = field.dataset.requiredWhen;
         return Boolean(selector && field.closest("tr, form")?.querySelector(selector)?.value.trim());
+    }
+
+    function requiredForGroup(group) {
+        const selector = group.dataset.requiredWhen;
+        if (!selector) return true;
+        return Boolean(group.closest("tr, form")?.querySelector(selector)?.value.trim());
+    }
+
+    function skipWhen(group) {
+        const selector = group.dataset.skipWhen;
+        if (!selector) return false;
+        const target = group.closest("tr, form")?.querySelector(selector);
+        return Boolean(target?.checked);
     }
 
     function pairedField(field) {

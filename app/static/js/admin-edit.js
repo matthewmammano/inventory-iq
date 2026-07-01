@@ -18,13 +18,19 @@ document.addEventListener("DOMContentLoaded", () => {
     const panels = () => [...document.querySelectorAll(".tab-panel")];
     const activePanel = () => panels().find((panel) => !panel.classList.contains("hidden"));
     const activeForm = () => activePanel()?.querySelector("[data-edit-form]");
-    const fields = (form) => [...(form || document).querySelectorAll("[data-label]")];
+    const fields = (form) => [...(form || document).querySelectorAll("input[data-label], select[data-label], textarea[data-label]")];
     const comparableValue = (field, value) => {
         if (field.type === "number" && value !== "") return String(Number(value));
         if (field.type === "color") return value.toUpperCase();
         return value;
     };
     const checkboxDisplay = (field, checked) => field.dataset[checked ? "onDisplay" : "offDisplay"] || (checked ? "Yes" : "No");
+    const isInactiveNewNotificationField = (field) => {
+        const row = field.closest("[data-new-email-row]");
+        if (!row) return false;
+        const emailInput = row.querySelector("input[type='email']");
+        return !emailInput?.value.trim();
+    };
     const valueOf = (field) => {
         if (field.type === "checkbox") return field.checked ? "1" : "0";
         return comparableValue(field, field.value);
@@ -43,6 +49,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return field.dataset.original || "Empty";
     };
     const changes = (form = activeForm()) => fields(form)
+        .filter((field) => !isInactiveNewNotificationField(field))
         .map((field) => ({
             field,
             kind: field.type === "checkbox" ? "boolean" : "text",
@@ -190,6 +197,9 @@ document.addEventListener("DOMContentLoaded", () => {
         clone.querySelectorAll("[name]").forEach((field) => {
             field.name = field.name.replace(oldPrefix, newPrefix);
             if (field.dataset.pairWith) field.dataset.pairWith = field.dataset.pairWith.replace(oldPrefix, newPrefix);
+        });
+        clone.querySelectorAll("[data-validate-group]").forEach((group) => {
+            if (group.dataset.groupName) group.dataset.groupName = group.dataset.groupName.replace(oldPrefix, newPrefix);
         });
         clone.querySelectorAll("input").forEach((input) => {
             input.checked = false;

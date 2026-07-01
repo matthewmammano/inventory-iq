@@ -39,10 +39,11 @@
 </label>
 {%- endmacro %}
 
-{% macro checkbox_list(title, name, options, selected_ids, label) -%}
-<div class="checkbox-list" aria-label="{{ title }}">
+{% macro checkbox_list(title, name, options, selected_ids, label, group_attrs="", select_all_when_empty=False) -%}
+{% set selected_id_values = selected_ids or [] %}
+<div class="checkbox-list" aria-label="{{ title }}" {{ group_attrs|safe }}>
     {% for option in options %}
-    {% set selected = option.id in selected_ids %}
+    {% set selected = option.id in selected_id_values or (select_all_when_empty and not selected_id_values) %}
     {% set option_label = option.tag_name if option.tag_name is defined else option.name %}
     <label class="check-option"><input type="checkbox" name="{{ name }}" value="{{ option.id }}" {% if selected %}checked{% endif %} data-original="{{ '1' if selected else '0' }}" data-on-display="Selected" data-off-display="Not selected" data-label="{{ label }}: {{ option_label }}"> {{ option_label }}</label>
     {% endfor %}
@@ -132,18 +133,18 @@
             <div class="table-wrap"><table><thead><tr><th>Email</th><th>Locations</th><th>Schedule</th><th>Quiet Hours</th><th>Alerts</th><th>Summaries</th><th>Delete?</th></tr></thead><tbody>
                 {% for email in notifications %}
                 <tr data-row-label="{{ email.email }}">
-                    <td><input type="hidden" name="email_ids" value="{{ email.id }}">{{ bare_input("email_" ~ email.id ~ "_email", email.email, "Email Address", validation_attrs("email_128", required=True)) }}</td>
-                    <td>{{ checkbox_list("Location Filters", "email_" ~ email.id ~ "_location_filter_ids", locations, email.location_filter_ids|default([], true), "Location Filters") }}<small>Blank means all locations.</small></td>
+                    <td><input type="hidden" name="email_ids" value="{{ email.id }}">{{ bare_input("email_" ~ email.id ~ "_email", email.email, "Email Address", validation_attrs("email_128", required=True) ~ " data-notification-email-input") }}</td>
+                    <td>{{ checkbox_list("Locations", "email_" ~ email.id ~ "_location_filter_ids", locations, email.location_filter_ids, "Locations", 'data-validate-group="required_choice" data-group-name="email_' ~ email.id ~ '_location_filter_ids" data-label="Locations" data-invalid-selector=".check-option" data-skip-when="[data-notification-delete-toggle]"', true) }}</td>
                     <td>{{ select_input("email_" ~ email.id ~ "_alert_frequency", email.alert_frequency, "Alert Frequency", alert_email_frequency_choices) }}</td>
                     <td>{{ input("email_" ~ email.id ~ "_quiet_start_time", email.quiet_start_time, "Quiet Start", validation_attrs("hhmm_time", pair_with="email_" ~ email.id ~ "_quiet_end_time")) }}{{ input("email_" ~ email.id ~ "_quiet_end_time", email.quiet_end_time, "Quiet End", validation_attrs("hhmm_time", pair_with="email_" ~ email.id ~ "_quiet_start_time")) }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
                     <td>{% for field, label in notification_alert_fields %}{{ check("email_" ~ email.id ~ "_" ~ field, email|attr(field), label) }}{% endfor %}</td>
                     <td>{% for field, label in notification_summary_fields %}{{ check("email_" ~ email.id ~ "_" ~ field, email|attr(field), label) }}{% endfor %}</td>
-                    <td>{{ delete_toggle("delete_email_ids", "Delete Notification", email.id) }}</td>
+                    <td>{{ delete_toggle("delete_email_ids", "Delete Notification", email.id, "data-notification-delete-toggle") }}</td>
                 </tr>
                 {% endfor %}
                 <tr data-new-email-row data-email-index="0" data-row-label="New Notification">
-                    <td><input type="hidden" name="new_email_keys" value="new_email_0">{{ bare_input("new_email_0_email", "", "Email Address", validation_attrs("email_128", placeholder="name@example.com")) }}</td>
-                    <td>{{ checkbox_list("Location Filters", "new_email_0_location_filter_ids", locations, [], "Location Filters") }}</td>
+                    <td><input type="hidden" name="new_email_keys" value="new_email_0">{{ bare_input("new_email_0_email", "", "Email Address", validation_attrs("email_128", placeholder="name@example.com") ~ " data-notification-email-input") }}</td>
+                    <td>{{ checkbox_list("Locations", "new_email_0_location_filter_ids", locations, [], "Locations", 'data-validate-group="required_choice" data-group-name="new_email_0_location_filter_ids" data-label="Locations" data-invalid-selector=".check-option" data-required-when="[data-notification-email-input]"', true) }}</td>
                     <td>{{ select_input("new_email_0_alert_frequency", "HOURLY", "Alert Frequency", alert_email_frequency_choices) }}</td>
                     <td>{{ input("new_email_0_quiet_start_time", "", "Quiet Start", validation_attrs("hhmm_time", pair_with="new_email_0_quiet_end_time")) }}{{ input("new_email_0_quiet_end_time", "", "Quiet End", validation_attrs("hhmm_time", pair_with="new_email_0_quiet_start_time")) }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
                     <td>{% for field, label in notification_alert_fields %}{{ check("new_email_0_" ~ field, false, label) }}{% endfor %}</td>
