@@ -15,6 +15,7 @@ from .constants import (
     AlertSourceType,
     AlertType,
     InventoryAlertEventStatus,
+    NotificationDeliveryKind,
     NotificationEmailStatus,
 )
 
@@ -69,6 +70,11 @@ class NotificationEmailDelivery(Base):
         default=NotificationEmailStatus.PENDING,
         index=True,
     )
+    delivery_key: Mapped[str] = mapped_column(String(255), index=True)
+    delivery_kind: Mapped[NotificationDeliveryKind] = mapped_column(
+        SAEnum(NotificationDeliveryKind, native_enum=False, length=16),
+        index=True,
+    )
     send_at: Mapped[datetime] = mapped_column(DateTime, index=True)
     next_attempt_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, index=True)
     alert_event_ids_json: Mapped[list[int]] = mapped_column(JSON, default=list)
@@ -87,7 +93,7 @@ class NotificationEmailDelivery(Base):
     __table_args__ = (
         CheckConstraint("next_attempt_at IS NULL OR next_attempt_at >= send_at", name="ck_notification_email_next_attempt_after_send"),
         Index("idx_notification_email_deliveries_status_send", "status", "send_at"),
-        UniqueConstraint("agency_id", "agency_email_id", "send_at", name="uq_notification_email_deliveries_recipient_send"),
+        UniqueConstraint("agency_id", "agency_email_id", "delivery_key", name="uq_notification_email_deliveries_recipient_key"),
     )
 
     def __repr__(self) -> str:

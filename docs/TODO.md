@@ -6,10 +6,7 @@
 
 - for INVENTORY LEVELS and RESTOCK admin panel pages, can you add an option to EMAIL to any of those email accounts using HTML or EXCEL output. ALSO add this option for HISTORY just email as EXCEL. idk best plan to do all these at once please.
 
-- change alert emails to be ONLY REPORT or ALERT types, not both. It is FINE if a DAILY report is generated AND some other ALERTS need to be sent. IF alerts wait to be sent till next morning, or whatever... I FORGET THE EXACT TIME... let's set the auto time for REPORTS to be set to a SLIGHTLY different hour but still in the morning. So most of the time users will not receive alerts at same time, sometimes it's fine though.
-  - FIX daily, weekly, monthly reports. I don't think they all work, preview a bunch, add graphs, etc.
-  - Decide difference from ADMIN GEN email VS REPORT email.
-  - REALLY look through all this logic and make sure 100% it works!
+- Improve scheduled report email presentation: preview daily, weekly, and monthly report examples, then add graphs only if they keep the email simple and useful.
 
 - certain pages REQUIRE keyboard use (as touchscreen / on-screen keyboard not best UI). investigate restricting some pages to keyboard-only use and make sure it is clear to users that they need a keyboard for that page. how to do? how to NOT ban users with keyboard AND touchscreen, only non-keyboard users.
 

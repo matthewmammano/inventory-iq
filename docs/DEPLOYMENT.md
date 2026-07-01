@@ -81,12 +81,12 @@ Railway cron split, optimized for an EST agency operations day:
 Timing rules:
 
 - `process_email_alerts` prepares final rendered email rows and sends rows where `send_at <= now`.
-- Email delivery rows use `send_at` as their due time; subject/body content determines whether an email contains alerts, recap sections, or both.
+- Email delivery rows use `send_at` as their due time; `delivery_kind` and `delivery_key` keep logical alert and report emails distinct even when both are due together.
 - Scheduled alert emails use the next top-of-hour `send_at`.
-- Recap emails are prepared during the 8:00am agency-local window. If alerts are present, the recap email leads with alerts and then shows recap sections.
+- Daily alert emails and report emails target the 9:00am agency-local window, and alerts/reports always stay as separate outbound emails.
 - Per-recipient quiet hours are local clock preferences on `agency_emails`; email delivery timestamps are stored in UTC/UTC-naive form and postponed outside quiet windows before sending.
 - Run retraining before balance reconciliation so forecast fields are fresh before the morning safety alert audit.
-- Run the safety alert audit shortly before `8:00am` Eastern and off the 10-minute email grid so generated stale/rare events are ready for the next sender run.
+- Run the safety alert audit before the `9:00am` Eastern email window and off the 10-minute email grid so generated stale/rare events are ready for the next sender run.
 - Keep scheduling and user-facing timestamps in each agency's local timezone, but store persisted timestamps in UTC or UTC-naive form in the database.
 
 Railway cron expressions are configured in UTC here and mapped to EST targets. The every-10-minute email cron does not need seasonal adjustment.

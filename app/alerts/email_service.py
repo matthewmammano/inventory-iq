@@ -34,6 +34,7 @@ from .constants import (
     AlertSeverity,
     AlertType,
     InventoryAlertEventStatus,
+    NotificationDeliveryKind,
     NotificationEmailStatus,
 )
 from .email_delivery import deliver_notification_email
@@ -42,7 +43,7 @@ from .schema import AlertSummaryItem, AlertTableColumn, AlertTableSection, Email
 
 ERROR_RETRY_DELAY = timedelta(minutes=15)
 STOCK_ALERT_RESEND_COOLDOWN = timedelta(days=7)
-DAILY_EMAIL_LOCAL_HOUR = 8
+MORNING_EMAIL_LOCAL_HOUR = 9
 ACTION_TYPES = {
     AlertType.COUNT_ACTION,
     AlertType.RESTOCK_ACTION,
@@ -51,14 +52,6 @@ ACTION_TYPES = {
 }
 RECAP_SECTION_COLOR = AlertSeverity.INFO.color
 SEVERITY_RANK = {severity: rank for rank, severity in enumerate(SEVERITY_ORDER)}
-
-
-class EmailContentMode(StrEnum):
-    """Code-only content shape for rendered notification copy."""
-
-    ALERTS_ONLY = "ALERTS_ONLY"
-    RECAP_ONLY = "RECAP_ONLY"
-    ALERTS_AND_RECAP = "ALERTS_AND_RECAP"
 
 
 class EmailTimingMode(StrEnum):
@@ -84,11 +77,12 @@ class RecipientAlertSnapshot:
 class EmailPlan:
     """Code-only plan for one rendered email before it is stored."""
 
+    delivery_key: str
+    delivery_kind: NotificationDeliveryKind
     timing_mode: EmailTimingMode
     send_at: datetime
     stock_states: list[InventoryItemLocationState]
     events: list[InventoryAlertEvent]
-    include_recaps: bool
 
 
 def process_all_alerts(*, force: bool = False, agency_id: int | None = None) -> dict[str, int]:
@@ -224,9 +218,9 @@ def _email_plans_for_recipient(
                 _alert_timing_mode(recipient.alert_frequency),
                 now,
                 force=force,
+                delivery_kind=NotificationDeliveryKind.ALERT,
                 stock_states=snapshot.stock_states,
                 events=alert_events,
-                include_recaps=False,
             )
         )
     if snapshot.recap_due:
@@ -237,40 +231,12 @@ def _email_plans_for_recipient(
                 EmailTimingMode.MORNING_RECAP,
                 now,
                 force=force,
-                stock_states=snapshot.stock_states,
-                events=snapshot.scheduled_events,
-                include_recaps=True,
+                delivery_kind=NotificationDeliveryKind.REPORT,
+                stock_states=[],
+                events=[],
             )
         )
-        return _merge_email_plans(plans)
-    return _merge_email_plans(plans)
-
-
-def _merge_email_plans(plans: list[EmailPlan]) -> list[EmailPlan]:
-    merged: dict[datetime, EmailPlan] = {}
-    for plan in plans:
-        existing = merged.get(plan.send_at)
-        if existing is None:
-            merged[plan.send_at] = plan
-            continue
-        merged[plan.send_at] = EmailPlan(
-            timing_mode=_merged_timing_mode(existing.timing_mode, plan.timing_mode),
-            send_at=plan.send_at,
-            stock_states=[*existing.stock_states, *plan.stock_states],
-            events=[*existing.events, *plan.events],
-            include_recaps=existing.include_recaps or plan.include_recaps,
-        )
-    return list(merged.values())
-
-
-def _merged_timing_mode(left: EmailTimingMode, right: EmailTimingMode) -> EmailTimingMode:
-    if EmailTimingMode.MORNING_RECAP in {left, right}:
-        return EmailTimingMode.MORNING_RECAP
-    if EmailTimingMode.IMMEDIATE in {left, right}:
-        return EmailTimingMode.IMMEDIATE
-    if EmailTimingMode.DAILY_ALERT in {left, right}:
-        return EmailTimingMode.DAILY_ALERT
-    return EmailTimingMode.NEXT_HOUR
+    return plans
 
 
 def _email_plan(
@@ -280,17 +246,19 @@ def _email_plan(
     now: datetime,
     *,
     force: bool,
+    delivery_kind: NotificationDeliveryKind,
     stock_states: list[InventoryItemLocationState],
     events: list[InventoryAlertEvent],
-    include_recaps: bool,
 ) -> EmailPlan:
     send_at = _send_at_for_timing(timing_mode, now, timezone, force=force)
+    send_at = _send_at_after_quiet_hours(recipient, timezone, send_at)
     return EmailPlan(
+        delivery_key=_delivery_key(delivery_kind, timing_mode, send_at),
+        delivery_kind=delivery_kind,
         timing_mode=timing_mode,
-        send_at=_send_at_after_quiet_hours(recipient, timezone, send_at),
+        send_at=send_at,
         stock_states=stock_states,
         events=events,
-        include_recaps=include_recaps,
     )
 
 
@@ -306,7 +274,7 @@ def _upsert_delivery_from_plan(
         select(NotificationEmailDelivery).where(
             NotificationEmailDelivery.agency_id == agency.id,
             NotificationEmailDelivery.agency_email_id == recipient.id,
-            NotificationEmailDelivery.send_at == plan.send_at,
+            NotificationEmailDelivery.delivery_key == plan.delivery_key,
         )
     )
     batch = _build_batch(
@@ -331,6 +299,8 @@ def _upsert_delivery_from_plan(
         created_at=now,
     )
     email_delivery.status = NotificationEmailStatus.PENDING
+    email_delivery.delivery_key = plan.delivery_key
+    email_delivery.delivery_kind = plan.delivery_kind
     email_delivery.recipient_email_snapshot = recipient.email
     email_delivery.send_at = plan.send_at
     email_delivery.next_attempt_at = None
@@ -365,20 +335,19 @@ def _build_batch(
     now: datetime,
 ) -> EmailBatch | None:
     alert_sections = _build_sections(session, plan.stock_states, plan.events, agency.timezone)
-    recap_sections = _summary_sections(session, agency, recipient, now) if plan.include_recaps else []
+    recap_sections = _summary_sections(session, agency, recipient, now) if plan.delivery_kind == NotificationDeliveryKind.REPORT else []
     sections = [*alert_sections, *recap_sections]
     if not sections:
         return None
     severity = _severity_style(plan.stock_states, plan.events)
     summary = _summary_items(plan.stock_states, plan.events)
-    content_mode = _content_mode(has_alerts=bool(alert_sections), has_recaps=bool(recap_sections))
     return EmailBatch(
         agency_email=recipient.email,
         agency_name=agency.display_name,
         generated_at=_display_now(agency.timezone, now),
-        subject=_subject(agency.display_name, severity.subject_prefix, content_mode),
-        title=_title(agency.display_name, content_mode),
-        intro=_intro(plan.timing_mode, content_mode),
+        subject=_subject(agency.display_name, severity.subject_prefix, plan.delivery_kind),
+        title=_title(plan.delivery_kind),
+        intro=_intro(plan.timing_mode, plan.delivery_kind),
         severity_label=severity.value,
         severity_color=severity.color,
         summary=summary,
@@ -943,8 +912,23 @@ def _quiet_until_for_delivery(session: Session, delivery: NotificationEmailDeliv
     return _quiet_end_utc(recipient, agency.timezone, now)
 
 
-def _postpone_delivery_for_quiet_hours(delivery: NotificationEmailDelivery, quiet_until: datetime) -> None:
-    delivery.send_at = max(delivery.send_at, quiet_until)
+def _postpone_delivery_for_quiet_hours(
+    delivery: NotificationEmailDelivery,
+    quiet_until: datetime,
+) -> None:
+    postponed_send_at = max(delivery.send_at, quiet_until)
+    if postponed_send_at != delivery.send_at:
+        logger.info(
+            "Notification delivery postponed for quiet hours",
+            extra={
+                "notification_email_delivery_id": delivery.id,
+                "agency_id": delivery.agency_id,
+                "agency_email_id": delivery.agency_email_id,
+                "original_send_at": delivery.send_at.isoformat(),
+                "postponed_send_at": postponed_send_at.isoformat(),
+            },
+        )
+    delivery.send_at = postponed_send_at
     delivery.next_attempt_at = None
 
 
@@ -1019,34 +1003,20 @@ def _severity_style(stock_states: list[InventoryItemLocationState], events: list
     return severity
 
 
-def _content_mode(*, has_alerts: bool, has_recaps: bool) -> EmailContentMode:
-    if has_alerts and has_recaps:
-        return EmailContentMode.ALERTS_AND_RECAP
-    if has_recaps:
-        return EmailContentMode.RECAP_ONLY
-    return EmailContentMode.ALERTS_ONLY
-
-
-def _subject(agency_name: str, severity_prefix: str, content_mode: EmailContentMode) -> str:
-    if content_mode == EmailContentMode.ALERTS_AND_RECAP:
-        return f"{severity_prefix} Inventory Alerts and Periodic Recap - {agency_name}"
-    if content_mode == EmailContentMode.RECAP_ONLY:
+def _subject(agency_name: str, severity_prefix: str, delivery_kind: NotificationDeliveryKind) -> str:
+    if delivery_kind == NotificationDeliveryKind.REPORT:
         return f"Inventory Periodic Recap - {agency_name}"
     return f"{severity_prefix} Inventory Alerts - {agency_name}"
 
 
-def _title(_agency_name: str, content_mode: EmailContentMode) -> str:
-    if content_mode == EmailContentMode.ALERTS_AND_RECAP:
-        return "Inventory Alerts and Periodic Recap"
-    if content_mode == EmailContentMode.RECAP_ONLY:
+def _title(delivery_kind: NotificationDeliveryKind) -> str:
+    if delivery_kind == NotificationDeliveryKind.REPORT:
         return "Inventory Periodic Recap"
     return "Inventory Alerts"
 
 
-def _intro(timing_mode: EmailTimingMode, content_mode: EmailContentMode) -> str:
-    if content_mode == EmailContentMode.ALERTS_AND_RECAP:
-        return "This email includes current inventory alerts first, followed by your periodic recap."
-    if content_mode == EmailContentMode.RECAP_ONLY:
+def _intro(timing_mode: EmailTimingMode, delivery_kind: NotificationDeliveryKind) -> str:
+    if delivery_kind == NotificationDeliveryKind.REPORT:
         return "This email includes your periodic inventory recap."
     if timing_mode == EmailTimingMode.IMMEDIATE:
         return "This email includes alert activity configured for immediate notification."
@@ -1082,8 +1052,10 @@ def _alert_timing_mode(frequency: AlertEmailFrequency) -> EmailTimingMode:
 
 
 def _send_at_for_timing(timing_mode: EmailTimingMode, now: datetime, timezone: str, *, force: bool) -> datetime:
-    if force or timing_mode in {EmailTimingMode.IMMEDIATE, EmailTimingMode.MORNING_RECAP}:
+    if force or timing_mode == EmailTimingMode.IMMEDIATE:
         return now
+    if timing_mode == EmailTimingMode.MORNING_RECAP:
+        return _report_window_start(timezone, now)
     if timing_mode == EmailTimingMode.DAILY_ALERT:
         return _daily_alert_send_at(timezone, now)
     return _round_up_hour(now)
@@ -1091,16 +1063,39 @@ def _send_at_for_timing(timing_mode: EmailTimingMode, now: datetime, timezone: s
 
 def _daily_alert_send_at(timezone: str, now: datetime) -> datetime:
     local = _local_now(timezone, now)
-    if local.hour == DAILY_EMAIL_LOCAL_HOUR:
-        return now
-    target = local.replace(hour=DAILY_EMAIL_LOCAL_HOUR, minute=0, second=0, microsecond=0)
-    if local.hour > DAILY_EMAIL_LOCAL_HOUR:
+    if local.hour == MORNING_EMAIL_LOCAL_HOUR:
+        return _alert_window_start(timezone, now)
+    return _next_alert_window_start(timezone, now)
+
+
+def _alert_window_start(timezone: str, now: datetime) -> datetime:
+    local = _local_now(timezone, now)
+    return _utc_naive(local.replace(hour=MORNING_EMAIL_LOCAL_HOUR, minute=0, second=0, microsecond=0))
+
+
+def _next_alert_window_start(timezone: str, now: datetime) -> datetime:
+    local = _local_now(timezone, now)
+    target = local.replace(hour=MORNING_EMAIL_LOCAL_HOUR, minute=0, second=0, microsecond=0)
+    if local.hour > MORNING_EMAIL_LOCAL_HOUR:
         target += timedelta(days=1)
     return _utc_naive(target)
 
 
+def _report_window_start(timezone: str, now: datetime) -> datetime:
+    local = _local_now(timezone, now)
+    return _utc_naive(local.replace(hour=MORNING_EMAIL_LOCAL_HOUR, minute=0, second=0, microsecond=0))
+
+
 def _send_at_after_quiet_hours(recipient: AgencyEmails, timezone: str, send_at: datetime) -> datetime:
     return _quiet_end_utc(recipient, timezone, send_at) or send_at
+
+
+def _delivery_key(
+    delivery_kind: NotificationDeliveryKind,
+    timing_mode: EmailTimingMode,
+    send_at: datetime,
+) -> str:
+    return f"{delivery_kind.value}:{timing_mode.value}:{send_at.isoformat()}"
 
 
 def _quiet_end_utc(recipient: AgencyEmails, timezone: str, instant_utc: datetime) -> datetime | None:
@@ -1205,14 +1200,12 @@ def _recap_is_due(recipient: AgencyEmails, timezone: str, now: datetime) -> bool
     has_recap_enabled = any(bool(getattr(recipient, preference.field)) for preference in SUMMARY_NOTIFICATION_PREFERENCES)
     if not has_recap_enabled:
         return False
-    return _is_daily_email_window(timezone, now) and any(
-        bool(getattr(recipient, preference.field)) for preference in due_summary_preferences(local_now)
-    )
+    return _is_report_window(timezone, now) and any(bool(getattr(recipient, preference.field)) for preference in due_summary_preferences(local_now))
 
 
-def _is_daily_email_window(timezone: str, now: datetime) -> bool:
+def _is_report_window(timezone: str, now: datetime) -> bool:
     local = _local_now(timezone, now)
-    return local.hour == DAILY_EMAIL_LOCAL_HOUR
+    return local.hour == MORNING_EMAIL_LOCAL_HOUR
 
 
 def _local_now(timezone: str, now: datetime) -> datetime:

@@ -95,6 +95,13 @@ class NotificationEmailStatus(StrEnum):
     CANCELLED = "CANCELLED"
 
 
+class NotificationDeliveryKind(StrEnum):
+    """Supported rendered notification email types."""
+
+    ALERT = "ALERT"
+    REPORT = "REPORT"
+
+
 @dataclass(frozen=True)
 class AlertDefinition:
     """Central metadata for one alert type."""

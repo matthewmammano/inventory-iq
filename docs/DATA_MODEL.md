@@ -28,7 +28,7 @@ Core persistence rules for Inventory IQ. Schema changes require Alembic migratio
 - Stock/forecast alerts are current state, not alert event rows.
 - `inventory_alert_events` stores discrete non-stock facts only.
 - `notification_email_deliveries` stores rendered subject/body text as the sent-email audit record.
-- Notification deliveries store final rendered outbound emails. Use `send_at` as the due time; the rendered subject/body determines whether the email contains alerts, recap sections, or both.
+- Notification deliveries store final rendered outbound emails. `delivery_kind` is either `ALERT` or `REPORT`; `send_at` is the due time; `delivery_key` is the logical dedupe key per recipient so multiple emails may share a due timestamp.
 - Time values are stored in the backend/database as UTC or UTC-naive timestamps for simplicity; convert to each agency's local timezone only when presenting, scheduling, or comparing against local business windows.
 - Balance reconciliation may rebuild derived state from history when drift is detected.
 - Inventory quantities are non-negative unless a future product decision explicitly changes that rule.
