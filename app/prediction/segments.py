@@ -5,15 +5,15 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from itertools import pairwise
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
+from sqlalchemy.sql.elements import ColumnElement
 
 from app.auth.models import AgencyStorages
 from app.inventory.constants import OperationType
 from app.inventory.models import ActionLogs
 from app.prediction.constants import (
     COUNT_CLUSTER_HOURS,
-    MODEL_SIGNATURE_VERSION,
     RECENCY_WEIGHT_30_DAYS,
     RECENCY_WEIGHT_90_DAYS,
     RECENCY_WEIGHT_365_DAYS,
@@ -43,6 +43,17 @@ class TrendSegment:
     weight: float
 
 
+@dataclass(frozen=True)
+class TrustedMovement:
+    """Trusted non-count inventory movement inside a training window."""
+
+    scanned_at: datetime
+    operation_type: OperationType
+    from_storage_id: int | None
+    to_storage_id: int | None
+    quantity: int
+
+
 def get_location_storage_ids(session: Session, agency_id: int, agency_location_id: int) -> list[int]:
     """Return storage IDs inside an agency location."""
     rows = session.execute(
@@ -56,20 +67,24 @@ def get_location_storage_ids(session: Session, agency_id: int, agency_location_i
     return [row[0] for row in rows]
 
 
-def build_count_signature(
+def build_training_signature(
     session: Session,
     agency_id: int,
     item_id: int,
     agency_location_id: int,
 ) -> str:
-    """Stable signature for count data that affects the trained trend."""
+    """Stable signature for trusted movement data that affects the trained trend."""
     storage_ids = get_location_storage_ids(session, agency_id, agency_location_id)
+    digest = hashlib.sha256()
+    digest.update(f"storages:{','.join(str(storage_id) for storage_id in storage_ids)}".encode())
     if not storage_ids:
-        return hashlib.sha256(MODEL_SIGNATURE_VERSION.encode()).hexdigest()
+        return digest.hexdigest()
 
     rows = session.execute(
         select(
             ActionLogs.id,
+            ActionLogs.operation_type,
+            ActionLogs.from_location_id,
             ActionLogs.to_location_id,
             ActionLogs.quantity_delta,
             ActionLogs.time_scanned,
@@ -77,15 +92,13 @@ def build_count_signature(
         .where(
             ActionLogs.agency_id == agency_id,
             ActionLogs.item_id == item_id,
-            ActionLogs.operation_type == OperationType.COUNT,
-            ActionLogs.to_location_id.in_(storage_ids),
+            _trusted_training_log_filter(storage_ids, include_counts=True),
         )
         .order_by(ActionLogs.time_scanned, ActionLogs.id)
     ).all()
 
-    digest = hashlib.sha256(MODEL_SIGNATURE_VERSION.encode())
-    for log_id, storage_id, quantity, scanned_at in rows:
-        digest.update(f"|{log_id}:{storage_id}:{quantity}:{scanned_at}".encode())
+    for log_id, operation_type, from_storage_id, to_storage_id, quantity, scanned_at in rows:
+        digest.update(f"|{log_id}:{operation_type.value}:{from_storage_id}:{to_storage_id}:{quantity}:{scanned_at}".encode())
     return digest.hexdigest()
 
 
@@ -97,7 +110,10 @@ def extract_segments(
 ) -> list[TrendSegment]:
     """Build completed location-level trend segments from fresh full-location counts."""
     anchors = extract_count_anchors(session, agency_id, item_id, agency_location_id)
-    return [segment for start, end in pairwise(anchors) if (segment := _build_segment(start, end)) is not None]
+    storage_ids = get_location_storage_ids(session, agency_id, agency_location_id)
+    trusted_movements = _trusted_movements(session, agency_id, item_id, storage_ids, anchors)
+    storage_id_set = set(storage_ids)
+    return [segment for start, end in pairwise(anchors) if (segment := _build_segment(trusted_movements, storage_id_set, start, end)) is not None]
 
 
 def extract_count_anchors(
@@ -171,11 +187,20 @@ def _collapse_count_clusters(anchors: list[CountAnchor], window: timedelta) -> l
     return collapsed
 
 
-def _build_segment(start: CountAnchor, end: CountAnchor) -> TrendSegment | None:
+def _build_segment(
+    trusted_movements: list[TrustedMovement],
+    storage_id_set: set[int],
+    start: CountAnchor,
+    end: CountAnchor,
+) -> TrendSegment | None:
     elapsed_days = (end.counted_at - start.counted_at).total_seconds() / 86_400
     if elapsed_days < 1:
         return None
-    trend = (end.total_quantity - start.total_quantity) / elapsed_days
+    trusted_delta = _trusted_quantity_delta(trusted_movements, storage_id_set, start.counted_at, end.counted_at)
+    inferred_usage = start.total_quantity + trusted_delta - end.total_quantity
+    if inferred_usage < 0:
+        return None
+    trend = -inferred_usage / elapsed_days
     return TrendSegment(
         start_at=start.counted_at,
         end_at=end.counted_at,
@@ -185,6 +210,77 @@ def _build_segment(start: CountAnchor, end: CountAnchor) -> TrendSegment | None:
         trend_per_day=trend,
         weight=_recency_weight(end.counted_at),
     )
+
+
+def _trusted_movements(
+    session: Session,
+    agency_id: int,
+    item_id: int,
+    storage_ids: list[int],
+    anchors: list[CountAnchor],
+) -> list[TrustedMovement]:
+    if not storage_ids or len(anchors) < 2:
+        return []
+
+    rows = session.execute(
+        select(
+            ActionLogs.time_scanned,
+            ActionLogs.operation_type,
+            ActionLogs.from_location_id,
+            ActionLogs.to_location_id,
+            ActionLogs.quantity_delta,
+        )
+        .where(
+            ActionLogs.agency_id == agency_id,
+            ActionLogs.item_id == item_id,
+            ActionLogs.time_scanned > anchors[0].counted_at,
+            ActionLogs.time_scanned <= anchors[-1].counted_at,
+            _trusted_training_log_filter(storage_ids, include_counts=False),
+        )
+        .order_by(ActionLogs.time_scanned, ActionLogs.id)
+    ).all()
+    return [
+        TrustedMovement(
+            scanned_at=scanned_at,
+            operation_type=operation_type,
+            from_storage_id=from_storage_id,
+            to_storage_id=to_storage_id,
+            quantity=int(quantity),
+        )
+        for scanned_at, operation_type, from_storage_id, to_storage_id, quantity in rows
+    ]
+
+
+def _trusted_quantity_delta(
+    trusted_movements: list[TrustedMovement],
+    storage_id_set: set[int],
+    start_at: datetime,
+    end_at: datetime,
+) -> int:
+    delta = 0
+    for movement in trusted_movements:
+        if not (start_at < movement.scanned_at <= end_at):
+            continue
+        if movement.operation_type == OperationType.RESTOCK and movement.to_storage_id in storage_id_set:
+            delta += movement.quantity
+            continue
+        if movement.operation_type == OperationType.TRANSFER:
+            if movement.to_storage_id in storage_id_set:
+                delta += movement.quantity
+            if movement.from_storage_id in storage_id_set:
+                delta -= movement.quantity
+    return delta
+
+
+def _trusted_training_log_filter(storage_ids: list[int], *, include_counts: bool) -> ColumnElement[bool]:
+    filters = [
+        (ActionLogs.operation_type == OperationType.RESTOCK) & ActionLogs.to_location_id.in_(storage_ids),
+        (ActionLogs.operation_type == OperationType.TRANSFER)
+        & (ActionLogs.from_location_id.in_(storage_ids) | ActionLogs.to_location_id.in_(storage_ids)),
+    ]
+    if include_counts:
+        filters.insert(0, (ActionLogs.operation_type == OperationType.COUNT) & ActionLogs.to_location_id.in_(storage_ids))
+    return or_(*filters)
 
 
 def _recency_weight(counted_at: datetime) -> float:

@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.inventory.location_state_service import update_state_trend
 from app.inventory.models import InventoryItemLocationState
 from app.prediction.constants import CONFIDENCE_FULL_SEGMENTS, MIN_TREND_SEGMENTS
-from app.prediction.segments import TrendSegment, build_count_signature, extract_segments
+from app.prediction.segments import TrendSegment, build_training_signature, extract_segments
 from app.shared.clock import utc_now_naive
 
 
@@ -29,7 +29,7 @@ def train_location_trend(
     agency_location_id: int,
 ) -> InventoryItemLocationState | None:
     """Train and persist one trend row if count data changed."""
-    signature = build_count_signature(session, agency_id, item_id, agency_location_id)
+    signature = build_training_signature(session, agency_id, item_id, agency_location_id)
     existing = get_inventory_trend(session, agency_id, item_id, agency_location_id)
     if existing and existing.data_signature == signature:
         return existing
@@ -96,7 +96,7 @@ def fit_trend(segments: list[TrendSegment]) -> TrendFit | None:
     x_values = [(segment.end_at - now).total_seconds() / 86_400 for segment in segments]
     y_values = [segment.trend_per_day for segment in segments]
     weights = [segment.weight for segment in segments]
-    trend = _weighted_linear_intercept(x_values, y_values, weights)
+    trend = min(_weighted_linear_intercept(x_values, y_values, weights), 0.0)
     return TrendFit(
         trend_per_day=trend,
         confidence_percent=_confidence_percent(y_values, weights, trend, len(segments)),

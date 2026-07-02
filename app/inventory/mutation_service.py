@@ -137,8 +137,6 @@ def _validate_transfer_locations(
         raise InventoryError("Source storage not found")
     if to_storage is None:
         raise InventoryError("Destination storage not found")
-    if from_storage.location_id != to_storage.location_id:
-        raise InventoryError("Cannot transfer across locations")
 
 
 def _validate_item(session: Session, agency_id: int, item_id: int) -> Items:

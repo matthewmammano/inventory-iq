@@ -4,6 +4,13 @@
 
 - design a better favicon, logo, front page for NON USERS!!! like an about page with features and everything!
 
+- fix PREDICTED STOCKOUT in 0.0 days emails STILL!
+
+- change daily usage to monthly usage col instead (just by *30 of daily only frontend change)!!!
+
+- update locations trends, graphs (fix for understanding), validate, etc
+  - change trend to be USAGE instead in DB, so >=0 instead of opposite, i like better
+
 - for INVENTORY LEVELS and RESTOCK admin panel pages, can you add an option to EMAIL to any of those email accounts using HTML or EXCEL output. ALSO add this option for HISTORY just email as EXCEL. idk best plan to do all these at once please.
 
 - Improve scheduled report email presentation: preview daily, weekly, and monthly report examples, then add graphs only if they keep the email simple and useful.

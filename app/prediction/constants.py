@@ -12,7 +12,5 @@ RECENCY_WEIGHT_90_DAYS: Final[float] = 0.8
 RECENCY_WEIGHT_365_DAYS: Final[float] = 0.5
 RECENCY_WEIGHT_OLD: Final[float] = 0.25
 
-MODEL_SIGNATURE_VERSION: Final[str] = "location-trend-v1"
-
 MIN_EFFECTIVE_DAILY_USAGE: Final[float] = 0.0
 MAX_EFFECTIVE_DAILY_USAGE: Final[float] = 99.0
