@@ -14,7 +14,7 @@ from app.inventory.location_state_service import recompute_item_location_state
 from app.inventory.models import InventoryItemLocationState, Items
 from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
 from app.prediction.estimator import reorder_date
-from app.prediction.formatting import rounded_confidence_percent
+from app.prediction.formatting import format_usage_rate, rounded_confidence_percent
 from app.shared.timezone_utils import convert_utc_to_local
 
 
@@ -137,6 +137,7 @@ class BulkService:
             "confidence_percent": state.confidence_percent if has_trained_trend and state else None,
             "confidence_display": rounded_confidence_percent(state.confidence_percent if has_trained_trend and state else None),
             "daily_usage_rate": daily_usage,
+            "usage_display": format_usage_rate(daily_usage),
             "used_fallback": not has_trained_trend,
         }
 

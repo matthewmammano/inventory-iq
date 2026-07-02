@@ -33,4 +33,5 @@ class ItemTrendChartResponse(BaseModel):
     operation_points: list[TrendChartPoint]
     trendline_points: list[TrendChartPoint]
     trend_per_day: float | None = None
+    trend_rate_display: str | None = None
     confidence_percent: float | None = Field(default=None, ge=0, le=100)

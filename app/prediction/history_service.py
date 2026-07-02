@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import AgencyLocations
 from app.inventory.constants import OperationType
 from app.inventory.models import ActionLogs, Items
+from app.prediction.formatting import format_usage_rate
 from app.prediction.schema import ItemTrendChartResponse, TrendChartPoint
 from app.prediction.segments import CountAnchor, extract_count_anchors, get_location_storage_ids
 from app.prediction.usage_model import get_inventory_trend
@@ -38,6 +39,7 @@ def build_item_trend_chart(
             visible_trend,
         ),
         trend_per_day=visible_trend,
+        trend_rate_display=format_usage_rate(visible_trend),
         confidence_percent=trend.confidence_percent if trend else None,
     )
 

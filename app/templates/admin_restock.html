@@ -20,6 +20,7 @@
     </section>
     {% else %}
     {% set estimate_tip = "Estimated from recent usage trends. Review current stock before ordering." %}
+    {% set usage_tip = "Estimated from recent usage trends and shown in the clearest time unit. Review current stock before ordering." %}
     <section class="panel">
         <div class="table-wrap">
             <table data-sort-table data-default-sort-column="10" data-default-sort-direction="asc">
@@ -27,17 +28,17 @@
                     <tr>
                         <th data-sort-column="0">Item Name</th>
                         <th data-sort-column="1">Unit</th>
-                        <th data-sort-column="2">Current Total</th>
-                        <th data-sort-column="3">Projected At Lead Time <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th data-sort-column="4">Daily Usage <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th data-sort-column="5">Min Quantity</th>
-                        <th data-sort-column="6">Gap to Min</th>
-                        <th data-sort-column="7">Max Quantity</th>
+                        <th data-sort-column="2">Total</th>
+                        <th data-sort-column="3">Total After Lead Time <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
+                        <th data-sort-column="4">Usage <button type="button" class="info-tip" aria-label="{{ usage_tip }}" data-tooltip="{{ usage_tip }}">i</button></th>
+                        <th data-sort-column="5">Min</th>
+                        <th data-sort-column="6">Gap</th>
+                        <th data-sort-column="7">Max</th>
                         <th data-sort-column="8">Batch Size</th>
                         <th data-sort-column="9">Lead Time Days</th>
                         <th data-sort-column="10">Days Until Stockout <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th data-sort-column="11">Suggested Reorder Date <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th data-sort-column="12">Last Counted At</th>
+                        <th data-sort-column="11">Reorder Date <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
+                        <th data-sort-column="12">Last Counted</th>
                         <th data-sort-column="13">Confidence <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
                         <th data-sort-column="14">Order Amount</th>
                     </tr>
@@ -61,7 +62,7 @@
                         <td data-sort-value="{{ row['item'].increments }}">{{ row['item'].increments }}</td>
                         <td class="{{ row.get('current_total_class', '') }}" data-sort-value="{{ row['current_total'] }}">{{ row['current_total'] }}</td>
                         <td class="{{ row.get('projected_total_class', '') }}" data-sort-value="{{ row['projected_lead_time_total'] if row['projected_lead_time_total'] is not none else 999999 }}">{{ row['projected_lead_time_total'] if row['projected_lead_time_total'] is not none else 'N/A' }}</td>
-                        <td data-sort-value="{{ row['daily_usage_rate'] if row['daily_usage_rate'] is not none else 999999 }}">{{ "%.1f"|format(row['daily_usage_rate']) if row['daily_usage_rate'] is not none else 'N/A' }}</td>
+                        <td data-sort-value="{{ row['daily_usage_rate'] if row['daily_usage_rate'] is not none else 999999 }}">{{ row['usage_display'] if row['usage_display'] is not none else 'N/A' }}</td>
                         <td class="{{ row.get('min_quantity_class', '') }}" data-sort-value="{{ row['min_quantity'] }}">{{ row['min_quantity'] if row['min_quantity'] > 0 else '-' }}</td>
                         <td data-sort-value="{{ row['gap_to_min'] }}">{{ row['gap_to_min'] if row['gap_to_min'] > 0 else '' }}</td>
                         <td data-sort-value="{{ row['max_quantity'] }}">{{ row['max_quantity'] if row['max_quantity'] > 0 else '-' }}</td>

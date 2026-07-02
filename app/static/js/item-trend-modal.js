@@ -35,7 +35,7 @@
         title.textContent = `${payload.item_name} - ${payload.location_name}`;
         summary.textContent = payload.trend_per_day === null
             ? "No trained trend yet"
-            : `${formatTrendRate(payload.trend_per_day)}, ${Math.round(payload.confidence_percent || 0)}% confidence`;
+            : `${payload.trend_rate_display}, ${Math.round(payload.confidence_percent || 0)}% confidence`;
         const rangeOptions = availableRanges(payload);
         if (!rangeOptions.some((option) => option.key === activeRangeKey && !option.disabled)) {
             activeRangeKey = "all";
@@ -185,20 +185,6 @@
 
     const dateLabel = (date) => date.toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
     const roundQuantity = (value) => Math.round(value * 100) / 100;
-
-    const formatTrendRate = (trendPerDay) => {
-        const dailyRate = Math.abs(trendPerDay);
-        const options = [
-            ["day", dailyRate],
-            ["week", dailyRate * 7],
-            ["month", dailyRate * 30],
-            ["year", dailyRate * 365],
-        ];
-        const [unit, value] = options.find(([, rate]) => rate >= 1) || options[options.length - 1];
-        return `${formatRate(value)} per ${unit}`;
-    };
-
-    const formatRate = (value) => value >= 10 ? value.toFixed(0) : value.toFixed(1);
 
     document.querySelectorAll("[data-trend-url]").forEach((button) => {
         button.addEventListener("click", () => open(button.dataset.trendUrl).catch(() => {
