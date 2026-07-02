@@ -123,7 +123,7 @@ def _register_template_filters(app: Flask) -> None:
             return image_path
         filename = str(image_path).replace("\\", "/").lstrip("/").removeprefix("static/")  # normalize to static-relative path
         static_folder = app.static_folder or ""
-        if static_folder and (Path(static_folder) / filename.replace("/", "\\")).exists():  # local file exists under /static
+        if static_folder and (Path(static_folder) / Path(filename)).exists():
             return url_for("static", filename=filename)
         return url_for("static", filename="images/not-found.jpg")
 
