@@ -33,7 +33,13 @@ def evaluate_stock_state(
     days_until_low = days_to_threshold(total_quantity, forecast_trend, min_quantity, round_digits=1)
     days_until_stockout = days_to_threshold(total_quantity, forecast_trend, 0, round_digits=1)
     stock_status = current_stock_status(total_quantity, min_quantity)
-    forecast_status = forecast_stock_status(days_until_low, days_until_stockout, lead_time_days)
+    forecast_status = forecast_stock_status(
+        total_quantity=total_quantity,
+        min_quantity=min_quantity,
+        days_until_low=days_until_low,
+        days_until_stockout=days_until_stockout,
+        lead_time_days=lead_time_days,
+    )
     effective_alert_type = highest_priority_stock_alert(stock_status, forecast_status)
     return StockStateEvaluation(
         days_until_low=days_until_low,
@@ -50,12 +56,15 @@ def current_stock_status(total_quantity: int, min_quantity: int) -> AlertType | 
     """Return the current non-forecast stock alert, if any."""
     if total_quantity <= 0:
         return AlertType.STOCKOUT
-    if total_quantity < min_quantity:
+    if total_quantity <= min_quantity:
         return AlertType.LOW_STOCK
     return None
 
 
 def forecast_stock_status(
+    *,
+    total_quantity: int,
+    min_quantity: int,
     days_until_low: float | None,
     days_until_stockout: float | None,
     lead_time_days: int,
@@ -63,9 +72,9 @@ def forecast_stock_status(
     """Return the forecast alert inside the configured lead-time window, if any."""
     if lead_time_days <= 0:
         return None
-    if is_within_lead_time(days_until_stockout, lead_time_days):
+    if total_quantity > 0 and is_within_lead_time(days_until_stockout, lead_time_days):
         return AlertType.STOCKOUT_FORECAST
-    if is_within_lead_time(days_until_low, lead_time_days):
+    if total_quantity > min_quantity and is_within_lead_time(days_until_low, lead_time_days):
         return AlertType.LOW_STOCK_FORECAST
     return None
 
