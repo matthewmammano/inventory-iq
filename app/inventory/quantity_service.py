@@ -3,7 +3,7 @@
 from collections import defaultdict
 from datetime import timedelta
 
-from sqlalchemy import select
+from sqlalchemy import exists, select
 from sqlalchemy.orm import Session
 
 from app.shared.clock import utc_now
@@ -36,6 +36,25 @@ def get_recent_admin_count(
             .order_by(ActionLogs.time_scanned.desc())
         )
         return db.execute(stmt).scalars().first()
+
+
+def has_item_count(
+    session: Session,
+    agency_id: int,
+    item_id: int,
+) -> bool:
+    """Return whether an item has ever had a COUNT operation."""
+    return bool(
+        session.scalar(
+            select(
+                exists().where(
+                    ActionLogs.agency_id == agency_id,
+                    ActionLogs.item_id == item_id,
+                    ActionLogs.operation_type == OperationType.COUNT,
+                )
+            )
+        )
+    )
 
 
 def calculate_item_quantities(

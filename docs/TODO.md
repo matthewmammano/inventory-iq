@@ -15,15 +15,11 @@
 
 - RAILWAY combine ENV vars and secrets into ONE place for all my COMPUTE (crons and web and DB) and make sure they are all in sync.
 
-- why are there errors in the DB set for emails sending?
-
 - on a scan of a new item, anything without a COUNT ever, then alert the user that ADMIN must provide a COUNT operation... but scan still went through fine.
 
 - `class AlertSeverity(StrEnum)` is the BEST coding work of art I have ever done! Can you check EVERY OTHER class, datatype, and function in the codebase to see if they can be improved to be as elegant and maintainable as that one? (like using different Enum types, or dataclasses, or Pydantic models, computed fields, etc). Make sure you check THOROUGHLY with agents AND/OR regex searching marking each as possible refactoring candidate. Then make a list of all the candidates and we can review together with LOC saved estimates AND clear coding clarity benefits.
 
 - research better AGENTS.md, combine with that, mainintable code and using PY latest features, never outdated
-
-- under VIEW in admin, add section for viewing ALL sent notifications (regardless of who too, but filtered so no dups shown).
 
 - @scheduler.py page has SO much ugly code
   - is there a way to have elegant code for cron setting logic maintainable? for dev?

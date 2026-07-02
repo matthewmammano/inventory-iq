@@ -17,6 +17,7 @@ from .errors import InventoryError
 from .item_queries import get_agency_item, get_item_by_upc
 from .models import Items
 from .mutation_service import inventory_operation
+from .quantity_service import has_item_count
 from .scan_support import (
     can_skip_storage_selection,
     format_scan_location_label,
@@ -346,6 +347,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
                 admin_action=is_admin,
                 session=db,
             )
+            initial_count_required = prepared.operation_type != OperationType.COUNT and not has_item_count(db, current_user.id, prepared.item.id)
             db.commit()
     except (InventoryError, ValueError) as exc:
         logger.info(
@@ -410,6 +412,16 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         },
     )
     flash(message, "success")
+    if initial_count_required:
+        logger.info(
+            "Scan completed for item without an initial count",
+            extra={
+                "action_log_id": action.id,
+                "item_id": prepared.item.id,
+                "operation_type": prepared.operation_type.value,
+            },
+        )
+        flash("Ask an admin to enter an initial COUNT for this item so inventory totals stay accurate.", "warning")
     if is_admin:
         return redirect(
             _admin_scan_items_url(
