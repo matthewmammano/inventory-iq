@@ -6,6 +6,13 @@ from typing import Any
 from app.shared.validation_types import FIELD_SPECS, FieldRuleName
 
 
+class SafeHtmlAttrs(str):
+    """Escaped HTML attribute string for Jinja template insertion."""
+
+    def __html__(self) -> str:
+        return self
+
+
 def validation_attrs(
     rule_name: FieldRuleName | str,
     *,
@@ -17,7 +24,7 @@ def validation_attrs(
     min_date: str | None = None,
     max_date: str | None = None,
     **overrides: Any,
-) -> str:
+) -> SafeHtmlAttrs:
     """Render safe HTML attributes for a named field validation rule."""
     rule_key = FieldRuleName(rule_name)
     rule = FIELD_SPECS[rule_key].with_options(**overrides)
@@ -56,10 +63,12 @@ def validation_attrs(
     if compare_message:
         attrs["data-compare-message"] = compare_message
     if min_date:
+        attrs["min"] = min_date
         attrs["data-min-date"] = min_date
     if max_date:
+        attrs["max"] = max_date
         attrs["data-max-date"] = max_date
-    return " ".join(_html_attr(key, value) for key, value in attrs.items())
+    return SafeHtmlAttrs(" ".join(_html_attr(key, value) for key, value in attrs.items()))
 
 
 def _html_attr(key: str, value: Any) -> str:

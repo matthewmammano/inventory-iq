@@ -1,10 +1,17 @@
 {% extends "base.html" %}
+{% from "macros.html" import email_recipient_options %}
 
 {% block title %}Inventory Levels{% endblock %}
 {% block header_title %}Inventory Levels{% endblock %}
 {% block sub_title %}Compare item counts by location and storage{% endblock %}
 {% block header_right %}
-    <button class="success-button" id="open-report-email" type="button">Send Report to Email</button>
+    {% if active_location_id %}
+        {% set counts_print_url = url_for('admin.inventory_counts_print', squad=squad, agency_location_id=active_location_id) %}
+    {% else %}
+        {% set counts_print_url = url_for('admin.inventory_counts_print', squad=squad) %}
+    {% endif %}
+    <button class="button" id="open-counts-print" type="button" data-print-url="{{ counts_print_url }}">Print Report</button>
+    <button class="success-button" data-email-modal-open="report-email-modal" type="button">Email Report</button>
     <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
 {% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/item-trend-modal.css') }}">{% endblock %}
@@ -65,27 +72,17 @@
 
 {% include "item_trend_modal.html" %}
 
-<div class="modal-backdrop hidden" id="report-email-modal">
+<div class="modal-backdrop hidden" id="report-email-modal" data-email-modal>
     <div class="modal">
-        <h2>Send Inventory Report</h2>
-        <p>Select who should receive the current inventory levels report.</p>
+        <h2>Email Report</h2>
+        <p>Select who should receive the inventory report.</p>
         {% if agency_emails %}
-        <form method="POST" action="{{ url_for('admin.send_inventory_counts_email', squad=squad) }}" class="stack">
-            <label class="setting-row">
-                <span class="setting-name">Select All</span>
-                <input type="checkbox" id="select-all-report-emails">
-            </label>
-            <div class="settings-options">
-                {% for agency_email in agency_emails %}
-                <label class="setting-row">
-                    <span>{{ agency_email.email }}</span>
-                    <input class="report-email-option" type="checkbox" name="agency_email_ids" value="{{ agency_email.id }}">
-                </label>
-                {% endfor %}
-            </div>
+        <form method="POST" action="{{ url_for('admin.send_inventory_counts_email', squad=squad) }}" class="stack" data-validation-live="submit">
+            <input type="hidden" name="active_location_id" value="{{ active_location_id or '' }}">
+            {{ email_recipient_options(agency_emails) }}
             <div class="button-row">
-                <button class="success-button" id="send-report-email" type="submit" disabled>Send Report</button>
-                <button class="quiet-button" id="close-report-email" type="button">Cancel</button>
+                <button class="success-button" data-email-submit type="submit" disabled>Email Report</button>
+                <button class="quiet-button" data-email-modal-close type="button">Cancel</button>
             </div>
         </form>
         {% else %}
@@ -93,14 +90,16 @@
             <h2>No notification emails found</h2>
             <p>Add agency emails before sending reports.</p>
         </div>
-        <button class="quiet-button" id="close-report-email" type="button">Close</button>
+        <button class="quiet-button" data-email-modal-close type="button">Close</button>
         {% endif %}
     </div>
 </div>
+<section id="counts-print-area" class="print-only" aria-hidden="true"></section>
 {% endblock %}
 
 {% block extra_js %}
-<script src="{{ url_for('static', filename='js/inventory-report-email.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/email-modal.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/inventory-counts-print.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/sortable-table.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/item-trend-modal.js') }}" defer></script>
 {% endblock %}

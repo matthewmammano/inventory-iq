@@ -9,8 +9,6 @@
 - update locations trends, graphs (fix for understanding), validate, etc
   - change trend to be USAGE instead in DB, so >=0 instead of opposite, i like better
 
-- for INVENTORY LEVELS and RESTOCK admin panel pages, can you add an option to EMAIL to any of those email accounts using HTML or EXCEL output. ALSO add this option for HISTORY just email as EXCEL. idk best plan to do all these at once please.
-
 - Improve scheduled report email presentation: preview daily, weekly, and monthly report examples, then add graphs only if they keep the email simple and useful.
 
 - certain pages REQUIRE keyboard use (as touchscreen / on-screen keyboard not best UI). investigate restricting some pages to keyboard-only use and make sure it is clear to users that they need a keyboard for that page. how to do? how to NOT ban users with keyboard AND touchscreen, only non-keyboard users.

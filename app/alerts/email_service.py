@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.location_filters import alert_matches_location_filter, validate_location_filter_ids
 from app.auth.models import Agencies, AgencyEmails, AgencyLocations
-from app.auth.notification_preferences import SUMMARY_NOTIFICATION_PREFERENCES, AlertEmailFrequency, due_summary_preferences
+from app.auth.notification_preferences import AlertEmailFrequency, NotificationPreference, due_summary_preferences
 from app.auth.queries import list_active_emails
 from app.inventory.constants import UnknownUpcStatus
 from app.inventory.models import ActionLogs, InventoryItemLocationState, Items, UnknownUpcScan
@@ -23,6 +23,7 @@ from app.shared.clock import utc_now_naive
 from app.shared.database import get_session
 from app.shared.email_addresses import email_domain
 from app.shared.email_client import OutboundEmail, send_email
+from app.shared.email_subjects import INVENTORY_SUMMARIES_TITLE, inventory_summary_title, report_subject
 from app.shared.timezone_utils import convert_utc_to_local
 
 from .constants import (
@@ -70,7 +71,6 @@ class RecipientAlertSnapshot:
     stock_states: list[InventoryItemLocationState]
     immediate_events: list[InventoryAlertEvent]
     scheduled_events: list[InventoryAlertEvent]
-    recap_due: bool
 
 
 @dataclass(frozen=True)
@@ -83,6 +83,7 @@ class EmailPlan:
     send_at: datetime
     stock_states: list[InventoryItemLocationState]
     events: list[InventoryAlertEvent]
+    report_title: str | None = None
 
 
 def process_all_alerts(*, force: bool = False, agency_id: int | None = None) -> dict[str, int]:
@@ -170,7 +171,6 @@ def _prepare_recipient_deliveries(
         stock_states=stock_states,
         immediate_events=snapshot.immediate_events,
         scheduled_events=snapshot.scheduled_events,
-        recap_due=snapshot.recap_due,
     )
     for plan in _email_plans_for_recipient(filtered_snapshot, recipient, agency.timezone, now, force=force):
         created += _upsert_delivery_from_plan(
@@ -196,7 +196,6 @@ def _recipient_alert_snapshot(
         stock_states=stock_states,
         immediate_events=[event for event in events if event.alert_type in IMMEDIATE_EVENT_TYPES],
         scheduled_events=[event for event in events if event.alert_type not in IMMEDIATE_EVENT_TYPES],
-        recap_due=_recap_is_due(recipient, agency.timezone, now),
     )
 
 
@@ -209,6 +208,7 @@ def _email_plans_for_recipient(
     force: bool,
 ) -> list[EmailPlan]:
     plans: list[EmailPlan] = []
+    due_reports = _due_report_preferences(recipient, timezone, now)
     alert_events = [*snapshot.immediate_events, *snapshot.scheduled_events]
     if snapshot.stock_states or alert_events:
         plans.append(
@@ -223,7 +223,7 @@ def _email_plans_for_recipient(
                 events=alert_events,
             )
         )
-    if snapshot.recap_due:
+    if due_reports:
         plans.append(
             _email_plan(
                 recipient,
@@ -234,6 +234,7 @@ def _email_plans_for_recipient(
                 delivery_kind=NotificationDeliveryKind.REPORT,
                 stock_states=[],
                 events=[],
+                report_title=_report_title(due_reports),
             )
         )
     return plans
@@ -249,6 +250,7 @@ def _email_plan(
     delivery_kind: NotificationDeliveryKind,
     stock_states: list[InventoryItemLocationState],
     events: list[InventoryAlertEvent],
+    report_title: str | None = None,
 ) -> EmailPlan:
     send_at = _send_at_for_timing(timing_mode, now, timezone, force=force)
     send_at = _send_at_after_quiet_hours(recipient, timezone, send_at)
@@ -259,6 +261,7 @@ def _email_plan(
         send_at=send_at,
         stock_states=stock_states,
         events=events,
+        report_title=report_title,
     )
 
 
@@ -345,8 +348,8 @@ def _build_batch(
         agency_email=recipient.email,
         agency_name=agency.display_name,
         generated_at=_display_now(agency.timezone, now),
-        subject=_subject(agency.display_name, severity.subject_prefix, plan.delivery_kind),
-        title=_title(plan.delivery_kind),
+        subject=_subject(agency.display_name, severity.subject_prefix, plan),
+        title=_title(plan),
         intro=_intro(plan.timing_mode, plan.delivery_kind),
         severity_label=severity.value,
         severity_color=severity.color,
@@ -1003,16 +1006,29 @@ def _severity_style(stock_states: list[InventoryItemLocationState], events: list
     return severity
 
 
-def _subject(agency_name: str, severity_prefix: str, delivery_kind: NotificationDeliveryKind) -> str:
-    if delivery_kind == NotificationDeliveryKind.REPORT:
-        return f"Inventory Periodic Recap - {agency_name}"
+def _subject(agency_name: str, severity_prefix: str, plan: EmailPlan) -> str:
+    if plan.delivery_kind == NotificationDeliveryKind.REPORT:
+        return report_subject(plan.report_title or INVENTORY_SUMMARIES_TITLE, agency_name)
     return f"{severity_prefix} Inventory Alerts - {agency_name}"
 
 
-def _title(delivery_kind: NotificationDeliveryKind) -> str:
-    if delivery_kind == NotificationDeliveryKind.REPORT:
-        return "Inventory Periodic Recap"
+def _title(plan: EmailPlan) -> str:
+    if plan.delivery_kind == NotificationDeliveryKind.REPORT:
+        return plan.report_title or INVENTORY_SUMMARIES_TITLE
     return "Inventory Alerts"
+
+
+def _due_report_preferences(recipient: AgencyEmails, timezone: str, now: datetime) -> tuple[NotificationPreference, ...]:
+    local_now = _local_now(timezone, now)
+    if local_now.hour != MORNING_EMAIL_LOCAL_HOUR:
+        return ()
+    return tuple(preference for preference in due_summary_preferences(local_now) if bool(getattr(recipient, preference.field)))
+
+
+def _report_title(preferences: tuple[NotificationPreference, ...]) -> str:
+    if preferences:
+        return inventory_summary_title(preferences[-1].label)
+    return INVENTORY_SUMMARIES_TITLE
 
 
 def _intro(timing_mode: EmailTimingMode, delivery_kind: NotificationDeliveryKind) -> str:
@@ -1193,19 +1209,6 @@ def _format_scan_type(payload: dict[str, Any]) -> str:
 
 def _now() -> datetime:
     return utc_now_naive()
-
-
-def _recap_is_due(recipient: AgencyEmails, timezone: str, now: datetime) -> bool:
-    local_now = _local_now(timezone, now)
-    has_recap_enabled = any(bool(getattr(recipient, preference.field)) for preference in SUMMARY_NOTIFICATION_PREFERENCES)
-    if not has_recap_enabled:
-        return False
-    return _is_report_window(timezone, now) and any(bool(getattr(recipient, preference.field)) for preference in due_summary_preferences(local_now))
-
-
-def _is_report_window(timezone: str, now: datetime) -> bool:
-    local = _local_now(timezone, now)
-    return local.hour == MORNING_EMAIL_LOCAL_HOUR
 
 
 def _local_now(timezone: str, now: datetime) -> datetime:

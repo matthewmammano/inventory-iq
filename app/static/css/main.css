@@ -1596,51 +1596,51 @@ body.loading-active > *:not(.loading-overlay) {
     justify-content: start;
   }
 
-  body.printing-history > *:not(main),
-  body.printing-history > main > *:not(#history-print-area),
-  body.printing-history .flash-container,
-  body.printing-history .loading-overlay {
+  body.printing-report > *:not(main),
+  body.printing-report > main > *:not(.print-only),
+  body.printing-report .flash-container,
+  body.printing-report .loading-overlay {
     display: none !important;
   }
 
-  body.printing-history #history-print-area {
+  body.printing-report .print-only {
     display: block;
   }
 
-  body.printing-history {
+  body.printing-report {
     background: white;
   }
 
-  body.printing-history.admin-screen {
+  body.printing-report.admin-screen {
     border: 0;
     padding: 0;
   }
 
-  body.printing-history.admin-screen::before {
+  body.printing-report.admin-screen::before {
     display: none;
   }
 
-  body.printing-history > main {
+  body.printing-report > main {
     width: 100%;
     padding: 0;
   }
 
-  body.printing-history .table-wrap {
+  body.printing-report .table-wrap {
     overflow: visible;
   }
 
-  body.printing-history table {
+  body.printing-report table {
     width: 100%;
     table-layout: fixed;
   }
 
-  body.printing-history .panel {
+  body.printing-report .panel {
     border: 0;
     box-shadow: none;
   }
 
-  body.printing-history th,
-  body.printing-history td {
+  body.printing-report th,
+  body.printing-report td {
     padding: 4px;
     color: black;
     font-size: 8pt;
@@ -1649,23 +1649,23 @@ body.loading-active > *:not(.loading-overlay) {
     white-space: normal;
   }
 
-  body.printing-history .print-title {
+  body.printing-report .print-title {
     margin-bottom: 18px;
     color: black;
   }
 
-  body.printing-history .print-title h1 {
+  body.printing-report .print-title h1 {
     margin-bottom: 8px;
     color: black;
     font-size: 18pt;
   }
 
-  body.printing-history .print-kv-grid {
+  body.printing-report .print-kv-grid {
     display: grid;
     gap: 4px;
   }
 
-  body.printing-history .print-kv-row {
+  body.printing-report .print-kv-row {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
     gap: 6px;
@@ -1674,11 +1674,11 @@ body.loading-active > *:not(.loading-overlay) {
     font-size: 11pt;
   }
 
-  body.printing-history .print-kv-label {
+  body.printing-report .print-kv-label {
     font-weight: 700;
   }
 
-  body.printing-history .print-kv-value {
+  body.printing-report .print-kv-value {
     overflow-wrap: anywhere;
   }
 }

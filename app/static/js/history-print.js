@@ -1,24 +1,65 @@
 document.addEventListener("DOMContentLoaded", () => {
     const modal = document.querySelector("#history-print-modal");
-    const openButton = document.querySelector("#open-history-print");
-    const closeButton = document.querySelector("#close-history-print");
+    const openButtons = document.querySelectorAll("[data-history-modal-open]");
+    const closeButtons = document.querySelectorAll("[data-history-modal-close]");
     const form = document.querySelector("[data-history-print-form]");
     const printArea = document.querySelector("#history-print-area");
-    const dateInputs = [...document.querySelectorAll("#history-print-start, #history-print-end")];
+    const printButton = document.querySelector("[data-history-print-submit]");
+    const emailSection = document.querySelector("[data-history-email-section]");
+    const emailEmpty = document.querySelector("[data-history-email-empty]");
+    const emailSubmit = document.querySelector("[data-history-email-submit]");
+    const dateInputs = [...document.querySelectorAll("[data-history-date]")];
     const formValidation = window.InventoryFormValidation;
 
-    openButton?.addEventListener("click", () => modal?.classList.remove("hidden"));
-    closeButton?.addEventListener("click", () => modal?.classList.add("hidden"));
-    dateInputs.forEach((input) => {
-        input.addEventListener("input", () => {
-            input.value = input.value.replace(/^(\d{4})\d+(-.*)?$/, "$1$2");
+    const todayInTimezone = (timezone) => {
+        const parts = new Intl.DateTimeFormat("en-US", {
+            timeZone: timezone || undefined,
+            year: "numeric",
+            month: "2-digit",
+            day: "2-digit",
+        }).formatToParts(new Date());
+        const value = (type) => parts.find((part) => part.type === type)?.value || "";
+        return `${value("year")}-${value("month")}-${value("day")}`;
+    };
+
+    const refreshDateLimits = () => {
+        const maxDate = todayInTimezone(modal?.dataset.userTimezone || "");
+        dateInputs.forEach((input) => {
+            input.max = maxDate;
+            input.dataset.maxDate = maxDate;
         });
-    });
-    form?.addEventListener("submit", async (event) => {
-        event.preventDefault();
+    };
+
+    const resetModalValidationState = () => {
+        dateInputs.forEach((input) => formValidation?.clearFieldState(input));
+    };
+
+    const setModalMode = (mode) => {
+        const emailMode = mode === "email";
+        emailSection?.classList.toggle("hidden", !emailMode);
+        emailEmpty?.classList.toggle("hidden", !emailMode);
+        emailSubmit?.classList.toggle("hidden", !emailMode);
+        printButton?.classList.toggle("hidden", emailMode);
+    };
+
+    openButtons.forEach((button) =>
+        button.addEventListener("click", () => {
+            refreshDateLimits();
+            resetModalValidationState();
+            setModalMode(button.dataset.historyModalOpen || "print");
+            modal?.classList.remove("hidden");
+        }),
+    );
+    closeButtons.forEach((button) =>
+        button.addEventListener("click", () => {
+            resetModalValidationState();
+            modal?.classList.add("hidden");
+        }),
+    );
+    printButton?.addEventListener("click", async () => {
         if (!form || !formValidation || !printArea) return;
         if (!(await formValidation.validateForm(form))) return;
-        const url = `${form.action}?${new URLSearchParams(new FormData(form))}`;
+        const url = `${modal?.dataset.printAction}?${new URLSearchParams(new FormData(form))}`;
         window.InventoryLoadingOverlay?.show({ immediate: true });
         try {
             const response = await fetch(url, { headers: { "X-Requested-With": "fetch" } });
@@ -26,7 +67,7 @@ document.addEventListener("DOMContentLoaded", () => {
             printArea.innerHTML = await response.text();
             modal?.classList.add("hidden");
             window.InventoryLoadingOverlay?.hide();
-            document.body.classList.add("printing-history");
+            document.body.classList.add("printing-report");
             window.print();
         } catch (error) {
             window.InventoryLoadingOverlay?.hide();
@@ -39,7 +80,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     window.addEventListener("afterprint", () => {
-        document.body.classList.remove("printing-history");
+        document.body.classList.remove("printing-report");
         if (printArea) printArea.replaceChildren();
     });
 });

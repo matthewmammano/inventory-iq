@@ -428,6 +428,7 @@
 
     window.InventoryFormValidation = {
         bind,
+        clearFieldState,
         setExternalError,
         validateBeforeSubmit,
         validateField,

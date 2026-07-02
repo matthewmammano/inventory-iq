@@ -1,11 +1,12 @@
 {% extends "base.html" %}
-{% from "macros.html" import history_table %}
+{% from "macros.html" import email_recipient_options, history_table %}
 
 {% block title %}Action History{% endblock %}
 {% block header_title %}View History{% endblock %}
 {% block sub_title %}Review recent scan activity across locations{% endblock %}
 {% block header_right %}
-    <button class="success-button" id="open-history-print" type="button">Print History</button>
+    <button class="button" data-history-modal-open="print" type="button">Print History</button>
+    <button class="success-button" data-history-modal-open="email" type="button">Email Report</button>
     <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
 {% endblock %}
 
@@ -48,27 +49,42 @@
     {% endif %}
 </div>
 
-<div class="modal-backdrop hidden" id="history-print-modal">
+{% if active_location_id %}
+    {% set print_action = url_for('admin.admin_history_print', squad=squad, agency_location_id=active_location_id) %}
+{% else %}
+    {% set print_action = url_for('admin.admin_history_print', squad=squad) %}
+{% endif %}
+{% set email_action = url_for('admin.admin_history_email', squad=squad) %}
+<div class="modal-backdrop hidden" id="history-print-modal" data-email-modal data-history-modal data-print-action="{{ print_action }}" data-user-timezone="{{ user_timezone }}">
     <div class="modal history-print-modal">
-        <h2>Print History</h2>
-        <p>Printing: <strong>{{ active_location_name }}</strong>. Leave either date blank to print without that limit.</p>
-        {% if active_location_id %}
-            {% set print_action = url_for('admin.admin_history_print', squad=squad, agency_location_id=active_location_id) %}
-        {% else %}
-            {% set print_action = url_for('admin.admin_history_print', squad=squad) %}
-        {% endif %}
-        <form method="GET" action="{{ print_action }}" class="stack" data-history-print-form data-validation-submit="manual">
+        <h2>History Report</h2>
+        <p>Choose a date range for <strong>{{ active_location_name }}</strong>. Leave either date blank to include all dates.</p>
+        <form method="POST" action="{{ email_action }}" class="stack" data-history-print-form data-validation-live="submit">
+            <input type="hidden" name="agency_location_id" value="{{ active_location_id or '' }}">
             <label class="setting-row">
                 <span class="setting-name">Start Date</span>
-                <input id="history-print-start" name="start_date" data-label="Start Date" {{ validation_attrs("iso_date", min_date="2000-01-01", max_date=today_date) }}>
+                <input id="history-print-start" name="start_date" data-history-date data-label="Start Date" {{ validation_attrs("iso_date", min_date="2000-01-01", max_date=today_date) }}>
             </label>
             <label class="setting-row">
                 <span class="setting-name">End Date</span>
-                <input id="history-print-end" name="end_date" data-label="End Date" {{ validation_attrs("iso_date", compare_to="start_date", compare_mode="date_gte", compare_message="End Date must be on or after Start Date.", min_date="2000-01-01", max_date=today_date) }}>
+                <input id="history-print-end" name="end_date" data-history-date data-label="End Date" {{ validation_attrs("iso_date", compare_to="start_date", compare_mode="date_gte", compare_message="End Date must be on or after Start Date.", min_date="2000-01-01", max_date=today_date) }}>
             </label>
+            {% if agency_emails %}
+            <div data-history-email-section class="stack hidden">
+                {{ email_recipient_options(agency_emails) }}
+            </div>
+            {% else %}
+            <div class="empty-state hidden" data-history-email-empty>
+                <h2>No notification emails found</h2>
+                <p>Add agency emails before sending reports.</p>
+            </div>
+            {% endif %}
             <div class="button-row">
-                <button class="success-button" type="submit">Print</button>
-                <button class="quiet-button" id="close-history-print" type="button">Cancel</button>
+                <button class="button" id="submit-history-print" data-history-print-submit type="button">Print</button>
+                {% if agency_emails %}
+                <button class="success-button hidden" data-email-submit data-history-email-submit type="submit" disabled>Email Report</button>
+                {% endif %}
+                <button class="quiet-button" data-email-modal-close data-history-modal-close type="button">Cancel</button>
             </div>
         </form>
     </div>
@@ -77,5 +93,6 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/email-modal.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/history-print.js') }}" defer></script>
 {% endblock %}

@@ -4,6 +4,7 @@ All app email sends go through this small provider boundary instead of
 scattered mail code.
 """
 
+import base64
 import json
 import time
 from dataclasses import dataclass
@@ -27,6 +28,15 @@ class OutboundEmail:
     text_body: str
     to_email: str
     html_body: str | None = None
+    attachments: tuple["EmailAttachment", ...] = ()
+
+
+@dataclass(frozen=True)
+class EmailAttachment:
+    """Binary email attachment payload."""
+
+    filename: str
+    content_bytes: bytes
 
 
 def email_configured() -> bool:
@@ -80,6 +90,10 @@ def send_email(
     }
     if email.html_body:
         payload["htmlContent"] = email.html_body
+    if email.attachments:
+        payload["attachment"] = [
+            {"name": attachment.filename, "content": base64.b64encode(attachment.content_bytes).decode("ascii")} for attachment in email.attachments
+        ]
 
     request = Request(
         api_url,

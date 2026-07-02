@@ -31,3 +31,18 @@
         </table>
     </div>
 {% endmacro %}
+
+{% macro email_recipient_options(agency_emails, field_name='agency_email_ids') %}
+    <label class="setting-row">
+        <span class="setting-name">Select All</span>
+        <input type="checkbox" data-email-select-all>
+    </label>
+    <div class="settings-options">
+        {% for agency_email in agency_emails %}
+        <label class="setting-row">
+            <span>{{ agency_email.email }}</span>
+            <input type="checkbox" name="{{ field_name }}" value="{{ agency_email.id }}" data-email-recipient-option>
+        </label>
+        {% endfor %}
+    </div>
+{% endmacro %}

@@ -10,8 +10,8 @@ from flask import current_app, flash, make_response, redirect, render_template, 
 from flask_login import current_user
 from loguru import logger
 from pydantic import ValidationError
-from sqlalchemy import or_, select
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy import select
+from sqlalchemy.orm import Session, selectinload
 
 from app.auth.device_locations import current_device_token, get_or_create_device, save_device_location, set_device_cookie
 from app.auth.models import Agencies, AgencyLocations
@@ -38,13 +38,16 @@ from app.inventory.constants import (
     UNKNOWN_UPC_INVALID_MESSAGE,
     UnknownUpcStatus,
 )
+from app.inventory.history_service import HISTORY_REPORT_LIMIT, list_history_logs
 from app.inventory.item_queries import list_items
 from app.inventory.location_operations import (
     build_location_count_rows,
-    get_location_storages,
 )
-from app.inventory.models import ActionLogs, Items, UnknownUpcScan, validate_upc_code
-from app.inventory.report_email_service import send_inventory_count_report
+from app.inventory.models import Items, UnknownUpcScan, validate_upc_code
+from app.inventory.report_email_service import (
+    send_history_report,
+    send_inventory_count_report,
+)
 from app.inventory.scan_flow import (
     handle_scan_item_get,
     handle_scan_item_post,
@@ -90,7 +93,6 @@ from app.shared.utils import (
 from app.shared.validators import parse_optional_int
 
 HISTORY_PAGE_SIZE = 50
-HISTORY_PRINT_LIMIT = 5000
 SAVE_RETRY_MESSAGE = "Changes could not be saved. Review entries and try again."
 
 
@@ -222,7 +224,13 @@ def print_label_preview(squad: str) -> Any:
     item_ids = _selected_bulk_item_ids(raw_ids, items)
     selected = [item for item in items if not item_ids or item.id in item_ids]
     labels = [{"item": item, "upc": item.upc, "bars": upc_bars(item.upc)} for item in selected]
-    return render_template("admin_print_label_preview.html", squad=squad, labels=labels, logo_img=current_user.image, admin=True)
+    return render_template(
+        "admin_print_label_preview.html",
+        squad=squad,
+        labels=labels,
+        logo_img=current_user.image,
+        admin=True,
+    )
 
 
 @bp.route("/<squad>/admin-panel/views")
@@ -407,25 +415,29 @@ def inventory_counts(squad: str, agency_location_id: int | None = None) -> Any:
 
 @bp.route("/<squad>/admin-panel/inventory-count-levels/email", methods=["POST"])
 def send_inventory_counts_email(squad: str) -> Any:
-    selected_ids = [int(value) for value in request.form.getlist("agency_email_ids") if value.isdigit()]
+    selected_ids = _selected_agency_email_ids(request.form.getlist("agency_email_ids"))
+    active_location_id = parse_optional_int(request.form.get("active_location_id"))
     with get_session() as s:
         sent, total = send_inventory_count_report(s, current_user.id, selected_ids)
-    if total == 0:
-        logger.info("Inventory report email request rejected: no recipients selected", extra={"selected_recipient_count": len(selected_ids)})
-        flash("Select at least one email recipient.", "warning")
-    elif sent == total:
-        logger.info(
-            "Inventory report email sent successfully",
-            extra={"recipient_count": sent},
-        )
-        flash(f"Sent inventory report to {sent} email recipient(s).", "success")
-    else:
-        logger.error(
-            "Inventory report email partially failed",
-            extra={"sent": sent, "recipient_count": total},
-        )
-        flash(f"Sent {sent} of {total} inventory report email(s).", "error")
-    return redirect(url_for("admin.inventory_counts", squad=squad))
+    _flash_email_delivery_result("Inventory report", sent, total, selected_count=len(selected_ids), log_name="Inventory report email")
+    return redirect(_inventory_counts_url(squad, active_location_id))
+
+
+@bp.route("/<squad>/admin-panel/inventory-count-levels/print")
+@bp.route("/<squad>/admin-panel/inventory-count-levels/<int:agency_location_id>/print")
+def inventory_counts_print(squad: str, agency_location_id: int | None = None) -> Any:
+    with get_session() as s:
+        locations = list_top_locations(current_user.id, s)
+        active_location = _active_location(locations, agency_location_id)
+        active_tab = _inventory_count_tab(s, current_user.id, active_location.id) if active_location else {"inventory_data": [], "storages": []}
+    return render_template(
+        "admin_inventory_counts_print_partial.html",
+        squad=squad,
+        location_name=active_location.name if active_location else "Inventory Report",
+        inventory_data=active_tab["inventory_data"],
+        storages=active_tab["storages"],
+        admin=True,
+    )
 
 
 def _inventory_count_tab(session, agency_id: int, agency_location_id: int) -> dict:
@@ -441,6 +453,12 @@ def _inventory_count_tab(session, agency_id: int, agency_location_id: int) -> di
         row["total_class"] = get_inventory_level_class(row["total"])
         rows.append(row)
     return {"inventory_data": rows, "storages": storages}
+
+
+def _inventory_counts_url(squad: str, agency_location_id: int | None) -> str:
+    if agency_location_id:
+        return url_for("admin.inventory_counts", squad=squad, agency_location_id=agency_location_id)
+    return url_for("admin.inventory_counts", squad=squad)
 
 
 @bp.route("/<squad>/admin-panel/restock")
@@ -809,6 +827,10 @@ def _selected_bulk_item_ids(raw_ids: list[str], items) -> set[int]:
     return {int(value) for value in values if value.isdigit() and int(value) in allowed}
 
 
+def _selected_agency_email_ids(raw_ids: list[str]) -> list[int]:
+    return [int(value) for value in raw_ids if value.isdigit()]
+
+
 def _bulk_edit_url(squad: str, agency_location_id: int, item_ids: set[int]) -> str:
     if item_ids:
         return url_for(
@@ -827,18 +849,40 @@ def _log_bulk_location_missing(squad: str, agency_location_id: int) -> None:
     )
 
 
+def _flash_email_delivery_result(
+    label: str,
+    sent: int,
+    total: int,
+    *,
+    selected_count: int,
+    log_name: str,
+) -> None:
+    if total == 0:
+        logger.info(f"{log_name} request rejected: no recipients selected", extra={"selected_recipient_count": selected_count})
+        flash("Select at least one email recipient.", "warning")
+        return
+    if sent == total:
+        logger.info(f"{log_name} sent successfully", extra={"recipient_count": sent})
+        flash(f"Sent {label.lower()} to {sent} email recipient(s).", "success")
+        return
+    logger.error(f"{log_name} partially failed", extra={"sent": sent, "recipient_count": total})
+    flash(f"Sent {sent} of {total} {label.lower()} email(s).", "error")
+
+
 @bp.route("/<squad>/admin-panel/history")
 @bp.route("/<squad>/admin-panel/history/<int:agency_location_id>")
 def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
     page = max(parse_optional_int(request.args.get("page")) or 1, 1)
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
+        agency_emails = list_active_emails(current_user.id, s)
         active_location = _active_location(locations, agency_location_id) if agency_location_id else None
-        action_logs, has_next_page = _history_logs(s, agency_location_id, page, HISTORY_PAGE_SIZE)
+        action_logs, has_next_page = list_history_logs(s, current_user.id, agency_location_id, page, HISTORY_PAGE_SIZE)
     return render_template(
         "admin_history.html",
         squad=squad,
         locations=locations,
+        agency_emails=agency_emails,
         action_logs=action_logs,
         active_location_id=agency_location_id,
         active_location_name=active_location.name if active_location else "All Locations",
@@ -848,6 +892,27 @@ def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
         user_timezone=current_user.timezone,
         today_date=_local_today(current_user.timezone).isoformat(),
     )
+
+
+@bp.route("/<squad>/admin-panel/history/email", methods=["POST"])
+def admin_history_email(squad: str) -> Any:
+    start_date = request.form.get("start_date", "")
+    end_date = request.form.get("end_date", "")
+    agency_location_id = parse_optional_int(request.form.get("agency_location_id"))
+    selected_ids = _selected_agency_email_ids(request.form.getlist("agency_email_ids"))
+    try:
+        start_utc, end_utc = _history_date_bounds(start_date, end_date, current_user.timezone)
+    except ValueError as exc:
+        logger.info(
+            "History email date range rejected",
+            extra={"agency_location_id": agency_location_id, "start_date": start_date, "end_date": end_date, "error": str(exc)},
+        )
+        flash(str(exc), "error")
+        return redirect(_history_url(squad, agency_location_id))
+    with get_session() as s:
+        sent, total = send_history_report(s, current_user.id, selected_ids, agency_location_id, start_utc, end_utc, start_date, end_date)
+    _flash_email_delivery_result("History report", sent, total, selected_count=len(selected_ids), log_name="History report email")
+    return redirect(_history_url(squad, agency_location_id))
 
 
 @bp.route("/<squad>/admin-panel/history/print")
@@ -870,7 +935,7 @@ def admin_history_print(squad: str, agency_location_id: int | None = None) -> An
         locations = list_top_locations(current_user.id, s)
         agency = s.get(Agencies, current_user.id)
         active_location = _active_location(locations, agency_location_id) if agency_location_id else None
-        action_logs, _ = _history_logs(s, agency_location_id, 1, HISTORY_PRINT_LIMIT, start_utc, end_utc)
+        action_logs, _ = list_history_logs(s, current_user.id, agency_location_id, 1, HISTORY_REPORT_LIMIT, start_utc, end_utc)
     return render_template(
         "admin_history_print_partial.html",
         squad=squad,
@@ -884,41 +949,6 @@ def admin_history_print(squad: str, agency_location_id: int | None = None) -> An
     )
 
 
-def _history_logs(
-    session,
-    agency_location_id: int | None,
-    page: int,
-    page_size: int,
-    start_utc: datetime | None = None,
-    end_utc: datetime | None = None,
-) -> tuple[list[ActionLogs], bool]:
-    stmt = (
-        select(ActionLogs)
-        .options(
-            joinedload(ActionLogs.item),
-            joinedload(ActionLogs.from_location),
-            joinedload(ActionLogs.to_location),
-        )
-        .where(ActionLogs.agency_id == current_user.id)
-    )
-    if agency_location_id is not None:
-        storage_ids = [storage.id for storage in get_location_storages(session, current_user.id, agency_location_id)]
-        stmt = stmt.where(
-            or_(
-                ActionLogs.from_location_id.in_(storage_ids),
-                ActionLogs.to_location_id.in_(storage_ids),
-            )
-            if storage_ids
-            else ActionLogs.id == -1
-        )
-    if start_utc is not None:
-        stmt = stmt.where(ActionLogs.time_scanned >= start_utc)
-    if end_utc is not None:
-        stmt = stmt.where(ActionLogs.time_scanned < end_utc)
-    rows = list(session.execute(stmt.order_by(ActionLogs.id.desc()).offset((page - 1) * page_size).limit(page_size + 1)).scalars().all())
-    return rows[:page_size], len(rows) > page_size
-
-
 def _history_url(squad: str, agency_location_id: int | None) -> str:
     if agency_location_id:
         return url_for("admin.admin_history", squad=squad, agency_location_id=agency_location_id)
@@ -930,9 +960,9 @@ def _history_date_bounds(start_value: str, end_value: str, timezone: str) -> tup
     end_date = _parse_history_date(end_value, "End date")
     today = _local_today(timezone)
     if start_date and start_date > today:
-        raise ValueError("Start date cannot be in the future.")
+        raise ValueError(f"Start date cannot be after {today.isoformat()}.")
     if end_date and end_date > today:
-        raise ValueError("End date cannot be in the future.")
+        raise ValueError(f"End date cannot be after {today.isoformat()}.")
     if start_date and end_date and start_date > end_date:
         raise ValueError("Start date must be before end date.")
     local_timezone = _timezone_or_utc(timezone)

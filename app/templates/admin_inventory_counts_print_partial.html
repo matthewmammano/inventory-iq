@@ -1,0 +1,40 @@
+<section class="print-title">
+    <h1>Inventory Report</h1>
+    <div class="print-kv-grid">
+        <div class="print-kv-row">
+            <span class="print-kv-label">Location:</span>
+            <span class="print-kv-value">{{ location_name }}</span>
+        </div>
+    </div>
+</section>
+
+{% if inventory_data|length == 0 %}
+<div class="empty-state"><h2>No items found</h2></div>
+{% else %}
+<section class="panel">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    {% for storage in storages %}
+                    <th>{{ storage.name }}</th>
+                    {% endfor %}
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in inventory_data %}
+                <tr>
+                    <td>{{ row.item.name|bold_item_name }}</td>
+                    {% for storage in storages %}
+                    <td>{{ row.storage_counts[storage.id] }}</td>
+                    {% endfor %}
+                    <td>{{ row.total }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endif %}
