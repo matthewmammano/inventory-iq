@@ -2,6 +2,8 @@
 
 ## Active Plan
 
+- Expiration tracking across inventory, alerts, reports, and UI.
+
 - design a better favicon, logo, front page for NON USERS!!! like an about page with features and everything!
 
 - lets create a HELP sorta wiki page for admins with bunch of articles, fuzzy search, and TAGS per article. so reworded better, but things like "why am i not receiving emails", "why is this prediction wrong", "how do predictions work", "what is best pattern for COUNT / RESTOCK / TAKEOUT / etc", ... think of WAY more, write in a simple and predictable way each article maybe not even in html. maybe simple MD instead translated to HTML article. IDK just needs to be simple and easily writable!!!
@@ -14,8 +16,6 @@
 - certain pages REQUIRE keyboard use (as touchscreen / on-screen keyboard not best UI). investigate restricting some pages to keyboard-only use and make sure it is clear to users that they need a keyboard for that page. how to do? how to NOT ban users with keyboard AND touchscreen, only non-keyboard users.
 
 - RAILWAY combine ENV vars and secrets into ONE place for all my COMPUTE (crons and web and DB) and make sure they are all in sync.
-
-- on a scan of a new item, anything without a COUNT ever, then alert the user that ADMIN must provide a COUNT operation... but scan still went through fine.
 
 - `class AlertSeverity(StrEnum)` is the BEST coding work of art I have ever done! Can you check EVERY OTHER class, datatype, and function in the codebase to see if they can be improved to be as elegant and maintainable as that one? (like using different Enum types, or dataclasses, or Pydantic models, computed fields, etc). Make sure you check THOROUGHLY with agents AND/OR regex searching marking each as possible refactoring candidate. Then make a list of all the candidates and we can review together with LOC saved estimates AND clear coding clarity benefits.
 
@@ -35,29 +35,11 @@
 
 - Tighten Production Safety
   - Keep schema/bootstrap and local QA setup scripts explicit and documented.
-
-## Future Plan
-
-- Admin DB CLI
-  - Build one central interactive CLI for validated DB edits across supported tables.
-  - Include table/row selection, typed validation, confirmation prompts, audit logging, and transaction rollback.
-
-- Item Management
-  - Add proper item create/edit/delete flow later.
-  - Use `Items.active` for soft delete/disable, not hard delete.
-  - Define required schemas, validation, and admin UI before reintroducing item management.
-  - Do not ship partial item-management behavior in v1.
-  - SAME FOR REALLY MOST THINGS IN DB. Colors, etc.... maybe BESIDES locations and storages bc that's how I will CHARGE THEM!!!
-
-- Later Features
-  - Production observability: searchable structured logs, request IDs, uptime/error alerts, and a per-agency support/debug workflow.
-  - Alert-record retention cleanup for old sent, suppressed, and cleared alert rows.
-  - PWA/kiosk mode with service worker, app manifest, offline queue/sync, and touch optimization.
-  - CSP hardening: move inline scripts/styles to static assets, then remove `unsafe-inline`.
-  - Build independent EMS squad reporting emails for daily, weekly, monthly, and yearly analytics.
-  - Expiration tracking across inventory, alerts, reports, and UI.
-  - Unit tracking (what does this mean?).
-  - USER ID CARD SCANS for guest operations (for later accountability features).
-  - Per-location item min/max/fallback usage overrides (bc BEACH has more calls then BORO for example).
   - Extra security hardening beyond core v1 needs.
-  - Non-essential background task improvements.
+  - CSP hardening: move inline scripts/styles to static assets, then remove `unsafe-inline`.
+
+- Alert-record retention cleanup for old sent, suppressed, and cleared alert rows.
+- -
+- USER ID CARD SCANS for guest operations (for later accountability features).
+-
+- Per-location item min/max/fallback usage overrides (bc BEACH has more calls then BORO for example).
