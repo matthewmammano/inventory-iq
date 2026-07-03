@@ -281,19 +281,19 @@ class ActionLogs(Base):
 
     @property
     def is_count(self) -> bool:
-        return self.operation_type == OperationType.COUNT
+        return self.operation_type.is_count
 
     @property
     def is_restock(self) -> bool:
-        return self.operation_type == OperationType.RESTOCK
+        return self.operation_type.is_restock
 
     @property
     def is_transfer(self) -> bool:
-        return self.operation_type == OperationType.TRANSFER
+        return self.operation_type.is_transfer
 
     @property
     def is_takeout(self) -> bool:
-        return self.operation_type == OperationType.TAKEOUT
+        return self.operation_type.is_takeout
 
     def get_time_scanned_local(self, user_timezone: str) -> datetime | None:
         """Return time_scanned converted from UTC to the user's local timezone."""

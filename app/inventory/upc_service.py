@@ -2,6 +2,7 @@
 
 import re
 from collections.abc import Iterable
+from dataclasses import dataclass
 from difflib import SequenceMatcher
 from typing import cast
 
@@ -14,9 +15,6 @@ from app.alerts.alert_service import cancel_unknown_upc_event, queue_unknown_upc
 from app.shared.clock import utc_now
 
 from .constants import (
-    UNKNOWN_UPC_IGNORED_MESSAGE,
-    UNKNOWN_UPC_LINKED_MESSAGE,
-    UNKNOWN_UPC_REVIEW_MESSAGE,
     UPC_GENERATION_PREFIX,
     UnknownUpcStatus,
 )
@@ -50,6 +48,13 @@ MATCH_EQUIVALENCES = (
 SINGLE_TOKEN_MIN_SCORE = 0.38
 
 
+@dataclass(frozen=True, slots=True)
+class ItemMatchSuggestion:
+    item_id: int
+    item_name: str
+    score: float
+
+
 def record_unknown_upc(session: Session, agency_id: int, upc: str) -> UnknownUpcStatus:
     normalized = validate_upc_code(upc)
     if _active_upc_exists(session, agency_id, normalized):
@@ -63,7 +68,9 @@ def record_unknown_upc(session: Session, agency_id: int, upc: str) -> UnknownUpc
 
     lookup_title = _clean_lookup_title(lookup_upc_title(normalized))
     closest_item = _closest_item(session, agency_id, lookup_title)
-    suggested_item_id, suggested_item_name, suggestion_score = closest_item or (None, None, None)
+    suggested_item_id = closest_item.item_id if closest_item else None
+    suggested_item_name = closest_item.item_name if closest_item else None
+    suggestion_score = closest_item.score if closest_item else None
     scan = UnknownUpcScan(
         agency_id=agency_id,
         upc=normalized,
@@ -114,14 +121,6 @@ def list_review_unknown_upcs(session: Session, agency_id: int) -> list[UnknownUp
         .scalars()
         .all()
     )
-
-
-def unknown_upc_scan_message(status: UnknownUpcStatus) -> str:
-    if status == UnknownUpcStatus.IGNORE:
-        return UNKNOWN_UPC_IGNORED_MESSAGE
-    if status == UnknownUpcStatus.RESOLVED:
-        return UNKNOWN_UPC_LINKED_MESSAGE
-    return UNKNOWN_UPC_REVIEW_MESSAGE
 
 
 def resolve_unknown_upc(session: Session, agency_id: int, unknown_upc_id: int, item_id: int) -> None:
@@ -223,7 +222,7 @@ def _queue_unknown_upc_alert(session: Session, agency_id: int, scan: UnknownUpcS
     )
 
 
-def _closest_item(session: Session, agency_id: int, lookup_title: str | None) -> tuple[int, str, float] | None:
+def _closest_item(session: Session, agency_id: int, lookup_title: str | None) -> ItemMatchSuggestion | None:
     rows = cast(
         "list[tuple[int, str]]",
         session.execute(
@@ -238,14 +237,14 @@ def _closest_item(session: Session, agency_id: int, lookup_title: str | None) ->
     return suggest_item_match(lookup_title, rows)
 
 
-def suggest_item_match(lookup_title: str | None, items: Iterable[tuple[int, str]]) -> tuple[int, str, float] | None:
+def suggest_item_match(lookup_title: str | None, items: Iterable[tuple[int, str]]) -> ItemMatchSuggestion | None:
     if not lookup_title:
         return None
     scored = [(_match_score(lookup_title, item_name), item_id, item_name) for item_id, item_name in items]
     score, item_id, item_name = max(scored, default=(0.0, None, ""))
     if item_id is None or score < MIN_SUGGESTION_SCORE:
         return None
-    return item_id, item_name, score
+    return ItemMatchSuggestion(item_id=item_id, item_name=item_name, score=score)
 
 
 def _clean_lookup_title(value: str | None) -> str | None:

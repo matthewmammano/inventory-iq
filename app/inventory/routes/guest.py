@@ -27,8 +27,9 @@ from app.inventory.scan_flow import (
     handle_scan_storages_get,
     handle_scan_storages_post,
 )
+from app.inventory.schema import ScanItemQuery, ScanStartQuery
 from app.inventory.search_payload import load_item_search_payload
-from app.inventory.upc_service import record_unknown_upc, unknown_upc_scan_message
+from app.inventory.upc_service import record_unknown_upc
 from app.shared.database import get_session
 from app.shared.utils import (
     get_squad_from_request,
@@ -97,7 +98,7 @@ def _record_unknown_upc_from_request(squad: str) -> str | None:
         with get_session() as s:
             status = record_unknown_upc(s, current_user.id, upc)
             s.commit()
-        return unknown_upc_scan_message(status)
+        return status.message
     except ValueError as exc:
         logger.info(
             "Unknown guest UPC scan ignored because the code was invalid",
@@ -160,12 +161,13 @@ def _admin_login_response(squad: str, token: str) -> Any:
 @bp.route("/<squad>/scan")
 @login_required
 def scan_start(squad: str) -> Any:
+    query = ScanStartQuery.model_validate(request.args.to_dict())
     if get_device_location_id(current_user.id) is None:
-        return redirect(url_for("guest.scan_location", squad=squad, item_id=request.args.get("item_id")))
+        return redirect(url_for("guest.scan_location", squad=squad, item_id=query.item_id))
     return handle_scan_start(
         squad,
-        parse_optional_int(request.args.get("item_id")),
-        upc=request.args.get("upc"),
+        query.item_id,
+        upc=query.upc,
         is_admin=False,
     )
 
@@ -219,10 +221,8 @@ def scan_storages(squad: str) -> Any:
         return redirect(url_for("guest.scan_location", squad=squad, item_id=request.values.get("item_id")))
     if request.method == "POST":
         return handle_scan_storages_post(squad, request.form, is_admin=False)
-    item_id = parse_optional_int(request.args.get("item_id"))
-    user_count_allow = request.args.get("user_count_allow", "false").lower() == "true"
-    user_restock_allow = request.args.get("user_restock_allow", "false").lower() == "true"
-    return handle_scan_storages_get(squad, item_id, user_count_allow, user_restock_allow)
+    query = ScanStartQuery.model_validate(request.args.to_dict())
+    return handle_scan_storages_get(squad, query.item_id)
 
 
 @bp.route("/<squad>/scan/item", methods=["GET", "POST"])
@@ -230,20 +230,11 @@ def scan_storages(squad: str) -> Any:
 def scan_item(squad: str) -> Any:
     if request.method == "POST":
         return handle_scan_item_post(squad, request.form, is_admin=False)
-    item_id = parse_optional_int(request.args.get("item_id"))
-    from_location_id = request.args.get("from_location_id")
-    to_location_id = request.args.get("to_location_id")
-    user_count_allow = request.args.get("user_count_allow", "false").lower() == "true"
-    user_restock_allow = request.args.get("user_restock_allow", "false").lower() == "true"
-    show_scan_route = request.args.get("show_scan_route") == "1"
-    if to_location_id is None and not user_count_allow and not user_restock_allow:
-        to_location_id = "-1"
+    query = ScanItemQuery.from_query(request.args.to_dict(), is_admin=False)
     return handle_scan_item_get(
         squad,
-        item_id,
-        from_location_id,
-        to_location_id,
-        user_count_allow,
-        user_restock_allow,
-        show_scan_route=show_scan_route,
+        query.item_id,
+        query.from_location_id,
+        query.to_location_id,
+        show_scan_route=query.show_scan_route,
     )

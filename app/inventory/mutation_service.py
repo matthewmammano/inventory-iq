@@ -72,7 +72,7 @@ def _validate_operation(
 ) -> Items:
     if not isinstance(quantity, int) or quantity < 0:
         raise InventoryError("Quantity must be a non-negative number")
-    if operation_type != OperationType.COUNT and quantity == 0:
+    if not operation_type.is_count and quantity == 0:
         raise InventoryError("Quantity must be at least 1 for non-count scans")
 
     item = _validate_item(session, agency_id, item_id)
@@ -90,13 +90,13 @@ def _validate_operation_locations(
     to_location: int | None,
     storages_by_id: dict[int, AgencyStorages],
 ) -> None:
-    if operation_type == OperationType.COUNT and (from_location is not None or to_location is None):
+    if operation_type.is_count and (from_location is not None or to_location is None):
         raise InventoryError("COUNT requires one destination storage")
-    if operation_type == OperationType.RESTOCK:
+    if operation_type.is_restock:
         _validate_restock_location(session, agency_id, item_id, from_location, to_location, storages_by_id)
-    if operation_type == OperationType.TRANSFER:
+    if operation_type.is_transfer:
         _validate_transfer_locations(from_location, to_location, storages_by_id)
-    if operation_type == OperationType.TAKEOUT and (from_location is None or to_location is not None):
+    if operation_type.is_takeout and (from_location is None or to_location is not None):
         raise InventoryError("TAKEOUT requires one source storage")
     if from_location is not None and from_location not in storages_by_id:
         raise InventoryError("Source storage not found")

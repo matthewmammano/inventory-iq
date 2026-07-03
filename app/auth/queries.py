@@ -1,11 +1,19 @@
 """Auth domain queries — agencies, locations, and tags."""
 
+from dataclasses import dataclass
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.shared.database import managed_session
 
 from .models import Agencies, AgencyEmails, AgencyItemTags, AgencyLocations, AgencyStorages
+
+
+@dataclass(frozen=True, slots=True)
+class AgencyScanPermissions:
+    count: bool
+    restock: bool
 
 
 def get_agency(agency_id: int, session: Session | None = None) -> Agencies | None:
@@ -29,11 +37,11 @@ def list_agencies(*, active: bool, session: Session | None = None) -> list[Agenc
         return list(s.execute(stmt).scalars().all())
 
 
-def get_agency_permissions(display_name: str, session: Session | None = None) -> tuple[bool, bool] | None:
-    """Return (count_allow, restock_allow) or None if agency not found."""
+def get_agency_permissions(display_name: str, session: Session | None = None) -> AgencyScanPermissions | None:
+    """Return guest scan permissions, or None if agency not found."""
     with managed_session(session) as s:
         row = s.execute(select(Agencies.user_count_allow, Agencies.user_restock_allow).where(Agencies.display_name == display_name)).first()
-        return (row.user_count_allow, row.user_restock_allow) if row else None
+        return AgencyScanPermissions(count=bool(row.user_count_allow), restock=bool(row.user_restock_allow)) if row else None
 
 
 def list_locations(

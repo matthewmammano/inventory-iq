@@ -1,6 +1,4 @@
-# Inventory IQ V1 TODO
-
-## Active Plan
+# TODO
 
 - Expiration tracking across inventory, alerts, reports, and UI.
 
@@ -39,7 +37,7 @@
   - CSP hardening: move inline scripts/styles to static assets, then remove `unsafe-inline`.
 
 - Alert-record retention cleanup for old sent, suppressed, and cleared alert rows.
-- -
+
 - USER ID CARD SCANS for guest operations (for later accountability features).
--
+
 - Per-location item min/max/fallback usage overrides (bc BEACH has more calls then BORO for example).

@@ -107,7 +107,7 @@ def apply_action_to_quantities(quantities: dict[int, int], action: ActionLogs) -
     to_storage_id = action.to_location_id
     from_storage_id = action.from_location_id
 
-    if action.operation_type == OperationType.COUNT and to_storage_id is not None:
+    if action.is_count and to_storage_id is not None:
         updated[to_storage_id] = action.quantity_delta
         return updated
     if to_storage_id is not None:
@@ -120,7 +120,7 @@ def apply_action_to_quantities(quantities: dict[int, int], action: ActionLogs) -
 def _build_quantities_from_logs(logs: list[ActionLogs]) -> dict[int, int]:
     quantities: dict[int, int] = defaultdict(int)
     for log in logs:
-        if log.operation_type == OperationType.COUNT and log.to_location_id is not None:
+        if log.is_count and log.to_location_id is not None:
             quantities[log.to_location_id] = log.quantity_delta
             continue
         if log.to_location_id is not None:

@@ -49,6 +49,14 @@ Inventory IQ-specific conventions only. Generic engineering rules live in [../AG
 - Cross-field rules such as quiet-hour pairs, min/max comparisons, required-if-present fields, and count-before-restock behavior keep the canonical rule in Python and mirror only the UI behavior needed for early feedback.
 - When parsing form posts, preserve the real target type. Empty checkbox lists that represent `list[int]` stay empty lists, while optional scoped filters may still normalize to `None`.
 
+## Python Enum Style
+
+- Use `StrEnum` for persisted, API-facing, template-facing, or log-facing string vocabularies.
+- Use `IntEnum` only for integer protocols that must stay integer-compatible, such as legacy sentinel values.
+- Enum member names use `UPPER_SNAKE_CASE`.
+- Enum values must match the persisted or external contract exactly.
+- Put behavior on an enum only when it removes repeated branching or keeps directly related metadata with the vocabulary.
+
 ## Notification Emails
 
 - `agencies.email` is the login, password reset, and admin identity email.

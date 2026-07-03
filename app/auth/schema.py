@@ -11,6 +11,7 @@ from app.shared.validation_types import (
     ImageSource,
     LocationName,
     Password,
+    ResetPin,
     StorageName,
     TagColor,
     TagName,
@@ -24,6 +25,20 @@ class LoginRequest(BaseModel):
 
     email: EmailAddress128
     password: str = Field(min_length=1)
+
+
+class ForgotPasswordRequest(BaseModel):
+    """Forgot-password request payload."""
+
+    email: EmailAddress128
+
+
+class ResetPasswordRequest(BaseModel):
+    """Password reset request payload."""
+
+    email: EmailAddress128
+    pin: ResetPin
+    password: Password
 
 
 class SetPasswordRequest(BaseModel):

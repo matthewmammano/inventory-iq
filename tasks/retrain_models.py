@@ -11,7 +11,7 @@ from app.auth.models import Agencies, AgencyLocations
 from app.inventory.models import Items
 from app.prediction.usage_model import train_location_trend
 from app.shared.database import get_session
-from app.shared.scheduler import RETRAIN_MODELS_JOB_NAME, claimed_scheduler_run, scheduler_daily_period_key
+from app.shared.scheduler import SchedulerJobName, claimed_scheduler_run, scheduler_daily_period_key
 from app.shared.task_logging import logged_task
 
 
@@ -20,7 +20,7 @@ def run() -> None:
     app = create_app()
     with app.app_context(), get_session() as session, logged_task("retrain_models") as task_result:
         period_key = scheduler_daily_period_key()
-        with claimed_scheduler_run(RETRAIN_MODELS_JOB_NAME, period_key) as run_id:
+        with claimed_scheduler_run(SchedulerJobName.RETRAIN_MODELS, period_key) as run_id:
             if run_id is None:
                 task_result["skipped"] = "already_claimed"
                 return

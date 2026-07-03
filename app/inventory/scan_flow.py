@@ -19,16 +19,15 @@ from .models import Items
 from .mutation_service import inventory_operation
 from .quantity_service import has_item_count
 from .scan_support import (
+    ScanSurface,
     can_skip_storage_selection,
     format_scan_location_label,
     format_scan_route_label,
     get_scan_permissions,
     load_scan_storage_choices,
-    minimum_scan_quantity,
     operation_from_storage_ids,
     redirect_to_scan_item,
     resolve_scan_location,
-    scan_fallback_endpoint,
     scan_success_message,
     single_scan_from_id,
     single_scan_to_id,
@@ -36,7 +35,7 @@ from .scan_support import (
     validate_scan_route,
 )
 from .schema import ScanItemRequest, ScanStoragesRequest
-from .upc_service import record_unknown_upc, unknown_upc_scan_message
+from .upc_service import record_unknown_upc
 
 
 @dataclass(frozen=True)
@@ -58,8 +57,7 @@ def handle_scan_start(
     is_admin: bool = False,
 ):
     """Redirect to quantity entry or storage selection for one item."""
-    route = "admin" if is_admin else "guest"
-    fallback = scan_fallback_endpoint(route)
+    surface = ScanSurface.from_admin_flag(is_admin)
 
     with get_session() as db:
         item = _get_scan_item(db, item_id, upc, is_admin=is_admin)
@@ -67,7 +65,7 @@ def handle_scan_start(
             message = "Item not found for this squad."
             if upc:
                 try:
-                    message = unknown_upc_scan_message(record_unknown_upc(db, current_user.id, upc))
+                    message = record_unknown_upc(db, current_user.id, upc).message
                     db.commit()
                 except ValueError as exc:
                     logger.info(
@@ -80,7 +78,7 @@ def handle_scan_start(
                 extra={"item_id": item_id, "upc": upc},
             )
             flash(message, "warning")
-            return redirect(url_for(fallback, squad=squad))
+            return redirect(surface.fallback_url(squad))
         storage_choices = load_scan_storage_choices(current_user.id, is_admin, db)
 
     permissions = get_scan_permissions(squad, is_admin=is_admin)
@@ -93,12 +91,12 @@ def handle_scan_start(
             extra={"item_id": item.id, "item_name": item.name},
         )
         flash("No valid storages found. Please check this device location.", "error")
-        return redirect(url_for(fallback, squad=squad))
+        return redirect(surface.fallback_url(squad))
     if can_skip_storage_selection(from_storages, to_storages, permissions):
-        return redirect_to_scan_item(route, squad, item.id, from_storages, to_storages, permissions)
+        return redirect_to_scan_item(surface, squad, item.id, from_storages, to_storages, permissions)
     return redirect(
         url_for(
-            f"{route}.scan_storages",
+            surface.endpoint("scan_storages"),
             squad=squad,
             item_id=item.id,
             user_count_allow=permissions.count,
@@ -110,12 +108,9 @@ def handle_scan_start(
 def handle_scan_storages_get(
     squad: str,
     item_id: int | None,
-    user_count_allow: bool,
-    user_restock_allow: bool,
     is_admin: bool = False,
 ):
-    route = "admin" if is_admin else "guest"
-    fallback = scan_fallback_endpoint(route)
+    surface = ScanSurface.from_admin_flag(is_admin)
     permissions = get_scan_permissions(squad, is_admin=is_admin)
 
     with get_session() as db:
@@ -128,7 +123,7 @@ def handle_scan_storages_get(
                 },
             )
             flash("Item not found for this squad.", "warning")
-            return redirect(url_for(fallback, squad=squad))
+            return redirect(surface.fallback_url(squad))
 
         storage_choices = load_scan_storage_choices(current_user.id, is_admin, db)
         from_storages = storage_choices.from_storages
@@ -136,7 +131,7 @@ def handle_scan_storages_get(
         default_location_id = storage_choices.default_location_id
 
     if can_skip_storage_selection(from_storages, to_storages, permissions):
-        return redirect_to_scan_item(route, squad, item.id, from_storages, to_storages, permissions)
+        return redirect_to_scan_item(surface, squad, item.id, from_storages, to_storages, permissions)
 
     auto_from_id = single_scan_from_id(from_storages, permissions)
     return render_template(
@@ -157,8 +152,7 @@ def handle_scan_storages_get(
 
 
 def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = False):
-    route = "admin" if is_admin else "guest"
-    fallback = scan_fallback_endpoint(route)
+    surface = ScanSurface.from_admin_flag(is_admin)
     permissions = get_scan_permissions(squad, is_admin=is_admin)
 
     try:
@@ -171,7 +165,7 @@ def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = Fals
             },
         )
         flash("Invalid form data. Please try again.", "error")
-        return redirect(url_for(fallback, squad=squad))
+        return redirect(surface.fallback_url(squad))
 
     with get_session() as db:
         route_error = validate_scan_route(
@@ -194,7 +188,7 @@ def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = Fals
             },
         )
         flash(route_error or "Invalid storage combination.", "error")
-        return redirect(url_for(f"{route}.scan_storages", squad=squad, item_id=request_data.item_id))
+        return redirect(url_for(surface.endpoint("scan_storages"), squad=squad, item_id=request_data.item_id))
 
     scan_item_args = {
         "squad": squad,
@@ -207,7 +201,7 @@ def handle_scan_storages_post(squad: str, form_data: dict, is_admin: bool = Fals
 
     return redirect(
         url_for(
-            f"{route}.scan_item",
+            surface.endpoint("scan_item"),
             **scan_item_args,
         )
     )
@@ -218,13 +212,10 @@ def handle_scan_item_get(
     item_id: int | None,
     from_location_id,
     to_location_id,
-    user_count_allow: bool = False,
-    user_restock_allow: bool = False,
     is_admin: bool = False,
     show_scan_route: bool = False,
 ):
-    route = "admin" if is_admin else "guest"
-    fallback = scan_fallback_endpoint(route)
+    surface = ScanSurface.from_admin_flag(is_admin)
     permissions = get_scan_permissions(squad, is_admin=is_admin)
     from_storage_id = parse_optional_int(from_location_id)
     to_storage_id = parse_optional_int(to_location_id)
@@ -252,7 +243,7 @@ def handle_scan_item_get(
             },
         )
         flash(route_error, "error")
-        return redirect(url_for(fallback, squad=squad))
+        return redirect(surface.fallback_url(squad))
     if not item:
         if is_admin:
             logger.info(
@@ -264,7 +255,7 @@ def handle_scan_item_get(
                 },
             )
             return redirect(
-                _admin_scan_items_url(
+                surface.admin_scan_items_url(
                     squad,
                     from_location_id=from_location_id,
                     to_location_id=to_location_id,
@@ -280,7 +271,7 @@ def handle_scan_item_get(
             },
         )
         flash("Invalid item or storage for this squad.", "warning")
-        return redirect(url_for(fallback, squad=squad))
+        return redirect(surface.fallback_url(squad))
 
     if not from_location:
         logger.info(
@@ -292,7 +283,7 @@ def handle_scan_item_get(
             },
         )
         flash("Invalid item or storage for this squad.", "warning")
-        return redirect(url_for(fallback, squad=squad))
+        return redirect(surface.fallback_url(squad))
 
     operation_type, _, _ = operation_from_storage_ids(from_storage_id, to_storage_id)
     return render_template(
@@ -306,30 +297,28 @@ def handle_scan_item_get(
         logo_img=current_user.image,
         admin=is_admin,
         page_subtitle=format_scan_route_label(from_location, to_location, is_admin=is_admin),
-        minimum_scan_quantity=minimum_scan_quantity(operation_type),
+        minimum_scan_quantity=operation_type.minimum_scan_quantity,
         show_scan_route=show_scan_route and not is_admin,
         selected_from_location_label=format_scan_location_label(from_location, is_admin=is_admin),
         selected_to_location_label=format_scan_location_label(to_location, is_admin=is_admin, takeout_allowed=True),
-        cancel_url=_scan_item_cancel_url(route, squad, from_location_id, to_location_id),
+        cancel_url=surface.scan_item_cancel_url(squad, from_location_id, to_location_id),
     )
 
 
 def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
-    route = "admin" if is_admin else "guest"
-    fallback = scan_fallback_endpoint(route)
+    surface = ScanSurface.from_admin_flag(is_admin)
     permissions = get_scan_permissions(squad, is_admin=is_admin)
 
     request_data = _parse_scan_item_request(form_data, squad, is_admin)
     if request_data is None:
-        return redirect(_scan_item_error_url(route, squad, None, None))
+        return redirect(surface.scan_item_error_url(squad))
 
     try:
         with get_session() as db:
             prepared = _prepare_scan_submit(
                 db,
                 squad,
-                route,
-                fallback,
+                surface,
                 permissions,
                 request_data,
                 is_admin,
@@ -347,7 +336,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
                 admin_action=is_admin,
                 session=db,
             )
-            initial_count_required = prepared.operation_type != OperationType.COUNT and not has_item_count(db, current_user.id, prepared.item.id)
+            initial_count_required = not prepared.operation_type.is_count and not has_item_count(db, current_user.id, prepared.item.id)
             db.commit()
     except (InventoryError, ValueError) as exc:
         logger.info(
@@ -361,14 +350,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
             },
         )
         flash(str(exc), "warning")
-        return redirect(
-            _scan_item_error_url(
-                route,
-                squad,
-                request_data.from_location_id,
-                request_data.to_location_id,
-            )
-        )
+        return redirect(surface.scan_item_error_url(squad))
     except Exception:
         logger.exception(
             "Inventory update crashed unexpectedly",
@@ -380,14 +362,7 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
             },
         )
         flash("Inventory could not be saved. Try again.", "error")
-        return redirect(
-            _scan_item_error_url(
-                route,
-                squad,
-                request_data.from_location_id,
-                request_data.to_location_id,
-            )
-        )
+        return redirect(surface.scan_item_error_url(squad))
 
     message = scan_success_message(
         prepared.operation_type,
@@ -424,13 +399,13 @@ def handle_scan_item_post(squad: str, form_data: dict, is_admin: bool = False):
         flash("Ask an admin to enter an initial COUNT for this item so inventory totals stay accurate.", "warning")
     if is_admin:
         return redirect(
-            _admin_scan_items_url(
+            surface.admin_scan_items_url(
                 squad,
                 from_location_id=request_data.from_location_id,
                 to_location_id=request_data.to_location_id,
             )
         )
-    return redirect(url_for(f"{route}.index", squad=squad))
+    return redirect(surface.fallback_url(squad))
 
 
 def _parse_scan_item_request(
@@ -454,8 +429,7 @@ def _parse_scan_item_request(
 def _prepare_scan_submit(
     db: Session,
     squad: str,
-    route: str,
-    fallback: str,
+    surface: ScanSurface,
     permissions,
     request_data: ScanItemRequest,
     is_admin: bool,
@@ -487,17 +461,10 @@ def _prepare_scan_submit(
             },
         )
         flash(route_error, "error")
-        return redirect(
-            _scan_item_error_url(
-                route,
-                squad,
-                request_data.from_location_id,
-                request_data.to_location_id,
-            )
-        )
+        return redirect(surface.scan_item_error_url(squad))
 
     if not item:
-        return _scan_item_not_found_response(squad, fallback, request_data, is_admin)
+        return _scan_item_not_found_response(squad, surface, request_data)
 
     operation_type, from_storage_id, to_storage_id = operation_from_storage_ids(
         request_data.from_location_id,
@@ -516,11 +483,10 @@ def _prepare_scan_submit(
 
 def _scan_item_not_found_response(
     squad: str,
-    fallback: str,
+    surface: ScanSurface,
     request_data: ScanItemRequest,
-    is_admin: bool,
 ):
-    if is_admin:
+    if surface == ScanSurface.ADMIN:
         logger.info(
             "Admin scan submit redirected because the item was not found",
             extra={
@@ -530,7 +496,7 @@ def _scan_item_not_found_response(
             },
         )
         return redirect(
-            _admin_scan_items_url(
+            surface.admin_scan_items_url(
                 squad,
                 from_location_id=request_data.from_location_id,
                 to_location_id=request_data.to_location_id,
@@ -542,7 +508,7 @@ def _scan_item_not_found_response(
         extra={"item_id": request_data.item_id},
     )
     flash("Item not found for this squad.", "warning")
-    return redirect(url_for(fallback, squad=squad))
+    return redirect(surface.fallback_url(squad))
 
 
 def _get_scan_item(db, item_id: int | None, upc: str | None, *, is_admin: bool):
@@ -551,45 +517,3 @@ def _get_scan_item(db, item_id: int | None, upc: str | None, *, is_admin: bool):
     if item_id is None:
         return None
     return get_agency_item(current_user.id, item_id, session=db)
-
-
-def _scan_item_error_url(
-    route: str,
-    squad: str,
-    from_location_id: int | None,
-    to_location_id: int | None,
-) -> str:
-    if route == "admin":
-        return url_for("admin.admin_panel", squad=squad)
-    return url_for("guest.index", squad=squad)
-
-
-def _scan_item_cancel_url(
-    route: str,
-    squad: str,
-    from_location_id,
-    to_location_id,
-) -> str:
-    if route == "admin":
-        return _admin_scan_items_url(
-            squad,
-            from_location_id=from_location_id,
-            to_location_id=to_location_id,
-        )
-    return url_for("guest.index", squad=squad)
-
-
-def _admin_scan_items_url(
-    squad: str,
-    *,
-    from_location_id,
-    to_location_id,
-    scan_error: str | None = None,
-) -> str:
-    return url_for(
-        "admin.admin_scan_items",
-        squad=squad,
-        from_location_id=from_location_id,
-        to_location_id=to_location_id,
-        scan_error=scan_error,
-    )

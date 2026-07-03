@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import Agencies, AgencyLocations, AgencyStorages
 from app.inventory.item_queries import get_agency_item
-from app.inventory.location_state_service import affected_item_location_keys_for_actions, rebuild_item_location_states
+from app.inventory.location_state_service import ItemLocationKey, affected_item_location_keys_for_actions, rebuild_item_location_states
 from app.inventory.models import ActionLogs, InventoryItemLocationState, Items
 from app.shared.clock import utc_now_naive
 
@@ -83,7 +83,7 @@ def sync_state_audit_events(
     session: Session,
     *,
     agency_id: int | None = None,
-    item_location_keys: set[tuple[int, int, int]] | None = None,
+    item_location_keys: set[ItemLocationKey] | None = None,
     now: datetime | None = None,
 ) -> int:
     """Refresh stale-count and rare-takeout events from current item/location state."""
@@ -334,7 +334,7 @@ def _active_agencies(session: Session, agency_id: int | None) -> list[Agencies]:
 def _load_state_audit_rows(
     session: Session,
     agency_id: int | None,
-    item_location_keys: set[tuple[int, int, int]] | None = None,
+    item_location_keys: set[ItemLocationKey] | None = None,
 ) -> list[StateAuditRow]:
     stmt = (
         select(
@@ -363,9 +363,9 @@ def _load_state_audit_rows(
     if agency_id is not None:
         stmt = stmt.where(Agencies.id == agency_id)
     if item_location_keys:
-        agency_ids = {scope_agency_id for scope_agency_id, _, _ in item_location_keys}
-        item_ids = {item_id for _, item_id, _ in item_location_keys}
-        location_ids = {location_id for _, _, location_id in item_location_keys}
+        agency_ids = {key.agency_id for key in item_location_keys}
+        item_ids = {key.item_id for key in item_location_keys}
+        location_ids = {key.agency_location_id for key in item_location_keys}
         stmt = stmt.where(
             Agencies.id.in_(agency_ids),
             Items.id.in_(item_ids),
@@ -389,14 +389,14 @@ def _load_state_audit_rows(
     ]
     if not item_location_keys:
         return state_rows
-    return [state_row for state_row in state_rows if (state_row.agency_id, state_row.item_id, state_row.location_id) in item_location_keys]
+    return [state_row for state_row in state_rows if _state_audit_row_key(state_row) in item_location_keys]
 
 
 def _cancel_open_state_audit_events(
     session: Session,
     *,
     agency_id: int | None,
-    item_location_keys: set[tuple[int, int, int]] | None,
+    item_location_keys: set[ItemLocationKey] | None,
     now: datetime,
 ) -> None:
     stmt = select(InventoryAlertEvent).where(
@@ -406,7 +406,7 @@ def _cancel_open_state_audit_events(
     if agency_id is not None:
         stmt = stmt.where(InventoryAlertEvent.agency_id == agency_id)
     if item_location_keys:
-        stmt = stmt.where(InventoryAlertEvent.agency_id.in_({scope_agency_id for scope_agency_id, _, _ in item_location_keys}))
+        stmt = stmt.where(InventoryAlertEvent.agency_id.in_({key.agency_id for key in item_location_keys}))
 
     for event in session.execute(stmt).scalars():
         if item_location_keys is not None and _alert_event_item_location_key(event) not in item_location_keys:
@@ -414,16 +414,16 @@ def _cancel_open_state_audit_events(
         _cancel_event(event, now)
 
 
-def _alert_event_item_location_key(event: InventoryAlertEvent) -> tuple[int, int, int] | None:
+def _alert_event_item_location_key(event: InventoryAlertEvent) -> ItemLocationKey | None:
     item_id = event.payload_json.get("item_id")
     location_id = event.payload_json.get("agency_location_id")
     if not isinstance(item_id, int) or not isinstance(location_id, int):
         return None
-    return (event.agency_id, item_id, location_id)
+    return ItemLocationKey(event.agency_id, item_id, location_id)
 
 
-def _state_audit_row_key(state_audit_row: StateAuditRow) -> tuple[int, int, int]:
-    return (state_audit_row.agency_id, state_audit_row.item_id, state_audit_row.location_id)
+def _state_audit_row_key(state_audit_row: StateAuditRow) -> ItemLocationKey:
+    return ItemLocationKey(state_audit_row.agency_id, state_audit_row.item_id, state_audit_row.location_id)
 
 
 def _load_action_item(session: Session, action_log: ActionLogs) -> Items | None:

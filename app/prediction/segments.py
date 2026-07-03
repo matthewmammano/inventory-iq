@@ -261,10 +261,10 @@ def _trusted_quantity_delta(
     for movement in trusted_movements:
         if not (start_at < movement.scanned_at <= end_at):
             continue
-        if movement.operation_type == OperationType.RESTOCK and movement.to_storage_id in storage_id_set:
+        if movement.operation_type.is_restock and movement.to_storage_id in storage_id_set:
             delta += movement.quantity
             continue
-        if movement.operation_type == OperationType.TRANSFER:
+        if movement.operation_type.is_transfer:
             if movement.to_storage_id in storage_id_set:
                 delta += movement.quantity
             if movement.from_storage_id in storage_id_set:

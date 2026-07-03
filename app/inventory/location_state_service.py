@@ -18,6 +18,13 @@ from .location_state_policy import (
 from .models import ActionLogs, InventoryItemLocationState, InventoryStorageBalances, Items
 
 
+@dataclass(frozen=True, slots=True)
+class ItemLocationKey:
+    agency_id: int
+    item_id: int
+    agency_location_id: int
+
+
 @dataclass(frozen=True)
 class LocationStateRollup:
     """Rollup values needed to refresh one item/location state row."""
@@ -51,8 +58,8 @@ class LocationStateRebuildInput:
 def sync_location_states_for_actions(session: Session, actions: list[ActionLogs]) -> None:
     """Refresh item/location state rows affected by committed inventory actions."""
     keys = affected_item_location_keys_for_actions(session, actions)
-    for agency_id, item_id, agency_location_id in sorted(keys):
-        recompute_item_location_state(session, agency_id, item_id, agency_location_id)
+    for key in sorted(keys, key=lambda value: (value.agency_id, value.item_id, value.agency_location_id)):
+        recompute_item_location_state(session, key.agency_id, key.item_id, key.agency_location_id)
     if keys:
         session.flush()
         logger.debug(
@@ -66,10 +73,10 @@ def rebuild_item_location_states(session: Session, agency_id: int | None = None)
     rebuild_rows = _load_location_state_rebuild_rows(session, agency_id)
     existing_states = _state_rows_by_key(session, agency_id)
     location_rollups = _location_rollups_by_key(session, agency_id)
-    desired_keys = {(row.agency_id, row.item_id, row.agency_location_id) for row in rebuild_rows}
+    desired_keys = {ItemLocationKey(row.agency_id, row.item_id, row.agency_location_id) for row in rebuild_rows}
     now = utc_now_naive()
     for rebuild_row in rebuild_rows:
-        key = (rebuild_row.agency_id, rebuild_row.item_id, rebuild_row.agency_location_id)
+        key = ItemLocationKey(rebuild_row.agency_id, rebuild_row.item_id, rebuild_row.agency_location_id)
         state = existing_states.get(key) or InventoryItemLocationState(
             agency_id=rebuild_row.agency_id,
             item_id=rebuild_row.item_id,
@@ -318,18 +325,18 @@ def _load_location_state_rebuild_rows(session: Session, agency_id: int | None) -
 def _state_rows_by_key(
     session: Session,
     agency_id: int | None,
-) -> dict[tuple[int, int, int], InventoryItemLocationState]:
+) -> dict[ItemLocationKey, InventoryItemLocationState]:
     stmt = select(InventoryItemLocationState)
     if agency_id is not None:
         stmt = stmt.where(InventoryItemLocationState.agency_id == agency_id)
     rows = session.execute(stmt).scalars()
-    return {(row.agency_id, row.item_id, row.agency_location_id): row for row in rows}
+    return {ItemLocationKey(row.agency_id, row.item_id, row.agency_location_id): row for row in rows}
 
 
 def _location_rollups_by_key(
     session: Session,
     agency_id: int | None,
-) -> dict[tuple[int, int, int], LocationStateRollup]:
+) -> dict[ItemLocationKey, LocationStateRollup]:
     stmt = (
         select(
             InventoryStorageBalances.agency_id,
@@ -346,7 +353,7 @@ def _location_rollups_by_key(
     if agency_id is not None:
         stmt = stmt.where(InventoryStorageBalances.agency_id == agency_id)
     return {
-        (row[0], row[1], row[2]): LocationStateRollup(
+        ItemLocationKey(row[0], row[1], row[2]): LocationStateRollup(
             total_quantity=int(row[3] or 0),
             last_counted_at=row[4],
             last_activity_at=row[5],
@@ -359,7 +366,7 @@ def _location_rollups_by_key(
 def affected_item_location_keys_for_actions(
     session: Session,
     actions: list[ActionLogs],
-) -> set[tuple[int, int, int]]:
+) -> set[ItemLocationKey]:
     """Return agency/item/location keys affected by inventory action storage IDs."""
     storage_ids = sorted(
         {
@@ -373,13 +380,13 @@ def affected_item_location_keys_for_actions(
         return set()
     storages = session.execute(select(AgencyStorages).where(AgencyStorages.id.in_(storage_ids))).scalars()
     location_by_storage_id = {storage.id: storage.location_id for storage in storages}
-    keys: set[tuple[int, int, int]] = set()
+    keys: set[ItemLocationKey] = set()
     for action in actions:
         if action.item_id is None:
             continue
         for storage_id in (action.from_location_id, action.to_location_id):
             if storage_id is not None and storage_id in location_by_storage_id:
-                keys.add((action.agency_id, action.item_id, location_by_storage_id[storage_id]))
+                keys.add(ItemLocationKey(action.agency_id, action.item_id, location_by_storage_id[storage_id]))
     return keys
 
 
@@ -400,8 +407,8 @@ def _existing_location_state(
 
 def _delete_obsolete_state_rows(
     session: Session,
-    existing_rows: dict[tuple[int, int, int], InventoryItemLocationState],
-    desired_keys: set[tuple[int, int, int]],
+    existing_rows: dict[ItemLocationKey, InventoryItemLocationState],
+    desired_keys: set[ItemLocationKey],
 ) -> None:
     for key, row in existing_rows.items():
         if key not in desired_keys:

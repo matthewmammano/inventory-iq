@@ -74,7 +74,7 @@ def _operation_points(
         before = sum(quantities.values())
         _apply_log(quantities, log)
         total = sum(quantities.values())
-        if log.operation_type == OperationType.COUNT:
+        if log.is_count:
             continue
         if total != before:
             operation_points.append(_point(scanned_at, total, log.operation_type.value))
@@ -84,7 +84,7 @@ def _operation_points(
 def _apply_log(quantities: dict[int, int], log: ActionLogs) -> None:
     to_storage_id = log.to_location_id
     from_storage_id = log.from_location_id
-    if log.operation_type == OperationType.COUNT and to_storage_id is not None and to_storage_id in quantities:
+    if log.is_count and to_storage_id is not None and to_storage_id in quantities:
         quantities[to_storage_id] = log.quantity_delta
         return
     if to_storage_id is not None and to_storage_id in quantities:

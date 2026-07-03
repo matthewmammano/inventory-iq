@@ -17,7 +17,6 @@ from app.shared.clock import utc_now
 from app.shared.email_client import EmailAttachment
 from app.shared.timezone_utils import convert_utc_to_local
 
-from .constants import OperationType
 from .history_service import HISTORY_REPORT_LIMIT, list_history_logs
 
 CSV_BOM = "\ufeff"
@@ -61,10 +60,10 @@ def build_history_csv_attachment(
     rows: list[dict[str, object]] = []
     count_actions = restock_actions = takeout_actions = transfer_actions = admin_actions = 0
     for log in logs:
-        count_actions += int(log.operation_type == OperationType.COUNT)
-        restock_actions += int(log.operation_type == OperationType.RESTOCK)
-        takeout_actions += int(log.operation_type == OperationType.TAKEOUT)
-        transfer_actions += int(log.operation_type == OperationType.TRANSFER)
+        count_actions += int(log.is_count)
+        restock_actions += int(log.is_restock)
+        takeout_actions += int(log.is_takeout)
+        transfer_actions += int(log.is_transfer)
         admin_actions += int(log.admin_action)
         rows.append(
             {

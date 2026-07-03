@@ -5,6 +5,7 @@ import time
 from collections.abc import Iterator
 from contextlib import contextmanager
 from datetime import datetime
+from enum import StrEnum
 from zoneinfo import ZoneInfo
 
 from flask import Flask
@@ -22,13 +23,21 @@ from app.shared.database import get_session
 from app.shared.models import SchedulerRun
 
 GLOBAL_SCHEDULER_AGENCY_ID = 0
-EMAIL_JOB_NAME = "process_alert_emails"
-INVENTORY_AUDIT_JOB_NAME = "generate_inventory_alerts"
-BALANCE_RECONCILIATION_JOB_NAME = "reconcile_inventory_balances"
-RETRAIN_MODELS_JOB_NAME = "retrain_models"
-JOB_STARTED = "started"
-JOB_SUCCESS = "success"
-JOB_FAILED = "failed"
+
+
+class SchedulerJobName(StrEnum):
+    PROCESS_ALERT_EMAILS = "process_alert_emails"
+    GENERATE_INVENTORY_ALERTS = "generate_inventory_alerts"
+    RECONCILE_INVENTORY_BALANCES = "reconcile_inventory_balances"
+    RETRAIN_MODELS = "retrain_models"
+
+
+class SchedulerRunStatus(StrEnum):
+    STARTED = "started"
+    SUCCESS = "success"
+    FAILED = "failed"
+
+
 EMAIL_DELIVERY_PERIOD_MINUTES = 10
 INVENTORY_AUDIT_LOCAL_HOUR = 7
 INVENTORY_AUDIT_LOCAL_MINUTE = 46
@@ -76,17 +85,10 @@ def _run_due_jobs() -> None:
 
 def _run_email_delivery_job(now: datetime) -> None:
     period_key = _email_delivery_period_key(now)
-    run_id = claim_scheduler_run(EMAIL_JOB_NAME, period_key)
-    if run_id is None:
-        return
-
-    try:
+    with claimed_scheduler_run(SchedulerJobName.PROCESS_ALERT_EMAILS, period_key) as run_id:
+        if run_id is None:
+            return
         result = process_all_alerts()
-    except Exception as exc:
-        finish_scheduler_run(run_id, JOB_FAILED, str(exc))
-        raise
-
-    finish_scheduler_run(run_id, JOB_SUCCESS)
     logger.info("Scheduled notification email job finished", extra=result | {"period_key": period_key})
 
 
@@ -97,15 +99,12 @@ def _run_daily_inventory_job(now: datetime) -> None:
         if period_key is None:
             continue
 
-        run_id = claim_scheduler_run(INVENTORY_AUDIT_JOB_NAME, period_key, agency_id)
-        if run_id is None:
-            continue
-
         try:
-            total += _generate_agency_inventory_alerts(agency_id)
-            finish_scheduler_run(run_id, JOB_SUCCESS)
-        except Exception as exc:
-            finish_scheduler_run(run_id, JOB_FAILED, str(exc))
+            with claimed_scheduler_run(SchedulerJobName.GENERATE_INVENTORY_ALERTS, period_key, agency_id) as run_id:
+                if run_id is None:
+                    continue
+                total += _generate_agency_inventory_alerts(agency_id)
+        except Exception:
             logger.exception(
                 "Scheduled inventory alert audit failed",
                 extra={"agency_id": agency_id, "period_key": period_key},
@@ -123,18 +122,15 @@ def _run_daily_balance_job(now: datetime) -> None:
         if period_key is None:
             continue
 
-        run_id = claim_scheduler_run(BALANCE_RECONCILIATION_JOB_NAME, period_key, agency_id)
-        if run_id is None:
-            continue
-
         try:
-            ran = True
-            result = _reconcile_agency_inventory_balances(agency_id)
-            total_mismatches += result.mismatch_count
-            total_repaired_rows += result.repaired_row_count
-            finish_scheduler_run(run_id, JOB_SUCCESS)
-        except Exception as exc:
-            finish_scheduler_run(run_id, JOB_FAILED, str(exc))
+            with claimed_scheduler_run(SchedulerJobName.RECONCILE_INVENTORY_BALANCES, period_key, agency_id) as run_id:
+                if run_id is None:
+                    continue
+                ran = True
+                result = _reconcile_agency_inventory_balances(agency_id)
+                total_mismatches += result.mismatch_count
+                total_repaired_rows += result.repaired_row_count
+        except Exception:
             logger.exception(
                 "Scheduled inventory balance audit failed",
                 extra={"agency_id": agency_id, "period_key": period_key},
@@ -144,7 +140,7 @@ def _run_daily_balance_job(now: datetime) -> None:
     logger.info(
         "Scheduled inventory balance audit finished",
         extra={
-            "job_name": BALANCE_RECONCILIATION_JOB_NAME,
+            "job_name": SchedulerJobName.RECONCILE_INVENTORY_BALANCES.value,
             "schedule_local_time": f"{BALANCE_AUDIT_LOCAL_HOUR:02d}:{BALANCE_AUDIT_LOCAL_MINUTE:02d}",
             "mismatch_count": total_mismatches,
             "repaired_row_count": total_repaired_rows,
@@ -216,7 +212,7 @@ def run_inventory_balance_audit(
         repaired_row_count += result.repaired_row_count
 
     summary: dict[str, int | str] = {
-        "job_name": BALANCE_RECONCILIATION_JOB_NAME,
+        "job_name": SchedulerJobName.RECONCILE_INVENTORY_BALANCES.value,
         "agencies_checked": agencies_checked,
         "mismatch_count": mismatch_count,
         "repaired_row_count": repaired_row_count,
@@ -237,14 +233,14 @@ def _reconcile_agency_inventory_balances(
 
 
 def claim_scheduler_run(
-    job_name: str,
+    job_name: SchedulerJobName,
     period_key: str,
     agency_id: int = GLOBAL_SCHEDULER_AGENCY_ID,
 ) -> int | None:
     with get_session() as session:
         existing_id = session.scalar(
             select(SchedulerRun.id).where(
-                SchedulerRun.job_name == job_name,
+                SchedulerRun.job_name == job_name.value,
                 SchedulerRun.agency_id == agency_id,
                 SchedulerRun.period_key == period_key,
             )
@@ -253,10 +249,10 @@ def claim_scheduler_run(
             return None
 
         run = SchedulerRun(
-            job_name=job_name,
+            job_name=job_name.value,
             agency_id=agency_id,
             period_key=period_key,
-            status=JOB_STARTED,
+            status=SchedulerRunStatus.STARTED.value,
         )
         session.add(run)
         try:
@@ -267,13 +263,13 @@ def claim_scheduler_run(
         return run.id
 
 
-def finish_scheduler_run(run_id: int, status: str, error: str | None = None) -> None:
+def finish_scheduler_run(run_id: int, status: SchedulerRunStatus, error: str | None = None) -> None:
     with get_session() as session:
         run = session.get(SchedulerRun, run_id)
         if run is None:
             logger.warning("Scheduler run marker missing", extra={"scheduler_run_id": run_id})
             return
-        run.status = status
+        run.status = status.value
         run.finished_at = utc_now().replace(tzinfo=None)
         run.error = error[:1000] if error else None
         session.commit()
@@ -281,7 +277,7 @@ def finish_scheduler_run(run_id: int, status: str, error: str | None = None) -> 
 
 @contextmanager
 def claimed_scheduler_run(
-    job_name: str,
+    job_name: SchedulerJobName,
     period_key: str,
     agency_id: int = GLOBAL_SCHEDULER_AGENCY_ID,
 ) -> Iterator[int | None]:
@@ -292,9 +288,9 @@ def claimed_scheduler_run(
     try:
         yield run_id
     except Exception as exc:
-        finish_scheduler_run(run_id, JOB_FAILED, str(exc))
+        finish_scheduler_run(run_id, SchedulerRunStatus.FAILED, str(exc))
         raise
-    finish_scheduler_run(run_id, JOB_SUCCESS)
+    finish_scheduler_run(run_id, SchedulerRunStatus.SUCCESS)
 
 
 def _poll_seconds() -> float:

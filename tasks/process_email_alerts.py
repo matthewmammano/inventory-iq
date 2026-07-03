@@ -7,7 +7,7 @@ import argparse
 
 from app import create_app
 from app.alerts.email_service import process_all_alerts
-from app.shared.scheduler import EMAIL_JOB_NAME, claimed_scheduler_run, scheduler_email_period_key
+from app.shared.scheduler import SchedulerJobName, claimed_scheduler_run, scheduler_email_period_key
 from app.shared.task_logging import logged_task
 
 
@@ -17,7 +17,7 @@ def run(*, force: bool = False) -> None:
     with app.app_context(), logged_task("process_email_alerts", force=force) as task_result:
         if not force:
             period_key = scheduler_email_period_key()
-            with claimed_scheduler_run(EMAIL_JOB_NAME, period_key) as run_id:
+            with claimed_scheduler_run(SchedulerJobName.PROCESS_ALERT_EMAILS, period_key) as run_id:
                 if run_id is None:
                     task_result["skipped"] = "already_claimed"
                     return

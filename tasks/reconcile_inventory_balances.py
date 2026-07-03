@@ -8,7 +8,7 @@ import argparse
 from app import create_app
 from app.shared.config import settings
 from app.shared.scheduler import (
-    BALANCE_RECONCILIATION_JOB_NAME,
+    SchedulerJobName,
     claimed_scheduler_run,
     run_inventory_balance_audit,
     scheduler_daily_period_key,
@@ -22,7 +22,7 @@ def run(*, agency_id: int | None = None, repair: bool = True) -> None:
     app = create_app()
     with app.app_context(), logged_task("reconcile_inventory_balances", agency_id=agency_id, repair=repair) as task_result:
         period_key = scheduler_daily_period_key()
-        with claimed_scheduler_run(BALANCE_RECONCILIATION_JOB_NAME, period_key, agency_id or 0) as run_id:
+        with claimed_scheduler_run(SchedulerJobName.RECONCILE_INVENTORY_BALANCES, period_key, agency_id or 0) as run_id:
             if run_id is None:
                 task_result["skipped"] = "already_claimed"
                 return

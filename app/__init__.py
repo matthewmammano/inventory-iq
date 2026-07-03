@@ -32,6 +32,10 @@ login_manager = LoginManager()
 ROUTE_MODULES = (
     "app.auth.routes",
     "app.inventory.routes.admin",
+    "app.inventory.routes.admin_bulk",
+    "app.inventory.routes.admin_reports",
+    "app.inventory.routes.admin_scan",
+    "app.inventory.routes.admin_upc",
     "app.inventory.routes.guest",
 )
 

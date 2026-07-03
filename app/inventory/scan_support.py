@@ -1,6 +1,7 @@
 """Support helpers for inventory scan flows."""
 
 from dataclasses import dataclass
+from enum import StrEnum
 from typing import Any
 
 from flask import redirect, url_for
@@ -23,13 +24,56 @@ from .constants import (
 )
 
 
-@dataclass
+class ScanSurface(StrEnum):
+    ADMIN = "admin"
+    GUEST = "guest"
+
+    @classmethod
+    def from_admin_flag(cls, is_admin: bool) -> "ScanSurface":
+        return cls.ADMIN if is_admin else cls.GUEST
+
+    def endpoint(self, endpoint_name: str) -> str:
+        return f"{self.value}.{endpoint_name}"
+
+    def fallback_url(self, squad: str) -> str:
+        if self == ScanSurface.ADMIN:
+            return url_for("admin.admin_scan_items", squad=squad)
+        return url_for("guest.index", squad=squad)
+
+    def scan_item_error_url(self, squad: str) -> str:
+        if self == ScanSurface.ADMIN:
+            return url_for("admin.admin_panel", squad=squad)
+        return url_for("guest.index", squad=squad)
+
+    def scan_item_cancel_url(self, squad: str, from_location_id: Any, to_location_id: Any) -> str:
+        if self == ScanSurface.ADMIN:
+            return self.admin_scan_items_url(squad, from_location_id=from_location_id, to_location_id=to_location_id)
+        return url_for("guest.index", squad=squad)
+
+    def admin_scan_items_url(
+        self,
+        squad: str,
+        *,
+        from_location_id: Any,
+        to_location_id: Any,
+        scan_error: str | None = None,
+    ) -> str:
+        return url_for(
+            "admin.admin_scan_items",
+            squad=squad,
+            from_location_id=from_location_id,
+            to_location_id=to_location_id,
+            scan_error=scan_error,
+        )
+
+
+@dataclass(frozen=True, slots=True)
 class ScanPermissions:
     count: bool
     restock: bool
 
 
-@dataclass
+@dataclass(frozen=True, slots=True)
 class ScanStorageChoices:
     from_storages: list[AgencyStorages]
     to_storages: list[AgencyStorages]
@@ -41,7 +85,7 @@ def get_scan_permissions(squad: str, *, is_admin: bool = False) -> ScanPermissio
         return ScanPermissions(count=True, restock=True)
     try:
         row = get_agency_permissions(squad)
-        return ScanPermissions(count=bool(row[0]), restock=bool(row[1])) if row else ScanPermissions(False, False)
+        return ScanPermissions(count=row.count, restock=row.restock) if row else ScanPermissions(False, False)
     except Exception:
         logger.exception("Scan permissions lookup failed", extra={"squad": squad, "admin": is_admin})
         return ScanPermissions(count=False, restock=False)
@@ -156,10 +200,6 @@ def format_scan_route_label(from_location, to_location, *, is_admin: bool) -> st
     return f"{from_label} -> {to_label}"
 
 
-def minimum_scan_quantity(operation_type: OperationType) -> int:
-    return 0 if operation_type == OperationType.COUNT else 1
-
-
 def storage_selection_subtitle(item_name: str) -> Markup:
     return Markup("Choose FROM and TO for {item_name}").format(item_name=bold_item_name(item_name))
 
@@ -247,7 +287,7 @@ def can_skip_storage_selection(
 
 
 def redirect_to_scan_item(
-    route: str,
+    surface: ScanSurface,
     squad: str,
     item_id: int,
     from_storages: list[AgencyStorages],
@@ -257,7 +297,7 @@ def redirect_to_scan_item(
     from_id, to_id = _single_scan_pair(from_storages, to_storages, permissions) or (None, None)
     return redirect(
         url_for(
-            f"{route}.scan_item",
+            surface.endpoint("scan_item"),
             squad=squad,
             item_id=item_id,
             from_location_id=from_id,
@@ -333,7 +373,3 @@ def _valid_to_ids(to_storages: list[AgencyStorages], from_storage_id: int | None
         VIRTUAL_LOCATION_TAKEOUT,
         *(storage.id for storage in to_storages if storage.id != from_storage_id),
     ]
-
-
-def scan_fallback_endpoint(route: str) -> str:
-    return f"{route}.{'admin_scan_items' if route == 'admin' else 'index'}"

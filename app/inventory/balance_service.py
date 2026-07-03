@@ -10,8 +10,14 @@ from sqlalchemy.orm import Session
 from app.auth.models import AgencyStorages
 from app.shared.clock import utc_now
 
-from .constants import OperationType
 from .models import ActionLogs, InventoryStorageBalances, Items
+
+
+@dataclass(frozen=True, order=True, slots=True)
+class StorageBalanceKey:
+    agency_id: int
+    item_id: int
+    storage_id: int
 
 
 @dataclass
@@ -53,9 +59,9 @@ def rebuild_inventory_balances(session: Session, agency_id: int | None = None) -
 
     rows = [
         InventoryStorageBalances(
-            agency_id=key[0],
-            item_id=key[1],
-            storage_id=key[2],
+            agency_id=key.agency_id,
+            item_id=key.item_id,
+            storage_id=key.storage_id,
             quantity=state.quantity,
             last_counted_at=state.last_counted_at,
             last_activity_at=state.last_activity_at,
@@ -93,9 +99,9 @@ def reconcile_inventory_balances(
         logger.error(
             "Inventory balance discrepancy detected",
             extra={
-                "agency_id": key[0],
-                "item_id": key[1],
-                "storage_id": key[2],
+                "agency_id": key.agency_id,
+                "item_id": key.item_id,
+                "storage_id": key.storage_id,
                 "expected_quantity": expected_state.quantity,
                 "stored_quantity": stored_state.quantity,
                 "expected_last_counted_at": _iso(expected_state.last_counted_at),
@@ -335,27 +341,27 @@ def has_balance_rows(session: Session, agency_id: int, item_id: int) -> bool:
     return row is not None
 
 
-def _action_balance_keys(actions: list[ActionLogs]) -> set[tuple[int, int, int]]:
-    keys: set[tuple[int, int, int]] = set()
+def _action_balance_keys(actions: list[ActionLogs]) -> set[StorageBalanceKey]:
+    keys: set[StorageBalanceKey] = set()
     for action in actions:
         if action.item_id is None:
             continue
         if action.from_location_id is not None:
-            keys.add((action.agency_id, action.item_id, action.from_location_id))
+            keys.add(StorageBalanceKey(action.agency_id, action.item_id, action.from_location_id))
         if action.to_location_id is not None:
-            keys.add((action.agency_id, action.item_id, action.to_location_id))
+            keys.add(StorageBalanceKey(action.agency_id, action.item_id, action.to_location_id))
     return keys
 
 
 def _load_balance_rows(
     session: Session,
-    keys: set[tuple[int, int, int]],
-) -> dict[tuple[int, int, int], InventoryStorageBalances]:
+    keys: set[StorageBalanceKey],
+) -> dict[StorageBalanceKey, InventoryStorageBalances]:
     if not keys:
         return {}
-    agency_ids = sorted({agency_id for agency_id, _, _ in keys})
-    item_ids = sorted({item_id for _, item_id, _ in keys})
-    storage_ids = sorted({storage_id for _, _, storage_id in keys})
+    agency_ids = sorted({key.agency_id for key in keys})
+    item_ids = sorted({key.item_id for key in keys})
+    storage_ids = sorted({key.storage_id for key in keys})
     rows = session.execute(
         select(InventoryStorageBalances).where(
             InventoryStorageBalances.agency_id.in_(agency_ids),
@@ -363,17 +369,17 @@ def _load_balance_rows(
             InventoryStorageBalances.storage_id.in_(storage_ids),
         )
     ).scalars()
-    return {(row.agency_id, row.item_id, row.storage_id): row for row in rows}
+    return {StorageBalanceKey(row.agency_id, row.item_id, row.storage_id): row for row in rows}
 
 
 def _apply_action_to_rows(
     session: Session,
-    row_by_key: dict[tuple[int, int, int], InventoryStorageBalances],
+    row_by_key: dict[StorageBalanceKey, InventoryStorageBalances],
     action: ActionLogs,
 ) -> None:
     if action.item_id is None:
         return
-    if action.operation_type == OperationType.COUNT and action.to_location_id is not None:
+    if action.is_count and action.to_location_id is not None:
         row = _ensure_row(session, row_by_key, action.agency_id, action.item_id, action.to_location_id)
         row.quantity = action.quantity_delta
         row.last_counted_at = action.time_scanned
@@ -390,19 +396,19 @@ def _apply_action_to_rows(
         row = _ensure_row(session, row_by_key, action.agency_id, action.item_id, action.from_location_id)
         row.quantity -= action.quantity_delta
         row.last_activity_at = action.time_scanned
-        if action.operation_type == OperationType.TAKEOUT:
+        if action.is_takeout:
             row.last_takeout_at = action.time_scanned
         row.updated_at = utc_now()
 
 
 def _ensure_row(
     session: Session,
-    row_by_key: dict[tuple[int, int, int], InventoryStorageBalances],
+    row_by_key: dict[StorageBalanceKey, InventoryStorageBalances],
     agency_id: int,
     item_id: int,
     storage_id: int,
 ) -> InventoryStorageBalances:
-    key = (agency_id, item_id, storage_id)
+    key = StorageBalanceKey(agency_id, item_id, storage_id)
     row = row_by_key.get(key)
     if row is not None:
         return row
@@ -418,7 +424,7 @@ def _ensure_row(
     return row
 
 
-def _computed_balance_state(session: Session, agency_id: int | None) -> dict[tuple[int, int, int], BalanceState]:
+def _computed_balance_state(session: Session, agency_id: int | None) -> dict[StorageBalanceKey, BalanceState]:
     stmt = select(
         ActionLogs.agency_id,
         ActionLogs.item_id,
@@ -432,29 +438,30 @@ def _computed_balance_state(session: Session, agency_id: int | None) -> dict[tup
         stmt = stmt.where(ActionLogs.agency_id == agency_id)
     stmt = stmt.order_by(ActionLogs.agency_id, ActionLogs.item_id, ActionLogs.time_scanned, ActionLogs.id)
 
-    state_by_key: dict[tuple[int, int, int], BalanceState] = {}
+    state_by_key: dict[StorageBalanceKey, BalanceState] = {}
     for row in session.execute(stmt):
-        key_base = (int(row.agency_id), int(row.item_id))
-        if row.operation_type == OperationType.COUNT and row.to_location_id is not None:
-            state = state_by_key.setdefault((key_base[0], key_base[1], int(row.to_location_id)), BalanceState())
+        row_agency_id = int(row.agency_id)
+        row_item_id = int(row.item_id)
+        if row.operation_type.is_count and row.to_location_id is not None:
+            state = state_by_key.setdefault(StorageBalanceKey(row_agency_id, row_item_id, int(row.to_location_id)), BalanceState())
             state.quantity = int(row.quantity_delta)
             state.last_counted_at = row.time_scanned
             state.last_activity_at = row.time_scanned
             continue
         if row.to_location_id is not None:
-            state = state_by_key.setdefault((key_base[0], key_base[1], int(row.to_location_id)), BalanceState())
+            state = state_by_key.setdefault(StorageBalanceKey(row_agency_id, row_item_id, int(row.to_location_id)), BalanceState())
             state.quantity += int(row.quantity_delta)
             state.last_activity_at = row.time_scanned
         if row.from_location_id is not None:
-            state = state_by_key.setdefault((key_base[0], key_base[1], int(row.from_location_id)), BalanceState())
+            state = state_by_key.setdefault(StorageBalanceKey(row_agency_id, row_item_id, int(row.from_location_id)), BalanceState())
             state.quantity -= int(row.quantity_delta)
             state.last_activity_at = row.time_scanned
-            if row.operation_type == OperationType.TAKEOUT:
+            if row.operation_type.is_takeout:
                 state.last_takeout_at = row.time_scanned
     return state_by_key
 
 
-def _stored_balance_state(session: Session, agency_id: int | None) -> dict[tuple[int, int, int], BalanceState]:
+def _stored_balance_state(session: Session, agency_id: int | None) -> dict[StorageBalanceKey, BalanceState]:
     stmt = select(
         InventoryStorageBalances.agency_id,
         InventoryStorageBalances.item_id,
@@ -468,7 +475,7 @@ def _stored_balance_state(session: Session, agency_id: int | None) -> dict[tuple
         stmt = stmt.where(InventoryStorageBalances.agency_id == agency_id)
     rows = session.execute(stmt).all()
     return {
-        (row.agency_id, row.item_id, row.storage_id): BalanceState(
+        StorageBalanceKey(row.agency_id, row.item_id, row.storage_id): BalanceState(
             quantity=int(row.quantity),
             last_counted_at=row.last_counted_at,
             last_activity_at=row.last_activity_at,
