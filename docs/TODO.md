@@ -4,8 +4,6 @@
 
 - design a better favicon, logo, front page for NON USERS!!! like an about page with features and everything!
 
-- lets create a HELP sorta wiki page for admins with bunch of articles, fuzzy search, and TAGS per article. so reworded better, but things like "why am i not receiving emails", "why is this prediction wrong", "how do predictions work", "what is best pattern for COUNT / RESTOCK / TAKEOUT / etc", ... think of WAY more, write in a simple and predictable way each article maybe not even in html. maybe simple MD instead translated to HTML article. IDK just needs to be simple and easily writable!!!
-
 - update locations trends, graphs (fix for understanding), validate, etc
   - change trend to be USAGE instead in DB, so >=0 instead of opposite, i like better
 

@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}Help Center{% endblock %}
+{% block header_title %}Help Center{% endblock %}
+{% block sub_title %}Short answers for common admin questions{% endblock %}
+{% block main_class %}help-main{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-help.css') }}">{% endblock %}
+
+{% block content %}
+<section class="help-search" data-admin-help>
+    <label for="admin-help-search">Search Help</label>
+    <input type="search" id="admin-help-search" placeholder="Search help articles" autocomplete="off">
+    <div class="help-tags" aria-label="Filter help articles by tag">
+        {% for tag in tags %}
+        <button class="help-tag" type="button" data-help-tag="{{ tag|lower }}" aria-pressed="false">
+            <span>{{ tag }}</span>
+            <span class="help-tag-clear" aria-hidden="true"></span>
+        </button>
+        {% endfor %}
+    </div>
+</section>
+
+<section class="help-results" aria-live="polite">
+    <div class="help-card-grid">
+        {% for article in articles %}
+        <a
+            class="card help-card"
+            href="{{ url_for('admin.admin_help_article', squad=squad, article_id=article.id) }}"
+            data-help-article
+            data-help-tags="{{ article.tag_keys|join('|') }}"
+            data-help-title="{{ article.title }}"
+            data-help-summary="{{ article.summary }}"
+            data-help-search="{{ article.search_text }}">
+            <h2>{{ article.title }}</h2>
+            <p>{{ article.summary }}</p>
+            <div class="tags">
+                {% for tag in article.tags %}
+                <span class="tag">{{ tag }}</span>
+                {% endfor %}
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+    <div class="empty-state hidden" data-help-empty>
+        <h2>No help articles found</h2>
+        <p>Try a different search or clear the selected tag.</p>
+    </div>
+</section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin-help.js') }}" defer></script>
+{% endblock %}

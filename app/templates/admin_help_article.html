@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block title %}{{ article.title }}{% endblock %}
+{% block header_title %}Help Center{% endblock %}
+{% block sub_title %}{{ article.title }}{% endblock %}
+{% block main_class %}help-main{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_help', squad=squad) }}">Back to Help</a>{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-help.css') }}">{% endblock %}
+
+{% block content %}
+<article class="panel help-article">
+    <div class="panel-header">
+        <div>
+            <h2>{{ article.title }}</h2>
+            <p>{{ article.summary }}</p>
+        </div>
+        <div class="tags">
+            {% for tag in article.tags %}
+            <span class="tag">{{ tag }}</span>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="panel-body help-article-body">
+        {{ article.body_html|safe }}
+    </div>
+</article>
+{% endblock %}

@@ -1,0 +1,137 @@
+.help-main {
+  width: min(1120px, calc(100% - (var(--page-gutter) * 2)));
+  margin: 0 auto;
+  padding: clamp(12px, 3svh, 28px) 0;
+}
+
+.help-search {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-md);
+  background: var(--color-panel);
+  box-shadow: var(--shadow-soft);
+}
+
+.help-search input[type="search"] {
+  min-height: 58px;
+  border: 3px solid var(--color-ink);
+  font-size: 1.05rem;
+}
+
+.help-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.help-tag {
+  min-height: 38px;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  padding: 0 10px;
+  border: 2px solid var(--color-line);
+  border-radius: var(--radius-sm);
+  background: var(--color-white);
+  color: var(--color-ink);
+  font: inherit;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.help-tag:hover,
+.help-tag:focus-visible,
+.help-tag.is-selected {
+  border-color: var(--color-primary-dark);
+  background: #fffefa;
+  box-shadow: var(--shadow-button);
+}
+
+.help-tag.is-selected {
+  background: var(--color-warning-bg);
+}
+
+.help-tag-clear {
+  width: 0;
+  height: 18px;
+  background: currentColor;
+  opacity: 0;
+  transition: width 0.15s ease, opacity 0.15s ease;
+  mask-image: url("https://img.icons8.com/material-outlined/24/delete-sign.png");
+  mask-position: center;
+  mask-repeat: no-repeat;
+  mask-size: contain;
+  -webkit-mask-image: url("https://img.icons8.com/material-outlined/24/delete-sign.png");
+  -webkit-mask-position: center;
+  -webkit-mask-repeat: no-repeat;
+  -webkit-mask-size: contain;
+}
+
+.help-tag.is-selected:hover .help-tag-clear,
+.help-tag.is-selected:focus-visible .help-tag-clear {
+  width: 18px;
+  opacity: 1;
+}
+
+.help-results {
+  display: grid;
+  gap: 12px;
+}
+
+.help-card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 14px;
+}
+
+.help-card {
+  align-content: start;
+  min-height: 164px;
+}
+
+.help-card[hidden] {
+  display: none;
+}
+
+.help-card .tags,
+.help-article .tags {
+  margin-top: 4px;
+}
+
+.help-card .tag,
+.help-article .tag {
+  border-color: #81734c;
+  background: #f4f0df;
+  color: #2f2b1e;
+}
+
+.help-article .panel-header > div:first-child {
+  display: grid;
+  gap: 8px;
+}
+
+.help-article-body {
+  display: grid;
+  gap: 5px;
+}
+
+.help-article-body h2,
+.help-article-body h3 {
+  margin-top: 20px;
+}
+
+.help-article-body ul,
+.help-article-body ol {
+  display: grid;
+  gap: 9px;
+  margin: 0;
+  padding-left: 1.2rem;
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.help-article-body > :first-child {
+  margin-top: 0;
+}
