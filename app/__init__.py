@@ -9,7 +9,7 @@ from typing import Any, cast
 
 from alembic import command
 from alembic.config import Config
-from flask import Flask, url_for
+from flask import Flask, send_from_directory, url_for
 from flask_login import LoginManager
 from loguru import logger
 
@@ -55,6 +55,7 @@ def create_app() -> Flask:
     register_error_handlers(app)
     _register_template_filters(app)
     _register_auth_loader()
+    _register_favicon_route(app)
     _register_health_check(app)
 
     logger.debug(
@@ -140,6 +141,16 @@ def _register_auth_loader() -> None:
             return get_agency(int(user_id))
         except (TypeError, ValueError):
             return None
+
+
+def _register_favicon_route(app: Flask) -> None:
+    @app.route("/favicon.ico")
+    def favicon():
+        return send_from_directory(
+            Path(app.static_folder or "") / "favicons",
+            "favicon.ico",
+            mimetype="image/vnd.microsoft.icon",
+        )
 
 
 def _register_health_check(app: Flask) -> None:

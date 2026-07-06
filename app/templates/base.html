@@ -6,10 +6,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta name="theme-color" content="#c7c7c7">
     <title>{% block title %}Inventory IQ{% endblock %}</title>
 
-    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
-    <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}" type="image/x-icon">
+    <link rel="icon" href="{{ url_for('static', filename='favicons/favicon.ico') }}" type="image/x-icon" sizes="16x16 32x32 64x64 96x96">
+    <link rel="shortcut icon" href="{{ url_for('static', filename='favicons/favicon.ico') }}" type="image/x-icon">
+    <link rel="icon" href="{{ url_for('static', filename='favicons/favicon-32x32.png') }}" type="image/png" sizes="32x32">
+    <link rel="icon" href="{{ url_for('static', filename='favicons/favicon-16x16.png') }}" type="image/png" sizes="16x16">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='favicons/apple-touch-icon-180x180.png') }}" sizes="180x180">
+    <link rel="manifest" href="{{ url_for('static', filename='favicons/site.webmanifest') }}">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/main.css') }}">

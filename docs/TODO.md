@@ -1,4 +1,4 @@
-# TODO
+# My TODO
 
 - Expiration tracking across inventory, alerts, reports, and UI.
 
@@ -7,7 +7,23 @@
 - update locations trends, graphs (fix for understanding), validate, etc
   - change trend to be USAGE instead in DB, so >=0 instead of opposite, i like better
 
-- Improve scheduled report email presentation: preview daily, weekly, and monthly report examples, then add graphs only if they keep the email simple and useful.
+- Improve scheduled report email presentation:
+  - All periods:
+    - Group at-risk status by location when agencies have multiple locations.
+    - Add reorder plan: item, location, suggested quantity, urgency reason, confidence/estimate note.
+  - Daily AND longer:
+    - Keep short: new unresolved risks and resolved risks
+    - Add readiness snapshot: good/low/stockout/predicted low/predicted stockout counts and percentages WITH A PIE CHART!!!
+  - Weekly AND longer:
+    - Add takeout leaders: highest-use items during the period by COUNTS. also trends by ML learning shown (IF at least >60% of items are ML and not the PRIOR ones ONLY).
+  - Monthly AND longer:
+    - Add restock coverage: restocked quantity vs takeout quantity.
+    - Add replenishment health: under-restocked, over-restocked, or balanced in PIE CHART!.
+    - Add longer trend notes only when they are clearer than raw alert tables.
+  - MANDATORY:
+    - Trends to promote the AI use, reviewed by ME beforehand, to describe how much benefit I am providing, etc.
+
+- add notification alert number (cached for 15 minutes OR until page open) for things like UPC unknowns, restock how many adviced (low WITHIN stock time), etc ADMIN PAGES
 
 - certain pages REQUIRE keyboard use (as touchscreen / on-screen keyboard not best UI). investigate restricting some pages to keyboard-only use and make sure it is clear to users that they need a keyboard for that page. how to do? how to NOT ban users with keyboard AND touchscreen, only non-keyboard users.
 

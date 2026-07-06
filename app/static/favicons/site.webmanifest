@@ -1,0 +1,21 @@
+{
+  "name": "Priority One Technologies",
+  "short_name": "Priority One Technologies",
+  "description": "Inventory scanning and stock tracking.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#c7c7c7",
+  "theme_color": "#c7c7c7",
+  "icons": [
+    {
+      "src": "android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
