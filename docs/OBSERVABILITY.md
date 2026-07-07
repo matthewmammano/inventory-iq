@@ -51,6 +51,10 @@ Prefer concrete identifiers and counts:
 - Scheduler/task claim, success, skip, and failure.
 - Unexpected exceptions with enough IDs to reproduce safely.
 
+## Client Diagnostics
+
+`POST /api/debug/report` ([app/diagnostics/](../app/diagnostics/)) logs one `"Client diagnostics received"` event per report: browser/device fields plus server-resolved `ip`/`country`/`city` under a nested `client_diagnostics` key, with `correlated_request_id` alongside it at the top level for grepping against the failing request's `X-Request-ID`. The client (`app/static/js/diagnostics.js`) sends once per browser session and again on unhandled JS errors/failed fetches — not on every request. Geo lookups are best-effort, cached per-process by IP (`app/diagnostics/geo_lookup.py`), and the endpoint is rate-limited per IP.
+
 ## Diagnostics
 
 - Log what happened and the safe identifiers needed to find it.

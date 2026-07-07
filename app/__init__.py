@@ -12,10 +12,12 @@ from alembic.config import Config
 from flask import Flask, has_request_context, request, send_from_directory, url_for
 from flask_login import LoginManager, current_user
 from loguru import logger
+from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.alerts import bp as alerts_bp
 from app.auth import bp as auth_bp
 from app.auth.queries import get_agency
+from app.diagnostics import bp as diagnostics_bp
 from app.errors import register_error_handlers
 from app.inventory import admin_bp, guest_bp
 from app.shared.config import settings
@@ -31,6 +33,7 @@ login_manager = LoginManager()
 
 ROUTE_MODULES = (
     "app.auth.routes",
+    "app.diagnostics.routes",
     "app.inventory.routes.admin",
     "app.inventory.routes.admin_bulk",
     "app.inventory.routes.admin_help",
@@ -48,6 +51,7 @@ def create_app() -> Flask:
     for module_name in ROUTE_MODULES:
         import_module(module_name)
     app = Flask(__name__, instance_path=str(_instance_path()))
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # Railway sits one reverse-proxy hop in front
     _configure_app(app)
     _init_extensions(app)
     _register_blueprints(app)
@@ -116,6 +120,7 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(guest_bp, url_prefix="/inventory")
     app.register_blueprint(admin_bp, url_prefix="/inventory")
     app.register_blueprint(alerts_bp, url_prefix="/alerts")
+    app.register_blueprint(diagnostics_bp, url_prefix="/")
 
 
 def _register_template_filters(app: Flask) -> None:

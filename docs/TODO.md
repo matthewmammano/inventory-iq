@@ -1,27 +1,5 @@
 # My TODO
 
-- **1. User tracking** - collect on every request and POST to /api/debug/report, STACK:
-  - JS: collect all client fields into one object, `fetch POST` to backend on every request (or on error only)
-  - Python/FastAPI: receive payload, append `ip`/`country`/`city` server-side, log the merged object
-  - Cache geo lookups in a plain `dict[str, dict]` in memory; swap for Redis in prod
-
-| Field | How |
-| - | - |
-| `userAgent` | `navigator.userAgent` |
-| `os` + `os_version` | parse `userAgent` with `ua-parser-js` |
-| `browser` + `browser_version` | parse `userAgent` with `ua-parser-js` |
-| `touch` | `navigator.maxTouchPoints > 0` |
-| `screen_px` | `screen.width + "x" + screen.height` |
-| `viewport_px` | `window.innerWidth + "x" + window.innerHeight` |
-| `pixel_ratio` | `window.devicePixelRatio` |
-| `color_depth` | `screen.colorDepth` |
-| `cpu_cores` | `navigator.hardwareConcurrency` |
-| `memory_gb` | `navigator.deviceMemory` |
-| `ip` | server-side: `request.headers.get("x-forwarded-for", request.client.host)` |
-| `country` + `city` | server-side: `GET http://ip-api.com/json/{ip}`, cache result by IP in a dict |
-| `timezone` | `Intl.DateTimeFormat().resolvedOptions().timeZone` |
-| `locale` | `navigator.language` |
-
 - Tighten Production Safety
   - is there any types of SAFETY things like rate limits, certain increased loading times, DDOS prevention, other attack prevention that I should ADD to my code?!
   - Keep schema/bootstrap and local QA setup scripts explicit and documented.
