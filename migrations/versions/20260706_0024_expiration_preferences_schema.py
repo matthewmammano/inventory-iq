@@ -141,7 +141,7 @@ def _backfill_notification_preferences() -> None:
         if legacy_column not in columns:
             continue
         bind.execute(
-            sa.text(
+            _preference_sql(
                 f"""
                 INSERT INTO notification_preferences (recipient_id, preference_key, enabled)
                 SELECT id, :preference_key, COALESCE({legacy_column}, FALSE)
@@ -158,7 +158,7 @@ def _backfill_notification_preferences() -> None:
         )
     for preference_key in NEW_PREFERENCES:
         bind.execute(
-            sa.text(
+            _preference_sql(
                 """
                 INSERT INTO notification_preferences (recipient_id, preference_key, enabled)
                 SELECT id, :preference_key, TRUE
@@ -203,7 +203,7 @@ def _backfill_legacy_notification_columns() -> None:
         if legacy_column not in _columns(RECIPIENT_TABLE):
             continue
         bind.execute(
-            sa.text(
+            _preference_sql(
                 f"""
                 UPDATE notification_recipients
                 SET {legacy_column} = COALESCE((
@@ -216,6 +216,10 @@ def _backfill_legacy_notification_columns() -> None:
             ),
             {"preference_key": preference_key},
         )
+
+
+def _preference_sql(sql: str):
+    return sa.text(sql).bindparams(sa.bindparam("preference_key", type_=sa.String(length=32)))
 
 
 def _create_expiration_tables() -> None:
