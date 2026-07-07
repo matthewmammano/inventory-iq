@@ -191,7 +191,7 @@ def build_summary_sections(
     return [
         section
         for preference in due_summary_preferences(local_now)
-        if bool(getattr(recipient, preference.field))
+        if recipient.preference_enabled(preference.key)
         and preference.bounds is not None
         and (section := _summary_section(session, agency.id, preference.label, preference.bounds(local_now)))
     ]
