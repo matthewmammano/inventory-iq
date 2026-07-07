@@ -7,7 +7,7 @@ from loguru import logger
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.auth.models import Agencies, AgencyLocations, AgencyStorages
+from app.auth.models import Agency, Location, Storage
 from app.shared.clock import utc_now_naive
 
 from .location_state_policy import (
@@ -15,7 +15,7 @@ from .location_state_policy import (
     effective_lead_time_days,
     evaluate_stock_state,
 )
-from .models import ActionLogs, InventoryItemLocationState, InventoryStorageBalances, Items
+from .models import ActionLog, InventoryItemLocationState, InventoryStorageBalance, Item
 
 
 @dataclass(frozen=True, slots=True)
@@ -55,7 +55,7 @@ class LocationStateRebuildInput:
     settings: LocationStateSettings
 
 
-def sync_location_states_for_actions(session: Session, actions: list[ActionLogs]) -> None:
+def sync_location_states_for_actions(session: Session, actions: list[ActionLog]) -> None:
     """Refresh item/location state rows affected by committed inventory actions."""
     keys = affected_item_location_keys_for_actions(session, actions)
     for key in sorted(keys, key=lambda value: (value.agency_id, value.item_id, value.agency_location_id)):
@@ -141,9 +141,9 @@ def update_state_trend(
     state.data_signature = data_signature
     state.trained_at = trained_at
     prior_daily_usage = session.scalar(
-        select(Items.prior_daily_usage).where(
-            Items.agency_id == agency_id,
-            Items.id == item_id,
+        select(Item.prior_daily_usage).where(
+            Item.agency_id == agency_id,
+            Item.id == item_id,
         )
     )
     if prior_daily_usage is None:
@@ -172,16 +172,16 @@ def _load_location_rollup(
 ) -> LocationStateRollup:
     row = session.execute(
         select(
-            func.coalesce(func.sum(InventoryStorageBalances.quantity), 0),
-            func.max(InventoryStorageBalances.last_counted_at),
-            func.max(InventoryStorageBalances.last_activity_at),
-            func.max(InventoryStorageBalances.last_takeout_at),
+            func.coalesce(func.sum(InventoryStorageBalance.quantity), 0),
+            func.max(InventoryStorageBalance.last_counted_at),
+            func.max(InventoryStorageBalance.updated_at),
+            func.max(InventoryStorageBalance.last_takeout_at),
         )
-        .join(AgencyStorages, AgencyStorages.id == InventoryStorageBalances.storage_id)
+        .join(Storage, Storage.id == InventoryStorageBalance.storage_id)
         .where(
-            InventoryStorageBalances.agency_id == agency_id,
-            InventoryStorageBalances.item_id == item_id,
-            AgencyStorages.location_id == agency_location_id,
+            InventoryStorageBalance.agency_id == agency_id,
+            InventoryStorageBalance.item_id == item_id,
+            Storage.location_id == agency_location_id,
         )
     ).one()
     return LocationStateRollup(
@@ -207,6 +207,7 @@ def _apply_state_values(
     rollup: LocationStateRollup,
     now: datetime,
 ) -> None:
+    before = _state_value_signature(state)
     state.total_quantity = rollup.total_quantity
     state.last_counted_at = rollup.last_counted_at
     state.last_activity_at = rollup.last_activity_at
@@ -215,8 +216,30 @@ def _apply_state_values(
     state.lead_time_days_snapshot = settings.lead_time_days
     state.restock_delivery_days_snapshot = settings.restock_delivery_days
     _apply_stock_policy(state, settings=settings, now=now)
-    state.state_version_at = _latest_datetime(rollup.last_activity_at, state.trained_at, now) or now
-    state.updated_at = now
+    state.state_version_at = _latest_datetime(state.state_version_at, rollup.last_activity_at, state.trained_at) or now
+    if state.id is None or before != _state_value_signature(state):
+        state.updated_at = now
+
+
+def _state_value_signature(state: InventoryItemLocationState) -> tuple[object, ...]:
+    return (
+        state.total_quantity,
+        state.last_counted_at,
+        state.last_activity_at,
+        state.last_takeout_at,
+        state.min_quantity_snapshot,
+        state.lead_time_days_snapshot,
+        state.restock_delivery_days_snapshot,
+        state.days_until_low,
+        state.days_until_stockout,
+        state.stock_status,
+        state.forecast_status,
+        state.effective_alert_type,
+        state.effective_alert_rank,
+        state.effective_severity,
+        state.effective_alert_started_at,
+        state.state_version_at,
+    )
 
 
 def _apply_stock_policy(
@@ -264,18 +287,18 @@ def _location_state_settings(
 ) -> LocationStateSettings | None:
     row = session.execute(
         select(
-            Items.min_quantity,
-            Agencies.lead_time_days,
-            Items.restock_delivery_days,
-            Items.prior_daily_usage,
+            Item.min_quantity,
+            Agency.lead_time_days,
+            Item.restock_delivery_days,
+            Item.prior_daily_usage,
         )
-        .join(Agencies, Agencies.id == Items.agency_id)
-        .join(AgencyLocations, AgencyLocations.agency_id == Agencies.id)
+        .join(Agency, Agency.id == Item.agency_id)
+        .join(Location, Location.agency_id == Agency.id)
         .where(
-            Agencies.id == agency_id,
-            Items.id == item_id,
-            Items.active.is_(True),
-            AgencyLocations.id == agency_location_id,
+            Agency.id == agency_id,
+            Item.id == item_id,
+            Item.active.is_(True),
+            Location.id == agency_location_id,
         )
     ).one_or_none()
     if row is None:
@@ -291,21 +314,21 @@ def _location_state_settings(
 def _load_location_state_rebuild_rows(session: Session, agency_id: int | None) -> list[LocationStateRebuildInput]:
     stmt = (
         select(
-            Items.agency_id,
-            Items.id,
-            AgencyLocations.id,
-            Items.min_quantity,
-            Agencies.lead_time_days,
-            Items.restock_delivery_days,
-            Items.prior_daily_usage,
+            Item.agency_id,
+            Item.id,
+            Location.id,
+            Item.min_quantity,
+            Agency.lead_time_days,
+            Item.restock_delivery_days,
+            Item.prior_daily_usage,
         )
-        .join(Agencies, Agencies.id == Items.agency_id)
-        .join(AgencyLocations, AgencyLocations.agency_id == Items.agency_id)
-        .where(Agencies.active.is_(True), Items.active.is_(True))
-        .order_by(Items.agency_id, Items.id, AgencyLocations.id)
+        .join(Agency, Agency.id == Item.agency_id)
+        .join(Location, Location.agency_id == Item.agency_id)
+        .where(Agency.active.is_(True), Item.active.is_(True))
+        .order_by(Item.agency_id, Item.id, Location.id)
     )
     if agency_id is not None:
-        stmt = stmt.where(Items.agency_id == agency_id)
+        stmt = stmt.where(Item.agency_id == agency_id)
     return [
         LocationStateRebuildInput(
             agency_id=row[0],
@@ -339,19 +362,19 @@ def _location_rollups_by_key(
 ) -> dict[ItemLocationKey, LocationStateRollup]:
     stmt = (
         select(
-            InventoryStorageBalances.agency_id,
-            InventoryStorageBalances.item_id,
-            AgencyStorages.location_id,
-            func.coalesce(func.sum(InventoryStorageBalances.quantity), 0),
-            func.max(InventoryStorageBalances.last_counted_at),
-            func.max(InventoryStorageBalances.last_activity_at),
-            func.max(InventoryStorageBalances.last_takeout_at),
+            InventoryStorageBalance.agency_id,
+            InventoryStorageBalance.item_id,
+            Storage.location_id,
+            func.coalesce(func.sum(InventoryStorageBalance.quantity), 0),
+            func.max(InventoryStorageBalance.last_counted_at),
+            func.max(InventoryStorageBalance.updated_at),
+            func.max(InventoryStorageBalance.last_takeout_at),
         )
-        .join(AgencyStorages, AgencyStorages.id == InventoryStorageBalances.storage_id)
-        .group_by(InventoryStorageBalances.agency_id, InventoryStorageBalances.item_id, AgencyStorages.location_id)
+        .join(Storage, Storage.id == InventoryStorageBalance.storage_id)
+        .group_by(InventoryStorageBalance.agency_id, InventoryStorageBalance.item_id, Storage.location_id)
     )
     if agency_id is not None:
-        stmt = stmt.where(InventoryStorageBalances.agency_id == agency_id)
+        stmt = stmt.where(InventoryStorageBalance.agency_id == agency_id)
     return {
         ItemLocationKey(row[0], row[1], row[2]): LocationStateRollup(
             total_quantity=int(row[3] or 0),
@@ -365,26 +388,26 @@ def _location_rollups_by_key(
 
 def affected_item_location_keys_for_actions(
     session: Session,
-    actions: list[ActionLogs],
+    actions: list[ActionLog],
 ) -> set[ItemLocationKey]:
     """Return agency/item/location keys affected by inventory action storage IDs."""
     storage_ids = sorted(
         {
             storage_id
             for action in actions
-            for storage_id in (action.from_location_id, action.to_location_id)
+            for storage_id in (action.from_storage_id, action.to_storage_id)
             if action.item_id is not None and storage_id is not None
         }
     )
     if not storage_ids:
         return set()
-    storages = session.execute(select(AgencyStorages).where(AgencyStorages.id.in_(storage_ids))).scalars()
+    storages = session.execute(select(Storage).where(Storage.id.in_(storage_ids))).scalars()
     location_by_storage_id = {storage.id: storage.location_id for storage in storages}
     keys: set[ItemLocationKey] = set()
     for action in actions:
         if action.item_id is None:
             continue
-        for storage_id in (action.from_location_id, action.to_location_id):
+        for storage_id in (action.from_storage_id, action.to_storage_id):
             if storage_id is not None and storage_id in location_by_storage_id:
                 keys.add(ItemLocationKey(action.agency_id, action.item_id, location_by_storage_id[storage_id]))
     return keys

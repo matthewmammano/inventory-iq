@@ -10,7 +10,7 @@
     {% else %}
         {% set counts_print_url = url_for('admin.inventory_counts_print', squad=squad) %}
     {% endif %}
-    <button class="button" id="open-counts-print" type="button" data-print-url="{{ counts_print_url }}">Print Report</button>
+    <button class="button" type="button" data-report-print-url="{{ counts_print_url }}" data-report-print-area="#counts-print-area">Print Report</button>
     <button class="success-button" data-email-modal-open="report-email-modal" type="button">Email Report</button>
     <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
 {% endblock %}
@@ -39,6 +39,10 @@
                         <th data-sort-column="{{ loop.index }}">{{ storage.name }}</th>
                         {% endfor %}
                         <th data-sort-column="{{ storages|length + 1 }}">Total</th>
+                        <th data-sort-column="{{ storages|length + 2 }}">Soonest Expiration</th>
+                        <th data-sort-column="{{ storages|length + 3 }}">Expired</th>
+                        <th data-sort-column="{{ storages|length + 4 }}">Expiring Soon</th>
+                        <th data-sort-column="{{ storages|length + 5 }}">Still Good</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -61,6 +65,11 @@
                         <td class="{{ row.storage_classes[storage.id] }}" data-sort-value="{{ row.storage_counts[storage.id] }}">{{ row.storage_counts[storage.id] }}</td>
                         {% endfor %}
                         <td class="{{ row.total_class }}" data-sort-value="{{ row.total }}">{{ row.total }}</td>
+                        {% set expiration = row.expiration_breakdown %}
+                        <td data-sort-value="{{ expiration.soonest_sort_value if expiration else '9999-12-31' }}">{{ expiration.soonest_label if expiration else '-' }}</td>
+                        <td data-sort-value="{{ expiration.expired_count if expiration else 0 }}">{{ expiration.expired_count if expiration else '-' }}</td>
+                        <td data-sort-value="{{ expiration.expiring_soon_count if expiration else 0 }}">{{ expiration.expiring_soon_count if expiration else '-' }}</td>
+                        <td data-sort-value="{{ expiration.good_count if expiration else 0 }}">{{ expiration.good_count if expiration else '-' }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -76,10 +85,10 @@
     <div class="modal">
         <h2>Email Report</h2>
         <p>Select who should receive the inventory report.</p>
-        {% if agency_emails %}
+        {% if notification_recipients %}
         <form method="POST" action="{{ url_for('admin.send_inventory_counts_email', squad=squad) }}" class="stack" data-validation-live="submit">
             <input type="hidden" name="active_location_id" value="{{ active_location_id or '' }}">
-            {{ email_recipient_options(agency_emails) }}
+            {{ email_recipient_options(notification_recipients) }}
             <div class="button-row">
                 <button class="success-button" data-email-submit type="submit" disabled>Email Report</button>
                 <button class="quiet-button" data-email-modal-close type="button">Cancel</button>
@@ -94,12 +103,12 @@
         {% endif %}
     </div>
 </div>
-<section id="counts-print-area" class="print-only" aria-hidden="true"></section>
+<section id="counts-print-area" class="print-only" aria-hidden="true" data-report-print-area></section>
 {% endblock %}
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/email-modal.js') }}" defer></script>
-<script src="{{ url_for('static', filename='js/inventory-counts-print.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/report-print.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/sortable-table.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/item-trend-modal.js') }}" defer></script>
 {% endblock %}

@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}Pending Tasks{% endblock %}
+{% block header_title %}Pending Tasks{% endblock %}
+{% block sub_title %}Unresolved admin work for this squad{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="panel-header">
+        <div>
+            <h2>Needs Review</h2>
+            <p>{{ tasks.total_count }} pending item{% if tasks.total_count != 1 %}s{% endif %}</p>
+        </div>
+    </div>
+    <div class="panel-body stack">
+        {% if tasks.total_count == 0 %}
+        <div class="empty-state"><h2>No pending tasks</h2></div>
+        {% else %}
+            {% if tasks.missing_expiration_count %}
+            <div class="task-row">
+                <div>
+                    <h3>Fix Missing Expiration Dates</h3>
+                    <p>{{ tasks.missing_expiration_count }} item/storage pair{% if tasks.missing_expiration_count != 1 %}s{% endif %} need expiration dates checked.</p>
+                </div>
+                <a class="warning-button" href="{{ url_for('admin.pending_expiration_dates', squad=squad) }}">Fix Dates</a>
+            </div>
+            {% endif %}
+
+            {% for task in tasks.stale_counts %}
+            <div class="task-row">
+                <div>
+                    <h3>Recount Stale Inventory Quantities</h3>
+                    <p>{{ task.count }} item{% if task.count != 1 %}s{% endif %} need recount at {{ task.location_name }}.</p>
+                </div>
+                <a
+                    class="warning-button"
+                    href="{{ url_for('admin.bulk_edit', squad=squad, agency_location_id=task.agency_location_id, item_ids=task.item_ids|join(',')) }}">
+                    Open Recount
+                </a>
+            </div>
+            {% endfor %}
+
+            {% if tasks.new_barcode_count %}
+            <div class="task-row">
+                <div>
+                    <h3>Review New Barcodes Requested</h3>
+                    <p>{{ tasks.new_barcode_count }} barcode{% if tasks.new_barcode_count != 1 %}s{% endif %} need linked or ignored.</p>
+                </div>
+                <a class="warning-button" href="{{ url_for('admin.pending_upcs', squad=squad, return_to='tasks') }}">Review Barcodes</a>
+            </div>
+            {% endif %}
+        {% endif %}
+    </div>
+</section>
+{% endblock %}

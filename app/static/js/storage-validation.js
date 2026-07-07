@@ -1,6 +1,6 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const fromRadios = document.querySelectorAll('input[name="from_location_id"]');
-    const toRadios = document.querySelectorAll('input[name="to_location_id"]');
+    const fromRadios = document.querySelectorAll('input[name="from_storage_id"]');
+    const toRadios = document.querySelectorAll('input[name="to_storage_id"]');
     const allChoices = document.querySelectorAll(".choice");
     const form = document.getElementById("scan-form");
     const sameStorageErrorInput = document.getElementById("same_location_error");
@@ -14,8 +14,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function hasInvalidCombination() {
-        const fromVal = selectedValue('from_location_id');
-        const toVal = selectedValue('to_location_id');
+        const fromVal = selectedValue('from_storage_id');
+        const toVal = selectedValue('to_storage_id');
         if (!fromVal || !toVal) {
             return false;
         }
@@ -28,12 +28,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function updateInvalidState() {
         allChoices.forEach((choice) => choice.classList.remove("invalid"));
-        const fromRadio = selectedValue("from_location_id");
-        const toRadio = selectedValue("to_location_id");
+        const fromRadio = selectedValue("from_storage_id");
+        const toRadio = selectedValue("to_storage_id");
         const invalid = hasInvalidCombination();
         sameStorageErrorInput.value = invalid ? "1" : "0";
         if (fromRadio && toRadio && routeLabel) {
-            routeLabel.textContent = `${fromRadio.closest(".radio-card").textContent.trim()} -> ${toRadio.closest(".radio-card").textContent.trim()}`;
+            routeLabel.textContent = `${fromRadio.closest(".radio-card").textContent.trim()} → ${toRadio.closest(".radio-card").textContent.trim()}`;
         }
         if (routeStatus) {
             routeStatus.textContent = invalid ? "Invalid storage selection" : (fromRadio && toRadio ? "Ready to continue" : "Choose storages");
@@ -48,8 +48,8 @@ document.addEventListener("DOMContentLoaded", () => {
     fromRadios.forEach((radio) => radio.addEventListener("change", updateInvalidState));
     toRadios.forEach((radio) => radio.addEventListener("change", updateInvalidState));
     form?.addEventListener("submit", (event) => {
-        const fromRadio = selectedValue("from_location_id");
-        const toRadio = selectedValue("to_location_id");
+        const fromRadio = selectedValue("from_storage_id");
+        const toRadio = selectedValue("to_storage_id");
         updateInvalidState();
         if (!fromRadio || !toRadio) {
             event.preventDefault();

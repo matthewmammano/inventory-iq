@@ -1,4 +1,4 @@
-"""Auth routes: login, logout, set-password."""
+"""Auth routes: login, logout, and password reset."""
 
 from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_user, logout_user
@@ -54,12 +54,6 @@ def login():
         return redirect(url_for("auth.login"))
 
     return _render_login()
-
-
-@bp.route("/set-password", methods=["GET", "POST"])
-def set_password():
-    flash("Use the reset PIN flow to set your password.", "info")
-    return redirect(url_for("auth.forgot_password"))
 
 
 @bp.route("/forgot-password", methods=["GET", "POST"])

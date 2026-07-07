@@ -11,7 +11,7 @@ An unknown barcode is a UPC that someone scanned but Inventory IQ could not matc
 
 ## Review Flow
 
-1. Open New Barcodes.
+1. Open Pending Tasks when a new barcode needs review.
 2. Review the UPC and any suggestion.
 3. Search for the correct existing item.
 4. Link the UPC only when it should count as that item.

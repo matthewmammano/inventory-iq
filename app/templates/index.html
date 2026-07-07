@@ -30,13 +30,6 @@
         </div>
     </div>
     {% endif %}
-    <div class="status">
-        {% if admin and selected_scan_route %}
-            Scan UPC or search inventory below.
-        {% else %}
-            Ready to scan UPC. Recent items shown below.
-        {% endif %}
-    </div>
     <input
         type="search"
         id="search"
@@ -50,8 +43,8 @@
         data-admin="{{ 'true' if admin else 'false' }}"
         data-scan-item-base="{{ scan_item_url_base|default('', true) }}"
         data-scan-error-url="{{ scan_error_url|default('', true) }}"
-        data-from-location-id="{{ selected_from_location_id|default('', true) }}"
-        data-to-location-id="{{ selected_to_location_id|default('', true) }}"
+        data-from-storage-id="{{ selected_from_storage_id|default('', true) }}"
+        data-to-storage-id="{{ selected_to_storage_id|default('', true) }}"
         data-items="{{ items_payload|tojson|forceescape }}"></ul>
 </section>
 {% endblock %}

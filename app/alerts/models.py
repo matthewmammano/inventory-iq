@@ -63,7 +63,7 @@ class NotificationEmailDelivery(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
-    agency_email_id: Mapped[int] = mapped_column(Integer, ForeignKey("agency_emails.id"), index=True)
+    notification_recipient_id: Mapped[int] = mapped_column(Integer, ForeignKey("notification_recipients.id"), index=True)
     recipient_email_snapshot: Mapped[str] = mapped_column(String(255))
     status: Mapped[NotificationEmailStatus] = mapped_column(
         SAEnum(NotificationEmailStatus, native_enum=False, length=16),
@@ -93,7 +93,7 @@ class NotificationEmailDelivery(Base):
     __table_args__ = (
         CheckConstraint("next_attempt_at IS NULL OR next_attempt_at >= send_at", name="ck_notification_email_next_attempt_after_send"),
         Index("idx_notification_email_deliveries_status_send", "status", "send_at"),
-        UniqueConstraint("agency_id", "agency_email_id", "delivery_key", name="uq_notification_email_deliveries_recipient_key"),
+        UniqueConstraint("agency_id", "notification_recipient_id", "delivery_key", name="uq_notification_email_deliveries_recipient_key"),
     )
 
     def __repr__(self) -> str:

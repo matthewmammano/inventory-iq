@@ -4,6 +4,7 @@ REPORT_SUBJECT_PREFIX = "\u2b1c [REPORT]"
 INVENTORY_COUNTS_TITLE = "Inventory Counts"
 HISTORY_LOGS_TITLE = "History Logs"
 INVENTORY_SUMMARIES_TITLE = "Inventory Summaries"
+RESTOCK_REPORT_TITLE = "Restock Estimates"
 
 
 def report_subject(title: str, agency_name: str) -> str:

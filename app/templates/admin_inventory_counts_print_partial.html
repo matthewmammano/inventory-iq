@@ -21,6 +21,10 @@
                     <th>{{ storage.name }}</th>
                     {% endfor %}
                     <th>Total</th>
+                    <th>Soonest Expiration</th>
+                    <th>Expired</th>
+                    <th>Expiring Soon</th>
+                    <th>Still Good</th>
                 </tr>
             </thead>
             <tbody>
@@ -31,6 +35,11 @@
                     <td>{{ row.storage_counts[storage.id] }}</td>
                     {% endfor %}
                     <td>{{ row.total }}</td>
+                    {% set expiration = row.expiration_breakdown %}
+                    <td>{{ expiration.soonest_label if expiration else '-' }}</td>
+                    <td>{{ expiration.expired_count if expiration else '-' }}</td>
+                    <td>{{ expiration.expiring_soon_count if expiration else '-' }}</td>
+                    <td>{{ expiration.good_count if expiration else '-' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

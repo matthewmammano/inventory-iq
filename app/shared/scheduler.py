@@ -4,6 +4,7 @@ import threading
 import time
 from collections.abc import Iterator
 from contextlib import contextmanager
+from dataclasses import dataclass
 from datetime import datetime
 from enum import StrEnum
 from zoneinfo import ZoneInfo
@@ -15,7 +16,7 @@ from sqlalchemy.exc import IntegrityError
 
 from app.alerts.alert_service import generate_scheduled_alerts
 from app.alerts.email_service import process_all_alerts
-from app.auth.models import Agencies
+from app.auth.models import Agency
 from app.inventory.balance_service import BalanceReconciliationResult, reconcile_inventory_balances
 from app.shared.clock import current_speed, utc_now
 from app.shared.config import settings
@@ -26,24 +27,38 @@ GLOBAL_SCHEDULER_AGENCY_ID = 0
 
 
 class SchedulerJobName(StrEnum):
-    PROCESS_ALERT_EMAILS = "process_alert_emails"
-    GENERATE_INVENTORY_ALERTS = "generate_inventory_alerts"
-    RECONCILE_INVENTORY_BALANCES = "reconcile_inventory_balances"
-    RETRAIN_MODELS = "retrain_models"
+    PROCESS_ALERT_EMAILS = "PROCESS_ALERT_EMAILS"
+    GENERATE_INVENTORY_ALERTS = "GENERATE_INVENTORY_ALERTS"
+    RECONCILE_INVENTORY_BALANCES = "RECONCILE_INVENTORY_BALANCES"
+    RETRAIN_MODELS = "RETRAIN_MODELS"
 
 
 class SchedulerRunStatus(StrEnum):
-    STARTED = "started"
-    SUCCESS = "success"
-    FAILED = "failed"
+    STARTED = "STARTED"
+    SUCCESS = "SUCCESS"
+    FAILED = "FAILED"
+
+
+@dataclass(frozen=True, slots=True)
+class DailySchedulerSpec:
+    job_name: SchedulerJobName
+    local_hour: int
+    local_minute: int
+
+    @property
+    def local_time_label(self) -> str:
+        return f"{self.local_hour:02d}:{self.local_minute:02d}"
+
+    def period_key(self, now: datetime, timezone: str) -> str | None:
+        local_now = now.astimezone(ZoneInfo(timezone))
+        if (local_now.hour, local_now.minute) < (self.local_hour, self.local_minute):
+            return None
+        return local_now.strftime("%Y-%m-%d")
 
 
 EMAIL_DELIVERY_PERIOD_MINUTES = 10
-INVENTORY_AUDIT_LOCAL_HOUR = 7
-INVENTORY_AUDIT_LOCAL_MINUTE = 46
-# Run the balance audit before daily alert email preparation.
-BALANCE_AUDIT_LOCAL_HOUR = 4
-BALANCE_AUDIT_LOCAL_MINUTE = 17
+INVENTORY_AUDIT_SCHEDULE = DailySchedulerSpec(SchedulerJobName.GENERATE_INVENTORY_ALERTS, 7, 46)
+BALANCE_AUDIT_SCHEDULE = DailySchedulerSpec(SchedulerJobName.RECONCILE_INVENTORY_BALANCES, 4, 17)
 
 _started = False
 
@@ -95,12 +110,12 @@ def _run_email_delivery_job(now: datetime) -> None:
 def _run_daily_inventory_job(now: datetime) -> None:
     total = 0
     for agency_id, timezone in _active_agency_schedules():
-        period_key = _inventory_audit_period_key(now, timezone)
+        period_key = INVENTORY_AUDIT_SCHEDULE.period_key(now, timezone)
         if period_key is None:
             continue
 
         try:
-            with claimed_scheduler_run(SchedulerJobName.GENERATE_INVENTORY_ALERTS, period_key, agency_id) as run_id:
+            with claimed_scheduler_run(INVENTORY_AUDIT_SCHEDULE.job_name, period_key, agency_id) as run_id:
                 if run_id is None:
                     continue
                 total += _generate_agency_inventory_alerts(agency_id)
@@ -118,12 +133,12 @@ def _run_daily_balance_job(now: datetime) -> None:
     total_mismatches = 0
     total_repaired_rows = 0
     for agency_id, timezone in _active_agency_schedules():
-        period_key = _balance_reconciliation_period_key(now, timezone)
+        period_key = BALANCE_AUDIT_SCHEDULE.period_key(now, timezone)
         if period_key is None:
             continue
 
         try:
-            with claimed_scheduler_run(SchedulerJobName.RECONCILE_INVENTORY_BALANCES, period_key, agency_id) as run_id:
+            with claimed_scheduler_run(BALANCE_AUDIT_SCHEDULE.job_name, period_key, agency_id) as run_id:
                 if run_id is None:
                     continue
                 ran = True
@@ -140,8 +155,8 @@ def _run_daily_balance_job(now: datetime) -> None:
     logger.info(
         "Scheduled inventory balance audit finished",
         extra={
-            "job_name": SchedulerJobName.RECONCILE_INVENTORY_BALANCES.value,
-            "schedule_local_time": f"{BALANCE_AUDIT_LOCAL_HOUR:02d}:{BALANCE_AUDIT_LOCAL_MINUTE:02d}",
+            "job_name": BALANCE_AUDIT_SCHEDULE.job_name.value,
+            "schedule_local_time": BALANCE_AUDIT_SCHEDULE.local_time_label,
             "mismatch_count": total_mismatches,
             "repaired_row_count": total_repaired_rows,
         },
@@ -150,28 +165,8 @@ def _run_daily_balance_job(now: datetime) -> None:
 
 def _active_agency_schedules() -> list[tuple[int, str]]:
     with get_session() as session:
-        rows = session.execute(select(Agencies.id, Agencies.timezone).where(Agencies.active.is_(True))).all()
+        rows = session.execute(select(Agency.id, Agency.timezone).where(Agency.active.is_(True))).all()
         return [(agency_id, timezone or "UTC") for agency_id, timezone in rows]
-
-
-def _inventory_audit_period_key(now: datetime, timezone: str) -> str | None:
-    local_now = now.astimezone(ZoneInfo(timezone))
-    if (local_now.hour, local_now.minute) < (
-        INVENTORY_AUDIT_LOCAL_HOUR,
-        INVENTORY_AUDIT_LOCAL_MINUTE,
-    ):
-        return None
-    return local_now.strftime("%Y-%m-%d")
-
-
-def _balance_reconciliation_period_key(now: datetime, timezone: str) -> str | None:
-    local_now = now.astimezone(ZoneInfo(timezone))
-    if (local_now.hour, local_now.minute) < (
-        BALANCE_AUDIT_LOCAL_HOUR,
-        BALANCE_AUDIT_LOCAL_MINUTE,
-    ):
-        return None
-    return local_now.strftime("%Y-%m-%d")
 
 
 def _email_delivery_period_key(now: datetime) -> str:

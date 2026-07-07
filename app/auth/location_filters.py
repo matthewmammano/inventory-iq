@@ -31,13 +31,13 @@ def validate_location_filter_ids(
     if location_ids is None:
         return None
 
-    from app.auth.models import AgencyLocations
+    from app.auth.models import Location
 
     valid_ids = set(
         session.execute(
-            select(AgencyLocations.id).where(
-                AgencyLocations.agency_id == agency_id,
-                AgencyLocations.id.in_(location_ids),
+            select(Location.id).where(
+                Location.agency_id == agency_id,
+                Location.id.in_(location_ids),
             )
         ).scalars()
     )

@@ -11,7 +11,7 @@ from markupsafe import Markup
 from sqlalchemy.orm import Session
 
 from app.auth.device_locations import get_device_location_id
-from app.auth.models import AgencyStorages
+from app.auth.models import Storage
 from app.auth.queries import get_agency_permissions, get_storage, list_locations
 from app.shared.html_formatting import bold_item_name
 from app.shared.validators import parse_optional_int
@@ -25,15 +25,15 @@ from .constants import (
 
 
 class ScanSurface(StrEnum):
-    ADMIN = "admin"
-    GUEST = "guest"
+    ADMIN = "ADMIN"
+    GUEST = "GUEST"
 
     @classmethod
     def from_admin_flag(cls, is_admin: bool) -> "ScanSurface":
         return cls.ADMIN if is_admin else cls.GUEST
 
     def endpoint(self, endpoint_name: str) -> str:
-        return f"{self.value}.{endpoint_name}"
+        return f"{self.value.lower()}.{endpoint_name}"
 
     def fallback_url(self, squad: str) -> str:
         if self == ScanSurface.ADMIN:
@@ -45,24 +45,24 @@ class ScanSurface(StrEnum):
             return url_for("admin.admin_panel", squad=squad)
         return url_for("guest.index", squad=squad)
 
-    def scan_item_cancel_url(self, squad: str, from_location_id: Any, to_location_id: Any) -> str:
+    def scan_item_cancel_url(self, squad: str, from_storage_id: Any, to_storage_id: Any) -> str:
         if self == ScanSurface.ADMIN:
-            return self.admin_scan_items_url(squad, from_location_id=from_location_id, to_location_id=to_location_id)
+            return self.admin_scan_items_url(squad, from_storage_id=from_storage_id, to_storage_id=to_storage_id)
         return url_for("guest.index", squad=squad)
 
     def admin_scan_items_url(
         self,
         squad: str,
         *,
-        from_location_id: Any,
-        to_location_id: Any,
+        from_storage_id: Any,
+        to_storage_id: Any,
         scan_error: str | None = None,
     ) -> str:
         return url_for(
             "admin.admin_scan_items",
             squad=squad,
-            from_location_id=from_location_id,
-            to_location_id=to_location_id,
+            from_storage_id=from_storage_id,
+            to_storage_id=to_storage_id,
             scan_error=scan_error,
         )
 
@@ -75,8 +75,8 @@ class ScanPermissions:
 
 @dataclass(frozen=True, slots=True)
 class ScanStorageChoices:
-    from_storages: list[AgencyStorages]
-    to_storages: list[AgencyStorages]
+    from_storages: list[Storage]
+    to_storages: list[Storage]
     default_location_id: int | None
 
 
@@ -105,7 +105,7 @@ def load_scan_storage_choices(agency_id: int, is_admin: bool, session: Session) 
     )
 
 
-def storages_for_scan(agency_id: int, direction: str, is_admin: bool, session: Session) -> list[AgencyStorages]:
+def storages_for_scan(agency_id: int, direction: str, is_admin: bool, session: Session) -> list[Storage]:
     choices = load_scan_storage_choices(agency_id, is_admin, session)
     return choices.from_storages if direction == "from" else choices.to_storages
 
@@ -194,10 +194,10 @@ def is_scan_route_allowed(
     )
 
 
-def format_scan_route_label(from_location, to_location, *, is_admin: bool) -> str:
-    from_label = format_scan_location_label(from_location, is_admin=is_admin)
-    to_label = format_scan_location_label(to_location, is_admin=is_admin, takeout_allowed=True)
-    return f"{from_label} -> {to_label}"
+def format_scan_route_label(from_storage, to_storage, *, is_admin: bool) -> str:
+    from_label = format_scan_location_label(from_storage, is_admin=is_admin)
+    to_label = format_scan_location_label(to_storage, is_admin=is_admin, takeout_allowed=True)
+    return f"{from_label} → {to_label}"
 
 
 def storage_selection_subtitle(item_name: str) -> Markup:
@@ -211,7 +211,7 @@ def format_scan_location_label(location, *, is_admin: bool, takeout_allowed: boo
         return "COUNT"
     if takeout_allowed and location == VIRTUAL_LOCATION_TAKEOUT:
         return "TAKE"
-    if not isinstance(location, AgencyStorages):
+    if not isinstance(location, Storage):
         return "Unknown"
     return _scan_route_storage_name(location, is_admin)
 
@@ -224,8 +224,8 @@ def scan_success_message(
     to_storage_id: int | None,
     *,
     is_admin: bool = False,
-    from_storage: AgencyStorages | None = None,
-    to_storage: AgencyStorages | None = None,
+    from_storage: Storage | None = None,
+    to_storage: Storage | None = None,
 ) -> Markup:
     if from_storage is None and from_storage_id:
         from_storage = get_storage(from_storage_id, current_user.id)
@@ -263,13 +263,13 @@ def scan_success_message(
     return Markup("Operation completed for {item_name}.").format(item_name=bold_item_name(item_name))
 
 
-def _scan_storage_name(storage: AgencyStorages | None, is_admin: bool) -> str | None:
+def _scan_storage_name(storage: Storage | None, is_admin: bool) -> str | None:
     if storage is None:
         return None
     return storage.full_name if is_admin else storage.name
 
 
-def _scan_route_storage_name(storage: AgencyStorages, is_admin: bool) -> str:
+def _scan_route_storage_name(storage: Storage, is_admin: bool) -> str:
     location_name = storage.location.name if storage.location else ""
     if not location_name:
         return storage.name
@@ -279,8 +279,8 @@ def _scan_route_storage_name(storage: AgencyStorages, is_admin: bool) -> str:
 
 
 def can_skip_storage_selection(
-    from_storages: list[AgencyStorages],
-    to_storages: list[AgencyStorages],
+    from_storages: list[Storage],
+    to_storages: list[Storage],
     permissions: ScanPermissions,
 ) -> bool:
     return _single_scan_pair(from_storages, to_storages, permissions) is not None
@@ -290,8 +290,8 @@ def redirect_to_scan_item(
     surface: ScanSurface,
     squad: str,
     item_id: int,
-    from_storages: list[AgencyStorages],
-    to_storages: list[AgencyStorages],
+    from_storages: list[Storage],
+    to_storages: list[Storage],
     permissions: ScanPermissions,
 ):
     from_id, to_id = _single_scan_pair(from_storages, to_storages, permissions) or (None, None)
@@ -300,8 +300,8 @@ def redirect_to_scan_item(
             surface.endpoint("scan_item"),
             squad=squad,
             item_id=item_id,
-            from_location_id=from_id,
-            to_location_id=to_id,
+            from_storage_id=from_id,
+            to_storage_id=to_id,
             user_count_allow=permissions.count,
             user_restock_allow=permissions.restock,
         )
@@ -309,7 +309,7 @@ def redirect_to_scan_item(
 
 
 def single_scan_from_id(
-    from_storages: list[AgencyStorages],
+    from_storages: list[Storage],
     permissions: ScanPermissions,
 ) -> int | None:
     """Return the only available FROM choice, including virtual choices."""
@@ -317,7 +317,7 @@ def single_scan_from_id(
 
 
 def single_scan_to_id(
-    to_storages: list[AgencyStorages],
+    to_storages: list[Storage],
     from_storage_id: int | None = None,
 ) -> int | None:
     """Return the only available TO choice, including TAKE."""
@@ -326,7 +326,7 @@ def single_scan_to_id(
 
 
 def _single_from_id(
-    from_storages: list[AgencyStorages],
+    from_storages: list[Storage],
     permissions: ScanPermissions,
 ) -> int | None:
     choices = [storage.id for storage in from_storages]
@@ -337,14 +337,14 @@ def _single_from_id(
     return choices[0] if len(choices) == 1 else None
 
 
-def _single_to_id(to_storages: list[AgencyStorages]) -> int | None:
+def _single_to_id(to_storages: list[Storage]) -> int | None:
     choices = _valid_to_ids(to_storages, None)
     return choices[0] if len(choices) == 1 else None
 
 
 def _single_scan_pair(
-    from_storages: list[AgencyStorages],
-    to_storages: list[AgencyStorages],
+    from_storages: list[Storage],
+    to_storages: list[Storage],
     permissions: ScanPermissions,
 ) -> tuple[int, int] | None:
     pairs = [
@@ -354,8 +354,8 @@ def _single_scan_pair(
 
 
 def _valid_from_ids(
-    from_storages: list[AgencyStorages],
-    to_storages: list[AgencyStorages],
+    from_storages: list[Storage],
+    to_storages: list[Storage],
     permissions: ScanPermissions,
 ) -> list[int]:
     choices = [storage.id for storage in from_storages]
@@ -366,7 +366,7 @@ def _valid_from_ids(
     return choices
 
 
-def _valid_to_ids(to_storages: list[AgencyStorages], from_storage_id: int | None) -> list[int]:
+def _valid_to_ids(to_storages: list[Storage], from_storage_id: int | None) -> list[int]:
     if from_storage_id in (VIRTUAL_LOCATION_RESTOCK, VIRTUAL_LOCATION_COUNT):
         return [storage.id for storage in to_storages]
     return [

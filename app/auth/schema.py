@@ -41,12 +41,6 @@ class ResetPasswordRequest(BaseModel):
     password: Password
 
 
-class SetPasswordRequest(BaseModel):
-    """Set password request payload."""
-
-    password: Password
-
-
 class AgencyResponse(BaseModel):
     """Agency response payload."""
 

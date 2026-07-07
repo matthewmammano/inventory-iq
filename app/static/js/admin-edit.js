@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     const checkboxDisplay = (field, checked) => field.dataset[checked ? "onDisplay" : "offDisplay"] || (checked ? "Yes" : "No");
     const isInactiveNewNotificationField = (field) => {
-        const row = field.closest("[data-new-email-row]");
+        const row = field.closest("[data-new-recipient-row]");
         if (!row) return false;
         const emailInput = row.querySelector("input[type='email']");
         return !emailInput?.value.trim();
@@ -94,12 +94,12 @@ document.addEventListener("DOMContentLoaded", () => {
                 syncAddUpcRows(input);
             });
         });
-        container.querySelectorAll("[data-new-email-row]:not([data-dynamic-bound])").forEach((row) => {
+        container.querySelectorAll("[data-new-recipient-row]:not([data-dynamic-bound])").forEach((row) => {
             row.dataset.dynamicBound = "1";
             row.querySelector("input[type='email']")?.addEventListener("input", (event) => {
                 formValidation.validateField(event.target).then((valid) => {
-                    if (valid && !row.nextElementSibling?.matches("[data-new-email-row]")) {
-                        addBlankEmailRow(row);
+                    if (valid && !row.nextElementSibling?.matches("[data-new-recipient-row]")) {
+                        addBlankRecipientRow(row);
                     }
                 });
             });
@@ -186,14 +186,14 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     }
 
-    function addBlankEmailRow(row) {
+    function addBlankRecipientRow(row) {
         const clone = row.cloneNode(true);
-        const nextIndex = Math.max(...[...document.querySelectorAll("[data-new-email-row]")].map((item) => Number(item.dataset.emailIndex || 0))) + 1;
-        const oldPrefix = `new_email_${row.dataset.emailIndex || 0}`;
-        const newPrefix = `new_email_${nextIndex}`;
-        clone.dataset.emailIndex = String(nextIndex);
+        const nextIndex = Math.max(...[...document.querySelectorAll("[data-new-recipient-row]")].map((item) => Number(item.dataset.recipientIndex || 0))) + 1;
+        const oldPrefix = `new_recipient_${row.dataset.recipientIndex || 0}`;
+        const newPrefix = `new_recipient_${nextIndex}`;
+        clone.dataset.recipientIndex = String(nextIndex);
         clone.dataset.addedRow = "1";
-        clone.querySelector("input[name='new_email_keys']").value = newPrefix;
+        clone.querySelector("input[name='new_recipient_keys']").value = newPrefix;
         clone.querySelectorAll("[name]").forEach((field) => {
             field.name = field.name.replace(oldPrefix, newPrefix);
             if (field.dataset.pairWith) field.dataset.pairWith = field.dataset.pairWith.replace(oldPrefix, newPrefix);

@@ -11,13 +11,14 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.auth.location_filters import validate_location_filter_ids
-from app.auth.models import Agencies, AgencyEmails, AgencyItemTags
+from app.auth.models import Agency, ItemTag, NotificationPreferenceSetting, NotificationRecipient
 from app.auth.notification_preferences import (
     NOTIFICATION_FIELDS,
+    PREFERENCE_BY_FIELD,
     AlertEmailFrequency,
 )
 from app.inventory.admin_edit_schema import AdminItemForm, AdminNotificationForm, AdminSettingsForm, AdminTagForm
-from app.inventory.models import Items, ItemSecondaryUpc
+from app.inventory.models import Item, ItemSecondaryUpc
 from app.shared.email_client import EMAIL_RETRY_DELAYS_SECONDS, OutboundEmail, send_email
 
 
@@ -26,14 +27,14 @@ def save_admin_items(session: Session, agency_id: int, form: Any) -> int:
 
     rows = _submitted_item_forms(form)
     tags = _active_tag_ids(session, agency_id)
-    existing = _rows_by_id(session, Items, agency_id)
+    existing = _rows_by_id(session, Item, agency_id)
     changed = 0
     changed_item_ids: set[int] = set()
     for row in rows:
         active_tag_ids = set(row.tag_ids)
         if invalid_tags := sorted(active_tag_ids - tags):
             raise ValueError(f"Invalid tag selection: {invalid_tags}")
-        item = existing.get(row.id) if row.id else Items(agency_id=agency_id, last_accessed=None)
+        item = existing.get(row.id) if row.id else Item(agency_id=agency_id, last_accessed=None)
         if item is None:
             raise ValueError("Item not found.")
         if row.id is None:
@@ -60,21 +61,21 @@ def save_admin_items(session: Session, agency_id: int, form: Any) -> int:
 
 def save_admin_tags(session: Session, agency_id: int, form: Any) -> int:
     rows = _submitted_tag_forms(form)
-    existing = _rows_by_id(session, AgencyItemTags, agency_id)
+    existing = _rows_by_id(session, ItemTag, agency_id)
     changed = 0
     for row in rows:
         tag = (
             existing.get(row.id)
             if row.id
             else session.scalar(
-                select(AgencyItemTags).where(
-                    AgencyItemTags.agency_id == agency_id,
-                    func.lower(AgencyItemTags.tag_name) == row.tag_name.lower(),
+                select(ItemTag).where(
+                    ItemTag.agency_id == agency_id,
+                    func.lower(ItemTag.tag_name) == row.tag_name.lower(),
                 )
             )
         )
         if tag is None:
-            tag = AgencyItemTags(agency_id=agency_id)
+            tag = ItemTag(agency_id=agency_id)
             session.add(tag)
         if row.id is not None and tag.id != row.id:
             raise ValueError("Tag not found.")
@@ -86,31 +87,37 @@ def save_admin_tags(session: Session, agency_id: int, form: Any) -> int:
 
 def save_admin_notifications(session: Session, agency_id: int, form: Any) -> int:
     rows = _submitted_notification_forms(form)
-    existing = _rows_by_id(session, AgencyEmails, agency_id)
+    existing = _rows_by_id(session, NotificationRecipient, agency_id)
     changed = 0
     for row in rows:
         location_ids = validate_location_filter_ids(session, agency_id, row.location_filter_ids)
         recipient = (
             existing.get(row.id)
             if row.id
-            else session.scalar(select(AgencyEmails).where(AgencyEmails.agency_id == agency_id, AgencyEmails.email == str(row.email)))
+            else session.scalar(
+                select(NotificationRecipient).where(
+                    NotificationRecipient.agency_id == agency_id,
+                    NotificationRecipient.email == str(row.email),
+                )
+            )
         )
         if recipient is None:
-            recipient = AgencyEmails(agency_id=agency_id)
+            recipient = NotificationRecipient(agency_id=agency_id)
             session.add(recipient)
         if row.id is not None and recipient.id != row.id:
             raise ValueError("Notification recipient not found.")
-        row_changed = _apply_model_values_if_changed(recipient, row, exclude={"id", "location_filter_ids"})
+        row_changed = _apply_model_values_if_changed(recipient, row, exclude={"id", "location_filter_ids", *NOTIFICATION_FIELDS})
         if recipient.location_filter_ids != location_ids:
             recipient.location_filter_ids = location_ids
             row_changed = True
+        row_changed = _sync_notification_preferences(recipient, row) or row_changed
         if row_changed:
             changed += 1
     logger.info("Admin notification edit submitted", extra={"agency_id": agency_id, "submitted_row_count": len(rows), "changed_row_count": changed})
     return changed
 
 
-def save_admin_settings(session: Session, agency: Agencies, values: dict[str, Any]) -> bool:
+def save_admin_settings(session: Session, agency: Agency, values: dict[str, Any]) -> bool:
     from app.alerts.alert_service import generate_scheduled_alerts
 
     settings = AdminSettingsForm.model_validate(values)
@@ -124,7 +131,7 @@ def save_admin_settings(session: Session, agency: Agencies, values: dict[str, An
     return changed
 
 
-def send_temporary_time_pin(session: Session, agency: Agencies) -> bool:
+def send_temporary_time_pin(session: Session, agency: Agency) -> bool:
     code = _local_time_code(agency.timezone)
     body = (
         "Inventory IQ temporary admin PIN\n\n"
@@ -144,42 +151,63 @@ def send_temporary_time_pin(session: Session, agency: Agencies) -> bool:
 
 
 def _submitted_item_forms(form: Any) -> list[AdminItemForm]:
-    rows = [
-        AdminItemForm.model_validate(
-            _submitted_row_values(form, f"item_{item_id}_") | {"id": item_id, "active": str(item_id) not in form.getlist("delete_item_ids")}
-        )
-        for item_id in _submitted_ids(form, "item_ids")
-    ]
-    if form.get("new_item_name", "").strip():
-        rows.append(AdminItemForm.model_validate(_submitted_row_values(form, "new_item_") | {"active": True}))
-    return rows
+    return _submitted_active_rows(
+        form,
+        AdminItemForm,
+        ids_key="item_ids",
+        row_prefix="item",
+        delete_key="delete_item_ids",
+        new_prefix="new_item_",
+        new_required_key="new_item_name",
+    )
 
 
 def _submitted_tag_forms(form: Any) -> list[AdminTagForm]:
+    return _submitted_active_rows(
+        form,
+        AdminTagForm,
+        ids_key="tag_ids",
+        row_prefix="tag",
+        delete_key="delete_tag_ids",
+        new_prefix="new_tag_",
+        new_required_key="new_tag_tag_name",
+    )
+
+
+def _submitted_active_rows[AdminEditFormT: BaseModel](
+    form: Any,
+    form_type: type[AdminEditFormT],
+    *,
+    ids_key: str,
+    row_prefix: str,
+    delete_key: str,
+    new_prefix: str,
+    new_required_key: str,
+) -> list[AdminEditFormT]:
     rows = [
-        AdminTagForm.model_validate(
-            _submitted_row_values(form, f"tag_{tag_id}_") | {"id": tag_id, "active": str(tag_id) not in form.getlist("delete_tag_ids")}
+        form_type.model_validate(
+            _submitted_row_values(form, f"{row_prefix}_{row_id}_") | {"id": row_id, "active": str(row_id) not in form.getlist(delete_key)}
         )
-        for tag_id in _submitted_ids(form, "tag_ids")
+        for row_id in _submitted_ids(form, ids_key)
     ]
-    if form.get("new_tag_tag_name", "").strip():
-        rows.append(AdminTagForm.model_validate(_submitted_row_values(form, "new_tag_") | {"active": True}))
+    if form.get(new_required_key, "").strip():
+        rows.append(form_type.model_validate(_submitted_row_values(form, new_prefix) | {"active": True}))
     return rows
 
 
 def _submitted_notification_forms(form: Any) -> list[AdminNotificationForm]:
     rows = [
         AdminNotificationForm.model_validate(
-            _submitted_row_values(form, f"email_{email_id}_")
+            _submitted_row_values(form, f"recipient_{recipient_id}_")
             | {
-                "id": email_id,
-                "active": str(email_id) not in form.getlist("delete_email_ids"),
-                "location_filter_ids": _submitted_int_list(form.getlist(f"email_{email_id}_location_filter_ids")),
+                "id": recipient_id,
+                "active": str(recipient_id) not in form.getlist("delete_recipient_ids"),
+                "location_filter_ids": _submitted_int_list(form.getlist(f"recipient_{recipient_id}_location_filter_ids")),
             }
         )
-        for email_id in _submitted_ids(form, "email_ids")
+        for recipient_id in _submitted_ids(form, "recipient_ids")
     ]
-    for prefix in form.getlist("new_email_keys") or ["new_email"]:
+    for prefix in form.getlist("new_recipient_keys") or ["new_recipient"]:
         if not form.get(f"{prefix}_email", "").strip():
             continue
         rows.append(
@@ -201,6 +229,8 @@ def _submitted_row_values(form: Any, prefix: str) -> dict[str, Any]:
         "increments": _blank_to_none(form.get(f"{prefix}increments")),
         "tag_ids": _submitted_int_list(form.getlist(f"{prefix}tag_ids")),
         "image": _blank_to_none(form.get(f"{prefix}image")),
+        "expiration_tracking_enabled": _checkbox_is_checked(form, f"{prefix}expiration_tracking_enabled"),
+        "expiration_notice_days_override": _blank_to_none(form.get(f"{prefix}expiration_notice_days_override")),
         "min_quantity": form.get(f"{prefix}min_quantity"),
         "max_quantity": form.get(f"{prefix}max_quantity"),
         "batch_size": form.get(f"{prefix}batch_size") or 1,
@@ -210,10 +240,27 @@ def _submitted_row_values(form: Any, prefix: str) -> dict[str, Any]:
         "quiet_start_time": _blank_to_none(form.get(f"{prefix}quiet_start_time")),
         "quiet_end_time": _blank_to_none(form.get(f"{prefix}quiet_end_time")),
         "alert_frequency": form.get(f"{prefix}alert_frequency") or AlertEmailFrequency.HOURLY,
+        "expiration_notice_days": form.get(f"{prefix}expiration_notice_days"),
     } | {field: _checkbox_is_checked(form, f"{prefix}{field}") for field in NOTIFICATION_FIELDS}
 
 
-def _sync_secondary_upcs(session: Session, agency_id: int, item: Items, upcs: Sequence[str]) -> None:
+def _sync_notification_preferences(recipient: NotificationRecipient, row: AdminNotificationForm) -> bool:
+    existing = {preference.preference_key: preference for preference in recipient.preferences}
+    changed = False
+    for field in NOTIFICATION_FIELDS:
+        preference = PREFERENCE_BY_FIELD[field]
+        enabled = bool(getattr(row, field))
+        setting = existing.get(preference.key)
+        if setting is None:
+            recipient.preferences.append(NotificationPreferenceSetting(preference_key=preference.key, enabled=enabled))
+            changed = True
+        elif setting.enabled != enabled:
+            setting.enabled = enabled
+            changed = True
+    return changed
+
+
+def _sync_secondary_upcs(session: Session, agency_id: int, item: Item, upcs: Sequence[str]) -> None:
     session.flush()
     rows = {
         row.upc: row
@@ -236,7 +283,7 @@ def _sync_secondary_upcs(session: Session, agency_id: int, item: Items, upcs: Se
             session.add(ItemSecondaryUpc(agency_id=agency_id, item_id=item.id, upc=upc, active=True))
 
 
-def _secondary_upcs_changed(session: Session, agency_id: int, item: Items, upcs: Sequence[str]) -> bool:
+def _secondary_upcs_changed(session: Session, agency_id: int, item: Item, upcs: Sequence[str]) -> bool:
     if item.id is None:
         return bool(upcs)
     return set(_active_secondary_upcs(session, agency_id, item.id)) != set(upcs)
@@ -260,7 +307,7 @@ def _rows_by_id(session: Session, model_class, agency_id: int) -> dict[int, Any]
 
 
 def _active_tag_ids(session: Session, agency_id: int) -> set[int]:
-    return set(session.execute(select(AgencyItemTags.id).where(AgencyItemTags.agency_id == agency_id, AgencyItemTags.active.is_(True))).scalars())
+    return set(session.execute(select(ItemTag.id).where(ItemTag.agency_id == agency_id, ItemTag.active.is_(True))).scalars())
 
 
 def _apply_model_values(target: Any, source: BaseModel, *, exclude: set[str] | None = None) -> None:

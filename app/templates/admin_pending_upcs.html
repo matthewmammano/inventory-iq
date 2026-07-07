@@ -1,5 +1,34 @@
 {% extends "base.html" %}
 
+{% macro upc_review_actions(scan, items, ignored=False) %}
+<div class="upc-review-actions">
+    <form method="POST" class="inline-form upc-review-link" data-validation-submit="manual" novalidate>
+        <input type="hidden" name="return_to" value="{{ return_to }}">
+        <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
+        <input type="hidden" name="action" value="RESOLVE">
+        <select class="upc-review-select" name="item_id">
+            <option value="">Select item</option>
+            {% for item in items %}
+            <option value="{{ item.id }}" {% if scan.suggested_item_id == item.id %}selected{% endif %}>{{ item.name }}</option>
+            {% endfor %}
+        </select>
+        <button class="success-button" type="submit">Link</button>
+    </form>
+    <form method="POST" class="inline-form">
+        <input type="hidden" name="return_to" value="{{ return_to }}">
+        <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
+        <input type="hidden" name="action" value="{{ 'UNIGNORE' if ignored else 'IGNORE' }}">
+        <button class="quiet-button" type="submit">{{ 'Unignore' if ignored else 'Ignore' }}</button>
+    </form>
+    <form method="POST" class="inline-form">
+        <input type="hidden" name="return_to" value="{{ return_to }}">
+        <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
+        <input type="hidden" name="action" value="REMOVE">
+        <button class="danger-button" type="submit">Cancel</button>
+    </form>
+</div>
+{% endmacro %}
+
 {% macro upc_table(scans, items, lookup_tip, focus_upc='', ignored=False) %}
 <div class="table-wrap">
     <table>
@@ -17,34 +46,12 @@
             {% for scan in scans %}
             <tr class="{{ 'selected-row' if scan.upc == focus_upc else '' }}">
                 <td>{{ scan.upc }}</td>
-                <td>{% if scan.lookup_title %}"{{ scan.lookup_title }}"{% else %}No online product name found{% endif %}</td>
-                <td>{{ scan.suggested_item.name if scan.suggested_item else 'No confident match' }}</td>
+                <td>{{ scan.lookup_title or 'NA' }}</td>
+                <td>{{ scan.suggested_item.name if scan.suggested_item else 'NA' }}</td>
                 <td>{{ scan.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
                 <td>{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
                 <td>
-                    <div class="upc-review-actions">
-                        <form method="POST" class="inline-form upc-review-link" data-validation-submit="manual" novalidate>
-                            <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
-                            <input type="hidden" name="action" value="resolve">
-                            <select class="upc-review-select" name="item_id">
-                                <option value="">Select item</option>
-                                {% for item in items %}
-                                <option value="{{ item.id }}" {% if scan.suggested_item_id == item.id %}selected{% endif %}>{{ item.name }}</option>
-                                {% endfor %}
-                            </select>
-                            <button class="success-button" type="submit">Link</button>
-                        </form>
-                        <form method="POST" class="inline-form">
-                            <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
-                            <input type="hidden" name="action" value="{{ 'unignore' if ignored else 'ignore' }}">
-                            <button class="quiet-button" type="submit">{{ 'Unignore' if ignored else 'Ignore' }}</button>
-                        </form>
-                        <form method="POST" class="inline-form">
-                            <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
-                            <input type="hidden" name="action" value="remove">
-                            <button class="danger-button" type="submit">Cancel</button>
-                        </form>
-                    </div>
+                    {{ upc_review_actions(scan, items, ignored) }}
                 </td>
             </tr>
             {% endfor %}
@@ -53,13 +60,38 @@
 </div>
 {% endmacro %}
 
-{% block title %}New Barcodes{% endblock %}
-{% block header_title %}New Barcodes{% endblock %}
-{% block sub_title %}Link new scanned barcodes to inventory items{% endblock %}
+{% block title %}{% if single_review %}Review Barcode{% else %}New Barcodes{% endif %}{% endblock %}
+{% block header_title %}{% if single_review %}Review Barcode{% else %}New Barcodes{% endif %}{% endblock %}
+{% block sub_title %}{% if single_review %}Choose what this new barcode should open{% else %}Link new scanned barcodes to inventory items{% endif %}{% endblock %}
 {% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>{% endblock %}
 
 {% block content %}
 {% set lookup_tip = "This is not exact. It is only an online barcode lookup used to speed up classifying the UPC, and it may be wrong." %}
+{% if single_review %}
+<section class="panel">
+    <div class="panel-header">
+        <div>
+            <h2>Review New Barcode Requested</h2>
+            <p>Link this barcode to an item, ignore it, or cancel this request.</p>
+        </div>
+    </div>
+    {% if pending_upcs|length == 0 %}
+    <div class="empty-state"><h2>No pending barcodes</h2></div>
+    {% else %}
+    {% set scan = pending_upcs[0] %}
+    <div class="panel-body stack">
+        <div class="task-row">
+            <div>
+                <h3>{{ scan.upc }}</h3>
+                <p>Online Product Found: {{ scan.lookup_title or 'NA' }}</p>
+                <p>Suggested item: {{ scan.suggested_item.name if scan.suggested_item else 'NA' }}</p>
+            </div>
+            {{ upc_review_actions(scan, items) }}
+        </div>
+    </div>
+    {% endif %}
+</section>
+{% else %}
 <section class="panel">
     <div class="panel-header">
         <div>
@@ -67,7 +99,8 @@
             <p>What item should this barcode open?</p>
         </div>
         <form method="POST" class="inline-form upc-add-form" data-validation-submit="manual" novalidate>
-            <input type="hidden" name="action" value="add">
+            <input type="hidden" name="action" value="ADD">
+            <input type="hidden" name="return_to" value="{{ return_to }}">
             <input name="upc" placeholder="12-digit UPC" autocomplete="off" autofocus inputmode="numeric" maxlength="12">
             <button class="success-button" type="submit">Add</button>
         </form>
@@ -95,6 +128,7 @@
     {{ upc_table(ignored_upcs, items, lookup_tip, focus_upc, ignored=True) }}
     {% endif %}
 </section>
+{% endif %}
 {% endblock %}
 
 {% block extra_js %}

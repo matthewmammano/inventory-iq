@@ -7,8 +7,28 @@ from enum import StrEnum
 
 
 class NotificationPreferenceGroup(StrEnum):
-    ALERT = "alert"
-    SUMMARY = "summary"
+    ALERT = "ALERT"
+    SUMMARY = "SUMMARY"
+
+
+class NotificationPreferenceKey(StrEnum):
+    STOCKOUT = "STOCKOUT"
+    STOCKOUT_FORECAST = "STOCKOUT_FORECAST"
+    LOW_STOCK = "LOW_STOCK"
+    LOW_STOCK_FORECAST = "LOW_STOCK_FORECAST"
+    STALE_COUNT = "STALE_COUNT"
+    RARE_TAKEOUT = "RARE_TAKEOUT"
+    COUNT_ACTION = "COUNT_ACTION"
+    RESTOCK_ACTION = "RESTOCK_ACTION"
+    TAKEOUT_ACTION = "TAKEOUT_ACTION"
+    TRANSFER_ACTION = "TRANSFER_ACTION"
+    EXPIRED_STOCK = "EXPIRED_STOCK"
+    EXPIRING_SOON = "EXPIRING_SOON"
+    EXPIRATION_COUNT_NEEDED = "EXPIRATION_COUNT_NEEDED"
+    DAILY_SUMMARY = "DAILY_SUMMARY"
+    WEEKLY_SUMMARY = "WEEKLY_SUMMARY"
+    MONTHLY_SUMMARY = "MONTHLY_SUMMARY"
+    YEARLY_SUMMARY = "YEARLY_SUMMARY"
 
 
 class AlertEmailFrequency(StrEnum):
@@ -31,6 +51,7 @@ ALERT_EMAIL_FREQUENCY_CHOICES = tuple((frequency.value, frequency.label) for fre
 
 @dataclass(frozen=True)
 class NotificationPreference:
+    key: NotificationPreferenceKey
     field: str
     label: str
     group: NotificationPreferenceGroup
@@ -69,17 +90,45 @@ def _utc_naive(value: datetime) -> datetime:
 
 
 NOTIFICATION_PREFERENCES = (
-    NotificationPreference("alert_for_stockout", "Stockout", NotificationPreferenceGroup.ALERT, True),
-    NotificationPreference("alert_for_stockout_pred", "Pred Stockout", NotificationPreferenceGroup.ALERT, True),
-    NotificationPreference("alert_for_low", "Low", NotificationPreferenceGroup.ALERT, True),
-    NotificationPreference("alert_for_low_pred", "Pred Low", NotificationPreferenceGroup.ALERT, True),
-    NotificationPreference("alert_for_stale_count", "Stale Count", NotificationPreferenceGroup.ALERT, True),
-    NotificationPreference("alert_for_rare_takeout", "Rare Takeout", NotificationPreferenceGroup.ALERT, False),
-    NotificationPreference("alert_for_count", "Count", NotificationPreferenceGroup.ALERT, True),
-    NotificationPreference("alert_for_restock", "Restock", NotificationPreferenceGroup.ALERT, True),
-    NotificationPreference("alert_for_takeout", "Takeout", NotificationPreferenceGroup.ALERT, False),
-    NotificationPreference("alert_for_transfer", "Transfer", NotificationPreferenceGroup.ALERT, False),
+    NotificationPreference(NotificationPreferenceKey.STOCKOUT, "alert_for_stockout", "Stockout", NotificationPreferenceGroup.ALERT, True),
     NotificationPreference(
+        NotificationPreferenceKey.STOCKOUT_FORECAST,
+        "alert_for_stockout_pred",
+        "Pred Stockout",
+        NotificationPreferenceGroup.ALERT,
+        True,
+    ),
+    NotificationPreference(NotificationPreferenceKey.LOW_STOCK, "alert_for_low", "Low", NotificationPreferenceGroup.ALERT, True),
+    NotificationPreference(
+        NotificationPreferenceKey.LOW_STOCK_FORECAST,
+        "alert_for_low_pred",
+        "Pred Low",
+        NotificationPreferenceGroup.ALERT,
+        True,
+    ),
+    NotificationPreference(NotificationPreferenceKey.STALE_COUNT, "alert_for_stale_count", "Stale Count", NotificationPreferenceGroup.ALERT, True),
+    NotificationPreference(
+        NotificationPreferenceKey.RARE_TAKEOUT,
+        "alert_for_rare_takeout",
+        "Rare Takeout",
+        NotificationPreferenceGroup.ALERT,
+        False,
+    ),
+    NotificationPreference(NotificationPreferenceKey.COUNT_ACTION, "alert_for_count", "Count", NotificationPreferenceGroup.ALERT, True),
+    NotificationPreference(NotificationPreferenceKey.RESTOCK_ACTION, "alert_for_restock", "Restock", NotificationPreferenceGroup.ALERT, True),
+    NotificationPreference(NotificationPreferenceKey.TAKEOUT_ACTION, "alert_for_takeout", "Takeout", NotificationPreferenceGroup.ALERT, False),
+    NotificationPreference(NotificationPreferenceKey.TRANSFER_ACTION, "alert_for_transfer", "Transfer", NotificationPreferenceGroup.ALERT, False),
+    NotificationPreference(NotificationPreferenceKey.EXPIRED_STOCK, "alert_for_expired_stock", "Expired", NotificationPreferenceGroup.ALERT, True),
+    NotificationPreference(NotificationPreferenceKey.EXPIRING_SOON, "alert_for_expiring_soon", "Expiring", NotificationPreferenceGroup.ALERT, True),
+    NotificationPreference(
+        NotificationPreferenceKey.EXPIRATION_COUNT_NEEDED,
+        "alert_for_expiration_count_needed",
+        "Exp Count",
+        NotificationPreferenceGroup.ALERT,
+        True,
+    ),
+    NotificationPreference(
+        NotificationPreferenceKey.DAILY_SUMMARY,
         "daily_summary",
         "Daily",
         NotificationPreferenceGroup.SUMMARY,
@@ -88,6 +137,7 @@ NOTIFICATION_PREFERENCES = (
         bounds=lambda now: _period_bounds(now, days=1),
     ),
     NotificationPreference(
+        NotificationPreferenceKey.WEEKLY_SUMMARY,
         "weekly_summary",
         "Weekly",
         NotificationPreferenceGroup.SUMMARY,
@@ -96,6 +146,7 @@ NOTIFICATION_PREFERENCES = (
         bounds=_prior_week_bounds,
     ),
     NotificationPreference(
+        NotificationPreferenceKey.MONTHLY_SUMMARY,
         "monthly_summary",
         "Monthly",
         NotificationPreferenceGroup.SUMMARY,
@@ -104,6 +155,7 @@ NOTIFICATION_PREFERENCES = (
         bounds=_prior_month_bounds,
     ),
     NotificationPreference(
+        NotificationPreferenceKey.YEARLY_SUMMARY,
         "yearly_summary",
         "Yearly",
         NotificationPreferenceGroup.SUMMARY,
@@ -123,6 +175,9 @@ NOTIFICATION_FIELDS = tuple(preference.field for preference in NOTIFICATION_PREF
 SUMMARY_NOTIFICATION_PREFERENCES = tuple(
     preference for preference in NOTIFICATION_PREFERENCES if preference.group == NotificationPreferenceGroup.SUMMARY
 )
+PREFERENCE_BY_FIELD = {preference.field: preference for preference in NOTIFICATION_PREFERENCES}
+PREFERENCE_BY_KEY = {preference.key: preference for preference in NOTIFICATION_PREFERENCES}
+DEFAULT_ENABLED_BY_KEY = {preference.key: preference.default for preference in NOTIFICATION_PREFERENCES}
 
 
 def due_summary_preferences(local_now: datetime) -> tuple[NotificationPreference, ...]:

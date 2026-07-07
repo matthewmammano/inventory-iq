@@ -9,9 +9,9 @@ from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.sql.elements import ColumnElement
 
-from app.auth.models import AgencyStorages
+from app.auth.models import Storage
 from app.inventory.constants import OperationType
-from app.inventory.models import ActionLogs
+from app.inventory.models import ActionLog
 from app.prediction.constants import (
     COUNT_CLUSTER_HOURS,
     RECENCY_WEIGHT_30_DAYS,
@@ -57,12 +57,12 @@ class TrustedMovement:
 def get_location_storage_ids(session: Session, agency_id: int, agency_location_id: int) -> list[int]:
     """Return storage IDs inside an agency location."""
     rows = session.execute(
-        select(AgencyStorages.id)
+        select(Storage.id)
         .where(
-            AgencyStorages.agency_id == agency_id,
-            AgencyStorages.location_id == agency_location_id,
+            Storage.agency_id == agency_id,
+            Storage.location_id == agency_location_id,
         )
-        .order_by(AgencyStorages.name)
+        .order_by(Storage.name)
     ).all()
     return [row[0] for row in rows]
 
@@ -82,19 +82,19 @@ def build_training_signature(
 
     rows = session.execute(
         select(
-            ActionLogs.id,
-            ActionLogs.operation_type,
-            ActionLogs.from_location_id,
-            ActionLogs.to_location_id,
-            ActionLogs.quantity_delta,
-            ActionLogs.time_scanned,
+            ActionLog.id,
+            ActionLog.operation_type,
+            ActionLog.from_storage_id,
+            ActionLog.to_storage_id,
+            ActionLog.quantity,
+            ActionLog.time_scanned,
         )
         .where(
-            ActionLogs.agency_id == agency_id,
-            ActionLogs.item_id == item_id,
+            ActionLog.agency_id == agency_id,
+            ActionLog.item_id == item_id,
             _trusted_training_log_filter(storage_ids, include_counts=True),
         )
-        .order_by(ActionLogs.time_scanned, ActionLogs.id)
+        .order_by(ActionLog.time_scanned, ActionLog.id)
     ).all()
 
     for log_id, operation_type, from_storage_id, to_storage_id, quantity, scanned_at in rows:
@@ -129,15 +129,15 @@ def extract_count_anchors(
 
     count_logs = list(
         session.execute(
-            select(ActionLogs)
+            select(ActionLog)
             .where(
-                ActionLogs.agency_id == agency_id,
-                ActionLogs.item_id == item_id,
-                ActionLogs.operation_type == OperationType.COUNT,
-                ActionLogs.to_location_id.in_(storage_ids),
-                ActionLogs.time_scanned.isnot(None),
+                ActionLog.agency_id == agency_id,
+                ActionLog.item_id == item_id,
+                ActionLog.operation_type == OperationType.COUNT,
+                ActionLog.to_storage_id.in_(storage_ids),
+                ActionLog.time_scanned.isnot(None),
             )
-            .order_by(ActionLogs.time_scanned, ActionLogs.id)
+            .order_by(ActionLog.time_scanned, ActionLog.id)
         )
         .scalars()
         .all()
@@ -159,7 +159,7 @@ def extract_count_anchors(
 
 
 def _latest_counts_in_window(
-    count_logs: list[ActionLogs],
+    count_logs: list[ActionLog],
     storage_ids: list[int],
     counted_at: datetime,
     window: timedelta,
@@ -167,13 +167,13 @@ def _latest_counts_in_window(
     start_at = counted_at - window
     latest: dict[int, tuple[datetime, int]] = {}
     for log in count_logs:
-        if log.time_scanned is None or log.to_location_id not in storage_ids:
+        if log.time_scanned is None or log.to_storage_id not in storage_ids:
             continue
         if not (start_at <= log.time_scanned <= counted_at):
             continue
-        current = latest.get(log.to_location_id)
+        current = latest.get(log.to_storage_id)
         if current is None or log.time_scanned >= current[0]:
-            latest[log.to_location_id] = (log.time_scanned, log.quantity_delta)
+            latest[log.to_storage_id] = (log.time_scanned, log.quantity)
     return {storage_id: quantity for storage_id, (_, quantity) in latest.items()}
 
 
@@ -224,20 +224,20 @@ def _trusted_movements(
 
     rows = session.execute(
         select(
-            ActionLogs.time_scanned,
-            ActionLogs.operation_type,
-            ActionLogs.from_location_id,
-            ActionLogs.to_location_id,
-            ActionLogs.quantity_delta,
+            ActionLog.time_scanned,
+            ActionLog.operation_type,
+            ActionLog.from_storage_id,
+            ActionLog.to_storage_id,
+            ActionLog.quantity,
         )
         .where(
-            ActionLogs.agency_id == agency_id,
-            ActionLogs.item_id == item_id,
-            ActionLogs.time_scanned > anchors[0].counted_at,
-            ActionLogs.time_scanned <= anchors[-1].counted_at,
+            ActionLog.agency_id == agency_id,
+            ActionLog.item_id == item_id,
+            ActionLog.time_scanned > anchors[0].counted_at,
+            ActionLog.time_scanned <= anchors[-1].counted_at,
             _trusted_training_log_filter(storage_ids, include_counts=False),
         )
-        .order_by(ActionLogs.time_scanned, ActionLogs.id)
+        .order_by(ActionLog.time_scanned, ActionLog.id)
     ).all()
     return [
         TrustedMovement(
@@ -274,12 +274,12 @@ def _trusted_quantity_delta(
 
 def _trusted_training_log_filter(storage_ids: list[int], *, include_counts: bool) -> ColumnElement[bool]:
     filters = [
-        (ActionLogs.operation_type == OperationType.RESTOCK) & ActionLogs.to_location_id.in_(storage_ids),
-        (ActionLogs.operation_type == OperationType.TRANSFER)
-        & (ActionLogs.from_location_id.in_(storage_ids) | ActionLogs.to_location_id.in_(storage_ids)),
+        (ActionLog.operation_type == OperationType.RESTOCK) & ActionLog.to_storage_id.in_(storage_ids),
+        (ActionLog.operation_type == OperationType.TRANSFER)
+        & (ActionLog.from_storage_id.in_(storage_ids) | ActionLog.to_storage_id.in_(storage_ids)),
     ]
     if include_counts:
-        filters.insert(0, (ActionLogs.operation_type == OperationType.COUNT) & ActionLogs.to_location_id.in_(storage_ids))
+        filters.insert(0, (ActionLog.operation_type == OperationType.COUNT) & ActionLog.to_storage_id.in_(storage_ids))
     return or_(*filters)
 
 

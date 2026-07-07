@@ -8,7 +8,7 @@ from flask import Response, request
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.models import AgencyDevices, AgencyLocations
+from app.auth.models import AgencyDevice, Location
 from app.shared.database import managed_session
 
 DEVICE_COOKIE = "inventory_iq_device"
@@ -41,14 +41,14 @@ def get_device_location_id(agency_id: int, session: Session | None = None) -> in
         return device.agency_location_id
 
 
-def get_or_create_device(agency_id: int, token: str, session: Session) -> AgencyDevices:
+def get_or_create_device(agency_id: int, token: str, session: Session) -> AgencyDevice:
     device = _get_device(session, agency_id, token)
     now = datetime.now(UTC)
     if device:
         device.last_seen_at = now
         session.add(device)
         return device
-    device = AgencyDevices(
+    device = AgencyDevice(
         agency_id=agency_id,
         device_token_hash=_hash_token(agency_id, token),
         last_seen_at=now,
@@ -65,13 +65,13 @@ def save_device_location(
     token: str,
     agency_location_id: int | None,
     session: Session,
-) -> AgencyDevices:
+) -> AgencyDevice:
     if agency_location_id is not None:
         location = (
             session.execute(
-                select(AgencyLocations).where(
-                    AgencyLocations.id == agency_location_id,
-                    AgencyLocations.agency_id == agency_id,
+                select(Location).where(
+                    Location.id == agency_location_id,
+                    Location.agency_id == agency_id,
                 )
             )
             .scalars()
@@ -87,12 +87,12 @@ def save_device_location(
     return device
 
 
-def _get_device(session: Session, agency_id: int, token: str) -> AgencyDevices | None:
+def _get_device(session: Session, agency_id: int, token: str) -> AgencyDevice | None:
     return (
         session.execute(
-            select(AgencyDevices).where(
-                AgencyDevices.agency_id == agency_id,
-                AgencyDevices.device_token_hash == _hash_token(agency_id, token),
+            select(AgencyDevice).where(
+                AgencyDevice.agency_id == agency_id,
+                AgencyDevice.device_token_hash == _hash_token(agency_id, token),
             )
         )
         .scalars()

@@ -7,21 +7,19 @@ from enum import StrEnum
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from flask import current_app, render_template
+from flask import render_template
 from loguru import logger
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from app.auth.location_filters import alert_matches_location_filter, validate_location_filter_ids
-from app.auth.models import Agencies, AgencyEmails
+from app.auth.models import Agency, NotificationRecipient
 from app.auth.notification_preferences import AlertEmailFrequency, NotificationPreference, due_summary_preferences
 from app.auth.queries import list_active_emails
 from app.inventory.constants import UnknownUpcStatus
 from app.inventory.models import InventoryItemLocationState, UnknownUpcScan
 from app.shared.clock import utc_now_naive
 from app.shared.database import get_session
-from app.shared.email_addresses import email_domain
-from app.shared.email_client import OutboundEmail, send_email
 from app.shared.email_subjects import INVENTORY_SUMMARIES_TITLE, inventory_summary_title, report_subject
 from app.shared.timezone_utils import convert_utc_to_local
 
@@ -37,6 +35,7 @@ from .constants import (
     NotificationDeliveryKind,
     NotificationEmailStatus,
 )
+from .developer_alerts import send_developer_delivery_failure_alert
 from .email_delivery import deliver_notification_email
 from .email_sections import build_alert_sections, build_summary_sections
 from .models import InventoryAlertEvent, NotificationEmailDelivery
@@ -154,8 +153,8 @@ def send_due_notification_deliveries(
 
 def _prepare_recipient_deliveries(
     session: Session,
-    agency: Agencies,
-    recipient: AgencyEmails,
+    agency: Agency,
+    recipient: NotificationRecipient,
     now: datetime,
     queued_event_ids: set[int],
     *,
@@ -186,8 +185,8 @@ def _prepare_recipient_deliveries(
 
 def _recipient_alert_snapshot(
     session: Session,
-    agency: Agencies,
-    recipient: AgencyEmails,
+    agency: Agency,
+    recipient: NotificationRecipient,
     now: datetime,
 ) -> RecipientAlertSnapshot:
     stock_states = _stock_states_for_recipient(session, recipient)
@@ -201,7 +200,7 @@ def _recipient_alert_snapshot(
 
 def _email_plans_for_recipient(
     snapshot: RecipientAlertSnapshot,
-    recipient: AgencyEmails,
+    recipient: NotificationRecipient,
     timezone: str,
     now: datetime,
     *,
@@ -241,7 +240,7 @@ def _email_plans_for_recipient(
 
 
 def _email_plan(
-    recipient: AgencyEmails,
+    recipient: NotificationRecipient,
     timezone: str,
     timing_mode: EmailTimingMode,
     now: datetime,
@@ -267,8 +266,8 @@ def _email_plan(
 
 def _upsert_delivery_from_plan(
     session: Session,
-    agency: Agencies,
-    recipient: AgencyEmails,
+    agency: Agency,
+    recipient: NotificationRecipient,
     plan: EmailPlan,
     *,
     now: datetime,
@@ -276,7 +275,7 @@ def _upsert_delivery_from_plan(
     existing = session.scalar(
         select(NotificationEmailDelivery).where(
             NotificationEmailDelivery.agency_id == agency.id,
-            NotificationEmailDelivery.agency_email_id == recipient.id,
+            NotificationEmailDelivery.notification_recipient_id == recipient.id,
             NotificationEmailDelivery.delivery_key == plan.delivery_key,
         )
     )
@@ -297,7 +296,7 @@ def _upsert_delivery_from_plan(
     body_html = render_template("batch_email.html", batch=batch)
     email_delivery = existing or NotificationEmailDelivery(
         agency_id=agency.id,
-        agency_email_id=recipient.id,
+        notification_recipient_id=recipient.id,
         recipient_email_snapshot=recipient.email,
         created_at=now,
     )
@@ -326,8 +325,8 @@ def _cancel_open_delivery(delivery: NotificationEmailDelivery | None) -> None:
 
 def _build_batch(
     session: Session,
-    agency: Agencies,
-    recipient: AgencyEmails,
+    agency: Agency,
+    recipient: NotificationRecipient,
     plan: EmailPlan,
     now: datetime,
 ) -> EmailBatch | None:
@@ -352,7 +351,7 @@ def _build_batch(
     )
 
 
-def _stock_states_for_recipient(session: Session, recipient: AgencyEmails) -> list[InventoryItemLocationState]:
+def _stock_states_for_recipient(session: Session, recipient: NotificationRecipient) -> list[InventoryItemLocationState]:
     rows = session.execute(
         select(InventoryItemLocationState)
         .where(
@@ -378,13 +377,13 @@ def _eligible_stock_states(
 
 def _recent_sent_stock_alert_keys(
     session: Session,
-    agency_email_id: int,
+    notification_recipient_id: int,
     now: datetime,
 ) -> set[str]:
     cutoff = now - STOCK_ALERT_RESEND_COOLDOWN
     rows = session.execute(
         select(NotificationEmailDelivery.state_alert_keys_json).where(
-            NotificationEmailDelivery.agency_email_id == agency_email_id,
+            NotificationEmailDelivery.notification_recipient_id == notification_recipient_id,
             NotificationEmailDelivery.status == NotificationEmailStatus.SENT,
             func.coalesce(NotificationEmailDelivery.sent_at, NotificationEmailDelivery.send_at) >= cutoff,
         )
@@ -401,7 +400,7 @@ def _stock_alert_key(state: InventoryItemLocationState) -> str | None:
     )
 
 
-def _events_for_recipient(session: Session, recipient: AgencyEmails) -> list[InventoryAlertEvent]:
+def _events_for_recipient(session: Session, recipient: NotificationRecipient) -> list[InventoryAlertEvent]:
     rows = session.execute(
         select(InventoryAlertEvent)
         .where(
@@ -433,35 +432,35 @@ def _mark_pending_events_without_recipients(
 
 def _recipient_allows_state(
     session: Session,
-    recipient: AgencyEmails,
+    recipient: NotificationRecipient,
     state: InventoryItemLocationState,
 ) -> bool:
     alert_type = state.effective_alert_type
-    if alert_type is None or not bool(getattr(recipient, PREFERENCE_BY_TYPE[alert_type])):
+    if alert_type is None or not recipient.preference_enabled(PREFERENCE_BY_TYPE[alert_type]):
         return False
     return _recipient_allows_location(session, recipient, {"agency_location_id": state.agency_location_id})
 
 
 def _recipient_allows_event(
     session: Session,
-    recipient: AgencyEmails,
+    recipient: NotificationRecipient,
     event: InventoryAlertEvent,
 ) -> bool:
     if event.alert_type == AlertType.UNKNOWN_UPC and not _unknown_upc_is_pending(session, event):
         return False
     preference = PREFERENCE_BY_TYPE.get(event.alert_type)
-    if preference and not bool(getattr(recipient, preference)):
+    if preference and not recipient.preference_enabled(preference):
         return False
     return _recipient_allows_location(session, recipient, event.payload_json)
 
 
-def _recipient_allows_location(session: Session, recipient: AgencyEmails, payload: dict[str, Any]) -> bool:
+def _recipient_allows_location(session: Session, recipient: NotificationRecipient, payload: dict[str, Any]) -> bool:
     try:
         location_ids = validate_location_filter_ids(session, recipient.agency_id, recipient.location_filter_ids)
     except ValueError as exc:
         logger.warning(
             "Notification recipient skipped because of an invalid location filter",
-            extra={"agency_id": recipient.agency_id, "agency_email_id": recipient.id, "error": str(exc)},
+            extra={"agency_id": recipient.agency_id, "notification_recipient_id": recipient.id, "error": str(exc)},
         )
         return False
     return alert_matches_location_filter(location_ids, payload)
@@ -515,12 +514,12 @@ def _mark_delivery_failed(delivery: NotificationEmailDelivery, now: datetime) ->
     delivery.last_error_message = "Email provider did not accept the notification delivery."
     delivery.last_error_at = now
     delivery.next_attempt_at = max(delivery.send_at, now + ERROR_RETRY_DELAY)
-    _send_developer_delivery_failure_alert(delivery)
+    send_developer_delivery_failure_alert(delivery)
 
 
 def _quiet_until_for_delivery(session: Session, delivery: NotificationEmailDelivery, now: datetime) -> datetime | None:
-    recipient = session.get(AgencyEmails, delivery.agency_email_id)
-    agency = session.get(Agencies, delivery.agency_id)
+    recipient = session.get(NotificationRecipient, delivery.notification_recipient_id)
+    agency = session.get(Agency, delivery.agency_id)
     if recipient is None or agency is None:
         return None
     return _quiet_end_utc(recipient, agency.timezone, now)
@@ -537,7 +536,7 @@ def _postpone_delivery_for_quiet_hours(
             extra={
                 "notification_email_delivery_id": delivery.id,
                 "agency_id": delivery.agency_id,
-                "agency_email_id": delivery.agency_email_id,
+                "notification_recipient_id": delivery.notification_recipient_id,
                 "original_send_at": delivery.send_at.isoformat(),
                 "postponed_send_at": postponed_send_at.isoformat(),
             },
@@ -553,41 +552,10 @@ def _clear_delivery_error_state(delivery: NotificationEmailDelivery) -> None:
     delivery.last_error_at = None
 
 
-def _send_developer_delivery_failure_alert(delivery: NotificationEmailDelivery) -> None:
-    admin_email = str(current_app.config.get("ADMIN_ALERT_EMAIL") or "").strip()
-    if not admin_email:
-        return
-    body = (
-        "Urgent Inventory IQ email delivery failure\n\n"
-        "Check Railway logs and the notification_email_deliveries table.\n\n"
-        f"Delivery ID: {delivery.id}\n"
-        f"Agency ID: {delivery.agency_id}\n"
-        f"Agency Email ID: {delivery.agency_email_id}\n"
-        f"Recipient Domain: {email_domain(delivery.recipient_email_snapshot)}\n"
-        f"Send At: {delivery.send_at}\n"
-        f"Attempt Count: {delivery.attempt_count}\n"
-        f"Next Attempt At: {delivery.next_attempt_at}\n"
-        f"Error Type: {delivery.last_error_type}\n"
-    )
-    sent = send_email(
-        OutboundEmail(
-            subject="[URGENT] Inventory IQ email delivery failure",
-            text_body=body,
-            to_email=admin_email,
-        ),
-        retry_delays_seconds=(),
-    )
-    if not sent:
-        logger.error(
-            "Developer delivery failure alert email failed",
-            extra={"notification_email_delivery_id": delivery.id, "agency_id": delivery.agency_id},
-        )
-
-
-def _active_agencies(session: Session, agency_id: int | None = None) -> list[Agencies]:
-    stmt = select(Agencies).where(Agencies.active.is_(True)).order_by(Agencies.id)
+def _active_agencies(session: Session, agency_id: int | None = None) -> list[Agency]:
+    stmt = select(Agency).where(Agency.active.is_(True)).order_by(Agency.id)
     if agency_id is not None:
-        stmt = stmt.where(Agencies.id == agency_id)
+        stmt = stmt.where(Agency.id == agency_id)
     return list(session.execute(stmt).scalars().all())
 
 
@@ -636,11 +604,11 @@ def _title(plan: EmailPlan) -> str:
     return "Inventory Alerts"
 
 
-def _due_report_preferences(recipient: AgencyEmails, timezone: str, now: datetime) -> tuple[NotificationPreference, ...]:
+def _due_report_preferences(recipient: NotificationRecipient, timezone: str, now: datetime) -> tuple[NotificationPreference, ...]:
     local_now = _local_now(timezone, now)
     if local_now.hour != MORNING_EMAIL_LOCAL_HOUR:
         return ()
-    return tuple(preference for preference in due_summary_preferences(local_now) if bool(getattr(recipient, preference.field)))
+    return tuple(preference for preference in due_summary_preferences(local_now) if recipient.preference_enabled(preference.key))
 
 
 def _report_title(preferences: tuple[NotificationPreference, ...]) -> str:
@@ -720,7 +688,7 @@ def _report_window_start(timezone: str, now: datetime) -> datetime:
     return _utc_naive(local.replace(hour=MORNING_EMAIL_LOCAL_HOUR, minute=0, second=0, microsecond=0))
 
 
-def _send_at_after_quiet_hours(recipient: AgencyEmails, timezone: str, send_at: datetime) -> datetime:
+def _send_at_after_quiet_hours(recipient: NotificationRecipient, timezone: str, send_at: datetime) -> datetime:
     return _quiet_end_utc(recipient, timezone, send_at) or send_at
 
 
@@ -732,14 +700,14 @@ def _delivery_key(
     return f"{delivery_kind.value}:{timing_mode.value}:{send_at.isoformat()}"
 
 
-def _quiet_end_utc(recipient: AgencyEmails, timezone: str, instant_utc: datetime) -> datetime | None:
+def _quiet_end_utc(recipient: NotificationRecipient, timezone: str, instant_utc: datetime) -> datetime | None:
     try:
         quiet_start = _parse_quiet_time(recipient.quiet_start_time)
         quiet_end = _parse_quiet_time(recipient.quiet_end_time)
     except ValueError as exc:
         logger.warning(
             "Notification quiet hours ignored because stored values are invalid",
-            extra={"agency_id": recipient.agency_id, "agency_email_id": recipient.id, "error": str(exc)},
+            extra={"agency_id": recipient.agency_id, "notification_recipient_id": recipient.id, "error": str(exc)},
         )
         return None
     if quiet_start is None or quiet_end is None or quiet_start == quiet_end:

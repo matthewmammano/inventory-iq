@@ -56,6 +56,7 @@
         <a class="tab-button{% if active_tab == 'items' %} active{% endif %}" href="#items" data-tab="items">Items</a>
         <a class="tab-button{% if active_tab == 'tags' %} active{% endif %}" href="#tags" data-tab="tags">Tags</a>
         <a class="tab-button{% if active_tab == 'notifications' %} active{% endif %}" href="#notifications" data-tab="notifications">Notifications</a>
+        <a class="tab-button{% if active_tab == 'ignored-barcodes' %} active{% endif %}" href="#ignored-barcodes" data-tab="ignored-barcodes">Ignored Barcodes</a>
     </section>
 
     <section class="panel tab-panel{% if active_tab != 'items' %} hidden{% endif %}" id="items">
@@ -74,12 +75,14 @@
                                 {{ input("item_" ~ item.id ~ "_image", item.image, "Image", validation_attrs("image_source", placeholder="https://example.com/image.jpg")) }}
                                 {{ input("item_" ~ item.id ~ "_increments", item.increments, "Increments", validation_attrs("increments", placeholder="e.g. each")) }}
                                 <div class="expanded-option">{{ check("item_" ~ item.id ~ "_guest_quick_adjust", item.guest_quick_adjust, "Expanded ±5, ±10") }}</div>
+                                <div class="expanded-option">{{ check("item_" ~ item.id ~ "_expiration_tracking_enabled", item.expiration_tracking_enabled, "Track Expiration Dates") }}</div>
                             </td>
                             <td class="thin-col">
                                 {{ input("item_" ~ item.id ~ "_min_quantity", item.min_quantity, "Minimum Quantity", validation_attrs("positive_int")) }}
                                 {{ input("item_" ~ item.id ~ "_max_quantity", item.max_quantity, "Maximum Quantity", validation_attrs("positive_int", compare_to="item_" ~ item.id ~ "_min_quantity", compare_mode="number_gt", compare_message="Maximum Quantity must be greater than Minimum Quantity.")) }}
                                 {{ input("item_" ~ item.id ~ "_batch_size", item.batch_size, "Order Size", validation_attrs("positive_int")) }}
                                 {{ input("item_" ~ item.id ~ "_restock_delivery_days", item.restock_delivery_days, "Lead Time Override", validation_attrs("optional_positive_int", placeholder="e.g. 7")) }}
+                                {{ input("item_" ~ item.id ~ "_expiration_notice_days_override", item.expiration_notice_days_override, "Expiration Warning Override", validation_attrs("optional_positive_int", placeholder="Uses default")) }}
                                 {{ input("item_" ~ item.id ~ "_prior_daily_usage", item.prior_daily_usage, "Prior Daily Usage", validation_attrs("non_negative_number", required=True)) }}
                             </td>
                             <td>
@@ -99,8 +102,8 @@
                         {% endfor %}
                         <tr data-row-label="New Item">
                             <th class="thin-col" scope="row">New Item</th>
-                            <td>{{ input("new_item_name", "", "Item Name", validation_attrs("item_name", required=False, placeholder="e.g. Adult BVM")) }}{{ input("new_item_image", "", "Image", validation_attrs("image_source", placeholder="https://example.com/image.jpg")) }}{{ input("new_item_increments", "", "Increments", validation_attrs("increments", placeholder="e.g. each")) }}<div class="expanded-option">{{ check("new_item_guest_quick_adjust", false, "Expanded ±5, ±10") }}</div></td>
-                            <td class="thin-col">{{ input("new_item_min_quantity", "", "Minimum Quantity", validation_attrs("optional_positive_int", placeholder="e.g. 5", required_when='[name=\"new_item_name\"]')) }}{{ input("new_item_max_quantity", "", "Maximum Quantity", validation_attrs("optional_positive_int", placeholder="e.g. 20", required_when='[name=\"new_item_name\"]', compare_to="new_item_min_quantity", compare_mode="number_gt", compare_message="Maximum Quantity must be greater than Minimum Quantity.")) }}{{ input("new_item_batch_size", 1, "Order Size", validation_attrs("optional_positive_int")) }}{{ input("new_item_restock_delivery_days", "", "Lead Time Override", validation_attrs("optional_positive_int", placeholder="e.g. 7")) }}{{ input("new_item_prior_daily_usage", 0, "Prior Daily Usage", validation_attrs("non_negative_number")) }}</td>
+                            <td>{{ input("new_item_name", "", "Item Name", validation_attrs("item_name", required=False, placeholder="e.g. Adult BVM")) }}{{ input("new_item_image", "", "Image", validation_attrs("image_source", placeholder="https://example.com/image.jpg")) }}{{ input("new_item_increments", "", "Increments", validation_attrs("increments", placeholder="e.g. each")) }}<div class="expanded-option">{{ check("new_item_guest_quick_adjust", false, "Expanded ±5, ±10") }}</div><div class="expanded-option">{{ check("new_item_expiration_tracking_enabled", false, "Track Expiration Dates") }}</div></td>
+                            <td class="thin-col">{{ input("new_item_min_quantity", "", "Minimum Quantity", validation_attrs("optional_positive_int", placeholder="e.g. 5", required_when='[name=\"new_item_name\"]')) }}{{ input("new_item_max_quantity", "", "Maximum Quantity", validation_attrs("optional_positive_int", placeholder="e.g. 20", required_when='[name=\"new_item_name\"]', compare_to="new_item_min_quantity", compare_mode="number_gt", compare_message="Maximum Quantity must be greater than Minimum Quantity.")) }}{{ input("new_item_batch_size", 1, "Order Size", validation_attrs("optional_positive_int")) }}{{ input("new_item_restock_delivery_days", "", "Lead Time Override", validation_attrs("optional_positive_int", placeholder="e.g. 7")) }}{{ input("new_item_expiration_notice_days_override", "", "Expiration Warning Override", validation_attrs("optional_positive_int", placeholder="Uses default")) }}{{ input("new_item_prior_daily_usage", 0, "Prior Daily Usage", validation_attrs("non_negative_number")) }}</td>
                             <td>{{ checkbox_list("Tags", "new_item_tag_ids", tags, [], "Tags") }}</td>
                             <td><div class="upc-edit-row" data-upc-add-row>{{ bare_input("new_item_secondary_upcs", "", "Add UPC", validation_attrs("upc12") ~ " data-upc-add-input") }}</div></td>
                             <td></td>
@@ -131,28 +134,50 @@
         <form id="edit-form-notifications" method="POST" data-edit-form>
             <input type="hidden" name="tab" value="notifications">
             <div class="table-wrap"><table><thead><tr><th>Email</th><th>Locations</th><th>Schedule</th><th>Quiet Hours</th><th>Alerts</th><th>Summaries</th><th>Delete?</th></tr></thead><tbody>
-                {% for email in notifications %}
-                <tr data-row-label="{{ email.email }}">
-                    <td><input type="hidden" name="email_ids" value="{{ email.id }}">{{ bare_input("email_" ~ email.id ~ "_email", email.email, "Email Address", validation_attrs("email_128", required=True) ~ " data-notification-email-input") }}</td>
-                    <td>{{ checkbox_list("Locations", "email_" ~ email.id ~ "_location_filter_ids", locations, email.location_filter_ids, "Locations", 'data-validate-group="required_choice" data-group-name="email_' ~ email.id ~ '_location_filter_ids" data-label="Locations" data-invalid-selector=".check-option" data-skip-when="[data-notification-delete-toggle]"', true) }}</td>
-                    <td>{{ select_input("email_" ~ email.id ~ "_alert_frequency", email.alert_frequency, "Alert Frequency", alert_email_frequency_choices) }}</td>
-                    <td>{{ input("email_" ~ email.id ~ "_quiet_start_time", email.quiet_start_time, "Quiet Start", validation_attrs("hhmm_time", pair_with="email_" ~ email.id ~ "_quiet_end_time")) }}{{ input("email_" ~ email.id ~ "_quiet_end_time", email.quiet_end_time, "Quiet End", validation_attrs("hhmm_time", pair_with="email_" ~ email.id ~ "_quiet_start_time")) }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
-                    <td>{% for field, label in notification_alert_fields %}{{ check("email_" ~ email.id ~ "_" ~ field, email|attr(field), label) }}{% endfor %}</td>
-                    <td>{% for field, label in notification_summary_fields %}{{ check("email_" ~ email.id ~ "_" ~ field, email|attr(field), label) }}{% endfor %}</td>
-                    <td>{{ delete_toggle("delete_email_ids", "Delete Notification", email.id, "data-notification-delete-toggle") }}</td>
+                {% for recipient in notifications %}
+                <tr data-row-label="{{ recipient.email }}">
+                    <td><input type="hidden" name="recipient_ids" value="{{ recipient.id }}">{{ bare_input("recipient_" ~ recipient.id ~ "_email", recipient.email, "Email Address", validation_attrs("email_128", required=True) ~ " data-notification-email-input") }}</td>
+                    <td>{{ checkbox_list("Locations", "recipient_" ~ recipient.id ~ "_location_filter_ids", locations, recipient.location_filter_ids, "Locations", 'data-validate-group="required_choice" data-group-name="recipient_' ~ recipient.id ~ '_location_filter_ids" data-label="Locations" data-invalid-selector=".check-option" data-skip-when="[data-notification-delete-toggle]"', true) }}</td>
+                    <td>{{ select_input("recipient_" ~ recipient.id ~ "_alert_frequency", recipient.alert_frequency, "Alert Frequency", alert_email_frequency_choices) }}</td>
+                    <td>{{ input("recipient_" ~ recipient.id ~ "_quiet_start_time", recipient.quiet_start_time, "Quiet Start", validation_attrs("hhmm_time", pair_with="recipient_" ~ recipient.id ~ "_quiet_end_time")) }}{{ input("recipient_" ~ recipient.id ~ "_quiet_end_time", recipient.quiet_end_time, "Quiet End", validation_attrs("hhmm_time", pair_with="recipient_" ~ recipient.id ~ "_quiet_start_time")) }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
+                    <td>{% for field, label in notification_alert_fields %}{{ check("recipient_" ~ recipient.id ~ "_" ~ field, recipient.preference_enabled(field), label) }}{% endfor %}</td>
+                    <td>{% for field, label in notification_summary_fields %}{{ check("recipient_" ~ recipient.id ~ "_" ~ field, recipient.preference_enabled(field), label) }}{% endfor %}</td>
+                    <td>{{ delete_toggle("delete_recipient_ids", "Delete Notification", recipient.id, "data-notification-delete-toggle") }}</td>
                 </tr>
                 {% endfor %}
-                <tr data-new-email-row data-email-index="0" data-row-label="New Notification">
-                    <td><input type="hidden" name="new_email_keys" value="new_email_0">{{ bare_input("new_email_0_email", "", "Email Address", validation_attrs("email_128", placeholder="name@example.com") ~ " data-notification-email-input") }}</td>
-                    <td>{{ checkbox_list("Locations", "new_email_0_location_filter_ids", locations, [], "Locations", 'data-validate-group="required_choice" data-group-name="new_email_0_location_filter_ids" data-label="Locations" data-invalid-selector=".check-option" data-required-when="[data-notification-email-input]"', true) }}</td>
-                    <td>{{ select_input("new_email_0_alert_frequency", "HOURLY", "Alert Frequency", alert_email_frequency_choices) }}</td>
-                    <td>{{ input("new_email_0_quiet_start_time", "", "Quiet Start", validation_attrs("hhmm_time", pair_with="new_email_0_quiet_end_time")) }}{{ input("new_email_0_quiet_end_time", "", "Quiet End", validation_attrs("hhmm_time", pair_with="new_email_0_quiet_start_time")) }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
-                    <td>{% for field, label in notification_alert_fields %}{{ check("new_email_0_" ~ field, false, label) }}{% endfor %}</td>
-                    <td>{% for field, label in notification_summary_fields %}{{ check("new_email_0_" ~ field, false, label) }}{% endfor %}</td>
+                <tr data-new-recipient-row data-recipient-index="0" data-row-label="New Notification">
+                    <td><input type="hidden" name="new_recipient_keys" value="new_recipient_0">{{ bare_input("new_recipient_0_email", "", "Email Address", validation_attrs("email_128", placeholder="name@example.com") ~ " data-notification-email-input") }}</td>
+                    <td>{{ checkbox_list("Locations", "new_recipient_0_location_filter_ids", locations, [], "Locations", 'data-validate-group="required_choice" data-group-name="new_recipient_0_location_filter_ids" data-label="Locations" data-invalid-selector=".check-option" data-required-when="[data-notification-email-input]"', true) }}</td>
+                    <td>{{ select_input("new_recipient_0_alert_frequency", "HOURLY", "Alert Frequency", alert_email_frequency_choices) }}</td>
+                    <td>{{ input("new_recipient_0_quiet_start_time", "", "Quiet Start", validation_attrs("hhmm_time", pair_with="new_recipient_0_quiet_end_time")) }}{{ input("new_recipient_0_quiet_end_time", "", "Quiet End", validation_attrs("hhmm_time", pair_with="new_recipient_0_quiet_start_time")) }}<small>Blank disables quiet hours. Uses squad timezone.</small></td>
+                    <td>{% for field, label in notification_alert_fields %}{{ check("new_recipient_0_" ~ field, false, label) }}{% endfor %}</td>
+                    <td>{% for field, label in notification_summary_fields %}{{ check("new_recipient_0_" ~ field, false, label) }}{% endfor %}</td>
                     <td></td>
                 </tr>
             </tbody></table></div>
         </form>
+    </section>
+
+    <section class="panel tab-panel{% if active_tab != 'ignored-barcodes' %} hidden{% endif %}" id="ignored-barcodes">
+        {% if ignored_upcs|length == 0 %}
+        <div class="empty-state"><h2>No ignored barcodes</h2></div>
+        {% else %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>UPC</th><th>Online Name</th><th>Suggested Item</th><th>Action</th></tr></thead>
+                <tbody>
+                    {% for scan in ignored_upcs %}
+                    <tr>
+                        <td>{{ scan.upc }}</td>
+                        <td>{{ scan.lookup_title or 'NA' }}</td>
+                        <td>{{ scan.suggested_item.name if scan.suggested_item else 'NA' }}</td>
+                        <td><a class="warning-button" href="{{ url_for('admin.pending_upcs', squad=squad, focus_upc=scan.upc) }}">Review Barcode</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
     </section>
 </div>
 

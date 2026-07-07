@@ -54,13 +54,14 @@ Inventory IQ-specific conventions only. Generic engineering rules live in [../AG
 - Use `StrEnum` for persisted, API-facing, template-facing, or log-facing string vocabularies.
 - Use `IntEnum` only for integer protocols that must stay integer-compatible, such as legacy sentinel values.
 - Enum member names use `UPPER_SNAKE_CASE`.
-- Enum values must match the persisted or external contract exactly.
+- Enum values use `UPPER_SNAKE_CASE`.
+- If a lowercase external string is required for a route name, HTML value, provider payload, or frontend rule, convert at the boundary with a focused property/helper instead of making the enum value lowercase.
 - Put behavior on an enum only when it removes repeated branching or keeps directly related metadata with the vocabulary.
 
 ## Notification Emails
 
 - `agencies.email` is the login, password reset, and admin identity email.
-- `agency_emails.email` is for alert/report recipients shown in View/Edit Notifications and used for alert/report delivery.
+- `notification_recipients.email` is for alert/report recipients shown in View/Edit Notifications and used for alert/report delivery.
 - Do not auto-copy the account login email into notification recipients unless the product explicitly adds that action.
 
 ## Inventory Alerts And History UI

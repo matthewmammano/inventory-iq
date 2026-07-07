@@ -18,7 +18,7 @@ from .constants import (
     UPC_GENERATION_PREFIX,
     UnknownUpcStatus,
 )
-from .models import Items, ItemSecondaryUpc, UnknownUpcScan, agency_upc_exists, validate_upc_code
+from .models import Item, ItemSecondaryUpc, UnknownUpcScan, agency_upc_exists, validate_upc_code
 from .upc_lookup_service import lookup_upc_title
 
 MIN_SUGGESTION_SCORE = 0.3
@@ -125,7 +125,7 @@ def list_review_unknown_upcs(session: Session, agency_id: int) -> list[UnknownUp
 
 def resolve_unknown_upc(session: Session, agency_id: int, unknown_upc_id: int, item_id: int) -> None:
     scan = _review_unknown_by_id(session, agency_id, unknown_upc_id)
-    item = session.scalar(select(Items).where(Items.agency_id == agency_id, Items.id == item_id, Items.active.is_(True)))
+    item = session.scalar(select(Item).where(Item.agency_id == agency_id, Item.id == item_id, Item.active.is_(True)))
     if scan is None or item is None:
         raise ValueError("UPC review row or item not found.")
     if scan.upc.startswith(UPC_GENERATION_PREFIX):
@@ -174,7 +174,7 @@ def _unknown_upc(session: Session, agency_id: int, upc: str) -> UnknownUpcScan |
 
 def _active_upc_exists(session: Session, agency_id: int, upc: str) -> bool:
     return (
-        session.scalar(select(Items.id).where(Items.agency_id == agency_id, Items.upc == upc, Items.active.is_(True))) is not None
+        session.scalar(select(Item.id).where(Item.agency_id == agency_id, Item.upc == upc, Item.active.is_(True))) is not None
         or session.scalar(
             select(ItemSecondaryUpc.id).where(
                 ItemSecondaryUpc.agency_id == agency_id,
@@ -226,9 +226,9 @@ def _closest_item(session: Session, agency_id: int, lookup_title: str | None) ->
     rows = cast(
         "list[tuple[int, str]]",
         session.execute(
-            select(Items.id, Items.name).where(
-                Items.agency_id == agency_id,
-                Items.active.is_(True),
+            select(Item.id, Item.name).where(
+                Item.agency_id == agency_id,
+                Item.active.is_(True),
             )
         )
         .tuples()

@@ -1,5 +1,5 @@
 (() => {
-    const DIGIT_RULES = new Set(["pin4", "pin6", "upc12"]);
+    const DIGIT_RULES = new Set(["PIN4", "PIN6", "UPC12"]);
     const PASSWORD_SYMBOL_PATTERN = /[!"#$%&'()*+,\-./:;<=>?@[\\\]^_`{|}~]/;
 
     function bind(container = document) {
@@ -266,7 +266,7 @@
         field.dataset.invalidState = message ? "1" : "0";
         field.setCustomValidity(message);
         field.classList.toggle("invalid", show);
-        if (field.dataset.validate === "upc12" && show) pulse(field);
+        if (field.dataset.validate === "UPC12" && show) pulse(field);
         const hint = ensureHint(field);
         hint.textContent = show ? message : "";
         hint.classList.toggle("hidden", !show);

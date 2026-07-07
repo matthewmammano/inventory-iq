@@ -7,11 +7,11 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.models import Agencies, AgencyLocations
+from app.auth.models import Agency, Location
 from app.inventory.balance_service import get_location_last_counted_dates
 from app.inventory.location_state_policy import days_to_threshold, effective_lead_time_days
 from app.inventory.location_state_service import recompute_item_location_state
-from app.inventory.models import InventoryItemLocationState, Items
+from app.inventory.models import InventoryItemLocationState, Item
 from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
 from app.prediction.estimator import reorder_date
 from app.prediction.formatting import format_usage_rate, rounded_confidence_percent
@@ -22,11 +22,9 @@ class BulkService:
     """Build template-ready restock rows for a selected agency location."""
 
     @staticmethod
-    def get_active_items(session: Session, agency_id: int) -> list[Items]:
+    def get_active_items(session: Session, agency_id: int) -> list[Item]:
         return list(
-            session.execute(
-                select(Items).where(Items.agency_id == agency_id, Items.active.is_(True)).order_by(Items.last_accessed.desc().nulls_last())
-            )
+            session.execute(select(Item).where(Item.agency_id == agency_id, Item.active.is_(True)).order_by(Item.last_accessed.desc().nulls_last()))
             .scalars()
             .all()
         )
@@ -38,7 +36,7 @@ class BulkService:
         agency_location_id: int,
     ) -> list[dict]:
         try:
-            agency_settings = session.get(Agencies, agency_id)
+            agency_settings = session.get(Agency, agency_id)
             items = BulkService.get_active_items(session, agency_id)
             item_ids = [item.id for item in items]
             location_states_by_item_id = BulkService._location_states_by_item_id(session, agency_id, agency_location_id, items)
@@ -75,12 +73,12 @@ class BulkService:
             raise
 
     @staticmethod
-    def get_location(session: Session, agency_id: int, agency_location_id: int) -> AgencyLocations | None:
+    def get_location(session: Session, agency_id: int, agency_location_id: int) -> Location | None:
         return (
             session.execute(
-                select(AgencyLocations).where(
-                    AgencyLocations.id == agency_location_id,
-                    AgencyLocations.agency_id == agency_id,
+                select(Location).where(
+                    Location.id == agency_location_id,
+                    Location.agency_id == agency_id,
                 )
             )
             .scalars()
@@ -89,8 +87,8 @@ class BulkService:
 
     @staticmethod
     def _analyze_item(
-        item: Items,
-        agency: Agencies | None,
+        item: Item,
+        agency: Agency | None,
         state: InventoryItemLocationState | None,
         last_counted_at: datetime | None,
     ) -> dict:
@@ -155,15 +153,26 @@ class BulkService:
         session: Session,
         agency_id: int,
         agency_location_id: int,
-        items: list[Items],
+        items: list[Item],
     ) -> dict[int, InventoryItemLocationState]:
         if not items:
             return {}
-        states: dict[int, InventoryItemLocationState] = {}
-        for item in items:
+        item_ids = [item.id for item in items]
+        rows = session.execute(
+            select(InventoryItemLocationState).where(
+                InventoryItemLocationState.agency_id == agency_id,
+                InventoryItemLocationState.agency_location_id == agency_location_id,
+                InventoryItemLocationState.item_id.in_(item_ids),
+            )
+        ).scalars()
+        states = {state.item_id: state for state in rows}
+        missing_items = [item for item in items if item.id not in states]
+        if not missing_items:
+            return states
+        for item in missing_items:
             state = recompute_item_location_state(session, agency_id, item.id, agency_location_id)
             if state is not None:
-                states[item.id] = state
+                states[state.item_id] = state
         return states
 
     @staticmethod

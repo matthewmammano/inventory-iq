@@ -1,15 +1,16 @@
 """Admin bulk inventory routes."""
 
 from collections.abc import Mapping
+from dataclasses import dataclass
 from typing import Any
 
 from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user
 from loguru import logger
 
-from app.auth.models import AgencyLocations
 from app.auth.queries import list_top_locations
 from app.inventory import admin_bp as bp
+from app.inventory.bulk_edit_service import BulkEditEmptyError, save_bulk_edit
 from app.inventory.bulk_forms import BulkEditSubmission
 from app.inventory.bulk_location_service import (
     LocationQuantityGrid,
@@ -17,11 +18,34 @@ from app.inventory.bulk_location_service import (
     load_location_item_summary,
     load_location_quantity_grid,
     required_count_storage_ids,
-    save_bulk_location_count,
-    save_bulk_location_restock,
+)
+from app.inventory.expiration_ui_service import (
+    build_expiration_entry_groups,
+    bulk_expiration_specs,
+    group_expiration_entries_by_item,
+    hidden_form_fields,
+    parse_expiration_allocations,
 )
 from app.shared.database import get_session
 from app.shared.form_parsing import selected_int_ids
+
+
+@dataclass(frozen=True, slots=True)
+class BulkEditCell:
+    storage: Any
+    count_value: int | str
+    count_original: str
+    restock_value: int | str
+    count_required: bool
+    invalid: bool
+    restock_invalid: bool
+
+
+@dataclass(frozen=True, slots=True)
+class BulkEditRow:
+    item: Any
+    cells: list[BulkEditCell]
+    expiration_tracking_enabled: bool
 
 
 @bp.route("/<squad>/admin-panel/bulk-actions")
@@ -192,31 +216,38 @@ def _render_bulk_edit(
 def _save_bulk_edit(
     session,
     squad: str,
-    location: AgencyLocations,
+    location,
     counts: dict[tuple[int, int], int],
     restocks: dict[tuple[int, int], int],
     item_ids: set[int],
 ) -> Any:
-    if not counts and not any(quantity > 0 for quantity in restocks.values()):
+    try:
+        groups = build_expiration_entry_groups(
+            session,
+            current_user.id,
+            bulk_expiration_specs(counts=counts, restocks=restocks),
+        )
+        if groups and request.form.get("expiration_confirmed") != "1":
+            return _render_bulk_expiration_entry(squad, location, groups, item_ids)
+        expiration_allocations_by_key = parse_expiration_allocations(request.form, groups) if groups else {}
+    except ValueError as exc:
+        logger.info("Bulk expiration entry rejected", extra={"agency_location_id": location.id, "error": str(exc)})
+        flash(str(exc), "warning")
+        return redirect(_bulk_edit_url(squad, location.id, item_ids))
+
+    try:
+        result = save_bulk_edit(
+            session,
+            agency_id=current_user.id,
+            agency_location_id=location.id,
+            counts=counts,
+            restocks=restocks,
+            expiration_allocations_by_key=expiration_allocations_by_key,
+        )
+    except BulkEditEmptyError:
         logger.info("Bulk action rejected: no count or restock entries submitted", extra={"agency_location_id": location.id})
         flash("No count or restock entries entered.", "info")
         return redirect(_bulk_edit_url(squad, location.id, item_ids))
-    try:
-        count_logs = save_bulk_location_count(session, current_user.id, location.id, counts) if counts else 0
-        restock_logs = save_bulk_location_restock(session, current_user.id, location.id, restocks) if restocks else 0
-        session.commit()
-        logger.info(
-            "Bulk inventory changes saved",
-            extra={
-                "agency_location_id": location.id,
-                "item_count": len(item_ids) or None,
-                "count_entry_count": count_logs,
-                "restock_entry_count": restock_logs,
-                "entry_count": count_logs + restock_logs,
-            },
-        )
-        flash(f"Saved {count_logs} count and {restock_logs} restock entries for {location.name}.", "success")
-        return redirect(url_for("admin.admin_panel", squad=squad))
     except Exception:
         session.rollback()
         logger.exception(
@@ -231,6 +262,37 @@ def _save_bulk_edit(
         flash("Bulk action could not be saved. Try again.", "error")
         return redirect(_bulk_edit_url(squad, location.id, item_ids))
 
+    logger.info(
+        "Bulk inventory changes saved",
+        extra={
+            "agency_location_id": location.id,
+            "item_count": len(item_ids) or None,
+            "count_entry_count": result.count_entry_count,
+            "restock_entry_count": result.restock_entry_count,
+            "entry_count": result.total_entry_count,
+        },
+    )
+    flash(f"Saved {result.count_entry_count} count and {result.restock_entry_count} restock entries for {location.name}.", "success")
+    return redirect(url_for("admin.admin_panel", squad=squad))
+
+
+def _render_bulk_expiration_entry(squad: str, location, groups, item_ids: set[int]) -> Any:
+    return render_template(
+        "expiration_entry.html",
+        squad=squad,
+        groups=groups,
+        item_groups=group_expiration_entries_by_item(groups),
+        hidden_fields=hidden_form_fields(request.form),
+        form_action=None,
+        cancel_url=_bulk_edit_url(squad, location.id, item_ids),
+        back_label="Back to Bulk Action",
+        cancel_label="Cancel Bulk Update",
+        submit_label="Save Bulk Updates",
+        page_title="Expiration Dates",
+        page_subtitle=f"Location: {location.name}",
+        admin=True,
+    )
+
 
 def _bulk_rows(
     items,
@@ -241,24 +303,24 @@ def _bulk_rows(
     submitted_restocks: Mapping[tuple[int, int], int | str],
     invalid_cells: set[tuple[int, int]],
     invalid_restock_cells: set[tuple[int, int]],
-) -> list[dict[str, Any]]:
+) -> list[BulkEditRow]:
     rows = []
     for item in items:
         cells = []
         for storage in storages:
             key = (item.id, storage.id)
             cells.append(
-                {
-                    "storage": storage,
-                    "count_value": submitted_counts.get(key, ""),
-                    "count_original": "",
-                    "restock_value": submitted_restocks.get(key, ""),
-                    "count_required": storage.id in required.get(item.id, set()),
-                    "invalid": key in invalid_cells,
-                    "restock_invalid": key in invalid_restock_cells,
-                }
+                BulkEditCell(
+                    storage=storage,
+                    count_value=submitted_counts.get(key, ""),
+                    count_original="",
+                    restock_value=submitted_restocks.get(key, ""),
+                    count_required=storage.id in required.get(item.id, set()),
+                    invalid=key in invalid_cells,
+                    restock_invalid=key in invalid_restock_cells,
+                )
             )
-        rows.append({"item": item, "cells": cells})
+        rows.append(BulkEditRow(item, cells, bool(item.expiration_tracking_enabled)))
     return rows
 
 

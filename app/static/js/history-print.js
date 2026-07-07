@@ -11,6 +11,11 @@ document.addEventListener("DOMContentLoaded", () => {
     const dateInputs = [...document.querySelectorAll("[data-history-date]")];
     const formValidation = window.InventoryFormValidation;
 
+    const cleanupPrintState = () => {
+        document.body.classList.remove("printing-report");
+        printArea?.replaceChildren();
+    };
+
     const todayInTimezone = (timezone) => {
         const parts = new Intl.DateTimeFormat("en-US", {
             timeZone: timezone || undefined,
@@ -69,8 +74,10 @@ document.addEventListener("DOMContentLoaded", () => {
             window.InventoryLoadingOverlay?.hide();
             document.body.classList.add("printing-report");
             window.print();
+            window.setTimeout(cleanupPrintState, 250);
         } catch (error) {
             window.InventoryLoadingOverlay?.hide();
+            cleanupPrintState();
             const message = error.message || "Could not load print history.";
             const target = form.querySelector(message.startsWith("Start date") ? "[name='start_date']" : "[name='end_date']");
             if (!target) return;
@@ -79,8 +86,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
     });
 
-    window.addEventListener("afterprint", () => {
-        document.body.classList.remove("printing-report");
-        if (printArea) printArea.replaceChildren();
+    window.addEventListener("afterprint", cleanupPrintState);
+    document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) window.setTimeout(cleanupPrintState, 250);
     });
 });

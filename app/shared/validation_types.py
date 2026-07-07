@@ -91,7 +91,7 @@ LocationName = Annotated[str, _required_string("name", 50)]
 OptionalPositiveInt = Annotated[int | None, _optional_positive_int("value")]
 PositiveInt = Annotated[int, _required_positive_int("value")]
 QuietTime = Annotated[str | None, _validated_time("quiet time")]
-QuantityDelta = Annotated[int, _required_non_negative_int("quantity_delta")]
+Quantity = Annotated[int, _required_non_negative_int("quantity")]
 ResetPin = Annotated[str, AfterValidator(lambda value: validate_pin_length(value, 6))]
 Password = Annotated[str, AfterValidator(validate_password_strength)]
 StorageName = Annotated[str, _required_string("name", 50)]
@@ -126,24 +126,24 @@ class FieldSpec:
 
 
 class FieldRuleName(StrEnum):
-    EMAIL_128 = "email_128"
-    HEX_COLOR = "hex_color"
-    HHMM_TIME = "hhmm_time"
-    IMAGE_SOURCE = "image_source"
-    INCREMENTS = "increments"
-    ITEM_NAME = "item_name"
-    ISO_DATE = "iso_date"
-    NON_NEGATIVE_NUMBER = "non_negative_number"
-    NON_NEGATIVE_INT = "non_negative_int"
-    PASSWORD = "password"  # nosec B105 - validation rule identifier, not a credential
-    PIN4 = "pin4"
-    PIN6 = "pin6"
-    POSITIVE_INT = "positive_int"
-    OPTIONAL_POSITIVE_INT = "optional_positive_int"
-    REQUIRED_TEXT = "required_text"
-    REQUIRED_CHOICE = "required_choice"
-    TAG_NAME = "tag_name"
-    UPC12 = "upc12"
+    EMAIL_128 = "EMAIL_128"
+    HEX_COLOR = "HEX_COLOR"
+    HHMM_TIME = "HHMM_TIME"
+    IMAGE_SOURCE = "IMAGE_SOURCE"
+    INCREMENTS = "INCREMENTS"
+    ITEM_NAME = "ITEM_NAME"
+    ISO_DATE = "ISO_DATE"
+    NON_NEGATIVE_NUMBER = "NON_NEGATIVE_NUMBER"
+    NON_NEGATIVE_INT = "NON_NEGATIVE_INT"
+    PASSWORD = "PASSWORD"  # nosec B105 - validation rule identifier, not a credential
+    PIN4 = "PIN4"
+    PIN6 = "PIN6"
+    POSITIVE_INT = "POSITIVE_INT"
+    OPTIONAL_POSITIVE_INT = "OPTIONAL_POSITIVE_INT"
+    REQUIRED_TEXT = "REQUIRED_TEXT"
+    REQUIRED_CHOICE = "REQUIRED_CHOICE"
+    TAG_NAME = "TAG_NAME"
+    UPC12 = "UPC12"
 
 
 FIELD_SPECS: Mapping[FieldRuleName, FieldSpec] = {
@@ -157,9 +157,7 @@ FIELD_SPECS: Mapping[FieldRuleName, FieldSpec] = {
     FieldRuleName.NON_NEGATIVE_NUMBER: FieldSpec(
         "Number", "Enter 0 or higher.", float, ("non_negative_number",), input_type="number", min_value=0, step="any"
     ),
-    FieldRuleName.NON_NEGATIVE_INT: FieldSpec(
-        "Quantity", "Enter 0 or higher.", QuantityDelta, ("non_negative_int",), input_type="number", min_value=0
-    ),
+    FieldRuleName.NON_NEGATIVE_INT: FieldSpec("Quantity", "Enter 0 or higher.", Quantity, ("non_negative_int",), input_type="number", min_value=0),
     FieldRuleName.PASSWORD: FieldSpec(
         "Password",
         PASSWORD_REQUIREMENTS_MESSAGE,

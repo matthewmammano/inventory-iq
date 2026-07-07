@@ -58,9 +58,9 @@ document.addEventListener("DOMContentLoaded", () => {
         modalMode = mode;
         modalTitle.textContent = mode === "save" ? "Review Changes" : "Unsaved Changes";
         modalMessage.textContent = mode === "save"
-            ? "Confirm these bulk changes before saving."
+            ? "Confirm these bulk changes before continuing."
             : "Leave without saving these bulk changes?";
-        confirmButton.textContent = mode === "save" ? "Yes, Save" : "Leave Without Saving";
+        confirmButton.textContent = mode === "save" ? "Continue" : "Leave Without Saving";
         confirmButton.classList.toggle("success-button", mode === "save");
         confirmButton.classList.toggle("danger-button", mode !== "save");
         changeList.replaceChildren(...changeReview.renderGroupedItems(pending, (change) => rowLabel(change.input)));

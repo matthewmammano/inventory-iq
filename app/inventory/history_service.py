@@ -5,8 +5,9 @@ from datetime import datetime
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session, joinedload
 
+from app.auth.models import Storage
 from app.inventory.location_operations import get_location_storages
-from app.inventory.models import ActionLogs
+from app.inventory.models import ActionLog
 
 HISTORY_REPORT_LIMIT = 5000
 
@@ -19,30 +20,31 @@ def list_history_logs(
     page_size: int,
     start_utc: datetime | None = None,
     end_utc: datetime | None = None,
-) -> tuple[list[ActionLogs], bool]:
+) -> tuple[list[ActionLog], bool]:
     """Return one page of action history for an agency and optional location scope."""
     stmt = (
-        select(ActionLogs)
+        select(ActionLog)
         .options(
-            joinedload(ActionLogs.item),
-            joinedload(ActionLogs.from_location),
-            joinedload(ActionLogs.to_location),
+            joinedload(ActionLog.item),
+            joinedload(ActionLog.from_storage).joinedload(Storage.location),
+            joinedload(ActionLog.to_storage).joinedload(Storage.location),
+            joinedload(ActionLog.expiration_lines),
         )
-        .where(ActionLogs.agency_id == agency_id)
+        .where(ActionLog.agency_id == agency_id)
     )
     if agency_location_id is not None:
         storage_ids = [storage.id for storage in get_location_storages(session, agency_id, agency_location_id)]
         stmt = stmt.where(
             or_(
-                ActionLogs.from_location_id.in_(storage_ids),
-                ActionLogs.to_location_id.in_(storage_ids),
+                ActionLog.from_storage_id.in_(storage_ids),
+                ActionLog.to_storage_id.in_(storage_ids),
             )
             if storage_ids
-            else ActionLogs.id == -1
+            else ActionLog.id == -1
         )
     if start_utc is not None:
-        stmt = stmt.where(ActionLogs.time_scanned >= start_utc)
+        stmt = stmt.where(ActionLog.time_scanned >= start_utc)
     if end_utc is not None:
-        stmt = stmt.where(ActionLogs.time_scanned < end_utc)
-    rows = list(session.execute(stmt.order_by(ActionLogs.id.desc()).offset((page - 1) * page_size).limit(page_size + 1)).scalars().all())
+        stmt = stmt.where(ActionLog.time_scanned < end_utc)
+    rows = list(session.execute(stmt.order_by(ActionLog.id.desc()).offset((page - 1) * page_size).limit(page_size + 1)).unique().scalars().all())
     return rows[:page_size], len(rows) > page_size

@@ -26,7 +26,7 @@ def validation_attrs(
     **overrides: Any,
 ) -> SafeHtmlAttrs:
     """Render safe HTML attributes for a named field validation rule."""
-    rule_key = FieldRuleName(rule_name)
+    rule_key = rule_name if isinstance(rule_name, FieldRuleName) else FieldRuleName(rule_name.upper())
     rule = FIELD_SPECS[rule_key].with_options(**overrides)
     attrs: dict[str, Any] = {
         "data-validate": rule_key.value,

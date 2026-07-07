@@ -6,7 +6,7 @@ from datetime import date, timedelta
 from sqlalchemy.orm import Session
 
 from app.inventory.location_state_service import recompute_item_location_state
-from app.inventory.models import Items
+from app.inventory.models import Item
 from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
 from app.prediction.usage_model import get_inventory_trend
 
@@ -32,7 +32,7 @@ class LocationProjection:
 def project_location_item(
     session: Session,
     agency_id: int,
-    item: Items,
+    item: Item,
     agency_location_id: int,
 ) -> LocationProjection:
     """Return the current truth plus persisted location trend for one item."""

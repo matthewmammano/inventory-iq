@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth.queries import get_tags_by_ids
 from app.shared.database import managed_session
 
-from .models import Items, ItemSecondaryUpc
+from .models import Item, ItemSecondaryUpc
 
 
 def get_agency_item(
@@ -15,11 +15,11 @@ def get_agency_item(
     *,
     include_inactive: bool = False,
     session: Session | None = None,
-) -> Items | None:
+) -> Item | None:
     with managed_session(session) as db:
-        stmt = select(Items).options(selectinload(Items.secondary_upcs)).where(Items.id == item_id, Items.agency_id == agency_id)
+        stmt = select(Item).where(Item.id == item_id, Item.agency_id == agency_id)
         if not include_inactive:
-            stmt = stmt.where(Items.active.is_(True))
+            stmt = stmt.where(Item.active.is_(True))
         return db.execute(stmt).scalars().first()
 
 
@@ -29,18 +29,18 @@ def get_item_by_upc(
     *,
     include_inactive: bool = False,
     session: Session | None = None,
-) -> Items | None:
+) -> Item | None:
     with managed_session(session) as db:
         normalized = upc.strip()
-        stmt = select(Items).where(Items.agency_id == agency_id, Items.upc == normalized)
+        stmt = select(Item).where(Item.agency_id == agency_id, Item.upc == normalized)
         if not include_inactive:
-            stmt = stmt.where(Items.active.is_(True))
+            stmt = stmt.where(Item.active.is_(True))
         item = db.execute(stmt).scalars().first()
         if item is not None:
             return item
-        stmt = select(Items).join(ItemSecondaryUpc).where(Items.agency_id == agency_id, ItemSecondaryUpc.upc == normalized)
+        stmt = select(Item).join(ItemSecondaryUpc).where(Item.agency_id == agency_id, ItemSecondaryUpc.upc == normalized)
         if not include_inactive:
-            stmt = stmt.where(Items.active.is_(True), ItemSecondaryUpc.active.is_(True))
+            stmt = stmt.where(Item.active.is_(True), ItemSecondaryUpc.active.is_(True))
         return db.execute(stmt).scalars().first()
 
 
@@ -50,18 +50,18 @@ def list_items(
     include_inactive: bool = False,
     order_by_last_accessed: bool = False,
     session: Session | None = None,
-) -> list[Items]:
+) -> list[Item]:
     with managed_session(session) as db:
-        stmt = select(Items).options(selectinload(Items.secondary_upcs)).where(Items.agency_id == agency_id)
+        stmt = select(Item).options(selectinload(Item.secondary_upcs)).where(Item.agency_id == agency_id)
         if not include_inactive:
-            stmt = stmt.where(Items.active.is_(True))
-        order_column = Items.last_accessed.desc().nulls_last() if order_by_last_accessed else Items.name
+            stmt = stmt.where(Item.active.is_(True))
+        order_column = Item.last_accessed.desc().nulls_last() if order_by_last_accessed else Item.name
         items = list(db.execute(stmt.order_by(order_column)).scalars().all())
         _attach_tags(agency_id, items, db)
         return items
 
 
-def _attach_tags(agency_id: int, items: list[Items], session: Session) -> None:
+def _attach_tags(agency_id: int, items: list[Item], session: Session) -> None:
     for item in items:
         item.secondary_upcs = [code for code in item.secondary_upcs if code.active]
     tag_ids = {tag_id for item in items for tag_id in (item.tag_ids or [])}

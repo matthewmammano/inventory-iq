@@ -14,17 +14,18 @@
 {% macro history_table(action_logs, user_timezone) %}
     <div class="table-wrap">
         <table>
-            <thead><tr><th>Time</th><th>Item</th><th>Type</th><th>Qty</th><th>From</th><th>To</th><th>Admin?</th></tr></thead>
+            <thead><tr><th>Time</th><th>Item</th><th>Type</th><th>Qty</th><th>From</th><th>To</th><th>Admin?</th><th>Expirations</th></tr></thead>
             <tbody>
                 {% for log in action_logs %}
                 <tr>
                     <td>{{ log.get_time_scanned_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if log.time_scanned else 'Unknown' }}</td>
                     <td>{{ log.item.name|bold_item_name if log.item else 'None' }}</td>
                     <td>{{ log.operation_type.value }}</td>
-                    <td>{{ log.quantity_delta }}</td>
-                    <td>{{ log.from_location.history_name if log.from_location else log.operation_type.value }}</td>
-                    <td>{{ log.to_location.history_name if log.to_location else 'TAKE' }}</td>
+                    <td>{{ log.quantity }}</td>
+                    <td>{{ log.from_storage.history_name if log.from_storage else log.operation_type.value }}</td>
+                    <td>{{ log.to_storage.history_name if log.to_storage else 'TAKE' }}</td>
                     <td>{{ 'Yes' if log.admin_action else 'No' }}</td>
+                    <td>{{ log.expiration_summary or '-' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
@@ -32,16 +33,16 @@
     </div>
 {% endmacro %}
 
-{% macro email_recipient_options(agency_emails, field_name='agency_email_ids') %}
+{% macro email_recipient_options(notification_recipients, field_name='notification_recipient_ids') %}
     <label class="setting-row">
         <span class="setting-name">Select All</span>
         <input type="checkbox" data-email-select-all>
     </label>
     <div class="settings-options">
-        {% for agency_email in agency_emails %}
+        {% for recipient in notification_recipients %}
         <label class="setting-row">
-            <span>{{ agency_email.email }}</span>
-            <input type="checkbox" name="{{ field_name }}" value="{{ agency_email.id }}" data-email-recipient-option>
+            <span>{{ recipient.email }}</span>
+            <input type="checkbox" name="{{ field_name }}" value="{{ recipient.id }}" data-email-recipient-option>
         </label>
         {% endfor %}
     </div>

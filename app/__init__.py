@@ -9,8 +9,8 @@ from typing import Any, cast
 
 from alembic import command
 from alembic.config import Config
-from flask import Flask, send_from_directory, url_for
-from flask_login import LoginManager
+from flask import Flask, has_request_context, request, send_from_directory, url_for
+from flask_login import LoginManager, current_user
 from loguru import logger
 
 from app.alerts import bp as alerts_bp
@@ -54,6 +54,7 @@ def create_app() -> Flask:
     register_request_logging(app)
     register_error_handlers(app)
     _register_template_filters(app)
+    _register_template_context(app)
     _register_auth_loader()
     _register_favicon_route(app)
     _register_health_check(app)
@@ -132,6 +133,26 @@ def _register_template_filters(app: Flask) -> None:
         if static_folder and (Path(static_folder) / Path(filename)).exists():
             return url_for("static", filename=filename)
         return url_for("static", filename="images/not-found.jpg")
+
+
+def _register_template_context(app: Flask) -> None:
+    @app.context_processor
+    def admin_pending_tasks() -> dict[str, Any]:
+        if not has_request_context():
+            return {"admin_pending_task_count": 0}
+        squad = request.view_args.get("squad") if request.view_args else None
+        if request.endpoint != "admin.admin_panel" or not squad or not current_user.is_authenticated:
+            return {"admin_pending_task_count": 0}
+        try:
+            from app.inventory.pending_tasks_service import pending_task_count
+            from app.shared.database import get_session
+
+            with get_session() as session:
+                count = pending_task_count(session, current_user.id)
+        except Exception:
+            logger.debug("Admin pending task badge count could not be loaded")
+            count = 0
+        return {"admin_pending_task_count": count}
 
 
 def _register_auth_loader() -> None:

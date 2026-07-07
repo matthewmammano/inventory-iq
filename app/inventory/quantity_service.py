@@ -11,7 +11,7 @@ from app.shared.database import managed_session
 
 from .balance_service import get_item_quantities, has_balance_rows
 from .constants import OperationType
-from .models import ActionLogs
+from .models import ActionLog
 
 
 def get_recent_admin_count(
@@ -20,20 +20,20 @@ def get_recent_admin_count(
     storage_id: int,
     hours_back: int,
     session: Session | None = None,
-) -> ActionLogs | None:
+) -> ActionLog | None:
     with managed_session(session) as db:
         cutoff = utc_now() - timedelta(hours=hours_back)
         stmt = (
-            select(ActionLogs)
+            select(ActionLog)
             .where(
-                ActionLogs.agency_id == agency_id,
-                ActionLogs.item_id == item_id,
-                ActionLogs.to_location_id == storage_id,
-                ActionLogs.operation_type == OperationType.COUNT,
-                ActionLogs.admin_action.is_(True),
-                ActionLogs.time_scanned >= cutoff,
+                ActionLog.agency_id == agency_id,
+                ActionLog.item_id == item_id,
+                ActionLog.to_storage_id == storage_id,
+                ActionLog.operation_type == OperationType.COUNT,
+                ActionLog.admin_action.is_(True),
+                ActionLog.time_scanned >= cutoff,
             )
-            .order_by(ActionLogs.time_scanned.desc())
+            .order_by(ActionLog.time_scanned.desc())
         )
         return db.execute(stmt).scalars().first()
 
@@ -48,9 +48,9 @@ def has_item_count(
         session.scalar(
             select(
                 exists().where(
-                    ActionLogs.agency_id == agency_id,
-                    ActionLogs.item_id == item_id,
-                    ActionLogs.operation_type == OperationType.COUNT,
+                    ActionLog.agency_id == agency_id,
+                    ActionLog.item_id == item_id,
+                    ActionLog.operation_type == OperationType.COUNT,
                 )
             )
         )
@@ -89,12 +89,12 @@ def _calculate_item_quantities_from_logs(
     exclude_action_ids: set[int] | None = None,
 ) -> dict[int, int]:
     stmt = (
-        select(ActionLogs)
-        .where(ActionLogs.agency_id == agency_id, ActionLogs.item_id == item_id)
-        .order_by(ActionLogs.time_scanned.asc(), ActionLogs.id.asc())
+        select(ActionLog)
+        .where(ActionLog.agency_id == agency_id, ActionLog.item_id == item_id)
+        .order_by(ActionLog.time_scanned.asc(), ActionLog.id.asc())
     )
     if exclude_action_ids:
-        stmt = stmt.where(ActionLogs.id.notin_(exclude_action_ids))
+        stmt = stmt.where(ActionLog.id.notin_(exclude_action_ids))
 
     quantities = _build_quantities_from_logs(list(session.execute(stmt).scalars().all()))
     if location_id is not None:
@@ -102,29 +102,29 @@ def _calculate_item_quantities_from_logs(
     return quantities
 
 
-def apply_action_to_quantities(quantities: dict[int, int], action: ActionLogs) -> dict[int, int]:
+def apply_action_to_quantities(quantities: dict[int, int], action: ActionLog) -> dict[int, int]:
     updated = dict(quantities)
-    to_storage_id = action.to_location_id
-    from_storage_id = action.from_location_id
+    to_storage_id = action.to_storage_id
+    from_storage_id = action.from_storage_id
 
     if action.is_count and to_storage_id is not None:
-        updated[to_storage_id] = action.quantity_delta
+        updated[to_storage_id] = action.quantity
         return updated
     if to_storage_id is not None:
-        updated[to_storage_id] = updated.get(to_storage_id, 0) + action.quantity_delta
+        updated[to_storage_id] = updated.get(to_storage_id, 0) + action.quantity
     if from_storage_id is not None:
-        updated[from_storage_id] = updated.get(from_storage_id, 0) - action.quantity_delta
+        updated[from_storage_id] = updated.get(from_storage_id, 0) - action.quantity
     return updated
 
 
-def _build_quantities_from_logs(logs: list[ActionLogs]) -> dict[int, int]:
+def _build_quantities_from_logs(logs: list[ActionLog]) -> dict[int, int]:
     quantities: dict[int, int] = defaultdict(int)
     for log in logs:
-        if log.is_count and log.to_location_id is not None:
-            quantities[log.to_location_id] = log.quantity_delta
+        if log.is_count and log.to_storage_id is not None:
+            quantities[log.to_storage_id] = log.quantity
             continue
-        if log.to_location_id is not None:
-            quantities[log.to_location_id] += log.quantity_delta
-        if log.from_location_id is not None:
-            quantities[log.from_location_id] -= log.quantity_delta
+        if log.to_storage_id is not None:
+            quantities[log.to_storage_id] += log.quantity
+        if log.from_storage_id is not None:
+            quantities[log.from_storage_id] -= log.quantity
     return dict(quantities)

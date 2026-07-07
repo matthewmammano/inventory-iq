@@ -33,8 +33,8 @@ from app.shared.database import get_session
 
 @dataclass(frozen=True, slots=True)
 class AdminScanRouteSelection:
-    from_location_id: int
-    to_location_id: int
+    from_storage_id: int
+    to_storage_id: int
     from_label: str
     to_label: str
     label: str
@@ -57,8 +57,8 @@ def admin_scan_items(squad: str) -> Any:
             extra={
                 "upc": unknown_upc,
                 "unknown_upc_status": unknown_upc_status.value if unknown_upc_status else None,
-                "from_storage_id": scan_route.from_location_id,
-                "to_storage_id": scan_route.to_location_id,
+                "from_storage_id": scan_route.from_storage_id,
+                "to_storage_id": scan_route.to_storage_id,
             },
         )
         if unknown_upc_status == UnknownUpcStatus.PENDING:
@@ -88,14 +88,14 @@ def admin_scan_items(squad: str) -> Any:
         selected_scan_route=scan_route.label,
         selected_from_location_label=scan_route.from_label,
         selected_to_location_label=scan_route.to_label,
-        selected_from_location_id=scan_route.from_location_id,
-        selected_to_location_id=scan_route.to_location_id,
+        selected_from_storage_id=scan_route.from_storage_id,
+        selected_to_storage_id=scan_route.to_storage_id,
         scan_item_url_base=url_for("admin.scan_item", squad=squad),
         scan_error_url=url_for(
             "admin.admin_scan_items",
             squad=squad,
-            from_location_id=scan_route.from_location_id,
-            to_location_id=scan_route.to_location_id,
+            from_storage_id=scan_route.from_storage_id,
+            to_storage_id=scan_route.to_storage_id,
             scan_error="not_found",
         ),
     )
@@ -141,8 +141,8 @@ def scan_item(squad: str) -> Any:
     return handle_scan_item_get(
         squad,
         query.item_id,
-        query.from_location_id,
-        query.to_location_id,
+        query.from_storage_id,
+        query.to_storage_id,
         is_admin=True,
     )
 
@@ -164,8 +164,8 @@ def _render_admin_scan_setup(squad: str) -> Any:
         squad=squad,
         from_locations=from_locations,
         to_locations=to_locations,
-        selected_from_id=query.from_location_id,
-        selected_to_id=query.to_location_id,
+        selected_from_id=query.from_storage_id,
+        selected_to_id=query.to_storage_id,
         setup_subtitle="Choose the FROM and TO locations for the next scans",
         admin=True,
     )
@@ -182,69 +182,69 @@ def _save_admin_scan_route(squad: str) -> Any:
     if route_request.same_location_error == "1":
         logger.info(
             "Admin scan setup rejected: source and destination combination is not allowed",
-            extra={"from_storage_id": route_request.from_location_id, "to_storage_id": route_request.to_location_id},
+            extra={"from_storage_id": route_request.from_storage_id, "to_storage_id": route_request.to_storage_id},
         )
         flash("Invalid storage combination.", "error")
         return redirect(
             url_for(
                 "admin.admin_scan_items",
                 squad=squad,
-                from_location_id=route_request.from_location_id,
-                to_location_id=route_request.to_location_id,
+                from_storage_id=route_request.from_storage_id,
+                to_storage_id=route_request.to_storage_id,
             )
         )
 
-    if not _is_valid_admin_scan_route(route_request.from_location_id, route_request.to_location_id):
+    if not _is_valid_admin_scan_route(route_request.from_storage_id, route_request.to_storage_id):
         logger.info(
             "Admin scan setup rejected: selected route is not allowed",
-            extra={"from_storage_id": route_request.from_location_id, "to_storage_id": route_request.to_location_id},
+            extra={"from_storage_id": route_request.from_storage_id, "to_storage_id": route_request.to_storage_id},
         )
         flash("Choose valid scan locations.", "error")
         return redirect(url_for("admin.admin_scan_items", squad=squad))
 
     logger.info(
         "Admin scan route selected",
-        extra={"from_storage_id": route_request.from_location_id, "to_storage_id": route_request.to_location_id},
+        extra={"from_storage_id": route_request.from_storage_id, "to_storage_id": route_request.to_storage_id},
     )
     return redirect(
         url_for(
             "admin.admin_scan_items",
             squad=squad,
-            from_location_id=route_request.from_location_id,
-            to_location_id=route_request.to_location_id,
+            from_storage_id=route_request.from_storage_id,
+            to_storage_id=route_request.to_storage_id,
         )
     )
 
 
 def _selected_admin_scan_route() -> AdminScanRouteSelection | None:
     query = ScanItemQuery.from_query(request.args.to_dict(), is_admin=True)
-    from_location_id = query.from_location_id
-    to_location_id = query.to_location_id
-    if not _is_valid_admin_scan_route(from_location_id, to_location_id):
+    from_storage_id = query.from_storage_id
+    to_storage_id = query.to_storage_id
+    if not _is_valid_admin_scan_route(from_storage_id, to_storage_id):
         return None
 
-    from_location = resolve_scan_location(from_location_id, current_user.id)
-    to_location = resolve_scan_location(to_location_id, current_user.id, takeout_allowed=True)
+    from_storage = resolve_scan_location(from_storage_id, current_user.id)
+    to_storage = resolve_scan_location(to_storage_id, current_user.id, takeout_allowed=True)
 
     return AdminScanRouteSelection(
-        from_location_id=from_location_id or 0,
-        to_location_id=to_location_id or 0,
-        from_label=format_scan_location_label(from_location, is_admin=True),
-        to_label=format_scan_location_label(to_location, is_admin=True, takeout_allowed=True),
-        label=format_scan_route_label(from_location, to_location, is_admin=True),
+        from_storage_id=from_storage_id or 0,
+        to_storage_id=to_storage_id or 0,
+        from_label=format_scan_location_label(from_storage, is_admin=True),
+        to_label=format_scan_location_label(to_storage, is_admin=True, takeout_allowed=True),
+        label=format_scan_route_label(from_storage, to_storage, is_admin=True),
     )
 
 
 def _is_valid_admin_scan_route(
-    from_location_id: int | None,
-    to_location_id: int | None,
+    from_storage_id: int | None,
+    to_storage_id: int | None,
 ) -> bool:
     permissions = ScanPermissions(count=True, restock=True)
     with get_session() as s:
         return is_scan_route_allowed(
             current_user.id,
-            from_location_id,
-            to_location_id,
+            from_storage_id,
+            to_storage_id,
             permissions,
             is_admin=True,
             session=s,

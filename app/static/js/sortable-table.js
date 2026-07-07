@@ -6,8 +6,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const sortRows = (column, direction) => {
             const rows = [...tbody.rows];
-            const multiplier = direction === "asc" ? 1 : -1;
-            rows.sort((left, right) => multiplier * compareCells(left.cells[column], right.cells[column]));
+            rows.sort((left, right) => compareCells(left.cells[column], right.cells[column], direction));
             tbody.replaceChildren(...rows);
             headers.forEach((header) => header.classList.toggle("sorted-column", Number(header.dataset.sortColumn) === column));
             table.querySelectorAll("td.sorted-cell").forEach((cell) => cell.classList.remove("sorted-cell"));
@@ -30,16 +29,32 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 });
 
-function compareCells(left, right) {
+function compareCells(left, right, direction) {
     const leftValue = sortValue(left);
     const rightValue = sortValue(right);
-    if (typeof leftValue === "number" && typeof rightValue === "number") return leftValue - rightValue;
-    return String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: "base" });
+    const leftMissing = isMissingSortValue(leftValue);
+    const rightMissing = isMissingSortValue(rightValue);
+    if (leftMissing && rightMissing) return 0;
+    if (leftMissing) return 1;
+    if (rightMissing) return -1;
+
+    const multiplier = direction === "asc" ? 1 : -1;
+    if (typeof leftValue === "number" && typeof rightValue === "number") return multiplier * (leftValue - rightValue);
+    return multiplier * String(leftValue).localeCompare(String(rightValue), undefined, { numeric: true, sensitivity: "base" });
 }
 
 function sortValue(cell) {
-    const value = cell?.dataset.sortValue ?? cell?.textContent.trim() ?? "";
-    if (value === "") return "";
+    const displayValue = cell?.textContent.trim() ?? "";
+    if (isMissingDisplayValue(displayValue)) return "";
+    const value = cell?.dataset.sortValue ?? displayValue;
     const number = Number(value);
     return Number.isNaN(number) ? value : number;
+}
+
+function isMissingSortValue(value) {
+    return value === "" || isMissingDisplayValue(String(value));
+}
+
+function isMissingDisplayValue(value) {
+    return ["", "-", "NA", "N/A"].includes(value.trim().toUpperCase());
 }

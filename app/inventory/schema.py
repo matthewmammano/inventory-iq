@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, BeforeValidator, Field, ValidationInfo, field_validator, model_validator
 
-from app.shared.validation_types import ItemName, OptionalParsedInt, OptionalPositiveInt, QuantityDelta, RequiredCountInput
+from app.shared.validation_types import ItemName, OptionalParsedInt, OptionalPositiveInt, Quantity, RequiredCountInput
 
 from .constants import OperationType
 
@@ -30,8 +30,8 @@ class ScanItemQuery(BaseModel):
     """Scan item query parameters."""
 
     item_id: OptionalParsedInt = None
-    from_location_id: OptionalParsedInt = None
-    to_location_id: OptionalParsedInt = None
+    from_storage_id: OptionalParsedInt = None
+    to_storage_id: OptionalParsedInt = None
     user_count_allow: bool = False
     user_restock_allow: bool = False
     show_scan_route: bool = False
@@ -42,8 +42,8 @@ class ScanItemQuery(BaseModel):
 
     @model_validator(mode="after")
     def default_takeout_destination(self) -> "ScanItemQuery":
-        if self.to_location_id is None and not self.user_count_allow and not self.user_restock_allow:
-            self.to_location_id = -1
+        if self.to_storage_id is None and not self.user_count_allow and not self.user_restock_allow:
+            self.to_storage_id = -1
         return self
 
 
@@ -136,8 +136,8 @@ class ScanStoragesRequest(BaseModel):
     """Scan storage-selection request payload."""
 
     item_id: int = Field(..., gt=0)
-    from_location_id: OptionalParsedInt = None
-    to_location_id: OptionalParsedInt = None
+    from_storage_id: OptionalParsedInt = None
+    to_storage_id: OptionalParsedInt = None
     same_location_error: str | None = None
     show_scan_route: bool = False
 
@@ -145,8 +145,8 @@ class ScanStoragesRequest(BaseModel):
 class AdminScanRouteRequest(BaseModel):
     """Admin scan route-selection payload."""
 
-    from_location_id: OptionalParsedInt = None
-    to_location_id: OptionalParsedInt = None
+    from_storage_id: OptionalParsedInt = None
+    to_storage_id: OptionalParsedInt = None
     same_location_error: str | None = None
 
 
@@ -154,8 +154,8 @@ class ScanItemRequest(BaseModel):
     """Scan item request payload."""
 
     item_id: int = Field(..., gt=0)
-    from_location_id: OptionalParsedInt = None
-    to_location_id: OptionalParsedInt = None
+    from_storage_id: OptionalParsedInt = None
+    to_storage_id: OptionalParsedInt = None
     counter_value: RequiredCountInput
 
 
@@ -172,6 +172,8 @@ class ItemResponse(BaseModel):
     increments: str | None
     name: ItemName
     image: str | None
+    expiration_tracking_enabled: bool
+    expiration_notice_days_override: OptionalPositiveInt
     last_accessed: datetime | None
     min_quantity: OptionalPositiveInt
     max_quantity: OptionalPositiveInt
@@ -187,8 +189,8 @@ class ActionLogResponse(BaseModel):
     agency_id: int
     item_id: int | None
     operation_type: OperationType
-    from_location_id: int | None
-    to_location_id: int | None
-    quantity_delta: QuantityDelta
+    from_storage_id: int | None
+    to_storage_id: int | None
+    quantity: Quantity
     admin_action: bool
     time_scanned: datetime

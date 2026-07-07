@@ -1,9 +1,19 @@
 {% extends "base.html" %}
+{% from "macros.html" import email_recipient_options %}
 
 {% block title %}Restock Report{% endblock %}
 {% block header_title %}Restock{% endblock %}
 {% block sub_title %}Review reorder needs and receiving priorities by location{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>{% endblock %}
+{% block header_right %}
+    {% if active_location_id %}
+        {% set restock_print_url = url_for('admin.restock_print', squad=squad, agency_location_id=active_location_id) %}
+    {% else %}
+        {% set restock_print_url = url_for('admin.restock_print', squad=squad) %}
+    {% endif %}
+    <button class="button" type="button" data-report-print-url="{{ restock_print_url }}" data-report-print-area="#restock-print-area">Print Report</button>
+    <button class="success-button" data-email-modal-open="restock-email-modal" type="button">Email Report</button>
+    <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
+{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/item-trend-modal.css') }}">{% endblock %}
 
 {% block content %}
@@ -23,7 +33,7 @@
     {% set usage_tip = "Estimated from recent usage trends and shown in the clearest time unit. Review current stock before ordering." %}
     <section class="panel">
         <div class="table-wrap">
-            <table data-sort-table data-default-sort-column="10" data-default-sort-direction="asc">
+            <table data-sort-table data-default-sort-column="14" data-default-sort-direction="asc">
                 <thead>
                     <tr>
                         <th data-sort-column="0">Item Name</th>
@@ -36,43 +46,52 @@
                         <th data-sort-column="7">Max</th>
                         <th data-sort-column="8">Batch Size</th>
                         <th data-sort-column="9">Lead Time Days</th>
-                        <th data-sort-column="10">Days Until Stockout <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th data-sort-column="11">Reorder Date <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th data-sort-column="12">Last Counted</th>
-                        <th data-sort-column="13">Confidence <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th data-sort-column="14">Order Amount</th>
+                        <th data-sort-column="10">Soonest Expiration</th>
+                        <th data-sort-column="11">Expired</th>
+                        <th data-sort-column="12">Expiring Soon</th>
+                        <th data-sort-column="13">Still Good</th>
+                        <th data-sort-column="14">Days Until Stockout <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
+                        <th data-sort-column="15">Reorder Date <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
+                        <th data-sort-column="16">Last Counted</th>
+                        <th data-sort-column="17">Confidence <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
+                        <th data-sort-column="18">Order Amount</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for row in restock_data %}
                     <tr>
-                        <td data-sort-value="{{ row['item'].name }}">
+                        <td data-sort-value="{{ row.item.name }}">
                             <div class="item-trend-row-title">
-                                <span>{{ row['item'].name|bold_item_name }}</span>
+                                <span>{{ row.item.name|bold_item_name }}</span>
                                 <button
                                     class="item-trend-button"
                                     type="button"
                                     aria-label="Open item trend"
                                     title="Open item trend"
-                                    data-trend-url="{{ url_for('admin.item_trend_chart', squad=squad, item_id=row['item'].id, agency_location_id=active_location.id) }}">
+                                    data-trend-url="{{ url_for('admin.item_trend_chart', squad=squad, item_id=row.item.id, agency_location_id=active_location.id) }}">
                                     <img class="item-trend-icon" src="https://img.icons8.com/?size=100&amp;id=116120&amp;format=png&amp;color=000000" alt="" aria-hidden="true">
                                 </button>
                             </div>
                         </td>
-                        <td data-sort-value="{{ row['item'].increments }}">{{ row['item'].increments }}</td>
-                        <td class="{{ row.get('current_total_class', '') }}" data-sort-value="{{ row['current_total'] }}">{{ row['current_total'] }}</td>
-                        <td class="{{ row.get('projected_total_class', '') }}" data-sort-value="{{ row['projected_lead_time_total'] if row['projected_lead_time_total'] is not none else 999999 }}">{{ row['projected_lead_time_total'] if row['projected_lead_time_total'] is not none else 'N/A' }}</td>
-                        <td data-sort-value="{{ row['daily_usage_rate'] if row['daily_usage_rate'] is not none else 999999 }}">{{ row['usage_display'] if row['usage_display'] is not none else 'N/A' }}</td>
-                        <td class="{{ row.get('min_quantity_class', '') }}" data-sort-value="{{ row['min_quantity'] }}">{{ row['min_quantity'] if row['min_quantity'] > 0 else '-' }}</td>
-                        <td data-sort-value="{{ row['gap_to_min'] }}">{{ row['gap_to_min'] if row['gap_to_min'] > 0 else '' }}</td>
-                        <td data-sort-value="{{ row['max_quantity'] }}">{{ row['max_quantity'] if row['max_quantity'] > 0 else '-' }}</td>
-                        <td data-sort-value="{{ row['item'].batch_size or 0 }}">{{ row['item'].batch_size if row['item'].batch_size else '-' }}</td>
-                        <td data-sort-value="{{ row['lead_time_days'] }}">{{ row['lead_time_days'] }}</td>
-                        <td class="{{ row.get('days_class', '') }}" data-sort-value="{{ row['days_until_stockout'] if row['days_until_stockout'] is not none else 999999 }}">{% if row['days_until_stockout'] is not none %}{{ row['days_until_stockout'] if row['days_until_stockout'] <= 365 else 365 }}{% else %}N/A{% endif %}</td>
-                        <td data-sort-value="{{ row['suggested_reorder_date'].strftime('%Y-%m-%d') if row['suggested_reorder_date'] else '9999-12-31' }}">{{ row['suggested_reorder_date'].strftime('%Y-%m-%d') if row['suggested_reorder_date'] else 'N/A' }}</td>
-                        <td data-sort-value="{{ row['last_counted_at'].strftime('%Y-%m-%d') if row['last_counted_at'] else '9999-12-31' }}">{{ row['last_counted_at'].strftime('%Y-%m-%d') if row['last_counted_at'] else 'N/A' }}</td>
-                        <td data-sort-value="{{ row['confidence_display'] if row['confidence_display'] is not none else -1 }}">{{ row['confidence_display'] ~ '%' if row['confidence_display'] is not none else 'N/A' }}</td>
-                        <td class="{{ row.get('order_class', '') }}" data-sort-value="{{ row['order_amount'] if row['order_amount'] is not none else -1 }}">{{ row['order_amount_display'] }}</td>
+                        <td data-sort-value="{{ row.item.increments }}">{{ row.item.increments }}</td>
+                        <td class="{{ row.current_total_class }}" data-sort-value="{{ row.current_total }}">{{ row.current_total }}</td>
+                        <td class="{{ row.projected_total_class }}" data-sort-value="{{ row.projected_lead_time_total if row.projected_lead_time_total is not none else 999999 }}">{{ row.projected_lead_time_total if row.projected_lead_time_total is not none else 'N/A' }}</td>
+                        <td data-sort-value="{{ row.daily_usage_rate if row.daily_usage_rate is not none else 999999 }}">{{ row.usage_display if row.usage_display is not none else 'N/A' }}</td>
+                        <td class="{{ row.min_quantity_class }}" data-sort-value="{{ row.min_quantity }}">{{ row.min_quantity if row.min_quantity > 0 else '-' }}</td>
+                        <td data-sort-value="{{ row.gap_to_min }}">{{ row.gap_to_min if row.gap_to_min > 0 else '' }}</td>
+                        <td data-sort-value="{{ row.max_quantity }}">{{ row.max_quantity if row.max_quantity > 0 else '-' }}</td>
+                        <td data-sort-value="{{ row.item.batch_size or 0 }}">{{ row.item.batch_size if row.item.batch_size else '-' }}</td>
+                        <td data-sort-value="{{ row.lead_time_days }}">{{ row.lead_time_days }}</td>
+                        {% set expiration = row.expiration_breakdown %}
+                        <td data-sort-value="{{ expiration.soonest_sort_value if expiration else '9999-12-31' }}">{{ expiration.soonest_label if expiration else '-' }}</td>
+                        <td data-sort-value="{{ expiration.expired_count if expiration else 0 }}">{{ expiration.expired_count if expiration else '-' }}</td>
+                        <td data-sort-value="{{ expiration.expiring_soon_count if expiration else 0 }}">{{ expiration.expiring_soon_count if expiration else '-' }}</td>
+                        <td data-sort-value="{{ expiration.good_count if expiration else 0 }}">{{ expiration.good_count if expiration else '-' }}</td>
+                        <td class="{{ row.days_class }}" data-sort-value="{{ row.days_until_stockout if row.days_until_stockout is not none else 999999 }}">{% if row.days_until_stockout is not none %}{{ row.days_until_stockout if row.days_until_stockout <= 365 else 365 }}{% else %}N/A{% endif %}</td>
+                        <td data-sort-value="{{ row.suggested_reorder_date.strftime('%Y-%m-%d') if row.suggested_reorder_date else '9999-12-31' }}">{{ row.suggested_reorder_date.strftime('%Y-%m-%d') if row.suggested_reorder_date else 'N/A' }}</td>
+                        <td data-sort-value="{{ row.last_counted_at.strftime('%Y-%m-%d') if row.last_counted_at else '9999-12-31' }}">{{ row.last_counted_at.strftime('%Y-%m-%d') if row.last_counted_at else 'N/A' }}</td>
+                        <td data-sort-value="{{ row.confidence_display if row.confidence_display is not none else -1 }}">{{ row.confidence_display ~ '%' if row.confidence_display is not none else 'N/A' }}</td>
+                        <td class="{{ row.order_class }}" data-sort-value="{{ row.order_amount if row.order_amount is not none else -1 }}">{{ row.order_amount_display }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -82,9 +101,35 @@
     {% endif %}
 </div>
 {% include "item_trend_modal.html" %}
+
+<div class="modal-backdrop hidden" id="restock-email-modal" data-email-modal>
+    <div class="modal">
+        <h2>Email Report</h2>
+        <p>Select who should receive the restock report.</p>
+        {% if notification_recipients %}
+        <form method="POST" action="{{ url_for('admin.send_restock_email', squad=squad) }}" class="stack" data-validation-live="submit">
+            <input type="hidden" name="active_location_id" value="{{ active_location_id or '' }}">
+            {{ email_recipient_options(notification_recipients) }}
+            <div class="button-row">
+                <button class="success-button" data-email-submit type="submit" disabled>Email Report</button>
+                <button class="quiet-button" data-email-modal-close type="button">Cancel</button>
+            </div>
+        </form>
+        {% else %}
+        <div class="empty-state">
+            <h2>No notification emails found</h2>
+            <p>Add agency emails before sending reports.</p>
+        </div>
+        <button class="quiet-button" data-email-modal-close type="button">Close</button>
+        {% endif %}
+    </div>
+</div>
+<section id="restock-print-area" class="print-only" aria-hidden="true" data-report-print-area></section>
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/email-modal.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/report-print.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/sortable-table.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/item-trend-modal.js') }}" defer></script>
 {% endblock %}

@@ -2,23 +2,39 @@
 
 from collections.abc import Iterable
 from datetime import datetime
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any, TypedDict, cast
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.queries import get_tags_by_ids
-from app.inventory.models import Items, ItemSecondaryUpc
+from app.inventory.models import Item, ItemSecondaryUpc
 from app.shared.cache import ttl_cache
 
 if TYPE_CHECKING:
-    from app.auth.models import AgencyItemTags
+    from app.auth.models import ItemTag
 
 
-def build_item_search_payload(items: Iterable[Items]) -> list[dict[str, Any]]:
-    payload: list[dict[str, Any]] = []
+class TagSearchPayload(TypedDict):
+    name: str
+    color: str
+    text_color: str
+
+
+class ItemSearchPayload(TypedDict):
+    id: int
+    name: str
+    upc: str
+    upcs: list[str]
+    last_accessed: str
+    tags: list[str]
+    tag_data: list[TagSearchPayload]
+
+
+def build_item_search_payload(items: Iterable[Item]) -> list[ItemSearchPayload]:
+    payload: list[ItemSearchPayload] = []
     for item in items:
-        tags = cast("list[AgencyItemTags]", item.tags)
+        tags = cast("list[ItemTag]", item.tags)
         payload.append(_item_payload_entry(item.id, item.name, [item.upc, *(code.upc for code in item.secondary_upcs)], item.last_accessed, tags))
     return payload
 
@@ -30,18 +46,18 @@ def load_item_search_payload(
     *,
     include_inactive: bool = False,
     order_by_last_accessed: bool = False,
-) -> list[dict[str, Any]]:
+) -> list[ItemSearchPayload]:
     """Load only the item fields needed by the scanner search payload."""
     stmt = select(
-        Items.id,
-        Items.name,
-        Items.upc,
-        Items.last_accessed,
-        Items.tag_ids,
-    ).where(Items.agency_id == agency_id)
+        Item.id,
+        Item.name,
+        Item.upc,
+        Item.last_accessed,
+        Item.tag_ids,
+    ).where(Item.agency_id == agency_id)
     if not include_inactive:
-        stmt = stmt.where(Items.active.is_(True))
-    order_column = Items.last_accessed.desc().nulls_last() if order_by_last_accessed else Items.name
+        stmt = stmt.where(Item.active.is_(True))
+    order_column = Item.last_accessed.desc().nulls_last() if order_by_last_accessed else Item.name
     rows = session.execute(stmt.order_by(order_column)).all()
     if not rows:
         return []
@@ -51,7 +67,7 @@ def load_item_search_payload(
     tags_by_id = {tag.id: tag for tag in tags}
     upcs_by_item_id = _upcs_by_item_id(session, agency_id, [row.id for row in rows])
 
-    payload: list[dict[str, Any]] = []
+    payload: list[ItemSearchPayload] = []
     for row in rows:
         item_tags = [tags_by_id[tag_id] for tag_id in (row.tag_ids or []) if tag_id in tags_by_id]
         payload.append(_item_payload_entry(row.id, row.name, [row.upc, *upcs_by_item_id.get(row.id, [])], row.last_accessed, item_tags))
@@ -80,7 +96,7 @@ def _item_payload_entry(
     upcs: list[str],
     last_accessed: datetime | None,
     tags: list[Any],
-) -> dict[str, Any]:
+) -> ItemSearchPayload:
     return {
         "id": item_id,
         "name": name,

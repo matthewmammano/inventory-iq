@@ -22,9 +22,9 @@ EMAIL_RETRY_DELAYS_SECONDS = (5, 15, 30, 60)
 
 
 class EmailAttemptResult(StrEnum):
-    SENT = "sent"
-    RETRY = "retry"
-    FAILED = "failed"
+    SENT = "SENT"
+    RETRY = "RETRY"
+    FAILED = "FAILED"
 
 
 @dataclass(frozen=True)

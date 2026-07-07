@@ -12,7 +12,7 @@ from app.shared.email_addresses import email_domain
 from app.shared.email_client import OutboundEmail, send_email
 
 from .constants import RESET_PIN_DIGITS, RESET_PIN_MAX_ATTEMPTS, RESET_PIN_TTL_MINUTES
-from .models import Agencies, PasswordResetPins
+from .models import Agency, PasswordResetPins
 
 
 def create_password_reset_pin(session: Session, email: str) -> bool:
@@ -82,8 +82,8 @@ def reset_password_with_pin(
     return True
 
 
-def _active_agency_by_email(session: Session, email: str) -> Agencies | None:
-    return session.execute(select(Agencies).where(Agencies.email == email.strip(), Agencies.active.is_(True))).scalars().first()
+def _active_agency_by_email(session: Session, email: str) -> Agency | None:
+    return session.execute(select(Agency).where(Agency.email == email.strip(), Agency.active.is_(True))).scalars().first()
 
 
 def _clear_open_pins(session: Session, agency_id: int, now) -> None:

@@ -69,9 +69,9 @@
                 <span class="setting-name">End Date</span>
                 <input id="history-print-end" name="end_date" data-history-date data-label="End Date" {{ validation_attrs("iso_date", compare_to="start_date", compare_mode="date_gte", compare_message="End Date must be on or after Start Date.", min_date="2000-01-01", max_date=today_date) }}>
             </label>
-            {% if agency_emails %}
+            {% if notification_recipients %}
             <div data-history-email-section class="stack hidden">
-                {{ email_recipient_options(agency_emails) }}
+                {{ email_recipient_options(notification_recipients) }}
             </div>
             {% else %}
             <div class="empty-state hidden" data-history-email-empty>
@@ -81,7 +81,7 @@
             {% endif %}
             <div class="button-row">
                 <button class="button" id="submit-history-print" data-history-print-submit type="button">Print</button>
-                {% if agency_emails %}
+                {% if notification_recipients %}
                 <button class="success-button hidden" data-email-submit data-history-email-submit type="submit" disabled>Email Report</button>
                 {% endif %}
                 <button class="quiet-button" data-email-modal-close data-history-modal-close type="button">Cancel</button>

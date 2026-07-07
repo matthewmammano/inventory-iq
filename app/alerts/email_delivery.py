@@ -99,7 +99,7 @@ def _write_delivery_file(delivery: NotificationEmailDelivery) -> bool:
             extra={
                 "notification_email_delivery_id": delivery.id,
                 "agency_id": delivery.agency_id,
-                "agency_email_id": delivery.agency_email_id,
+                "notification_recipient_id": delivery.notification_recipient_id,
                 "path": str(html_path),
             },
         )
@@ -110,7 +110,7 @@ def _write_delivery_file(delivery: NotificationEmailDelivery) -> bool:
             extra={
                 "notification_email_delivery_id": delivery.id,
                 "agency_id": delivery.agency_id,
-                "agency_email_id": delivery.agency_email_id,
+                "notification_recipient_id": delivery.notification_recipient_id,
             },
         )
         return False

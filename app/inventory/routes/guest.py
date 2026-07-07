@@ -234,7 +234,7 @@ def scan_item(squad: str) -> Any:
     return handle_scan_item_get(
         squad,
         query.item_id,
-        query.from_location_id,
-        query.to_location_id,
+        query.from_storage_id,
+        query.to_storage_id,
         show_scan_route=query.show_scan_route,
     )

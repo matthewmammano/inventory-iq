@@ -5,9 +5,9 @@ from datetime import datetime
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from app.auth.models import AgencyLocations
+from app.auth.models import Location
 from app.inventory.constants import OperationType
-from app.inventory.models import ActionLogs, Items
+from app.inventory.models import ActionLog, Item
 from app.prediction.formatting import format_usage_rate
 from app.prediction.schema import ItemTrendChartResponse, TrendChartPoint
 from app.prediction.segments import CountAnchor, extract_count_anchors, get_location_storage_ids
@@ -18,8 +18,8 @@ from app.shared.clock import utc_now
 def build_item_trend_chart(
     session: Session,
     agency_id: int,
-    item: Items,
-    location: AgencyLocations,
+    item: Item,
+    location: Location,
 ) -> ItemTrendChartResponse:
     """Return count anchors, operation dots, and learned trendline for one location."""
     storage_ids = get_location_storage_ids(session, agency_id, location.id)
@@ -53,17 +53,17 @@ def _operation_points(
     if not storage_ids:
         return []
     rows = session.execute(
-        select(ActionLogs)
+        select(ActionLog)
         .where(
-            ActionLogs.agency_id == agency_id,
-            ActionLogs.item_id == item_id,
+            ActionLog.agency_id == agency_id,
+            ActionLog.item_id == item_id,
             or_(
-                ActionLogs.from_location_id.in_(storage_ids),
-                ActionLogs.to_location_id.in_(storage_ids),
+                ActionLog.from_storage_id.in_(storage_ids),
+                ActionLog.to_storage_id.in_(storage_ids),
             ),
-            ActionLogs.time_scanned.isnot(None),
+            ActionLog.time_scanned.isnot(None),
         )
-        .order_by(ActionLogs.time_scanned, ActionLogs.id)
+        .order_by(ActionLog.time_scanned, ActionLog.id)
     ).scalars()
     quantities: dict[int, int] = dict.fromkeys(storage_ids, 0)
     operation_points: list[TrendChartPoint] = []
@@ -81,16 +81,16 @@ def _operation_points(
     return operation_points
 
 
-def _apply_log(quantities: dict[int, int], log: ActionLogs) -> None:
-    to_storage_id = log.to_location_id
-    from_storage_id = log.from_location_id
+def _apply_log(quantities: dict[int, int], log: ActionLog) -> None:
+    to_storage_id = log.to_storage_id
+    from_storage_id = log.from_storage_id
     if log.is_count and to_storage_id is not None and to_storage_id in quantities:
-        quantities[to_storage_id] = log.quantity_delta
+        quantities[to_storage_id] = log.quantity
         return
     if to_storage_id is not None and to_storage_id in quantities:
-        quantities[to_storage_id] += log.quantity_delta
+        quantities[to_storage_id] += log.quantity
     if from_storage_id is not None and from_storage_id in quantities:
-        quantities[from_storage_id] -= log.quantity_delta
+        quantities[from_storage_id] -= log.quantity
 
 
 def _trendline_points(

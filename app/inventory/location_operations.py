@@ -3,10 +3,10 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.models import AgencyStorages
+from app.auth.models import Storage
 from app.inventory.balance_service import build_location_quantity_rows, sync_balances_for_actions
 from app.inventory.constants import OperationType
-from app.inventory.models import ActionLogs, Items
+from app.inventory.models import ActionLog, Item
 from app.shared.clock import utc_now
 
 
@@ -14,15 +14,15 @@ def get_location_storages(
     session: Session,
     agency_id: int,
     agency_location_id: int,
-) -> list[AgencyStorages]:
+) -> list[Storage]:
     return list(
         session.execute(
-            select(AgencyStorages)
+            select(Storage)
             .where(
-                AgencyStorages.agency_id == agency_id,
-                AgencyStorages.location_id == agency_location_id,
+                Storage.agency_id == agency_id,
+                Storage.location_id == agency_location_id,
             )
-            .order_by(AgencyStorages.name)
+            .order_by(Storage.name)
         )
         .scalars()
         .all()
@@ -33,8 +33,10 @@ def build_location_count_rows(
     session: Session,
     agency_id: int,
     agency_location_id: int,
-) -> tuple[list[Items], list[AgencyStorages], dict[tuple[int, int], int]]:
-    return build_location_quantity_rows(session, agency_id, agency_location_id)
+    *,
+    include_secondary_upcs: bool = False,
+) -> tuple[list[Item], list[Storage], dict[tuple[int, int], int]]:
+    return build_location_quantity_rows(session, agency_id, agency_location_id, include_secondary_upcs=include_secondary_upcs)
 
 
 def save_location_count(
@@ -42,19 +44,19 @@ def save_location_count(
     agency_id: int,
     agency_location_id: int,
     quantities: dict[tuple[int, int], int],
-) -> list[ActionLogs]:
+) -> list[ActionLog]:
     storages = get_location_storages(session, agency_id, agency_location_id)
     storage_ids = {storage.id for storage in storages}
     item_ids = _active_item_ids(session, agency_id)
     now = utc_now()
     logs = [
-        ActionLogs(
+        ActionLog(
             agency_id=agency_id,
             item_id=item_id,
             operation_type=OperationType.COUNT,
-            from_location_id=None,
-            to_location_id=storage_id,
-            quantity_delta=max(quantity, 0),
+            from_storage_id=None,
+            to_storage_id=storage_id,
+            quantity=max(quantity, 0),
             admin_action=True,
             time_scanned=now,
         )
@@ -72,19 +74,19 @@ def save_location_restock(
     agency_id: int,
     agency_location_id: int,
     quantities: dict[tuple[int, int], int],
-) -> list[ActionLogs]:
+) -> list[ActionLog]:
     storages = get_location_storages(session, agency_id, agency_location_id)
     storage_ids = {storage.id for storage in storages}
     item_ids = _active_item_ids(session, agency_id)
     now = utc_now()
     logs = [
-        ActionLogs(
+        ActionLog(
             agency_id=agency_id,
             item_id=item_id,
             operation_type=OperationType.RESTOCK,
-            from_location_id=None,
-            to_location_id=storage_id,
-            quantity_delta=quantity,
+            from_storage_id=None,
+            to_storage_id=storage_id,
+            quantity=quantity,
             admin_action=True,
             time_scanned=now,
         )
@@ -98,4 +100,4 @@ def save_location_restock(
 
 
 def _active_item_ids(session: Session, agency_id: int) -> set[int]:
-    return set(session.execute(select(Items.id).where(Items.agency_id == agency_id, Items.active.is_(True))).scalars())
+    return set(session.execute(select(Item.id).where(Item.agency_id == agency_id, Item.active.is_(True))).scalars())

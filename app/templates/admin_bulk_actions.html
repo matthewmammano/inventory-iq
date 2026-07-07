@@ -4,7 +4,7 @@
 {% block header_title %}Bulk Action{% endblock %}
 {% block sub_title %}Location: {{ location.name }}{% endblock %}
 {% block header_right %}
-<button class="success-button hidden" id="bulk-save-button" type="button">Save Changes</button>
+<button class="success-button hidden" id="bulk-save-button" type="button">Continue</button>
 <a class="header-action" href="{{ url_for('admin.bulk_actions', squad=squad, agency_location_id=location.id) }}" data-bulk-back>Back to Bulk Action</a>
 {% endblock %}
 
@@ -36,7 +36,12 @@
                 <tbody>
                     {% for row in rows %}
                     <tr>
-                        <th scope="row">{{ row.item.name|bold_item_name }}</th>
+                        <th scope="row">
+                            {{ row.item.name|bold_item_name }}
+                            {% if row.expiration_tracking_enabled %}
+                            <small class="field-hint field-hint-passive expiration-bulk-reminder" data-expiration-reminder>Keep nearby for expiration dates.</small>
+                            {% endif %}
+                        </th>
                         {% for cell in row.cells %}
                         <td
                             class="{% if cell.count_required %}required-cell{% endif %}{% if cell.invalid %} invalid-cell{% endif %}"
@@ -75,7 +80,7 @@
             </table>
         </div>
         <div class="button-row">
-            <button class="success-button hidden" id="bulk-submit-button" type="submit">Save Bulk Updates</button>
+            <button class="success-button hidden" id="bulk-submit-button" type="submit">Continue</button>
         </div>
     </div>
 </form>
@@ -83,10 +88,10 @@
 <div class="modal-backdrop change-review-backdrop hidden" id="bulk-confirm-modal">
     <div class="modal change-review-modal">
         <h2 id="bulk-modal-title">Review Changes</h2>
-        <p id="bulk-modal-message">Confirm these bulk changes before saving.</p>
+        <p id="bulk-modal-message">Confirm these bulk changes before continuing.</p>
         <div class="change-list" id="bulk-change-list"></div>
         <div class="button-row">
-            <button class="success-button" id="bulk-confirm-button" type="button">Yes, Save</button>
+            <button class="success-button" id="bulk-confirm-button" type="button">Continue</button>
             <button class="quiet-button" id="bulk-cancel-button" type="button">Keep Editing</button>
         </div>
     </div>

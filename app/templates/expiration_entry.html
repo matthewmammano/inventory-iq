@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }}{% endblock %}
+{% block header_title %}{{ page_title }}{% endblock %}
+{% block sub_title %}{{ page_subtitle }}{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ cancel_url }}">{{ back_label|default("Back") }}</a>{% endblock %}
+
+{% macro expiration_stepper(name, value, row_max, label) -%}
+<div class="expiration-stepper">
+    <button type="button" data-exp-minus>-</button>
+    <input
+        name="{{ name }}"
+        value="{{ value }}"
+        inputmode="numeric"
+        data-exp-qty
+        data-row-max="{{ row_max }}"
+        aria-label="{{ label }}">
+    <button type="button" data-exp-plus>+</button>
+</div>
+{%- endmacro %}
+
+{% macro new_expiration_row(group, index) -%}
+<div class="expiration-row expiration-date-row" data-exp-new-row>
+    <span class="expiration-date-label">Expiration Date</span>
+    <input class="expiration-date-input" type="date" name="exp_new_date_{{ group.spec.key }}_{{ index }}">
+    {{ expiration_stepper("exp_new_qty_" ~ group.spec.key ~ "_" ~ index, 0, group.spec.quantity, group.item.name ~ " new expiration quantity") }}
+    <small class="field-hint expiration-date-warning hidden" data-exp-date-warning>Enter an expiration date for this quantity.</small>
+</div>
+{%- endmacro %}
+
+{% block content %}
+<form method="POST" action="{{ form_action or '' }}" class="stack{% if compact_entry %} expiration-form-compact{% endif %}" data-expiration-form>
+    {% for name, value in hidden_fields %}
+    <input type="hidden" name="{{ name }}" value="{{ value }}">
+    {% endfor %}
+    <input type="hidden" name="expiration_confirmed" value="1">
+
+    {% if compact_entry %}
+    <div class="alert warning compact-alert">Enter dates until each total matches. Recount instead if the item count is wrong.</div>
+    {% else %}
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <h2>Enter Expiration Dates</h2>
+                <p>Match the expiration quantities below to the quantity being saved.</p>
+            </div>
+        </div>
+    </section>
+    {% endif %}
+
+    {% for item_group in item_groups %}
+    <section class="panel expiration-item-group">
+        <div class="panel-header">
+            <div>
+                <h2>{{ item_group.item.name|bold_item_name }}</h2>
+                <p>{{ item_group.storage_count }} storage{% if item_group.storage_count != 1 %}s{% endif %} - {{ item_group.total_quantity }} total</p>
+            </div>
+        </div>
+        <div class="panel-body stack">
+            {% for group in item_group.groups %}
+            {% set target = group.spec.quantity %}
+            <section class="expiration-storage-group" data-expiration-group data-target="{{ target }}" data-max-new-rows="{{ group.spec.new_date_row_count }}">
+                <div class="expiration-storage-header">
+                    <div>
+                        <strong>{{ group.storage.history_name }}</strong>
+                        <small>{{ group.spec.operation_type.value }} - Qty {{ target }}</small>
+                    </div>
+                    <div class="expiration-group-actions">
+                        {% if show_recount_links %}
+                        <a
+                            class="quiet-button expiration-recount-link"
+                            href="{{ url_for('admin.bulk_edit', squad=squad, agency_location_id=group.storage.location_id, item_ids=group.item.id) }}">
+                            Count Wrong? Recount
+                        </a>
+                        {% endif %}
+                        <strong class="expiration-total" data-expiration-total>0 / {{ target }}</strong>
+                    </div>
+                </div>
+                <div class="expiration-rows">
+                    {% if group.spec.operation_type.is_takeout and group.options %}
+                    <div class="alert warning compact-alert">Choose the earliest expiration date you can, so older stock gets used first.</div>
+                    {% endif %}
+
+                    {% for option in group.options %}
+                    <div class="expiration-row expiration-static-row{% if option.suggested %} suggested-expiration{% endif %}">
+                        <div>
+                            <strong>{{ option.expires_on.isoformat() }}</strong>
+                            <small>{{ option.quantity }} tracked here{% if option.suggested %} - earliest{% endif %}</small>
+                        </div>
+                        {{ expiration_stepper(
+                            "exp_known_" ~ group.spec.key ~ "_" ~ option.expires_on.isoformat(),
+                            option.default_quantity,
+                            option.quantity if group.spec.operation_type.is_takeout else target,
+                            group.item.name ~ " expiring " ~ option.expires_on.isoformat()
+                        ) }}
+                    </div>
+                    {% endfor %}
+
+                    {% if group.spec.allows_new_dates %}
+                    {{ new_expiration_row(group, 0) }}
+                    <template data-exp-new-template>
+                        {{ new_expiration_row(group, "__INDEX__") }}
+                    </template>
+                    {% endif %}
+
+                    {% if group.spec.allows_other %}
+                    <div class="expiration-row expiration-static-row expiration-other">
+                        <div>
+                            <strong>Other / Not Listed</strong>
+                            <small>Use only when the right expiration date cannot be selected or entered.</small>
+                        </div>
+                        {{ expiration_stepper("exp_other_" ~ group.spec.key, 0, target, group.item.name ~ " other expiration quantity") }}
+                    </div>
+                    {% endif %}
+                </div>
+            </section>
+            {% endfor %}
+        </div>
+    </section>
+    {% endfor %}
+
+    <div class="button-row">
+        <button class="success-button" type="submit" data-exp-submit>{{ submit_label }}</button>
+        {% if show_bottom_cancel is not defined or show_bottom_cancel %}
+        <a class="quiet-button" href="{{ cancel_url }}">{{ cancel_label|default("Cancel") }}</a>
+        {% endif %}
+    </div>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/expiration-allocation.js') }}" defer></script>
+{% endblock %}

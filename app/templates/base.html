@@ -35,6 +35,15 @@
             </div>
         </div>
         <div class="header-actions">
+            {% if admin and squad is defined and request.endpoint == 'admin.admin_panel' %}
+            {% set pending_task_preview_count = 9 if admin_pending_task_count > 9 else admin_pending_task_count %}
+            <a class="header-action task-tray-button" href="{{ url_for('admin.pending_tasks', squad=squad) }}">
+                Pending Tasks
+                {% if pending_task_preview_count %}
+                <span class="task-badge">{{ pending_task_preview_count }}</span>
+                {% endif %}
+            </a>
+            {% endif %}
             {% block header_right %}{% endblock %}
         </div>
     </header>

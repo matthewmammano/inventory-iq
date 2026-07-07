@@ -8,12 +8,15 @@ Core persistence rules for Inventory IQ. Schema changes require Alembic migratio
 - `agency_locations`: top-level physical locations per agency.
 - `agency_storages`: storage units inside locations.
 - `agency_devices`: browser/device default location records.
-- `agency_emails`: notification/report recipients, separate from login identity.
+- `notification_recipients`: notification/report recipients, separate from login identity.
+- `notification_preferences`: one typed notification/report toggle per recipient and preference key.
 - `items`: active/inactive inventory item master records.
 - `item_secondary_upcs`: real package UPC aliases linked to items.
 - `unknown_upc_scans`: unresolved UPCs awaiting admin review.
 - `action_logs`: immutable inventory event history and source of truth.
+- `action_log_expiration_lines`: expiration-date allocations captured for one inventory event.
 - `inventory_storage_balances`: derived current per-item/per-storage quantity for fast reads.
+- `inventory_expiration_balances`: derived current per-item/per-storage/per-expiration-date quantity for expiration-aware scans and alerts.
 - `inventory_item_location_states`: derived per-item/per-location rollup, threshold, trend, forecast, and winning stock-alert state.
 - `inventory_alert_events`: discrete non-stock alert facts such as unknown UPC, stale count, rare takeout, and scan activity.
 - `notification_email_deliveries`: rendered notification emails with send status and retry diagnostics.
@@ -24,6 +27,8 @@ Core persistence rules for Inventory IQ. Schema changes require Alembic migratio
 
 - `action_logs` is the inventory source of truth.
 - `inventory_storage_balances` is derived state and must be updated in the same transaction as inventory writes.
+- `inventory_expiration_balances` is derived state for tracked expiration dates and must stay in the same transaction as inventory writes when expiration allocations are provided.
+- Admin expiration corrections may replace `inventory_expiration_balances` directly when the stored item count is already correct; they must not create `action_logs`.
 - `inventory_item_location_states` is the current source of truth for stock, low-stock, and forecast email decisions.
 - Stock/forecast alerts are current state, not alert event rows.
 - `inventory_alert_events` stores discrete non-stock facts only.
@@ -33,9 +38,11 @@ Core persistence rules for Inventory IQ. Schema changes require Alembic migratio
 - Balance reconciliation may rebuild derived state from history when drift is detected.
 - Inventory quantities are non-negative unless a future product decision explicitly changes that rule.
 - Item soft delete uses `items.active`; do not hard-delete item history.
-- Notification recipient state uses `agency_emails.active`; do not conflate it with `agencies.email`.
-- Notification recipient alert frequency and quiet hours live on `agency_emails`; delivery timestamps remain UTC/UTC-naive and are grouped or shifted at planning/send time.
-- Primary item UPCs use the private generated prefix enforced by `Items`.
+- Notification recipient state uses `notification_recipients.active`; do not conflate it with `agencies.email`.
+- Notification recipient preferences live in `notification_preferences`; do not add new Boolean preference columns to `notification_recipients`.
+- Notification recipient alert frequency and quiet hours live on `notification_recipients`; delivery timestamps remain UTC/UTC-naive and are grouped or shifted at planning/send time.
+- Agency expiration notice days are a default; item-level `expiration_notice_days_override` only exists for item-specific exceptions.
+- Primary item UPCs use the private generated prefix enforced by `Item`.
 - Secondary UPCs are real package aliases and must not use the private generated prefix.
 - Unknown UPCs are unique per agency and move through review statuses.
 
@@ -45,6 +52,7 @@ Core persistence rules for Inventory IQ. Schema changes require Alembic migratio
 - Storage belongs to one location.
 - Action logs reference an item and optional from/to storages.
 - Storage balances are unique by agency, item, and storage.
+- Expiration balances are unique by agency, item, storage, and expiration date.
 - Item/location states are unique by agency, item, and top-level location.
 - Notification email deliveries target one agency notification recipient and snapshot the destination email.
 

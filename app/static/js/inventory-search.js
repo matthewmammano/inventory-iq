@@ -9,16 +9,16 @@ document.addEventListener("DOMContentLoaded", () => {
     const isAdmin = list.dataset.admin === "true";
     const scanItemBase = list.dataset.scanItemBase;
     const scanErrorUrl = list.dataset.scanErrorUrl;
-    const fromLocationId = list.dataset.fromLocationId;
-    const toLocationId = list.dataset.toLocationId;
+    const fromStorageId = list.dataset.fromStorageId;
+    const toStorageId = list.dataset.toStorageId;
     const fuse = buildSearch(items);
 
     function itemUrl(itemId) {
-        if (scanItemBase && fromLocationId && toLocationId) {
+        if (scanItemBase && fromStorageId && toStorageId) {
             const params = new URLSearchParams({
                 item_id: String(itemId),
-                from_location_id: fromLocationId,
-                to_location_id: toLocationId,
+                from_storage_id: fromStorageId,
+                to_storage_id: toStorageId,
             });
             return `${scanItemBase}?${params.toString()}`;
         }

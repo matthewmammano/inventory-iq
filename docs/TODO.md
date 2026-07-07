@@ -1,6 +1,46 @@
 # My TODO
 
-- Expiration tracking across inventory, alerts, reports, and UI.
+- **1. User tracking** - collect on every request and POST to /api/debug/report, STACK:
+  - JS: collect all client fields into one object, `fetch POST` to backend on every request (or on error only)
+  - Python/FastAPI: receive payload, append `ip`/`country`/`city` server-side, log the merged object
+  - Cache geo lookups in a plain `dict[str, dict]` in memory; swap for Redis in prod
+
+| Field | How |
+| - | - |
+| `userAgent` | `navigator.userAgent` |
+| `os` + `os_version` | parse `userAgent` with `ua-parser-js` |
+| `browser` + `browser_version` | parse `userAgent` with `ua-parser-js` |
+| `touch` | `navigator.maxTouchPoints > 0` |
+| `screen_px` | `screen.width + "x" + screen.height` |
+| `viewport_px` | `window.innerWidth + "x" + window.innerHeight` |
+| `pixel_ratio` | `window.devicePixelRatio` |
+| `color_depth` | `screen.colorDepth` |
+| `cpu_cores` | `navigator.hardwareConcurrency` |
+| `memory_gb` | `navigator.deviceMemory` |
+| `ip` | server-side: `request.headers.get("x-forwarded-for", request.client.host)` |
+| `country` + `city` | server-side: `GET http://ip-api.com/json/{ip}`, cache result by IP in a dict |
+| `timezone` | `Intl.DateTimeFormat().resolvedOptions().timeZone` |
+| `locale` | `navigator.language` |
+
+- Tighten Production Safety
+  - is there any types of SAFETY things like rate limits, certain increased loading times, DDOS prevention, other attack prevention that I should ADD to my code?!
+  - Keep schema/bootstrap and local QA setup scripts explicit and documented.
+  - Extra security hardening beyond core v1 needs.
+  - CSP hardening: move inline scripts/styles to static assets, then remove `unsafe-inline`.
+
+- Relook at the HELP docs, re-create all using a NEW agent call better. Make one for spam / important marking help on email accounts!
+
+- Expiration correction page polish:
+  - Group like items together across locations/storages with compact location/storage sub-rows.
+  - Add date rows lazily: start with one, add one after a date is entered, stop at quantity/max allocation.
+  - Keep expiration date inputs and quantity steppers aligned in compact two-column rows.
+
+- combine VIEW and EDIT data pages. keep look of VIEW page. just add a small edit icon next to each row (to edit OR delete) AND an ADD button at the end. EACH button press SHOULD open a modal, that way only ONE item edited / removed / added at a time and SAVED individually before next. easier UX/UI. also easier for text entry corrections and flash messages!
+
+- is there a way to make CUSTOM bad connection / 504 / etc pages WITHOUT railway / chrome defaults? save pages in cache for this?
+  - Register a service worker on your frontend that intercepts fetch failures (also status checks) and serves a cached custom page instead of letting the browser/Railway show the default
+
+- How should expiration dates (FUTURE and CURRENTLY EXPIRED) affect the RESTOCK page and what suggested orderings are!? MATH! FIX THINK HOW!
 
 - design a better favicon, logo, front page for NON USERS!!! like an about page with features and everything!
 
@@ -8,6 +48,9 @@
   - change trend to be USAGE instead in DB, so >=0 instead of opposite, i like better
 
 - Improve scheduled report email presentation:
+  - PLAN AND THINK: how to add expiration risk summaries and stuff ALL HERE and where to add!
+  - THINK and PLANOUT in an MD what is ALERTs jobs VS auto REPORTs jobs! differences! no overlap! how to make great!
+  - PENDING TASKS THINK AND PLAN TOO!
   - All periods:
     - Group at-risk status by location when agencies have multiple locations.
     - Add reorder plan: item, location, suggested quantity, urgency reason, confidence/estimate note.
@@ -27,7 +70,7 @@
 
 - certain pages REQUIRE keyboard use (as touchscreen / on-screen keyboard not best UI). investigate restricting some pages to keyboard-only use and make sure it is clear to users that they need a keyboard for that page. how to do? how to NOT ban users with keyboard AND touchscreen, only non-keyboard users.
 
-- RAILWAY combine ENV vars and secrets into ONE place for all my COMPUTE (crons and web and DB) and make sure they are all in sync.
+- RAILWAY combine ENV vars and secrets into ONE place for all my COMPUTE (crons and web and DB) and make sure they are all in sync. maybe web-1. figure out which services even need which ENVs.
 
 - `class AlertSeverity(StrEnum)` is the BEST coding work of art I have ever done! Can you check EVERY OTHER class, datatype, and function in the codebase to see if they can be improved to be as elegant and maintainable as that one? (like using different Enum types, or dataclasses, or Pydantic models, computed fields, etc). Make sure you check THOROUGHLY with agents AND/OR regex searching marking each as possible refactoring candidate. Then make a list of all the candidates and we can review together with LOC saved estimates AND clear coding clarity benefits.
 
@@ -44,11 +87,6 @@
   - Rebuild action-log retention/archive with audited DB-native retention rules before deleting production rows.
   - Add session cleanup only if server-side sessions are introduced; current Flask sessions are cookie-based.
   - ALERTS cleanup for old sent/suppressed/cleared rows can be done with a scheduled background task or Railway cron job that runs a cleanup function on the database. Different cleanups PER each table (some never get cleanup).
-
-- Tighten Production Safety
-  - Keep schema/bootstrap and local QA setup scripts explicit and documented.
-  - Extra security hardening beyond core v1 needs.
-  - CSP hardening: move inline scripts/styles to static assets, then remove `unsafe-inline`.
 
 - Alert-record retention cleanup for old sent, suppressed, and cleared alert rows.
 

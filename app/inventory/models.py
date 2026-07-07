@@ -1,6 +1,6 @@
 """SQLAlchemy ORM models for inventory domain."""
 
-from datetime import datetime
+from datetime import date, datetime
 from random import SystemRandom
 from typing import Any
 
@@ -8,6 +8,7 @@ from sqlalchemy import (
     JSON,
     Boolean,
     CheckConstraint,
+    Date,
     DateTime,
     Float,
     ForeignKey,
@@ -43,7 +44,7 @@ from .constants import (
 _rng = SystemRandom()
 
 
-class Items(Base):
+class Item(Base):
     """Inventory item master record."""
 
     __tablename__ = "items"
@@ -59,6 +60,8 @@ class Items(Base):
     increments: Mapped[str | None] = mapped_column(String(50))
     tag_ids: Mapped[list[int]] = mapped_column(JSON, default=list)
     image: Mapped[str | None] = mapped_column(String(1024))
+    expiration_tracking_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    expiration_notice_days_override: Mapped[int | None] = mapped_column(Integer, nullable=True)
     min_quantity: Mapped[int] = mapped_column(Integer)
     max_quantity: Mapped[int] = mapped_column(Integer)
     batch_size: Mapped[int | None] = mapped_column(Integer, default=1)
@@ -66,8 +69,8 @@ class Items(Base):
     prior_daily_usage: Mapped[float] = mapped_column(Float)
     last_accessed: Mapped[datetime | None] = mapped_column(DateTime, default=utc_now)
 
-    action_logs = relationship("ActionLogs", back_populates="item", lazy="selectin")
-    secondary_upcs = relationship("ItemSecondaryUpc", back_populates="item", cascade="all, delete-orphan", lazy="selectin")
+    action_logs = relationship("ActionLog", back_populates="item", lazy="select")
+    secondary_upcs = relationship("ItemSecondaryUpc", back_populates="item", cascade="all, delete-orphan", lazy="select")
     tags: Any
 
     __table_args__ = (
@@ -125,7 +128,7 @@ class Items(Base):
             raise ValueError(f"Primary UPC must start with {UPC_GENERATION_PREFIX}")
         return normalized
 
-    @validates("min_quantity", "max_quantity", "batch_size", "restock_delivery_days")
+    @validates("min_quantity", "max_quantity", "batch_size", "restock_delivery_days", "expiration_notice_days_override")
     def validate_positive_integers(self, key: str, value: int | None) -> int | None:
         return validate_positive_integer(value, key, allow_none=True)
 
@@ -154,7 +157,7 @@ class ItemSecondaryUpc(Base):
     upc: Mapped[str] = mapped_column(String(12))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    item = relationship("Items", back_populates="secondary_upcs", lazy="selectin")
+    item = relationship("Item", back_populates="secondary_upcs", lazy="select")
 
     __table_args__ = (
         UniqueConstraint("agency_id", "upc", name="uq_item_secondary_upcs_agency_upc"),
@@ -185,7 +188,7 @@ class UnknownUpcScan(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
 
-    suggested_item = relationship("Items", lazy="selectin")
+    suggested_item = relationship("Item", lazy="selectin")
 
     __table_args__ = (
         UniqueConstraint("agency_id", "upc", name="uq_unknown_upc_scans_agency_upc"),
@@ -216,9 +219,9 @@ def _upc_check_digit(upc11: str) -> str:
 
 @event.listens_for(OrmSession, "before_flush")
 def _fill_primary_upcs(session: OrmSession, *_args) -> None:
-    reserved = {item.upc for item in session.new if isinstance(item, Items) and item.upc}
+    reserved = {item.upc for item in session.new if isinstance(item, Item) and item.upc}
     for item in session.new:
-        if isinstance(item, Items) and not item.upc and item.agency_id:
+        if isinstance(item, Item) and not item.upc and item.agency_id:
             item.upc = _generate_primary_upc(session, item.agency_id, reserved)
             reserved.add(item.upc)
 
@@ -234,7 +237,7 @@ def _generate_primary_upc(session: OrmSession, agency_id: int, reserved: set[str
 
 def agency_upc_exists(session: OrmSession, agency_id: int, upc: str) -> bool:
     return (
-        session.scalar(select(Items.id).where(Items.agency_id == agency_id, Items.upc == upc)) is not None
+        session.scalar(select(Item.id).where(Item.agency_id == agency_id, Item.upc == upc)) is not None
         or session.scalar(
             select(ItemSecondaryUpc.id).where(
                 ItemSecondaryUpc.agency_id == agency_id,
@@ -246,7 +249,7 @@ def agency_upc_exists(session: OrmSession, agency_id: int, upc: str) -> bool:
     )
 
 
-class ActionLogs(Base):
+class ActionLog(Base):
     """Inventory action log."""
 
     __tablename__ = "action_logs"
@@ -255,29 +258,30 @@ class ActionLogs(Base):
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"))
     item_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("items.id"))
     operation_type: Mapped[OperationType] = mapped_column(SAEnum(OperationType))
-    quantity_delta: Mapped[int] = mapped_column(Integer)
-    from_location_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("agency_storages.id"))
-    to_location_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("agency_storages.id"))
+    quantity: Mapped[int] = mapped_column(Integer)
+    from_storage_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("agency_storages.id"))
+    to_storage_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("agency_storages.id"))
     admin_action: Mapped[bool] = mapped_column(Boolean)
     time_scanned: Mapped[datetime | None] = mapped_column(DateTime, default=utc_now, nullable=False)
 
-    item = relationship("Items", back_populates="action_logs", lazy="selectin")
-    from_location = relationship("AgencyStorages", foreign_keys=[from_location_id], lazy="selectin")
-    to_location = relationship("AgencyStorages", foreign_keys=[to_location_id], lazy="selectin")
+    item = relationship("Item", back_populates="action_logs", lazy="select")
+    from_storage = relationship("Storage", foreign_keys=[from_storage_id], lazy="select")
+    to_storage = relationship("Storage", foreign_keys=[to_storage_id], lazy="select")
+    expiration_lines = relationship("ActionLogExpirationLine", back_populates="action_log", cascade="all, delete-orphan", lazy="select")
 
     __table_args__ = (
         Index("idx_agency_item_id", "agency_id", "item_id"),
-        Index("idx_agency_from_location", "agency_id", "from_location_id"),
-        Index("idx_agency_to_location", "agency_id", "to_location_id"),
+        Index("idx_agency_from_location", "agency_id", "from_storage_id"),
+        Index("idx_agency_to_location", "agency_id", "to_storage_id"),
         Index("idx_action_logs_agency_item_time_id", "agency_id", "item_id", "time_scanned", "id"),
-        Index("idx_action_logs_agency_to_operation_time_id", "agency_id", "to_location_id", "operation_type", "time_scanned", "id"),
-        Index("idx_action_logs_agency_from_operation_time_id", "agency_id", "from_location_id", "operation_type", "time_scanned", "id"),
+        Index("idx_action_logs_agency_to_operation_time_id", "agency_id", "to_storage_id", "operation_type", "time_scanned", "id"),
+        Index("idx_action_logs_agency_from_operation_time_id", "agency_id", "from_storage_id", "operation_type", "time_scanned", "id"),
         Index("idx_action_logs_agency_id_desc", "agency_id", "id"),
     )
 
-    @validates("quantity_delta")
-    def validate_quantity_delta(self, _key: str, value: int | None) -> int | None:
-        return validate_non_negative_integer(value, "quantity_delta", allow_none=False)
+    @validates("quantity")
+    def validate_quantity(self, _key: str, value: int | None) -> int | None:
+        return validate_non_negative_integer(value, "quantity", allow_none=False)
 
     @property
     def is_count(self) -> bool:
@@ -295,12 +299,19 @@ class ActionLogs(Base):
     def is_takeout(self) -> bool:
         return self.operation_type.is_takeout
 
+    @property
+    def expiration_summary(self) -> str:
+        if not self.expiration_lines:
+            return ""
+        lines = sorted(self.expiration_lines, key=lambda line: (line.expires_on is None, line.expires_on or date.max))
+        return ", ".join(f"{line.expires_on.isoformat() if line.expires_on else 'Other'} x{line.quantity}" for line in lines if line.quantity)
+
     def get_time_scanned_local(self, user_timezone: str) -> datetime | None:
         """Return time_scanned converted from UTC to the user's local timezone."""
         return convert_utc_to_local(self.time_scanned, user_timezone)
 
 
-class InventoryStorageBalances(Base):
+class InventoryStorageBalance(Base):
     """Current per-item, per-storage quantity derived from action history."""
 
     __tablename__ = "inventory_storage_balances"
@@ -311,12 +322,11 @@ class InventoryStorageBalances(Base):
     storage_id: Mapped[int] = mapped_column(Integer, ForeignKey("agency_storages.id"))
     quantity: Mapped[int] = mapped_column(Integer, default=0)
     last_counted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    last_activity_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_takeout_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
 
-    item = relationship("Items", lazy="selectin")
-    storage = relationship("AgencyStorages", lazy="selectin")
+    item = relationship("Item", lazy="selectin")
+    storage = relationship("Storage", lazy="selectin")
 
     __table_args__ = (
         UniqueConstraint("agency_id", "item_id", "storage_id", name="uq_inventory_storage_balances_agency_item_storage"),
@@ -329,6 +339,54 @@ class InventoryStorageBalances(Base):
         if value is None:
             raise ValueError("quantity cannot be None")
         return int(value)
+
+
+class InventoryExpirationBalance(Base):
+    """Current per-item, per-storage, per-expiration-date quantity."""
+
+    __tablename__ = "inventory_expiration_balances"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"))
+    item_id: Mapped[int] = mapped_column(Integer, ForeignKey("items.id"))
+    storage_id: Mapped[int] = mapped_column(Integer, ForeignKey("agency_storages.id"))
+    expires_on: Mapped[date] = mapped_column(Date)
+    quantity: Mapped[int] = mapped_column(Integer, default=0)
+    last_counted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
+
+    item = relationship("Item", lazy="selectin")
+    storage = relationship("Storage", lazy="selectin")
+
+    __table_args__ = (
+        UniqueConstraint("agency_id", "item_id", "storage_id", "expires_on", name="uq_inventory_expiration_balances_key"),
+        Index("idx_inventory_expiration_balances_agency_item_storage", "agency_id", "item_id", "storage_id"),
+        Index("idx_inventory_expiration_balances_agency_expires", "agency_id", "expires_on"),
+    )
+
+    @validates("quantity")
+    def validate_quantity(self, _key: str, value: int | None) -> int:
+        if value is None:
+            raise ValueError("quantity cannot be None")
+        return int(value)
+
+
+class ActionLogExpirationLine(Base):
+    """Expiration-date allocation attached to one inventory action."""
+
+    __tablename__ = "action_log_expiration_lines"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    action_log_id: Mapped[int] = mapped_column(Integer, ForeignKey("action_logs.id", ondelete="CASCADE"), index=True)
+    expires_on: Mapped[date | None] = mapped_column(Date, nullable=True)
+    quantity: Mapped[int] = mapped_column(Integer)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
+
+    action_log = relationship("ActionLog", back_populates="expiration_lines", lazy="selectin")
+
+    @validates("quantity")
+    def validate_quantity(self, _key: str, value: int | None) -> int | None:
+        return validate_non_negative_integer(value, "quantity", allow_none=False)
 
 
 class InventoryItemLocationState(Base):

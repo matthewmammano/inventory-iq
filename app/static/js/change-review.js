@@ -39,7 +39,7 @@
 
         const arrow = document.createElement("span");
         arrow.className = "change-item-arrow";
-        arrow.textContent = "->";
+        arrow.textContent = "→";
 
         item.append(label, renderChangeValue(change, change.from), arrow, renderChangeValue(change, change.to));
         return item;

@@ -5,7 +5,7 @@ from datetime import timedelta
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.models import Agencies, AgencyStorages
+from app.auth.models import Agency, Storage
 from app.inventory.balance_service import get_required_count_storage_ids
 from app.prediction.constants import RESTOCK_VALIDATION_DAYS
 from app.shared.clock import utc_now_naive
@@ -25,9 +25,9 @@ def validate_restock(
 
     storage = (
         session.execute(
-            select(AgencyStorages).where(
-                AgencyStorages.id == storage_id,
-                AgencyStorages.agency_id == agency_id,
+            select(Storage).where(
+                Storage.id == storage_id,
+                Storage.agency_id == agency_id,
             )
         )
         .scalars()
@@ -70,5 +70,5 @@ def get_stale_count_storage_ids(
 
 
 def _restock_validation_days(agency_id: int, session: Session) -> int:
-    agency = session.get(Agencies, agency_id)
+    agency = session.get(Agency, agency_id)
     return int(agency.count_last_days if agency and agency.count_last_days else RESTOCK_VALIDATION_DAYS)

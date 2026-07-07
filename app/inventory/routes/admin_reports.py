@@ -9,16 +9,15 @@ from loguru import logger
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from app.auth.models import Agencies, AgencyLocations
+from app.auth.models import Agency, Location
 from app.auth.queries import list_active_emails, list_top_locations
 from app.inventory import admin_bp as bp
+from app.inventory.count_page_service import InventoryCountPage, build_inventory_count_page
 from app.inventory.history_service import HISTORY_REPORT_LIMIT, list_history_logs
-from app.inventory.location_operations import build_location_count_rows
-from app.inventory.models import Items
-from app.inventory.report_email_service import send_history_report, send_inventory_count_report
+from app.inventory.models import Item
+from app.inventory.report_email_service import send_history_report, send_inventory_count_report, send_restock_report
+from app.inventory.restock_page_service import RestockPageRow, build_restock_page_rows
 from app.inventory.schema import HistoryDateRange, HistoryPageQuery
-from app.inventory.ui import get_days_until_low_class, get_inventory_level_class, get_order_quantity_class
-from app.prediction.bulk_service import BulkService
 from app.prediction.history_service import build_item_trend_chart
 from app.shared.cache import ttl_cache
 from app.shared.database import get_session
@@ -31,8 +30,8 @@ HISTORY_PAGE_SIZE = 50
 @bp.route("/<squad>/items/<int:item_id>/locations/<int:agency_location_id>/trend", methods=["GET"])
 def item_trend_chart(squad: str, item_id: int, agency_location_id: int) -> Any:
     with get_session() as s:
-        item = s.scalar(select(Items).where(Items.agency_id == current_user.id, Items.id == item_id))
-        location = s.scalar(select(AgencyLocations).where(AgencyLocations.agency_id == current_user.id, AgencyLocations.id == agency_location_id))
+        item = s.scalar(select(Item).where(Item.agency_id == current_user.id, Item.id == item_id))
+        location = s.scalar(select(Location).where(Location.agency_id == current_user.id, Location.id == agency_location_id))
         if item is None or location is None:
             return {"error": "Item or location not found."}, 404
         return build_item_trend_chart(s, current_user.id, item, location).model_dump(mode="json")
@@ -43,18 +42,18 @@ def item_trend_chart(squad: str, item_id: int, agency_location_id: int) -> Any:
 def inventory_counts(squad: str, agency_location_id: int | None = None) -> Any:
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
-        agency_emails = list_active_emails(current_user.id, s)
+        notification_recipients = list_active_emails(current_user.id, s)
         active_location = _active_location(locations, agency_location_id)
-        active_tab = _inventory_count_tab(s, current_user.id, active_location.id) if active_location else {"inventory_data": [], "storages": []}
+        active_tab = build_inventory_count_page(s, current_user.id, active_location.id) if active_location else InventoryCountPage([], [])
 
     return render_template(
         "admin_inventory_counts.html",
         squad=squad,
         locations=locations,
         active_location=active_location,
-        inventory_data=active_tab["inventory_data"],
-        storages=active_tab["storages"],
-        agency_emails=agency_emails,
+        inventory_data=active_tab.inventory_data,
+        storages=active_tab.storages,
+        notification_recipients=notification_recipients,
         active_location_id=active_location.id if active_location else None,
         admin=True,
     )
@@ -62,7 +61,7 @@ def inventory_counts(squad: str, agency_location_id: int | None = None) -> Any:
 
 @bp.route("/<squad>/admin-panel/inventory-count-levels/email", methods=["POST"])
 def send_inventory_counts_email(squad: str) -> Any:
-    selected_ids = _selected_agency_email_ids(request.form.getlist("agency_email_ids"))
+    selected_ids = _selected_notification_recipient_ids(request.form.getlist("notification_recipient_ids"))
     active_location_id = parse_optional_int(request.form.get("active_location_id"))
     with get_session() as s:
         sent, total = send_inventory_count_report(s, current_user.id, selected_ids)
@@ -76,30 +75,15 @@ def inventory_counts_print(squad: str, agency_location_id: int | None = None) ->
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
         active_location = _active_location(locations, agency_location_id)
-        active_tab = _inventory_count_tab(s, current_user.id, active_location.id) if active_location else {"inventory_data": [], "storages": []}
+        active_tab = build_inventory_count_page(s, current_user.id, active_location.id) if active_location else InventoryCountPage([], [])
     return render_template(
         "admin_inventory_counts_print_partial.html",
         squad=squad,
         location_name=active_location.name if active_location else "Inventory Report",
-        inventory_data=active_tab["inventory_data"],
-        storages=active_tab["storages"],
+        inventory_data=active_tab.inventory_data,
+        storages=active_tab.storages,
         admin=True,
     )
-
-
-def _inventory_count_tab(session, agency_id: int, agency_location_id: int) -> dict:
-    items, storages, counts = build_location_count_rows(session, agency_id, agency_location_id)
-    rows = []
-    for item in items:
-        row: dict = {"item": item, "storage_counts": {}, "storage_classes": {}, "total": 0}
-        for storage in storages:
-            count = counts.get((item.id, storage.id), 0)
-            row["storage_counts"][storage.id] = count
-            row["storage_classes"][storage.id] = get_inventory_level_class(count)
-            row["total"] += count
-        row["total_class"] = get_inventory_level_class(row["total"])
-        rows.append(row)
-    return {"inventory_data": rows, "storages": storages}
 
 
 def _inventory_counts_url(squad: str, agency_location_id: int | None) -> str:
@@ -114,12 +98,14 @@ def restock(squad: str, agency_location_id: int | None = None) -> Any:
     try:
         with get_session() as s:
             locations = list_top_locations(current_user.id, s)
+            notification_recipients = list_active_emails(current_user.id, s)
             active_location = _active_location(locations, agency_location_id)
             restock_data = _restock_rows(s, current_user.id, active_location.id) if active_location else []
     except Exception:
         logger.exception("Restock analysis page failed to load", extra={"agency_location_id": agency_location_id})
         flash("Restock analysis could not load. Try again.", "error")
         locations = []
+        notification_recipients = []
         active_location = None
         restock_data = []
 
@@ -129,43 +115,50 @@ def restock(squad: str, agency_location_id: int | None = None) -> Any:
         locations=locations,
         active_location=active_location,
         restock_data=restock_data,
+        notification_recipients=notification_recipients,
         active_location_id=active_location.id if active_location else None,
         admin=True,
     )
 
 
+@bp.route("/<squad>/admin-panel/restock/email", methods=["POST"])
+def send_restock_email(squad: str) -> Any:
+    selected_ids = _selected_notification_recipient_ids(request.form.getlist("notification_recipient_ids"))
+    active_location_id = parse_optional_int(request.form.get("active_location_id"))
+    with get_session() as s:
+        sent, total = send_restock_report(s, current_user.id, selected_ids, active_location_id)
+    _flash_email_delivery_result("Restock report", sent, total, selected_count=len(selected_ids), log_name="Restock report email")
+    return redirect(_restock_url(squad, active_location_id))
+
+
+@bp.route("/<squad>/admin-panel/restock/print")
+@bp.route("/<squad>/admin-panel/restock/<int:agency_location_id>/print")
+def restock_print(squad: str, agency_location_id: int | None = None) -> Any:
+    with get_session() as s:
+        locations = list_top_locations(current_user.id, s)
+        active_location = _active_location(locations, agency_location_id)
+        restock_data = _restock_rows(s, current_user.id, active_location.id) if active_location else []
+    return render_template(
+        "admin_restock_print_partial.html",
+        squad=squad,
+        location_name=active_location.name if active_location else "Restock Report",
+        restock_data=restock_data,
+        admin=True,
+    )
+
+
 @ttl_cache(skip_first_args=1)
-def _restock_rows(session, agency_id: int, agency_location_id: int) -> list[dict]:
-    rows = BulkService.get_restock_analysis(session, agency_id, agency_location_id)
-    for row in rows:
-        row["order_class"] = get_order_quantity_class(row.get("order_amount"))
-        row["days_class"] = get_days_until_low_class(row.get("days_until_stockout"))
-        row.update(_restock_cell_classes(row))
-    return rows
+def _restock_rows(session, agency_id: int, agency_location_id: int) -> list[RestockPageRow]:
+    return build_restock_page_rows(session, agency_id, agency_location_id)
 
 
-def _restock_cell_classes(row: dict) -> dict[str, str]:
-    current_total = int(row.get("current_total") or 0)
-    min_quantity = int(row.get("min_quantity") or 0)
-    projected_total = int(row.get("projected_lead_time_total") or 0)
-    classes = {"current_total_class": get_inventory_level_class(current_total)}
-
-    if current_total <= 0:
-        classes["current_total_class"] = "restock-critical"
-    elif current_total <= min_quantity:
-        classes["current_total_class"] = "restock-low"
-        classes["min_quantity_class"] = "restock-low"
-
-    if projected_total <= 0:
-        classes["projected_total_class"] = "restock-projected-stockout"
-    elif projected_total <= min_quantity:
-        classes["projected_total_class"] = "restock-projected-low"
-        classes.setdefault("min_quantity_class", "restock-projected-low")
-
-    return classes
+def _restock_url(squad: str, agency_location_id: int | None) -> str:
+    if agency_location_id:
+        return url_for("admin.restock", squad=squad, agency_location_id=agency_location_id)
+    return url_for("admin.restock", squad=squad)
 
 
-def _selected_agency_email_ids(raw_ids: list[str]) -> list[int]:
+def _selected_notification_recipient_ids(raw_ids: list[str]) -> list[int]:
     return sorted(selected_int_ids(raw_ids))
 
 
@@ -227,14 +220,14 @@ def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
     query = HistoryPageQuery.model_validate(request.args.to_dict())
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
-        agency_emails = list_active_emails(current_user.id, s)
+        notification_recipients = list_active_emails(current_user.id, s)
         active_location = _active_location(locations, agency_location_id) if agency_location_id else None
         action_logs, has_next_page = list_history_logs(s, current_user.id, agency_location_id, query.page_number, HISTORY_PAGE_SIZE)
     return render_template(
         "admin_history.html",
         squad=squad,
         locations=locations,
-        agency_emails=agency_emails,
+        notification_recipients=notification_recipients,
         action_logs=action_logs,
         active_location_id=agency_location_id,
         active_location_name=active_location.name if active_location else "All Locations",
@@ -249,7 +242,7 @@ def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
 @bp.route("/<squad>/admin-panel/history/email", methods=["POST"])
 def admin_history_email(squad: str) -> Any:
     agency_location_id = parse_optional_int(request.form.get("agency_location_id"))
-    selected_ids = _selected_agency_email_ids(request.form.getlist("agency_email_ids"))
+    selected_ids = _selected_notification_recipient_ids(request.form.getlist("notification_recipient_ids"))
     date_range, error = _history_date_range(
         request.form.to_dict(),
         timezone=current_user.timezone,
@@ -290,7 +283,7 @@ def admin_history_print(squad: str, agency_location_id: int | None = None) -> An
         return redirect(_history_url(squad, agency_location_id))
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
-        agency = s.get(Agencies, current_user.id)
+        agency = s.get(Agency, current_user.id)
         active_location = _active_location(locations, agency_location_id) if agency_location_id else None
         action_logs, _ = list_history_logs(
             s,
@@ -320,7 +313,7 @@ def _history_url(squad: str, agency_location_id: int | None) -> str:
     return url_for("admin.admin_history", squad=squad)
 
 
-def _active_location(locations: list[AgencyLocations], agency_location_id: int | None) -> AgencyLocations | None:
+def _active_location(locations: list[Location], agency_location_id: int | None) -> Location | None:
     if not locations:
         return None
     if agency_location_id is None:

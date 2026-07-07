@@ -2,7 +2,7 @@
 
 {% block title %}Settings{% endblock %}
 {% block header_title %}Settings{% endblock %}
-{% block sub_title %}Squad image, PIN, permissions, and alert thresholds{% endblock %}
+{% block sub_title %}Squad permissions and alert thresholds{% endblock %}
 {% block header_right %}
     <button class="success-button hidden" id="save-button" type="button" form="settings-form">Save Changes</button>
     <a class="header-action" id="back-link" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
@@ -65,6 +65,7 @@
                 <div class="setting-row"><div><div class="setting-name">Lead Time Days</div><p>Used for predicted low stock and stockout warnings</p></div>{{ setting_input("lead_time_days", current_user.lead_time_days, "Lead Time Days", validation_attrs("positive_int")) }}</div>
                 <div class="setting-row"><div><div class="setting-name">Stale Count Days</div><p>Warn when a location has not been counted recently</p></div>{{ setting_input("count_last_days", current_user.count_last_days, "Stale Count Days", validation_attrs("positive_int")) }}</div>
                 <div class="setting-row"><div><div class="setting-name">Rare Takeout Days</div><p>Warn when takeout activity is unusual for a location</p></div>{{ setting_input("alert_rare_scan_days", current_user.alert_rare_scan_days, "Rare Takeout Days", validation_attrs("positive_int")) }}</div>
+                <div class="setting-row"><div><div class="setting-name">Expiration Warning Days</div><p>Warn when tracked stock expires within this many days</p></div>{{ setting_input("expiration_notice_days", current_user.expiration_notice_days, "Expiration Warning Days", validation_attrs("positive_int")) }}</div>
             </div>
         </section>
 

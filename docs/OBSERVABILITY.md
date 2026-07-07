@@ -36,7 +36,7 @@ logger.info("Inventory report email sent", extra={"agency_id": agency.id, "recip
 
 Prefer concrete identifiers and counts:
 
-- IDs: `agency_id`, `item_id`, `agency_email_id`, `location_id`, `storage_id`, `alert_id`, `action_log_id`, `scheduler_run_id`.
+- IDs: `agency_id`, `item_id`, `notification_recipient_id`, `location_id`, `storage_id`, `alert_id`, `action_log_id`, `scheduler_run_id`.
 - Counts: `changed_count`, `saved_count`, `recipient_count`, `pending_alerts`, `rows_checked`, `mismatch_count`, `repaired_row_count`.
 - Flags: `force`, `admin_action`, `repair`, `active`.
 - Task fields: `job_name`, `period_key`, `schedule_local_time`.

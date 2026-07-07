@@ -50,6 +50,9 @@
       color: #667085;
       font-size: 13px;
     }
+    .note {
+      margin: 7px 0 0;
+    }
     .summary {
       font-size: 0;
       margin-top: 14px;
@@ -80,9 +83,18 @@
       margin-top: 4px;
       text-transform: uppercase;
     }
+    .table-scroll {
+      -webkit-overflow-scrolling: touch;
+      max-width: 100%;
+      overflow-x: auto;
+      overflow-y: hidden;
+      width: 100%;
+    }
     table {
       border-collapse: collapse;
-      width: 100%;
+      margin-top: 12px;
+      min-width: 100%;
+      width: max-content;
     }
     th,
     td {
@@ -103,6 +115,14 @@
     }
     .item-name {
       font-weight: 700;
+    }
+    .section-count {
+      color: #667085;
+      float: right;
+      font-size: 12px;
+      font-weight: 700;
+      margin-top: 3px;
+      text-transform: uppercase;
     }
   </style>
 </head>
@@ -127,27 +147,30 @@
 
     {% for section in batch.sections %}
       <div class="panel" style="border-top: 4px solid {{ section.color }};">
+        <span class="section-count">{{ section.rows|length }} row{% if section.rows|length != 1 %}s{% endif %}</span>
         <h2 style="color: {{ section.color }};">{{ section.title }}</h2>
         <p class="note">{{ section.note }}</p>
-        <table>
-          <thead>
-            <tr>
-              {% for column in section.columns %}
-                <th style="background: {{ section.color }}14; color: {{ section.color }};">{{ column.label }}</th>
-              {% endfor %}
-            </tr>
-          </thead>
-          <tbody>
-            {% for row in section.rows %}
+        <div class="table-scroll">
+          <table>
+            <thead>
               <tr>
                 {% for column in section.columns %}
-                  {% set value = row.get(column.key, "") %}
-                  <td>{{ value|bold_item_name if column.key in ("item", "item_name") else value }}</td>
+                  <th style="background: {{ section.color }}14; color: {{ section.color }};">{{ column.label }}</th>
                 {% endfor %}
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for row in section.rows %}
+                <tr>
+                  {% for column in section.columns %}
+                    {% set value = row.get(column.key, "") %}
+                    <td>{{ value|bold_item_name if column.key in ("item", "item_name") else value }}</td>
+                  {% endfor %}
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
     {% endfor %}
 

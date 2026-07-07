@@ -12,7 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth.device_locations import current_device_token, get_or_create_device, save_device_location, set_device_cookie
-from app.auth.models import Agencies, AgencyLocations
+from app.auth.models import Agency, Location
 from app.auth.notification_preferences import ALERT_EMAIL_FREQUENCY_CHOICES, ALERT_NOTIFICATION_FIELDS, SUMMARY_NOTIFICATION_FIELDS
 from app.auth.queries import list_active_emails, list_tags, list_top_locations
 from app.inventory import admin_bp as bp
@@ -23,7 +23,18 @@ from app.inventory.admin_edit_service import (
     save_admin_tags,
 )
 from app.inventory.barcodes import upc_bars
+from app.inventory.constants import UnknownUpcStatus
+from app.inventory.expiration_service import save_expiration_count_correction
+from app.inventory.expiration_ui_service import (
+    build_expiration_entry_groups,
+    expiration_count_correction_specs,
+    group_expiration_entries_by_item,
+    hidden_form_fields,
+    parse_expiration_allocations,
+)
 from app.inventory.item_queries import list_items
+from app.inventory.models import UnknownUpcScan
+from app.inventory.pending_tasks_service import pending_task_summary
 from app.shared.constants import ADMIN_TIMEOUT
 from app.shared.database import get_session
 from app.shared.form_parsing import selected_int_ids
@@ -97,6 +108,76 @@ def admin_panel(squad: str) -> Any:
     )
 
 
+@bp.route("/<squad>/admin-panel/pending-tasks")
+def pending_tasks(squad: str) -> Any:
+    with get_session() as s:
+        tasks = pending_task_summary(s, current_user.id)
+    return render_template(
+        "admin_pending_tasks.html",
+        squad=squad,
+        tasks=tasks,
+        admin=True,
+    )
+
+
+@bp.route("/<squad>/admin-panel/pending-tasks/expiration-dates", methods=["GET", "POST"])
+def pending_expiration_dates(squad: str) -> Any:
+    from app.alerts.alert_service import sync_expiration_audit_events
+
+    with get_session() as s:
+        groups = build_expiration_entry_groups(s, current_user.id, expiration_count_correction_specs(s, current_user.id))
+        if not groups:
+            sync_expiration_audit_events(s, agency_id=current_user.id)
+            s.commit()
+            flash("No missing expiration dates need review.", "info")
+            return redirect(url_for("admin.pending_tasks", squad=squad))
+        if request.method == "POST":
+            try:
+                allocations_by_key = parse_expiration_allocations(request.form, groups)
+                for group in groups:
+                    save_expiration_count_correction(
+                        s,
+                        current_user.id,
+                        group.spec.item_id,
+                        group.spec.storage_id,
+                        allocations_by_key[group.spec.key],
+                    )
+                sync_expiration_audit_events(s, agency_id=current_user.id)
+                s.commit()
+            except ValueError as exc:
+                s.rollback()
+                logger.info("Expiration correction rejected", extra={"agency_id": current_user.id, "error": str(exc)})
+                flash(str(exc), "warning")
+                return _render_pending_expiration_dates(squad, groups)
+            logger.info(
+                "Expiration counts corrected without inventory history",
+                extra={"agency_id": current_user.id, "item_storage_pair_count": len(groups)},
+            )
+            flash(f"Saved expiration dates for {len(groups)} item/storage pair(s).", "success")
+            return redirect(url_for("admin.pending_tasks", squad=squad))
+        return _render_pending_expiration_dates(squad, groups)
+
+
+def _render_pending_expiration_dates(squad: str, groups) -> Any:
+    return render_template(
+        "expiration_entry.html",
+        squad=squad,
+        groups=groups,
+        item_groups=group_expiration_entries_by_item(groups),
+        hidden_fields=hidden_form_fields(request.form),
+        form_action=None,
+        cancel_url=url_for("admin.pending_tasks", squad=squad),
+        back_label="Back to Pending Tasks",
+        show_bottom_cancel=False,
+        show_recount_links=True,
+        compact_entry=True,
+        submit_label="Save Expiration Dates",
+        page_title="Fix Missing Expiration Dates",
+        page_subtitle="Enter the current expiration dates for each listed storage",
+        admin=True,
+    )
+
+
 @bp.route("/<squad>/admin-panel/edit-data", methods=["GET", "POST"])
 def admin_edit_data(squad: str) -> Any:
     if request.method == "POST":
@@ -138,6 +219,7 @@ def _admin_edit_data(session: Session, agency_id: int) -> dict[str, Any]:
         "tags": list_tags(agency_id, session),
         "locations": list_top_locations(agency_id, session),
         "notifications": list_active_emails(agency_id, session),
+        "ignored_upcs": _ignored_upcs(session, agency_id),
         "alert_email_frequency_choices": ALERT_EMAIL_FREQUENCY_CHOICES,
         "notification_alert_fields": ALERT_NOTIFICATION_FIELDS,
         "notification_summary_fields": SUMMARY_NOTIFICATION_FIELDS,
@@ -189,6 +271,7 @@ def admin_panel_views(squad: str) -> Any:
         locations=view_data["locations"],
         tags=view_data["tags"],
         notifications=view_data["notifications"],
+        ignored_upcs=view_data["ignored_upcs"],
         notification_alert_fields=ALERT_NOTIFICATION_FIELDS,
         notification_summary_fields=SUMMARY_NOTIFICATION_FIELDS,
         admin=True,
@@ -200,18 +283,27 @@ def _admin_view_data(session: Session, agency_id: int) -> dict[str, Any]:
     return {
         "items": list_items(agency_id, session=session),
         "locations": list(
-            session.execute(
-                select(AgencyLocations)
-                .options(selectinload(AgencyLocations.storages))
-                .where(AgencyLocations.agency_id == agency_id)
-                .order_by(AgencyLocations.name)
-            )
+            session.execute(select(Location).options(selectinload(Location.storages)).where(Location.agency_id == agency_id).order_by(Location.name))
             .scalars()
             .all()
         ),
         "tags": list_tags(agency_id, session),
         "notifications": list_active_emails(agency_id, session),
+        "ignored_upcs": _ignored_upcs(session, agency_id),
     }
+
+
+def _ignored_upcs(session: Session, agency_id: int) -> list[UnknownUpcScan]:
+    return list(
+        session.execute(
+            select(UnknownUpcScan)
+            .options(selectinload(UnknownUpcScan.suggested_item))
+            .where(UnknownUpcScan.agency_id == agency_id, UnknownUpcScan.status == UnknownUpcStatus.IGNORE)
+            .order_by(UnknownUpcScan.updated_at.desc(), UnknownUpcScan.id.desc())
+        )
+        .scalars()
+        .all()
+    )
 
 
 @bp.route("/<squad>/settings", methods=["GET", "POST"])
@@ -247,7 +339,7 @@ def _save_settings(squad: str) -> Any:
     token = current_device_token()
     try:
         with get_session() as s:
-            agency = s.get(Agencies, current_user.id)
+            agency = s.get(Agency, current_user.id)
             if agency is None:
                 raise ValueError("Agency not found.")
             settings_changed = save_admin_settings(s, agency, request.form.to_dict())

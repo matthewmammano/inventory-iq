@@ -28,6 +28,8 @@ class AdminItemForm(BaseModel):
     increments: Increments = None
     tag_ids: list[int] = Field(default_factory=list)
     image: ImageSource = None
+    expiration_tracking_enabled: bool = False
+    expiration_notice_days_override: OptionalPositiveInt = None
     min_quantity: PositiveInt
     max_quantity: PositiveInt
     batch_size: PositiveInt
@@ -94,6 +96,9 @@ class AdminNotificationForm(AdminNotificationFormBase):
     alert_for_restock: bool = _notification_default("alert_for_restock")
     alert_for_takeout: bool = _notification_default("alert_for_takeout")
     alert_for_transfer: bool = _notification_default("alert_for_transfer")
+    alert_for_expired_stock: bool = _notification_default("alert_for_expired_stock")
+    alert_for_expiring_soon: bool = _notification_default("alert_for_expiring_soon")
+    alert_for_expiration_count_needed: bool = _notification_default("alert_for_expiration_count_needed")
     daily_summary: bool = _notification_default("daily_summary")
     weekly_summary: bool = _notification_default("weekly_summary")
     monthly_summary: bool = _notification_default("monthly_summary")
@@ -108,6 +113,7 @@ class AdminSettingsForm(BaseModel):
     lead_time_days: PositiveInt
     count_last_days: PositiveInt
     alert_rare_scan_days: PositiveInt
+    expiration_notice_days: PositiveInt
 
 
 def _validate_secondary_upc(value: str) -> str:

@@ -26,10 +26,10 @@ from app.shared.validators import (
 
 from .constants import BLACK_HEX, WHITE_HEX
 from .location_filters import normalize_location_filter_ids
-from .notification_preferences import AlertEmailFrequency
+from .notification_preferences import DEFAULT_ENABLED_BY_KEY, PREFERENCE_BY_FIELD, AlertEmailFrequency, NotificationPreferenceKey
 
 
-class Agencies(Base, UserMixin):
+class Agency(Base, UserMixin):
     """Primary agency model (referenced as 'agency' in code)."""
 
     __tablename__ = "agencies"
@@ -49,17 +49,17 @@ class Agencies(Base, UserMixin):
     lead_time_days: Mapped[int] = mapped_column(Integer, default=21)
     count_last_days: Mapped[int] = mapped_column(Integer, default=90)
     alert_rare_scan_days: Mapped[int] = mapped_column(Integer, default=90)
+    expiration_notice_days: Mapped[int] = mapped_column(Integer, default=30)
 
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
-    items = relationship("Items", backref="agency", lazy="select")
-    logs = relationship("ActionLogs", backref="agency", lazy="select")
-    emails = relationship("AgencyEmails", backref="agency", lazy="select")
+    items = relationship("Item", backref="agency", lazy="select")
+    logs = relationship("ActionLog", backref="agency", lazy="select")
     password_reset_pins = relationship("PasswordResetPins", back_populates="agency", lazy="select")
-    item_tags = relationship("AgencyItemTags", backref="agency", lazy="select")
-    locations = relationship("AgencyLocations", back_populates="agency", lazy="select")
-    storages = relationship("AgencyStorages", back_populates="agency", lazy="select")
+    item_tags = relationship("ItemTag", backref="agency", lazy="select")
+    locations = relationship("Location", back_populates="agency", lazy="select")
+    storages = relationship("Storage", back_populates="agency", lazy="select")
 
     def set_password(self, password: str) -> None:
         """Set the password hash."""
@@ -107,7 +107,7 @@ class Agencies(Base, UserMixin):
     def validate_timezone_field(self, _key: str, value: str) -> str:
         return validate_timezone(value)
 
-    @validates("lead_time_days", "alert_rare_scan_days", "count_last_days")
+    @validates("lead_time_days", "alert_rare_scan_days", "count_last_days", "expiration_notice_days")
     def validate_positive_day_setting(self, key: str, value: int | None) -> int:
         validated = validate_positive_integer(value, key, allow_none=False)
         if validated is None:
@@ -128,7 +128,7 @@ class PasswordResetPins(Base):
     used_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive)
 
-    agency = relationship("Agencies", back_populates="password_reset_pins", lazy="select")
+    agency = relationship("Agency", back_populates="password_reset_pins", lazy="select")
 
     def set_pin(self, pin: str) -> None:
         self.pin_hash = generate_password_hash(pin)
@@ -137,14 +137,14 @@ class PasswordResetPins(Base):
         return check_password_hash(self.pin_hash, pin)
 
 
-class AgencyEmails(Base):
+class NotificationRecipient(Base):
     """Additional emails per agency."""
 
-    __tablename__ = "agency_emails"
+    __tablename__ = "notification_recipients"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
-    email: Mapped[str] = mapped_column(String(128), unique=True)
+    email: Mapped[str] = mapped_column(String(128))
     active: Mapped[bool] = mapped_column(Boolean, default=True)
     location_filter_ids: Mapped[list[int] | None] = mapped_column(MutableList.as_mutable(JSON), nullable=True)
     quiet_start_time: Mapped[str | None] = mapped_column(String(5), nullable=True)
@@ -154,26 +154,18 @@ class AgencyEmails(Base):
         default=AlertEmailFrequency.HOURLY,
     )
 
-    alert_for_stockout: Mapped[bool] = mapped_column(Boolean, default=True)
-    alert_for_stockout_pred: Mapped[bool] = mapped_column(Boolean, default=True)
-    alert_for_low: Mapped[bool] = mapped_column(Boolean, default=True)
-    alert_for_low_pred: Mapped[bool] = mapped_column(Boolean, default=True)
-    alert_for_stale_count: Mapped[bool] = mapped_column(Boolean, default=True)
-    alert_for_rare_takeout: Mapped[bool] = mapped_column(Boolean, default=False)
-    alert_for_count: Mapped[bool] = mapped_column(Boolean, default=True)
-    alert_for_restock: Mapped[bool] = mapped_column(Boolean, default=True)
-    alert_for_takeout: Mapped[bool] = mapped_column(Boolean, default=False)
-    alert_for_transfer: Mapped[bool] = mapped_column(Boolean, default=False)
-
-    daily_summary: Mapped[bool] = mapped_column(Boolean, default=False)
-    weekly_summary: Mapped[bool] = mapped_column(Boolean, default=True)
-    monthly_summary: Mapped[bool] = mapped_column(Boolean, default=True)
-    yearly_summary: Mapped[bool] = mapped_column(Boolean, default=True)
+    preferences = relationship(
+        "NotificationPreferenceSetting",
+        back_populates="recipient",
+        cascade="all, delete-orphan",
+        lazy="selectin",
+    )
 
     __table_args__ = (
+        UniqueConstraint("agency_id", "email", name="uq_notification_recipients_agency_email"),
         CheckConstraint(
             "(quiet_start_time IS NULL AND quiet_end_time IS NULL) OR (quiet_start_time IS NOT NULL AND quiet_end_time IS NOT NULL)",
-            name="ck_agency_emails_quiet_hours_pair",
+            name="ck_notification_recipients_quiet_hours_pair",
         ),
     )
 
@@ -195,8 +187,40 @@ class AgencyEmails(Base):
             return f"{self.quiet_start_time}-{self.quiet_end_time}"
         return "None"
 
+    def preference_enabled(self, field_or_key: str | NotificationPreferenceKey) -> bool:
+        key = _preference_key(field_or_key)
+        row = next((preference for preference in self.preferences if preference.preference_key == key), None)
+        return bool(row.enabled) if row else DEFAULT_ENABLED_BY_KEY[key]
 
-class AgencyLocations(Base):
+
+class NotificationPreferenceSetting(Base):
+    """One recipient-level notification preference toggle."""
+
+    __tablename__ = "notification_preferences"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    recipient_id: Mapped[int] = mapped_column(Integer, ForeignKey("notification_recipients.id", ondelete="CASCADE"), index=True)
+    preference_key: Mapped[NotificationPreferenceKey] = mapped_column(
+        SAEnum(NotificationPreferenceKey, native_enum=False, length=32),
+        index=True,
+    )
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    recipient = relationship("NotificationRecipient", back_populates="preferences", lazy="selectin")
+
+    __table_args__ = (UniqueConstraint("recipient_id", "preference_key", name="uq_notification_preferences_recipient_key"),)
+
+
+def _preference_key(field_or_key: str | NotificationPreferenceKey) -> NotificationPreferenceKey:
+    if isinstance(field_or_key, NotificationPreferenceKey):
+        return field_or_key
+    preference = PREFERENCE_BY_FIELD.get(field_or_key)
+    if preference is None:
+        return NotificationPreferenceKey(field_or_key)
+    return preference.key
+
+
+class Location(Base):
     """Top-level physical locations per agency."""
 
     __tablename__ = "agency_locations"
@@ -205,12 +229,12 @@ class AgencyLocations(Base):
     agency_id: Mapped[int] = mapped_column(Integer, ForeignKey("agencies.id"), index=True)
     name: Mapped[str] = mapped_column(String(50))
 
-    agency = relationship("Agencies", back_populates="locations", lazy="select")
+    agency = relationship("Agency", back_populates="locations", lazy="select")
     storages = relationship(
-        "AgencyStorages",
+        "Storage",
         back_populates="location",
         lazy="selectin",
-        order_by="AgencyStorages.name",
+        order_by="Storage.name",
     )
 
     __table_args__ = (UniqueConstraint("agency_id", "name", name="uq_agency_locations_agency_name"),)
@@ -220,7 +244,7 @@ class AgencyLocations(Base):
         return validate_string_length(value, "name", 50, allow_none=False, allow_empty=False)
 
 
-class AgencyDevices(Base):
+class AgencyDevice(Base):
     """Browser/device default location for one agency."""
 
     __tablename__ = "agency_devices"
@@ -234,10 +258,10 @@ class AgencyDevices(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
     last_seen_at: Mapped[datetime] = mapped_column(DateTime, default=lambda: datetime.now(UTC))
 
-    location = relationship("AgencyLocations", lazy="select")
+    location = relationship("Location", lazy="select")
 
 
-class AgencyStorages(Base):
+class Storage(Base):
     """Storage units within a location."""
 
     __tablename__ = "agency_storages"
@@ -249,8 +273,8 @@ class AgencyStorages(Base):
     user_access_from: Mapped[bool] = mapped_column(Boolean, default=True)
     user_access_to: Mapped[bool] = mapped_column(Boolean, default=True)
 
-    agency = relationship("Agencies", back_populates="storages", lazy="select")
-    location = relationship("AgencyLocations", back_populates="storages", lazy="selectin")
+    agency = relationship("Agency", back_populates="storages", lazy="select")
+    location = relationship("Location", back_populates="storages", lazy="select")
 
     __table_args__ = (UniqueConstraint("location_id", "name", name="uq_agency_storages_location_name"),)
 
@@ -271,7 +295,7 @@ class AgencyStorages(Base):
         return f"{location_name} - {self.name}" if location_name else self.name
 
 
-class AgencyItemTags(Base):
+class ItemTag(Base):
     """Agency-defined item tags."""
 
     __tablename__ = "agency_item_tags"
