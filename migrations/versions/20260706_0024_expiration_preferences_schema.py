@@ -144,7 +144,7 @@ def _backfill_notification_preferences() -> None:
             sa.text(
                 f"""
                 INSERT INTO notification_preferences (recipient_id, preference_key, enabled)
-                SELECT id, :preference_key, COALESCE({legacy_column}, 0)
+                SELECT id, :preference_key, COALESCE({legacy_column}, FALSE)
                 FROM notification_recipients
                 WHERE NOT EXISTS (
                     SELECT 1
@@ -161,7 +161,7 @@ def _backfill_notification_preferences() -> None:
             sa.text(
                 """
                 INSERT INTO notification_preferences (recipient_id, preference_key, enabled)
-                SELECT id, :preference_key, 1
+                SELECT id, :preference_key, TRUE
                 FROM notification_recipients
                 WHERE NOT EXISTS (
                     SELECT 1
@@ -211,7 +211,7 @@ def _backfill_legacy_notification_columns() -> None:
                     FROM notification_preferences preferences
                     WHERE preferences.recipient_id = notification_recipients.id
                       AND preferences.preference_key = :preference_key
-                ), 0)
+                ), FALSE)
                 """
             ),
             {"preference_key": preference_key},
