@@ -31,6 +31,7 @@ class SchedulerJobName(StrEnum):
     GENERATE_INVENTORY_ALERTS = "GENERATE_INVENTORY_ALERTS"
     RECONCILE_INVENTORY_BALANCES = "RECONCILE_INVENTORY_BALANCES"
     RETRAIN_MODELS = "RETRAIN_MODELS"
+    DEVELOPER_DELIVERY_ALERT = "DEVELOPER_DELIVERY_ALERT"
 
 
 class SchedulerRunStatus(StrEnum):
@@ -57,6 +58,7 @@ class DailySchedulerSpec:
 
 
 EMAIL_DELIVERY_PERIOD_MINUTES = 10
+DEVELOPER_ALERT_PERIOD_MINUTES = 30
 INVENTORY_AUDIT_SCHEDULE = DailySchedulerSpec(SchedulerJobName.GENERATE_INVENTORY_ALERTS, 7, 46)
 BALANCE_AUDIT_SCHEDULE = DailySchedulerSpec(SchedulerJobName.RECONCILE_INVENTORY_BALANCES, 4, 17)
 
@@ -169,9 +171,17 @@ def _active_agency_schedules() -> list[tuple[int, str]]:
         return [(agency_id, timezone or "UTC") for agency_id, timezone in rows]
 
 
-def _email_delivery_period_key(now: datetime) -> str:
-    minute = now.minute - (now.minute % EMAIL_DELIVERY_PERIOD_MINUTES)
+def _bucket_period_key(now: datetime, minutes: int) -> str:
+    minute = now.minute - (now.minute % minutes)
     return now.replace(minute=minute, second=0, microsecond=0).strftime("%Y-%m-%dT%H:%M")
+
+
+def _email_delivery_period_key(now: datetime) -> str:
+    return _bucket_period_key(now, EMAIL_DELIVERY_PERIOD_MINUTES)
+
+
+def scheduler_developer_alert_period_key(now: datetime | None = None) -> str:
+    return _bucket_period_key(now or utc_now(), DEVELOPER_ALERT_PERIOD_MINUTES)
 
 
 def scheduler_daily_period_key(now: datetime | None = None) -> str:

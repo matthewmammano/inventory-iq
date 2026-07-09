@@ -1,5 +1,11 @@
 # My TODO
 
+- Tighten ALL alert / stock updates / email logic together, clean, simple, minimal, best crons!
+
+- Make all code SUPER OO design pattern, line number restricted, files in folder SOFT restricted (for modules). Attempt to create MORE modules AND submodules. Attempt to make `__init__.py` files to be best practice (I think I should be included smth like exports I forget). Makes editing easier if less LOC per file. Restrict function LOC too AND depth! JUST GENERAL CLEANUP ALL!
+
+- Emails colored boxes on top categories are NOT in the right order. fix NOW how to do?!
+
 - Tighten Production Safety
   - is there any types of SAFETY things like rate limits, certain increased loading times, DDOS prevention, other attack prevention that I should ADD to my code?!
   - Keep schema/bootstrap and local QA setup scripts explicit and documented.

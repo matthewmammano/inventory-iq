@@ -10,11 +10,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import Agency, Location, Storage
 from app.shared.clock import utc_now_naive
 
-from .location_state_policy import (
-    StockStateEvaluation,
-    effective_lead_time_days,
-    evaluate_stock_state,
-)
+from .location_state_policy import effective_lead_time_days, evaluate_stock_state
 from .models import ActionLog, InventoryItemLocationState, InventoryStorageBalance, Item
 
 
@@ -156,7 +152,6 @@ def update_state_trend(
             restock_delivery_days=state.restock_delivery_days_snapshot,
             prior_daily_usage=float(prior_daily_usage),
         ),
-        now=utc_now_naive(),
     )
     now = utc_now_naive()
     state.state_version_at = _latest_datetime(state.last_activity_at, state.trained_at, now) or now
@@ -215,7 +210,7 @@ def _apply_state_values(
     state.min_quantity_snapshot = settings.min_quantity
     state.lead_time_days_snapshot = settings.lead_time_days
     state.restock_delivery_days_snapshot = settings.restock_delivery_days
-    _apply_stock_policy(state, settings=settings, now=now)
+    _apply_stock_policy(state, settings=settings)
     state.state_version_at = _latest_datetime(state.state_version_at, rollup.last_activity_at, state.trained_at) or now
     if state.id is None or before != _state_value_signature(state):
         state.updated_at = now
@@ -232,12 +227,6 @@ def _state_value_signature(state: InventoryItemLocationState) -> tuple[object, .
         state.restock_delivery_days_snapshot,
         state.days_until_low,
         state.days_until_stockout,
-        state.stock_status,
-        state.forecast_status,
-        state.effective_alert_type,
-        state.effective_alert_rank,
-        state.effective_severity,
-        state.effective_alert_started_at,
         state.state_version_at,
     )
 
@@ -246,7 +235,6 @@ def _apply_stock_policy(
     state: InventoryItemLocationState,
     *,
     settings: LocationStateSettings,
-    now: datetime,
 ) -> None:
     evaluation = evaluate_stock_state(
         total_quantity=state.total_quantity,
@@ -255,28 +243,8 @@ def _apply_stock_policy(
         prior_daily_usage=settings.prior_daily_usage,
         trend_per_day=state.trend_per_day,
     )
-    _apply_stock_state_evaluation(state, evaluation, now=now)
-
-
-def _apply_stock_state_evaluation(
-    state: InventoryItemLocationState,
-    evaluation: StockStateEvaluation,
-    *,
-    now: datetime,
-) -> None:
-    prior_alert_type = state.effective_alert_type
-    next_alert_type = evaluation.effective_alert_type
-    if next_alert_type is None:
-        state.effective_alert_started_at = None
-    elif prior_alert_type != next_alert_type or state.effective_alert_started_at is None:
-        state.effective_alert_started_at = now
     state.days_until_low = evaluation.days_until_low
     state.days_until_stockout = evaluation.days_until_stockout
-    state.stock_status = evaluation.stock_status
-    state.forecast_status = evaluation.forecast_status
-    state.effective_alert_type = next_alert_type
-    state.effective_alert_rank = evaluation.effective_alert_rank
-    state.effective_severity = evaluation.effective_severity
 
 
 def _location_state_settings(

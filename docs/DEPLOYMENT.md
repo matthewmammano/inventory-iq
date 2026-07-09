@@ -80,11 +80,10 @@ Railway cron split, optimized for an EST agency operations day:
 
 Timing rules:
 
-- `process_email_alerts` prepares final rendered email rows and sends rows where `send_at <= now`.
-- Email delivery rows use `send_at` as their due time; `delivery_kind` and `delivery_key` keep logical alert and report emails distinct even when both are due together.
-- Scheduled alert emails use the next top-of-hour `send_at`.
-- Daily alert emails and report emails target the 9:00am agency-local window, and alerts/reports always stay as separate outbound emails.
-- Per-recipient quiet hours are local clock preferences on `notification_recipients`; email delivery timestamps are stored in UTC/UTC-naive form and postponed outside quiet windows before sending.
+- `process_email_alerts` decides fresh every run: for each active recipient, it checks current alert eligibility (`alerts` + `alert_notifications`), their cadence, and quiet hours, then renders and sends immediately -- nothing is queued or claimed ahead of time.
+- Instant-frequency recipients are checked every 10-minute tick. Hourly-frequency recipients are gated by "at least an hour since their last sent alert" (read from the `email_deliveries` audit log, not a stored timer). Daily-frequency alert emails and report emails both gate on the 9:00am agency-local window plus "not already sent today," using the same audit-log check.
+- Per-recipient quiet hours are local clock preferences on `notification_recipients`; a recipient in quiet hours is skipped entirely for that run and re-checked on the next tick -- nothing is postponed or rescheduled.
+- Alerts and reports always stay as separate outbound emails.
 - Run retraining before balance reconciliation so forecast fields are fresh before the morning safety alert audit.
 - Run the safety alert audit before the `9:00am` Eastern email window and off the 10-minute email grid so generated stale/rare events are ready for the next sender run.
 - Keep scheduling and user-facing timestamps in each agency's local timezone, but store persisted timestamps in UTC or UTC-naive form in the database.

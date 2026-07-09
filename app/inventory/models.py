@@ -24,7 +24,6 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from sqlalchemy.orm import Session as OrmSession
 
-from app.alerts.constants import AlertSeverity, AlertType
 from app.shared.clock import utc_now, utc_now_naive
 from app.shared.database import Base
 from app.shared.timezone_utils import convert_utc_to_local
@@ -417,12 +416,6 @@ class InventoryItemLocationState(Base):
     days_until_low: Mapped[float | None] = mapped_column(Float, nullable=True)
     days_until_stockout: Mapped[float | None] = mapped_column(Float, nullable=True)
 
-    stock_status: Mapped[AlertType | None] = mapped_column(SAEnum(AlertType, native_enum=False, length=32), nullable=True, index=True)
-    forecast_status: Mapped[AlertType | None] = mapped_column(SAEnum(AlertType, native_enum=False, length=32), nullable=True, index=True)
-    effective_alert_type: Mapped[AlertType | None] = mapped_column(SAEnum(AlertType, native_enum=False, length=32), nullable=True, index=True)
-    effective_alert_rank: Mapped[int] = mapped_column(Integer, default=0, index=True)
-    effective_severity: Mapped[AlertSeverity | None] = mapped_column(SAEnum(AlertSeverity, native_enum=False, length=16), nullable=True, index=True)
-    effective_alert_started_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     state_version_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, index=True)
@@ -435,7 +428,6 @@ class InventoryItemLocationState(Base):
             "agency_location_id",
             name="uq_inventory_item_location_states_agency_item_location",
         ),
-        Index("idx_inventory_item_location_states_effective", "agency_id", "effective_alert_type", "effective_severity"),
         Index("idx_inventory_item_location_states_signature", "data_signature"),
     )
 

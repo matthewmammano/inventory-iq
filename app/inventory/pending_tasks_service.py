@@ -5,17 +5,10 @@ from dataclasses import dataclass
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
-from app.alerts.constants import AlertType, InventoryAlertEventStatus
-from app.alerts.models import InventoryAlertEvent
+from app.alerts.constants import AlertStatus, AlertType
+from app.alerts.models import Alert
 from app.inventory.constants import UnknownUpcStatus
 from app.inventory.models import UnknownUpcScan
-
-OPEN_TASK_STATUSES = (
-    InventoryAlertEventStatus.PENDING,
-    InventoryAlertEventStatus.NO_RECIPIENT,
-    InventoryAlertEventStatus.QUEUED,
-    InventoryAlertEventStatus.ERROR,
-)
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,11 +49,11 @@ def _open_event_count(session: Session, agency_id: int, alert_type: AlertType) -
     return int(
         session.scalar(
             select(func.count())
-            .select_from(InventoryAlertEvent)
+            .select_from(Alert)
             .where(
-                InventoryAlertEvent.agency_id == agency_id,
-                InventoryAlertEvent.alert_type == alert_type,
-                InventoryAlertEvent.status.in_(OPEN_TASK_STATUSES),
+                Alert.agency_id == agency_id,
+                Alert.alert_type == alert_type,
+                Alert.status == AlertStatus.OPEN,
             )
         )
         or 0
@@ -68,20 +61,20 @@ def _open_event_count(session: Session, agency_id: int, alert_type: AlertType) -
 
 
 def _stale_count_tasks(session: Session, agency_id: int) -> list[StaleCountTask]:
-    events = session.execute(
-        select(InventoryAlertEvent.payload_json).where(
-            InventoryAlertEvent.agency_id == agency_id,
-            InventoryAlertEvent.alert_type == AlertType.STALE_COUNT,
-            InventoryAlertEvent.status.in_(OPEN_TASK_STATUSES),
+    details = session.execute(
+        select(Alert.detail).where(
+            Alert.agency_id == agency_id,
+            Alert.alert_type == AlertType.STALE_COUNT,
+            Alert.status == AlertStatus.OPEN,
         )
     ).scalars()
     by_location: dict[int, tuple[str, set[int]]] = {}
-    for payload in events:
-        location_id = payload.get("agency_location_id")
-        item_id = payload.get("item_id")
+    for detail in details:
+        location_id = detail.get("agency_location_id")
+        item_id = detail.get("item_id")
         if not isinstance(location_id, int) or not isinstance(item_id, int):
             continue
-        location_name = str(payload.get("location_name") or "Location")
+        location_name = str(detail.get("location_name") or "Location")
         existing_name, item_ids = by_location.setdefault(location_id, (location_name, set()))
         by_location[location_id] = (existing_name, item_ids | {item_id})
     return [

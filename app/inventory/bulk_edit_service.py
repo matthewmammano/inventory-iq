@@ -39,8 +39,8 @@ def save_bulk_edit(
         save_bulk_location_restock(session, agency_id, agency_location_id, restocks, expiration_allocations_by_key or {}) if restocks else 0
     )
     if any(allocation.expires_on is None for allocations in (expiration_allocations_by_key or {}).values() for allocation in allocations):
-        from app.alerts.alert_service import sync_expiration_audit_events
+        from app.alerts.alert_service import sync_expiration_alerts
 
-        sync_expiration_audit_events(session, agency_id=agency_id)
+        sync_expiration_alerts(session, agency_id=agency_id)
     session.commit()
     return BulkEditSaveResult(count_logs, restock_logs)

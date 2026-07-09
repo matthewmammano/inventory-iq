@@ -1,10 +1,13 @@
 """Alert constants, enums, and notification policy values."""
 
 from dataclasses import dataclass
+from datetime import timedelta
 from enum import StrEnum
 
 from app.auth.notification_preferences import NotificationPreferenceKey
 from app.inventory.constants import OperationType
+
+ALERT_RESEND_COOLDOWN = timedelta(days=7)
 
 
 class AlertType(StrEnum):
@@ -28,6 +31,10 @@ class AlertType(StrEnum):
     @property
     def color(self) -> str:
         return ALERT_DEFINITIONS[self].color
+
+    @property
+    def severity(self) -> "AlertSeverity":
+        return ALERT_DEFINITIONS[self].severity
 
 
 class AlertSeverity(StrEnum):
@@ -70,34 +77,29 @@ SEVERITY_ORDER = (
 )
 
 
-class InventoryAlertEventStatus(StrEnum):
-    """Lifecycle for one discrete non-stock alert event."""
+class AlertStatus(StrEnum):
+    """Whether an alert's underlying problem is still live.
 
-    PENDING = "PENDING"
-    NO_RECIPIENT = "NO_RECIPIENT"
-    QUEUED = "QUEUED"
-    NOTIFIED = "NOTIFIED"
-    CANCELLED = "CANCELLED"
-    ERROR = "ERROR"
+    Per-recipient notification history lives in `alert_notifications`, never here.
+    """
 
-
-class AlertSourceType(StrEnum):
-    """Traceable source category for a generated discrete alert event."""
-
-    ACTION_LOG = "ACTION_LOG"
-    UNKNOWN_UPC_SCAN = "UNKNOWN_UPC_SCAN"
-    STALE_COUNT_AUDIT = "STALE_COUNT_AUDIT"
-    RARE_TAKEOUT_AUDIT = "RARE_TAKEOUT_AUDIT"
-    EXPIRATION_AUDIT = "EXPIRATION_AUDIT"
+    OPEN = "OPEN"
+    CLOSED = "CLOSED"
 
 
-class NotificationEmailStatus(StrEnum):
-    """Lifecycle for one rendered recipient email."""
+class ClosedReason(StrEnum):
+    """Why an open alert was closed."""
 
-    PENDING = "PENDING"
+    RESOLVED = "RESOLVED"  # the real condition went away: recount, restock, UPC assigned, admin dismissal
+    SUPERSEDED = "SUPERSEDED"  # a different-type alert for the same subject replaced it (low stock -> stockout)
+    SENT = "SENT"  # informational alert with nothing to resolve; closed once communicated
+
+
+class DeliveryStatus(StrEnum):
+    """Terminal outcome of one notification email send attempt (write-once audit)."""
+
     SENT = "SENT"
     ERROR = "ERROR"
-    CANCELLED = "CANCELLED"
 
 
 class NotificationDeliveryKind(StrEnum):
@@ -109,14 +111,18 @@ class NotificationDeliveryKind(StrEnum):
 
 @dataclass(frozen=True)
 class AlertDefinition:
-    """Central metadata for one alert type."""
+    """Central metadata for one alert type.
+
+    `resend_after` is how long an unaddressed alert waits before a recipient is
+    re-notified while it stays open; `None` means notify once and never again.
+    """
 
     label: str
     severity: AlertSeverity
     preference_key: NotificationPreferenceKey | None = None
     stock_rank: int = 0
-    immediate: bool = False
     discrete_event: bool = False
+    resend_after: timedelta | None = None
 
     @property
     def color(self) -> str:
@@ -124,59 +130,49 @@ class AlertDefinition:
 
 
 ALERT_DEFINITIONS = {
-    AlertType.STOCKOUT: AlertDefinition("stockouts", AlertSeverity.CRITICAL, NotificationPreferenceKey.STOCKOUT, stock_rank=400),
+    AlertType.STOCKOUT: AlertDefinition(
+        "stockouts", AlertSeverity.CRITICAL, NotificationPreferenceKey.STOCKOUT, stock_rank=400, resend_after=ALERT_RESEND_COOLDOWN
+    ),
     AlertType.STOCKOUT_FORECAST: AlertDefinition(
         "predicted stockouts",
         AlertSeverity.HIGH,
         NotificationPreferenceKey.STOCKOUT_FORECAST,
         stock_rank=300,
+        resend_after=ALERT_RESEND_COOLDOWN,
     ),
-    AlertType.LOW_STOCK: AlertDefinition("low stock", AlertSeverity.MEDIUM, NotificationPreferenceKey.LOW_STOCK, stock_rank=200),
+    AlertType.LOW_STOCK: AlertDefinition(
+        "low stock", AlertSeverity.MEDIUM, NotificationPreferenceKey.LOW_STOCK, stock_rank=200, resend_after=ALERT_RESEND_COOLDOWN
+    ),
     AlertType.LOW_STOCK_FORECAST: AlertDefinition(
         "predicted low stock",
         AlertSeverity.LOW,
         NotificationPreferenceKey.LOW_STOCK_FORECAST,
         stock_rank=100,
+        resend_after=ALERT_RESEND_COOLDOWN,
     ),
-    AlertType.STALE_COUNT: AlertDefinition("stale counts", AlertSeverity.LOW, NotificationPreferenceKey.STALE_COUNT, discrete_event=True),
+    AlertType.STALE_COUNT: AlertDefinition(
+        "stale counts", AlertSeverity.LOW, NotificationPreferenceKey.STALE_COUNT, discrete_event=True, resend_after=ALERT_RESEND_COOLDOWN
+    ),
     AlertType.RARE_TAKEOUT: AlertDefinition("rare takeouts", AlertSeverity.LOW, NotificationPreferenceKey.RARE_TAKEOUT, discrete_event=True),
-    AlertType.UNKNOWN_UPC: AlertDefinition("unknown UPCs", AlertSeverity.LOW, immediate=True, discrete_event=True),
-    AlertType.COUNT_ACTION: AlertDefinition(
-        "count activity",
-        AlertSeverity.INFO,
-        NotificationPreferenceKey.COUNT_ACTION,
-        immediate=True,
-        discrete_event=True,
-    ),
-    AlertType.RESTOCK_ACTION: AlertDefinition(
-        "restock activity",
-        AlertSeverity.INFO,
-        NotificationPreferenceKey.RESTOCK_ACTION,
-        immediate=True,
-        discrete_event=True,
-    ),
-    AlertType.TAKEOUT_ACTION: AlertDefinition(
-        "takeout activity",
-        AlertSeverity.INFO,
-        NotificationPreferenceKey.TAKEOUT_ACTION,
-        immediate=True,
-        discrete_event=True,
-    ),
+    AlertType.UNKNOWN_UPC: AlertDefinition("unknown UPCs", AlertSeverity.LOW, discrete_event=True, resend_after=ALERT_RESEND_COOLDOWN),
+    AlertType.COUNT_ACTION: AlertDefinition("count activity", AlertSeverity.INFO, NotificationPreferenceKey.COUNT_ACTION, discrete_event=True),
+    AlertType.RESTOCK_ACTION: AlertDefinition("restock activity", AlertSeverity.INFO, NotificationPreferenceKey.RESTOCK_ACTION, discrete_event=True),
+    AlertType.TAKEOUT_ACTION: AlertDefinition("takeout activity", AlertSeverity.INFO, NotificationPreferenceKey.TAKEOUT_ACTION, discrete_event=True),
     AlertType.TRANSFER_ACTION: AlertDefinition(
-        "transfer activity",
-        AlertSeverity.INFO,
-        NotificationPreferenceKey.TRANSFER_ACTION,
-        immediate=True,
-        discrete_event=True,
+        "transfer activity", AlertSeverity.INFO, NotificationPreferenceKey.TRANSFER_ACTION, discrete_event=True
     ),
-    AlertType.EXPIRED_STOCK: AlertDefinition("expired stock", AlertSeverity.HIGH, NotificationPreferenceKey.EXPIRED_STOCK, discrete_event=True),
-    AlertType.EXPIRING_SOON: AlertDefinition("expiring soon", AlertSeverity.MEDIUM, NotificationPreferenceKey.EXPIRING_SOON, discrete_event=True),
+    AlertType.EXPIRED_STOCK: AlertDefinition(
+        "expired stock", AlertSeverity.HIGH, NotificationPreferenceKey.EXPIRED_STOCK, discrete_event=True, resend_after=ALERT_RESEND_COOLDOWN
+    ),
+    AlertType.EXPIRING_SOON: AlertDefinition(
+        "expiring soon", AlertSeverity.MEDIUM, NotificationPreferenceKey.EXPIRING_SOON, discrete_event=True, resend_after=ALERT_RESEND_COOLDOWN
+    ),
     AlertType.EXPIRATION_COUNT_NEEDED: AlertDefinition(
         "expiration counts needed",
         AlertSeverity.LOW,
         NotificationPreferenceKey.EXPIRATION_COUNT_NEEDED,
-        immediate=True,
         discrete_event=True,
+        resend_after=ALERT_RESEND_COOLDOWN,
     ),
 }
 
@@ -188,9 +184,10 @@ ACTION_ALERT_TYPES = {
 }
 
 STOCK_ALERT_RANK = {alert_type: definition.stock_rank for alert_type, definition in ALERT_DEFINITIONS.items() if definition.stock_rank}
+STOCK_ALERT_TYPES = frozenset(STOCK_ALERT_RANK)
 PREFERENCE_BY_TYPE = {
     alert_type: definition.preference_key for alert_type, definition in ALERT_DEFINITIONS.items() if definition.preference_key is not None
 }
 LABEL_BY_TYPE = {alert_type: definition.label for alert_type, definition in ALERT_DEFINITIONS.items()}
-IMMEDIATE_EVENT_TYPES = {alert_type for alert_type, definition in ALERT_DEFINITIONS.items() if definition.immediate}
 DISCRETE_EVENT_TYPES = {alert_type for alert_type, definition in ALERT_DEFINITIONS.items() if definition.discrete_event}
+RESEND_AFTER_BY_TYPE = {alert_type: definition.resend_after for alert_type, definition in ALERT_DEFINITIONS.items()}

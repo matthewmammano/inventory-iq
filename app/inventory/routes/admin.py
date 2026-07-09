@@ -122,12 +122,12 @@ def pending_tasks(squad: str) -> Any:
 
 @bp.route("/<squad>/admin-panel/pending-tasks/expiration-dates", methods=["GET", "POST"])
 def pending_expiration_dates(squad: str) -> Any:
-    from app.alerts.alert_service import sync_expiration_audit_events
+    from app.alerts.alert_service import sync_expiration_alerts
 
     with get_session() as s:
         groups = build_expiration_entry_groups(s, current_user.id, expiration_count_correction_specs(s, current_user.id))
         if not groups:
-            sync_expiration_audit_events(s, agency_id=current_user.id)
+            sync_expiration_alerts(s, agency_id=current_user.id)
             s.commit()
             flash("No missing expiration dates need review.", "info")
             return redirect(url_for("admin.pending_tasks", squad=squad))
@@ -142,7 +142,7 @@ def pending_expiration_dates(squad: str) -> Any:
                         group.spec.storage_id,
                         allocations_by_key[group.spec.key],
                     )
-                sync_expiration_audit_events(s, agency_id=current_user.id)
+                sync_expiration_alerts(s, agency_id=current_user.id)
                 s.commit()
             except ValueError as exc:
                 s.rollback()

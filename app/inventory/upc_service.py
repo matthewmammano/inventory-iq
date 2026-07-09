@@ -11,7 +11,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.alerts.alert_service import cancel_unknown_upc_event, queue_unknown_upc_event
+from app.alerts.alert_service import open_unknown_upc_alert, resolve_unknown_upc_alert
 from app.shared.clock import utc_now
 
 from .constants import (
@@ -212,7 +212,7 @@ def _queue_unknown_upc_alerts(session: Session, agency_id: int, scan: UnknownUpc
 
 
 def _queue_unknown_upc_alert(session: Session, agency_id: int, scan: UnknownUpcScan) -> None:
-    queue_unknown_upc_event(
+    open_unknown_upc_alert(
         session,
         agency_id,
         unknown_upc_id=scan.id,
@@ -361,4 +361,4 @@ def _single_token_item_match(shared_tokens: set[str], left_tokens: set[str], rig
 
 
 def _clear_unknown_upc_alerts(session: Session, agency_id: int, upc: str) -> None:
-    cancel_unknown_upc_event(session, agency_id, upc)
+    resolve_unknown_upc_alert(session, agency_id, upc)

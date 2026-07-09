@@ -17,9 +17,10 @@ Core persistence rules for Inventory IQ. Schema changes require Alembic migratio
 - `action_log_expiration_lines`: expiration-date allocations captured for one inventory event.
 - `inventory_storage_balances`: derived current per-item/per-storage quantity for fast reads.
 - `inventory_expiration_balances`: derived current per-item/per-storage/per-expiration-date quantity for expiration-aware scans and alerts.
-- `inventory_item_location_states`: derived per-item/per-location rollup, threshold, trend, forecast, and winning stock-alert state.
-- `inventory_alert_events`: discrete non-stock alert facts such as unknown UPC, stale count, rare takeout, and scan activity.
-- `notification_email_deliveries`: rendered notification emails with send status and retry diagnostics.
+- `inventory_item_location_states`: derived per-item/per-location rollup, threshold, trend, and forecast *numbers* only -- no alert-lifecycle fields at all. Alert type and severity are computed live from these numbers wherever needed, never stored.
+- `alerts`: every notifiable problem, stock and discrete alike (stockout/low-stock conditions as well as unknown UPC, stale count, rare takeout, scan activity, and expiration facts). Lifecycle is `status` `OPEN`/`CLOSED` plus a `closed_reason`; severity is derived from `alert_type` and never stored. Stock alerts carry an empty `detail` and render live from state; discrete alerts snapshot their `detail`.
+- `alert_notifications`: append-only per-recipient ledger (`alert_id`, `notification_recipient_id`, `email_delivery_id`, `notified_at`). The absence of a row for a (recipient, alert) pair is what makes a recipient due.
+- `email_deliveries`: write-once send audit (subject/preview only, no body). Never a queue or content cache.
 - `scheduler_runs`: idempotency markers for background job windows.
 - `password_reset_pins`: hashed short-lived reset PIN records.
 
@@ -29,11 +30,14 @@ Core persistence rules for Inventory IQ. Schema changes require Alembic migratio
 - `inventory_storage_balances` is derived state and must be updated in the same transaction as inventory writes.
 - `inventory_expiration_balances` is derived state for tracked expiration dates and must stay in the same transaction as inventory writes when expiration allocations are provided.
 - Admin expiration corrections may replace `inventory_expiration_balances` directly when the stored item count is already correct; they must not create `action_logs`.
-- `inventory_item_location_states` is the current source of truth for stock, low-stock, and forecast email decisions.
-- Stock/forecast alerts are current state, not alert event rows.
-- `inventory_alert_events` stores discrete non-stock facts only.
-- `notification_email_deliveries` stores rendered subject/body text as the sent-email audit record.
-- Notification deliveries store final rendered outbound emails. `delivery_kind` is either `ALERT` or `REPORT`; `send_at` is the due time; `delivery_key` is the logical dedupe key per recipient so multiple emails may share a due timestamp.
+- `inventory_item_location_states` is the current source of truth for stock, low-stock, and forecast *numbers* (quantity, trend, forecast). It carries no alert-lifecycle fields; alert type/severity are recomputed on demand from these numbers, and alert lifecycle lives entirely in `alerts`.
+- Alerts are never edited across a real change: any worsening, resolution, or recurrence closes the current row and opens a fresh one. A new row starts with no `alert_notifications`, so escalation (low stock -> stockout) and recurrence (restocked, then depleted again) are due immediately with no episode bookkeeping.
+- Condition alerts (stock, stale, rare, expiration) are reconciled from current state: a stable dedupe key locates the open row, a changed `alert_type` closes it `SUPERSEDED` and opens a new one, and a vanished condition closes it `RESOLVED`. Stock uses a type-agnostic key (`STOCK:{item}:{location}`) so low-stock and stockout share one slot; expiration uses a type-agnostic key so expiring/expired share one slot.
+- Occurrence alerts (scan activity, unknown UPC) are opened directly. Unknown UPC closes `RESOLVED` when the UPC is assigned or dismissed; scan-activity alerts close `SENT` by an age sweep once every recipient has had a chance to be notified.
+- Per-alert-type resend behavior is one config value, `AlertDefinition.resend_after` (`ALERT_DEFINITIONS` in `app/alerts/constants.py`): `None` means notify once and never again (e.g. rare takeout, scan activity); a duration means re-notify while the alert stays open past that cooldown (e.g. 7 days for stock alerts and stale counts).
+- Eligibility is one rule for every alert type: a recipient is due if they have no `alert_notifications` row for the alert, or if `resend_after` is set and that long has passed since their last notification for it.
+- `email_deliveries` stores subject/preview only, never body content, and only records an actual send attempt; it is a lightweight audit record, never a queue or a content cache. `kind` is `ALERT` or `REPORT`.
+- There is no claim/open-row concept for email: each cron run decides fresh, per recipient, whether any alert is due (via `alerts` + `alert_notifications`) and whether their cadence/quiet-hours window allows sending now, then sends and writes one audit row plus a ledger row per alert covered. This is what prevents duplicate alert emails; nothing is queued ahead of time.
 - Time values are stored in the backend/database as UTC or UTC-naive timestamps for simplicity; convert to each agency's local timezone only when presenting, scheduling, or comparing against local business windows.
 - Balance reconciliation may rebuild derived state from history when drift is detected.
 - Inventory quantities are non-negative unless a future product decision explicitly changes that rule.
@@ -48,7 +52,7 @@ Core persistence rules for Inventory IQ. Schema changes require Alembic migratio
 
 ## Relationships
 
-- Agency owns locations, storages, items, logs, notification recipients, alert events, notification deliveries, state rows, and devices.
+- Agency owns locations, storages, items, logs, notification recipients, alerts, email deliveries, state rows, and devices.
 - Storage belongs to one location.
 - Action logs reference an item and optional from/to storages.
 - Storage balances are unique by agency, item, and storage.

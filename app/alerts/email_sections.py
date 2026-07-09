@@ -16,8 +16,10 @@ from app.prediction.formatting import rounded_confidence_percent
 from app.shared.timezone_utils import convert_utc_to_local
 
 from .constants import AlertSeverity, AlertType
-from .models import InventoryAlertEvent
+from .models import Alert
 from .schema import AlertTableColumn, AlertTableSection
+
+StockRow = tuple[AlertType, InventoryItemLocationState]
 
 ACTION_TYPES = {
     AlertType.COUNT_ACTION,
@@ -43,8 +45,8 @@ class EventSectionSpec:
     title: str
     note: str
     color: str
-    row_builder: Callable[[InventoryAlertEvent, str], dict[str, Any]]
-    sort_key: Callable[[InventoryAlertEvent], Any]
+    row_builder: Callable[[Alert, str], dict[str, Any]]
+    sort_key: Callable[[Alert], Any]
     column_specs: tuple[str, ...]
     reverse: bool = False
 
@@ -84,7 +86,7 @@ EVENT_SECTION_SPECS = (
         "Count these item/location pairs before the next incoming delivery or vendor restock.",
         AlertType.STALE_COUNT.color,
         lambda event, _timezone: _stale_count_row(event),
-        lambda event: -int(event.payload_json.get("days_since_last_count") or 0),
+        lambda event: -int(event.detail.get("days_since_last_count") or 0),
         ("item_name:Item", "location_name:Location", "days_since_last_count:Days Since Last Count", "current_total:Current Count"),
     ),
     EventSectionSpec(
@@ -93,7 +95,7 @@ EVENT_SECTION_SPECS = (
         "Takeout activity is unusual for this item/location.",
         AlertType.RARE_TAKEOUT.color,
         lambda event, timezone: _rare_takeout_row(event, timezone),
-        lambda event: -int(event.payload_json.get("days_since_last_takeout") or 0),
+        lambda event: -int(event.detail.get("days_since_last_takeout") or 0),
         (
             "item_name:Item",
             "location_name:Location",
@@ -108,7 +110,7 @@ EVENT_SECTION_SPECS = (
         "Configured count, restock, takeout, and transfer notifications.",
         AlertSeverity.INFO.color,
         lambda event, timezone: _scan_activity_row(event, timezone),
-        lambda event: _sort_datetime_value(event.payload_json.get("time_scanned")) or datetime.min,
+        lambda event: _sort_datetime_value(event.detail.get("time_scanned")) or datetime.min,
         ("item_name:Item", "scan_type:Scan Type", "quantity:Quantity", "admin_action:Admin?", "time_scanned:Time Scanned"),
         reverse=True,
     ),
@@ -118,7 +120,7 @@ EVENT_SECTION_SPECS = (
         "These UPCs need admin review before they can scan to an item.",
         AlertType.UNKNOWN_UPC.color,
         lambda event, timezone: _unknown_upc_row(event, timezone),
-        lambda event: _sort_datetime_value(event.payload_json.get("created_at")) or datetime.min,
+        lambda event: _sort_datetime_value(event.detail.get("created_at")) or datetime.min,
         ("upc:UPC", "lookup_title:Lookup Name", "created_at:First Seen"),
     ),
     EventSectionSpec(
@@ -127,7 +129,7 @@ EVENT_SECTION_SPECS = (
         "These tracked expiration dates have passed. Remove or replace this stock now.",
         AlertType.EXPIRED_STOCK.color,
         lambda event, _timezone: _expiration_stock_row(event),
-        lambda event: (event.payload_json.get("expires_on") or "", event.payload_json.get("item_name") or ""),
+        lambda event: (event.detail.get("expires_on") or "", event.detail.get("item_name") or ""),
         ("item_name:Item", "location_name:Location", "storage_name:Storage", "quantity:Quantity", "expires_on:Expired On", "status:Status"),
     ),
     EventSectionSpec(
@@ -136,7 +138,7 @@ EVENT_SECTION_SPECS = (
         "These tracked quantities expire within the configured warning window. Use oldest stock first or replace it.",
         AlertType.EXPIRING_SOON.color,
         lambda event, _timezone: _expiration_stock_row(event),
-        lambda event: (int(event.payload_json.get("days_until_expiration") or 0), event.payload_json.get("item_name") or ""),
+        lambda event: (int(event.detail.get("days_until_expiration") or 0), event.detail.get("item_name") or ""),
         ("item_name:Item", "location_name:Location", "storage_name:Storage", "quantity:Quantity", "expires_on:Expires On", "status:Status"),
     ),
     EventSectionSpec(
@@ -146,7 +148,7 @@ EVENT_SECTION_SPECS = (
         "Check the items in this storage and enter the correct expiration dates.",
         AlertType.EXPIRATION_COUNT_NEEDED.color,
         lambda event, _timezone: _expiration_count_needed_row(event),
-        lambda event: (abs(int(event.payload_json.get("difference") or 0)), event.payload_json.get("item_name") or ""),
+        lambda event: (abs(int(event.detail.get("difference") or 0)), event.detail.get("item_name") or ""),
         (
             "item_name:Item",
             "location_name:Location",
@@ -162,20 +164,21 @@ EVENT_SECTION_SPECS = (
 
 def build_alert_sections(
     session: Session,
-    stock_states: list[InventoryItemLocationState],
-    events: list[InventoryAlertEvent],
+    stock_rows: list[StockRow],
+    discrete_alerts: list[Alert],
     timezone: str,
 ) -> list[AlertTableSection]:
-    item_names = _item_names_for_states(session, stock_states)
-    location_names = _location_names_for_states(session, stock_states)
+    states = [state for _, state in stock_rows]
+    item_names = _item_names_for_states(session, states)
+    location_names = _location_names_for_states(session, states)
     return [
         section
         for section in (
             *[
-                _stock_section(stock_states, item_names, location_names, spec, timezone=timezone if spec.use_timezone else "UTC")
+                _stock_section(stock_rows, item_names, location_names, spec, timezone=timezone if spec.use_timezone else "UTC")
                 for spec in STOCK_SECTION_SPECS
             ],
-            *[_event_section(events, spec, timezone) for spec in EVENT_SECTION_SPECS],
+            *[_event_section(discrete_alerts, spec, timezone) for spec in EVENT_SECTION_SPECS],
         )
         if section is not None
     ]
@@ -198,7 +201,7 @@ def build_summary_sections(
 
 
 def _stock_section(
-    states: list[InventoryItemLocationState],
+    stock_rows: list[StockRow],
     item_names: dict[int, str],
     location_names: dict[int, str],
     spec: StockSectionSpec,
@@ -206,10 +209,10 @@ def _stock_section(
     timezone: str = "UTC",
 ) -> AlertTableSection | None:
     rows = [
-        _stock_row(state, item_names, location_names, timezone)
-        for state in sorted(
-            (state for state in states if state.effective_alert_type == spec.alert_type),
-            key=lambda state: _stock_section_sort_key(state, item_names, spec.alert_type),
+        _stock_row(state, spec.alert_type, item_names, location_names, timezone)
+        for _, state in sorted(
+            ((alert_type, state) for alert_type, state in stock_rows if alert_type == spec.alert_type),
+            key=lambda pair: _stock_section_sort_key(pair[1], item_names, spec.alert_type),
         )
     ]
     return _section(spec.title, spec.note, spec.alert_type.color, rows, _columns(spec.column_specs))
@@ -217,6 +220,7 @@ def _stock_section(
 
 def _stock_row(
     state: InventoryItemLocationState,
+    alert_type: AlertType,
     item_names: dict[int, str],
     location_names: dict[int, str],
     timezone: str,
@@ -227,7 +231,7 @@ def _stock_row(
         "current_total": _format_total_quantity(state.total_quantity),
         "min_quantity": state.min_quantity_snapshot,
         "lead_time_days": _format_day_count(state.lead_time_days_snapshot),
-        "prediction": _state_prediction(state),
+        "prediction": _state_prediction(state, alert_type),
         "confidence": _format_confidence_percent(state.confidence_percent),
         "last_activity_at": _display_datetime(_iso(state.last_activity_at), timezone),
     }
@@ -250,75 +254,75 @@ def _location_names_for_states(session: Session, states: list[InventoryItemLocat
 
 
 def _event_section(
-    events: list[InventoryAlertEvent],
+    discrete_alerts: list[Alert],
     spec: EventSectionSpec,
     timezone: str,
 ) -> AlertTableSection | None:
     allowed_types = spec.alert_types if isinstance(spec.alert_types, set) else {spec.alert_types}
     rows = [
-        spec.row_builder(event, timezone)
-        for event in sorted((event for event in events if event.alert_type in allowed_types), key=spec.sort_key, reverse=spec.reverse)
+        spec.row_builder(alert, timezone)
+        for alert in sorted((alert for alert in discrete_alerts if alert.alert_type in allowed_types), key=spec.sort_key, reverse=spec.reverse)
     ]
     return _section(spec.title, spec.note, spec.color, rows, _columns(spec.column_specs))
 
 
-def _stale_count_row(event: InventoryAlertEvent) -> dict[str, Any]:
+def _stale_count_row(event: Alert) -> dict[str, Any]:
     return {
-        "item_name": event.payload_json.get("item_name"),
-        "location_name": event.payload_json.get("location_name"),
-        "days_since_last_count": event.payload_json.get("days_since_last_count", "Never"),
-        "current_total": _format_total_quantity(event.payload_json.get("current_total")),
+        "item_name": event.detail.get("item_name"),
+        "location_name": event.detail.get("location_name"),
+        "days_since_last_count": event.detail.get("days_since_last_count", "Never"),
+        "current_total": _format_total_quantity(event.detail.get("current_total")),
     }
 
 
-def _rare_takeout_row(event: InventoryAlertEvent, timezone: str) -> dict[str, Any]:
+def _rare_takeout_row(event: Alert, timezone: str) -> dict[str, Any]:
     return {
-        "item_name": event.payload_json.get("item_name"),
-        "location_name": event.payload_json.get("location_name"),
-        "days_since_last_takeout": event.payload_json.get("days_since_last_takeout"),
-        "last_takeout_at": _display_datetime(event.payload_json.get("last_takeout_at"), timezone),
-        "current_total": _format_total_quantity(event.payload_json.get("current_total")),
+        "item_name": event.detail.get("item_name"),
+        "location_name": event.detail.get("location_name"),
+        "days_since_last_takeout": event.detail.get("days_since_last_takeout"),
+        "last_takeout_at": _display_datetime(event.detail.get("last_takeout_at"), timezone),
+        "current_total": _format_total_quantity(event.detail.get("current_total")),
     }
 
 
-def _scan_activity_row(event: InventoryAlertEvent, timezone: str) -> dict[str, Any]:
+def _scan_activity_row(event: Alert, timezone: str) -> dict[str, Any]:
     return {
-        "item_name": event.payload_json.get("item_name"),
-        "scan_type": _format_scan_type(event.payload_json),
-        "quantity": event.payload_json.get("quantity"),
-        "admin_action": "Yes" if event.payload_json.get("admin_action") else "No",
-        "time_scanned": _display_datetime(event.payload_json.get("time_scanned"), timezone),
+        "item_name": event.detail.get("item_name"),
+        "scan_type": _format_scan_type(event.detail),
+        "quantity": event.detail.get("quantity"),
+        "admin_action": "Yes" if event.detail.get("admin_action") else "No",
+        "time_scanned": _display_datetime(event.detail.get("time_scanned"), timezone),
     }
 
 
-def _unknown_upc_row(event: InventoryAlertEvent, timezone: str) -> dict[str, Any]:
+def _unknown_upc_row(event: Alert, timezone: str) -> dict[str, Any]:
     return {
-        "upc": event.payload_json.get("upc"),
-        "lookup_title": event.payload_json.get("lookup_title") or "Not found",
-        "created_at": _display_datetime(event.payload_json.get("created_at"), timezone),
+        "upc": event.detail.get("upc"),
+        "lookup_title": event.detail.get("lookup_title") or "Not found",
+        "created_at": _display_datetime(event.detail.get("created_at"), timezone),
     }
 
 
-def _expiration_stock_row(event: InventoryAlertEvent) -> dict[str, Any]:
-    days_until = int(event.payload_json.get("days_until_expiration") or 0)
+def _expiration_stock_row(event: Alert) -> dict[str, Any]:
+    days_until = int(event.detail.get("days_until_expiration") or 0)
     return {
-        "item_name": event.payload_json.get("item_name"),
-        "location_name": event.payload_json.get("location_name"),
-        "storage_name": event.payload_json.get("storage_name"),
-        "quantity": _format_total_quantity(event.payload_json.get("quantity")),
-        "expires_on": _display_date(event.payload_json.get("expires_on")),
+        "item_name": event.detail.get("item_name"),
+        "location_name": event.detail.get("location_name"),
+        "storage_name": event.detail.get("storage_name"),
+        "quantity": _format_total_quantity(event.detail.get("quantity")),
+        "expires_on": _display_date(event.detail.get("expires_on")),
         "status": _expiration_status(days_until),
     }
 
 
-def _expiration_count_needed_row(event: InventoryAlertEvent) -> dict[str, Any]:
+def _expiration_count_needed_row(event: Alert) -> dict[str, Any]:
     return {
-        "item_name": event.payload_json.get("item_name"),
-        "location_name": event.payload_json.get("location_name"),
-        "storage_name": event.payload_json.get("storage_name"),
-        "storage_quantity": _format_total_quantity(event.payload_json.get("storage_quantity")),
-        "tracked_expiration_quantity": _format_total_quantity(event.payload_json.get("tracked_expiration_quantity")),
-        "difference": _format_signed_quantity(event.payload_json.get("difference")),
+        "item_name": event.detail.get("item_name"),
+        "location_name": event.detail.get("location_name"),
+        "storage_name": event.detail.get("storage_name"),
+        "storage_quantity": _format_total_quantity(event.detail.get("storage_quantity")),
+        "tracked_expiration_quantity": _format_total_quantity(event.detail.get("tracked_expiration_quantity")),
+        "difference": _format_signed_quantity(event.detail.get("difference")),
     }
 
 
@@ -444,10 +448,10 @@ def _expiration_status(days_until: int) -> str:
     return f"{days_until} day{'s' if days_until != 1 else ''} left"
 
 
-def _state_prediction(state: InventoryItemLocationState) -> str | None:
-    if state.effective_alert_type == AlertType.STOCKOUT_FORECAST and state.days_until_stockout is not None:
+def _state_prediction(state: InventoryItemLocationState, alert_type: AlertType) -> str | None:
+    if alert_type == AlertType.STOCKOUT_FORECAST and state.days_until_stockout is not None:
         return f"{state.days_until_stockout} days until stockout"
-    if state.effective_alert_type == AlertType.LOW_STOCK_FORECAST and state.days_until_low is not None:
+    if alert_type == AlertType.LOW_STOCK_FORECAST and state.days_until_low is not None:
         return f"{state.days_until_low} days until low"
     return None
 

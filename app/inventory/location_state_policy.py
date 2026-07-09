@@ -13,10 +13,7 @@ class StockStateEvaluation:
 
     days_until_low: float | None
     days_until_stockout: float | None
-    stock_status: AlertType | None
-    forecast_status: AlertType | None
     effective_alert_type: AlertType | None
-    effective_alert_rank: int
     effective_severity: AlertSeverity | None
 
 
@@ -44,10 +41,7 @@ def evaluate_stock_state(
     return StockStateEvaluation(
         days_until_low=days_until_low,
         days_until_stockout=days_until_stockout,
-        stock_status=stock_status,
-        forecast_status=forecast_status,
         effective_alert_type=effective_alert_type,
-        effective_alert_rank=STOCK_ALERT_RANK.get(effective_alert_type, 0) if effective_alert_type else 0,
         effective_severity=ALERT_DEFINITIONS[effective_alert_type].severity if effective_alert_type else None,
     )
 

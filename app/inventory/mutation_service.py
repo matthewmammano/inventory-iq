@@ -29,7 +29,7 @@ def inventory_operation(
     session: Session | None = None,
 ) -> ActionLog:
     """Execute one validated inventory operation and queue generated alerts."""
-    from app.alerts.alert_service import record_action_log_alerts, sync_expiration_audit_events
+    from app.alerts.alert_service import record_action_log_alerts, sync_expiration_alerts
 
     with managed_session(session) as db:
         item = _validate_operation(db, agency_id, item_id, quantity, operation_type, from_storage, to_storage)
@@ -49,7 +49,7 @@ def inventory_operation(
         sync_location_states_for_actions(db, [action])
         record_action_log_alerts(db, [action])
         if any(allocation.expires_on is None for allocation in expiration_allocations or []):
-            sync_expiration_audit_events(db, agency_id=agency_id)
+            sync_expiration_alerts(db, agency_id=agency_id)
         logger.debug(
             "Inventory mutation applied",
             extra={
