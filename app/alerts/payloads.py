@@ -1,4 +1,4 @@
-"""Typed JSON payloads stored on alert events."""
+"""Typed JSON payloads stored in an alert's `detail` column."""
 
 from datetime import date, datetime
 from typing import Any

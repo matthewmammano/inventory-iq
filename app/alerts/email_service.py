@@ -28,6 +28,7 @@ from app.shared.database import get_session
 from app.shared.email_subjects import INVENTORY_SUMMARIES_TITLE, inventory_summary_title, report_subject
 
 from .constants import (
+    ALERT_TYPE_ORDER,
     LABEL_BY_TYPE,
     PREFERENCE_BY_TYPE,
     RESEND_AFTER_BY_TYPE,
@@ -264,9 +265,8 @@ def _higher_severity(left: AlertSeverity, right: AlertSeverity) -> AlertSeverity
 
 def _summary_items(alerts: tuple[Alert, ...]) -> list[AlertSummaryItem]:
     counts = Counter(alert.alert_type for alert in alerts)
-    return [
-        AlertSummaryItem(label=LABEL_BY_TYPE[alert_type], count=count, color=alert_type.color) for alert_type, count in counts.items() if count > 0
-    ]
+    ordered = sorted(counts.items(), key=lambda item: ALERT_TYPE_ORDER[item[0]])
+    return [AlertSummaryItem(label=LABEL_BY_TYPE[alert_type], count=count, color=alert_type.color) for alert_type, count in ordered if count > 0]
 
 
 def _alert_intro(frequency: AlertEmailFrequency) -> str:

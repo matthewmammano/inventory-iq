@@ -4,8 +4,6 @@
 
 - Make all code SUPER OO design pattern, line number restricted, files in folder SOFT restricted (for modules). Attempt to create MORE modules AND submodules. Attempt to make `__init__.py` files to be best practice (I think I should be included smth like exports I forget). Makes editing easier if less LOC per file. Restrict function LOC too AND depth! JUST GENERAL CLEANUP ALL!
 
-- Emails colored boxes on top categories are NOT in the right order. fix NOW how to do?!
-
 - Tighten Production Safety
   - is there any types of SAFETY things like rate limits, certain increased loading times, DDOS prevention, other attack prevention that I should ADD to my code?!
   - Keep schema/bootstrap and local QA setup scripts explicit and documented.
@@ -51,6 +49,7 @@
     - Trends to promote the AI use, reviewed by ME beforehand, to describe how much benefit I am providing, etc.
 
 - add notification alert number (cached for 15 minutes OR until page open) for things like UPC unknowns, restock how many adviced (low WITHIN stock time), etc ADMIN PAGES
+  - like for restock advised add.
 
 - certain pages REQUIRE keyboard use (as touchscreen / on-screen keyboard not best UI). investigate restricting some pages to keyboard-only use and make sure it is clear to users that they need a keyboard for that page. how to do? how to NOT ban users with keyboard AND touchscreen, only non-keyboard users.
 

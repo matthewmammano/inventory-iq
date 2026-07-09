@@ -189,5 +189,7 @@ PREFERENCE_BY_TYPE = {
     alert_type: definition.preference_key for alert_type, definition in ALERT_DEFINITIONS.items() if definition.preference_key is not None
 }
 LABEL_BY_TYPE = {alert_type: definition.label for alert_type, definition in ALERT_DEFINITIONS.items()}
+# Canonical display priority (stockout -> forecast -> low -> ... -> expiration), used to order email summary tiles.
+ALERT_TYPE_ORDER = {alert_type: index for index, alert_type in enumerate(ALERT_DEFINITIONS)}
 DISCRETE_EVENT_TYPES = {alert_type for alert_type, definition in ALERT_DEFINITIONS.items() if definition.discrete_event}
 RESEND_AFTER_BY_TYPE = {alert_type: definition.resend_after for alert_type, definition in ALERT_DEFINITIONS.items()}

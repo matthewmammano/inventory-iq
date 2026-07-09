@@ -17,6 +17,14 @@ from app.shared.timezone_utils import convert_utc_to_local
 
 from .constants import AlertSeverity, AlertType
 from .models import Alert
+from .payloads import (
+    ExpirationCountNeededPayload,
+    ExpirationStockPayload,
+    RareTakeoutPayload,
+    ScanActivityPayload,
+    StaleCountPayload,
+    UnknownUpcPayload,
+)
 from .schema import AlertTableColumn, AlertTableSection
 
 StockRow = tuple[AlertType, InventoryItemLocationState]
@@ -85,8 +93,8 @@ EVENT_SECTION_SPECS = (
         "Stale Counts",
         "Count these item/location pairs before the next incoming delivery or vendor restock.",
         AlertType.STALE_COUNT.color,
-        lambda event, _timezone: _stale_count_row(event),
-        lambda event: -int(event.detail.get("days_since_last_count") or 0),
+        lambda alert, _timezone: _stale_count_row(alert),
+        lambda alert: -int(alert.detail.get("days_since_last_count") or 0),
         ("item_name:Item", "location_name:Location", "days_since_last_count:Days Since Last Count", "current_total:Current Count"),
     ),
     EventSectionSpec(
@@ -94,8 +102,8 @@ EVENT_SECTION_SPECS = (
         "Rare Takeouts",
         "Takeout activity is unusual for this item/location.",
         AlertType.RARE_TAKEOUT.color,
-        lambda event, timezone: _rare_takeout_row(event, timezone),
-        lambda event: -int(event.detail.get("days_since_last_takeout") or 0),
+        lambda alert, timezone: _rare_takeout_row(alert, timezone),
+        lambda alert: -int(alert.detail.get("days_since_last_takeout") or 0),
         (
             "item_name:Item",
             "location_name:Location",
@@ -109,8 +117,8 @@ EVENT_SECTION_SPECS = (
         "Scan Activity",
         "Configured count, restock, takeout, and transfer notifications.",
         AlertSeverity.INFO.color,
-        lambda event, timezone: _scan_activity_row(event, timezone),
-        lambda event: _sort_datetime_value(event.detail.get("time_scanned")) or datetime.min,
+        lambda alert, timezone: _scan_activity_row(alert, timezone),
+        lambda alert: _sort_datetime_value(alert.detail.get("time_scanned")) or datetime.min,
         ("item_name:Item", "scan_type:Scan Type", "quantity:Quantity", "admin_action:Admin?", "time_scanned:Time Scanned"),
         reverse=True,
     ),
@@ -119,8 +127,8 @@ EVENT_SECTION_SPECS = (
         "Unknown UPCs",
         "These UPCs need admin review before they can scan to an item.",
         AlertType.UNKNOWN_UPC.color,
-        lambda event, timezone: _unknown_upc_row(event, timezone),
-        lambda event: _sort_datetime_value(event.detail.get("created_at")) or datetime.min,
+        lambda alert, timezone: _unknown_upc_row(alert, timezone),
+        lambda alert: _sort_datetime_value(alert.detail.get("created_at")) or datetime.min,
         ("upc:UPC", "lookup_title:Lookup Name", "created_at:First Seen"),
     ),
     EventSectionSpec(
@@ -128,8 +136,8 @@ EVENT_SECTION_SPECS = (
         "Expired Stock",
         "These tracked expiration dates have passed. Remove or replace this stock now.",
         AlertType.EXPIRED_STOCK.color,
-        lambda event, _timezone: _expiration_stock_row(event),
-        lambda event: (event.detail.get("expires_on") or "", event.detail.get("item_name") or ""),
+        lambda alert, _timezone: _expiration_stock_row(alert),
+        lambda alert: (alert.detail.get("expires_on") or "", alert.detail.get("item_name") or ""),
         ("item_name:Item", "location_name:Location", "storage_name:Storage", "quantity:Quantity", "expires_on:Expired On", "status:Status"),
     ),
     EventSectionSpec(
@@ -137,8 +145,8 @@ EVENT_SECTION_SPECS = (
         "Expiring Soon",
         "These tracked quantities expire within the configured warning window. Use oldest stock first or replace it.",
         AlertType.EXPIRING_SOON.color,
-        lambda event, _timezone: _expiration_stock_row(event),
-        lambda event: (int(event.detail.get("days_until_expiration") or 0), event.detail.get("item_name") or ""),
+        lambda alert, _timezone: _expiration_stock_row(alert),
+        lambda alert: (int(alert.detail.get("days_until_expiration") or 0), alert.detail.get("item_name") or ""),
         ("item_name:Item", "location_name:Location", "storage_name:Storage", "quantity:Quantity", "expires_on:Expires On", "status:Status"),
     ),
     EventSectionSpec(
@@ -147,8 +155,8 @@ EVENT_SECTION_SPECS = (
         "Some stock is counted, but its expiration dates are missing or incomplete. "
         "Check the items in this storage and enter the correct expiration dates.",
         AlertType.EXPIRATION_COUNT_NEEDED.color,
-        lambda event, _timezone: _expiration_count_needed_row(event),
-        lambda event: (abs(int(event.detail.get("difference") or 0)), event.detail.get("item_name") or ""),
+        lambda alert, _timezone: _expiration_count_needed_row(alert),
+        lambda alert: (abs(int(alert.detail.get("difference") or 0)), alert.detail.get("item_name") or ""),
         (
             "item_name:Item",
             "location_name:Location",
@@ -266,63 +274,68 @@ def _event_section(
     return _section(spec.title, spec.note, spec.color, rows, _columns(spec.column_specs))
 
 
-def _stale_count_row(event: Alert) -> dict[str, Any]:
+def _stale_count_row(alert: Alert) -> dict[str, Any]:
+    payload = StaleCountPayload(**alert.detail)
     return {
-        "item_name": event.detail.get("item_name"),
-        "location_name": event.detail.get("location_name"),
-        "days_since_last_count": event.detail.get("days_since_last_count", "Never"),
-        "current_total": _format_total_quantity(event.detail.get("current_total")),
+        "item_name": payload.item_name,
+        "location_name": payload.location_name,
+        "days_since_last_count": payload.days_since_last_count if payload.days_since_last_count is not None else "Never",
+        "current_total": _format_total_quantity(payload.current_total),
     }
 
 
-def _rare_takeout_row(event: Alert, timezone: str) -> dict[str, Any]:
+def _rare_takeout_row(alert: Alert, timezone: str) -> dict[str, Any]:
+    payload = RareTakeoutPayload(**alert.detail)
     return {
-        "item_name": event.detail.get("item_name"),
-        "location_name": event.detail.get("location_name"),
-        "days_since_last_takeout": event.detail.get("days_since_last_takeout"),
-        "last_takeout_at": _display_datetime(event.detail.get("last_takeout_at"), timezone),
-        "current_total": _format_total_quantity(event.detail.get("current_total")),
+        "item_name": payload.item_name,
+        "location_name": payload.location_name,
+        "days_since_last_takeout": payload.days_since_last_takeout,
+        "last_takeout_at": _display_datetime(payload.last_takeout_at, timezone),
+        "current_total": _format_total_quantity(payload.current_total),
     }
 
 
-def _scan_activity_row(event: Alert, timezone: str) -> dict[str, Any]:
+def _scan_activity_row(alert: Alert, timezone: str) -> dict[str, Any]:
+    payload = ScanActivityPayload(**alert.detail)
     return {
-        "item_name": event.detail.get("item_name"),
-        "scan_type": _format_scan_type(event.detail),
-        "quantity": event.detail.get("quantity"),
-        "admin_action": "Yes" if event.detail.get("admin_action") else "No",
-        "time_scanned": _display_datetime(event.detail.get("time_scanned"), timezone),
+        "item_name": payload.item_name,
+        "scan_type": _format_scan_type(payload),
+        "quantity": payload.quantity,
+        "admin_action": "Yes" if payload.admin_action else "No",
+        "time_scanned": _display_datetime(payload.time_scanned, timezone),
     }
 
 
-def _unknown_upc_row(event: Alert, timezone: str) -> dict[str, Any]:
+def _unknown_upc_row(alert: Alert, timezone: str) -> dict[str, Any]:
+    payload = UnknownUpcPayload(**alert.detail)
     return {
-        "upc": event.detail.get("upc"),
-        "lookup_title": event.detail.get("lookup_title") or "Not found",
-        "created_at": _display_datetime(event.detail.get("created_at"), timezone),
+        "upc": payload.upc,
+        "lookup_title": payload.lookup_title or "Not found",
+        "created_at": _display_datetime(payload.created_at, timezone),
     }
 
 
-def _expiration_stock_row(event: Alert) -> dict[str, Any]:
-    days_until = int(event.detail.get("days_until_expiration") or 0)
+def _expiration_stock_row(alert: Alert) -> dict[str, Any]:
+    payload = ExpirationStockPayload(**alert.detail)
     return {
-        "item_name": event.detail.get("item_name"),
-        "location_name": event.detail.get("location_name"),
-        "storage_name": event.detail.get("storage_name"),
-        "quantity": _format_total_quantity(event.detail.get("quantity")),
-        "expires_on": _display_date(event.detail.get("expires_on")),
-        "status": _expiration_status(days_until),
+        "item_name": payload.item_name,
+        "location_name": payload.location_name,
+        "storage_name": payload.storage_name,
+        "quantity": _format_total_quantity(payload.quantity),
+        "expires_on": _display_date(payload.expires_on),
+        "status": _expiration_status(payload.days_until_expiration),
     }
 
 
-def _expiration_count_needed_row(event: Alert) -> dict[str, Any]:
+def _expiration_count_needed_row(alert: Alert) -> dict[str, Any]:
+    payload = ExpirationCountNeededPayload(**alert.detail)
     return {
-        "item_name": event.detail.get("item_name"),
-        "location_name": event.detail.get("location_name"),
-        "storage_name": event.detail.get("storage_name"),
-        "storage_quantity": _format_total_quantity(event.detail.get("storage_quantity")),
-        "tracked_expiration_quantity": _format_total_quantity(event.detail.get("tracked_expiration_quantity")),
-        "difference": _format_signed_quantity(event.detail.get("difference")),
+        "item_name": payload.item_name,
+        "location_name": payload.location_name,
+        "storage_name": payload.storage_name,
+        "storage_quantity": _format_total_quantity(payload.storage_quantity),
+        "tracked_expiration_quantity": _format_total_quantity(payload.tracked_expiration_quantity),
+        "difference": _format_signed_quantity(payload.difference),
     }
 
 
@@ -461,10 +474,10 @@ def _format_confidence_percent(value: Any) -> str:
     return f"{rounded}%" if rounded is not None else ""
 
 
-def _format_scan_type(payload: dict[str, Any]) -> str:
-    operation = str(payload.get("operation_type", "")).title()
-    from_name = payload.get("from_location_name")
-    to_name = payload.get("to_location_name")
+def _format_scan_type(payload: ScanActivityPayload) -> str:
+    operation = payload.operation_type.title()
+    from_name = payload.from_location_name
+    to_name = payload.to_location_name
     if from_name and to_name:
         return f"{operation} {from_name} -> {to_name}"
     if from_name:
