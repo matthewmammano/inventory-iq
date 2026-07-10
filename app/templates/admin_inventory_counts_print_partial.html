@@ -23,8 +23,7 @@
                     <th>Total</th>
                     <th>Soonest Expiration</th>
                     <th>Expired</th>
-                    <th>Expiring Soon</th>
-                    <th>Still Good</th>
+                    <th>Expiring Within {{ current_user.expiration_notice_days }} Days</th>
                 </tr>
             </thead>
             <tbody>
@@ -39,7 +38,6 @@
                     <td>{{ expiration.soonest_label if expiration else '-' }}</td>
                     <td>{{ expiration.expired_count if expiration else '-' }}</td>
                     <td>{{ expiration.expiring_soon_count if expiration else '-' }}</td>
-                    <td>{{ expiration.good_count if expiration else '-' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

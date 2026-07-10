@@ -229,6 +229,33 @@ def hidden_form_fields(form: Any, *, skip_prefixes: Sequence[str] = ("exp_",)) -
     ]
 
 
+def expired_quantity_by_item(
+    session: Session,
+    agency_id: int,
+    agency_location_id: int,
+    item_ids: Sequence[int],
+) -> dict[int, int]:
+    """Sum of tracked expiration-balance quantity already past its expiration date, per item, at one location."""
+    if not item_ids:
+        return {}
+    today = utc_now_naive().date()
+    rows = session.execute(
+        select(
+            InventoryExpirationBalance.item_id,
+            func.coalesce(func.sum(InventoryExpirationBalance.quantity), 0),
+        )
+        .join(Storage, Storage.id == InventoryExpirationBalance.storage_id)
+        .where(
+            InventoryExpirationBalance.agency_id == agency_id,
+            InventoryExpirationBalance.item_id.in_(item_ids),
+            Storage.location_id == agency_location_id,
+            InventoryExpirationBalance.expires_on < today,
+        )
+        .group_by(InventoryExpirationBalance.item_id)
+    ).all()
+    return {item_id: int(quantity or 0) for item_id, quantity in rows}
+
+
 def expiration_breakdowns_by_item(
     session: Session,
     agency_id: int,

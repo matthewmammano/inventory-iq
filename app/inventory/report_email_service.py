@@ -37,7 +37,6 @@ class InventoryCountReportRow:
     soonest_expiration: str
     expired: int | str
     expiring_soon: int | str
-    still_good: int | str
 
     def as_email_row(self) -> ReportRow:
         row: ReportRow = {
@@ -47,7 +46,6 @@ class InventoryCountReportRow:
             "soonest_expiration": self.soonest_expiration,
             "expired": self.expired,
             "expiring_soon": self.expiring_soon,
-            "still_good": self.still_good,
         }
         for storage_id, count in self.storage_counts.items():
             row[f"storage_{storage_id}"] = count
@@ -241,8 +239,7 @@ def _build_restock_batch(agency: Agency, location_name: str, rows: list[RestockP
                     AlertTableColumn(key="lead_time_days", label="Lead Time Days"),
                     AlertTableColumn(key="soonest_expiration", label="Soonest Expiration"),
                     AlertTableColumn(key="expired", label="Expired"),
-                    AlertTableColumn(key="expiring_soon", label="Expiring Soon"),
-                    AlertTableColumn(key="still_good", label="Still Good"),
+                    AlertTableColumn(key="expiring_soon", label=_expiring_soon_label(agency)),
                     AlertTableColumn(key="days_until_stockout", label="Days Until Stockout"),
                     AlertTableColumn(key="reorder_date", label="Reorder Date"),
                     AlertTableColumn(key="last_counted", label="Last Counted"),
@@ -320,8 +317,7 @@ def _inventory_sections(
                         AlertTableColumn(key="total", label="Total"),
                         AlertTableColumn(key="soonest_expiration", label="Soonest Expiration"),
                         AlertTableColumn(key="expired", label="Expired"),
-                        AlertTableColumn(key="expiring_soon", label="Expiring Soon"),
-                        AlertTableColumn(key="still_good", label="Still Good"),
+                        AlertTableColumn(key="expiring_soon", label=_expiring_soon_label(agency)),
                     ],
                     rows=rows,
                 )
@@ -338,7 +334,7 @@ def _report_location(agency: Agency, agency_location_id: int | None) -> Location
 
 
 def _restock_email_row(row: RestockPageRow) -> ReportRow:
-    soonest_expiration, expired, expiring_soon, still_good = _expiration_email_values(row.expiration_breakdown)
+    soonest_expiration, expired, expiring_soon = _expiration_email_values(row.expiration_breakdown)
     return {
         "item": row.item.name,
         "unit": row.item.increments,
@@ -353,7 +349,6 @@ def _restock_email_row(row: RestockPageRow) -> ReportRow:
         "soonest_expiration": soonest_expiration,
         "expired": expired,
         "expiring_soon": expiring_soon,
-        "still_good": still_good,
         "days_until_stockout": _days_until_stockout_display(row.days_until_stockout),
         "reorder_date": row.suggested_reorder_date.strftime("%Y-%m-%d") if row.suggested_reorder_date else "N/A",
         "last_counted": row.last_counted_at.strftime("%Y-%m-%d") if row.last_counted_at else "N/A",
@@ -362,14 +357,17 @@ def _restock_email_row(row: RestockPageRow) -> ReportRow:
     }
 
 
-def _expiration_email_values(expiration: ExpirationBreakdown | None) -> tuple[str, int | str, int | str, int | str]:
+def _expiring_soon_label(agency: Agency) -> str:
+    return f"Expiring Within {agency.expiration_notice_days} Days"
+
+
+def _expiration_email_values(expiration: ExpirationBreakdown | None) -> tuple[str, int | str, int | str]:
     if expiration is None:
-        return "-", "-", "-", "-"
+        return "-", "-", "-"
     return (
         expiration.soonest_label,
         expiration.expired_count,
         expiration.expiring_soon_count,
-        expiration.good_count,
     )
 
 

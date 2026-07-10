@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import Agency, Location
 from app.inventory.balance_service import get_location_last_counted_dates
+from app.inventory.expiration_ui_service import expired_quantity_by_item
 from app.inventory.location_state_policy import bound_daily_usage, days_to_threshold, effective_lead_time_days
 from app.inventory.location_state_service import recompute_item_location_state
 from app.inventory.models import InventoryItemLocationState, Item
@@ -46,12 +47,14 @@ class BulkService:
                 item_ids,
                 agency_settings.timezone if agency_settings else "UTC",
             )
+            expired_quantity_by_item_id = expired_quantity_by_item(session, agency_id, agency_location_id, item_ids)
             rows = [
                 BulkService._analyze_item(
                     item,
                     agency_settings,
                     location_states_by_item_id.get(item.id),
                     last_counted_at_by_item_id.get(item.id),
+                    expired_quantity_by_item_id.get(item.id, 0),
                 )
                 for item in items
             ]
@@ -88,7 +91,8 @@ class BulkService:
             [item.id],
             agency_settings.timezone if agency_settings else "UTC",
         ).get(item.id)
-        return BulkService._analyze_item(item, agency_settings, state, last_counted_at)["order_amount"]
+        expired_quantity = expired_quantity_by_item(session, agency_id, agency_location_id, [item.id]).get(item.id, 0)
+        return BulkService._analyze_item(item, agency_settings, state, last_counted_at, expired_quantity)["order_amount"]
 
     @staticmethod
     def get_location(session: Session, agency_id: int, agency_location_id: int) -> Location | None:
@@ -109,8 +113,10 @@ class BulkService:
         agency: Agency | None,
         state: InventoryItemLocationState | None,
         last_counted_at: datetime | None,
+        expired_quantity: int = 0,
     ) -> dict:
         current_quantity = int(state.total_quantity if state else 0)
+        usable_quantity = max(current_quantity - expired_quantity, 0)
         min_qty = int(item.min_quantity or 0)
         max_qty = int(item.max_quantity or 0)
         batch_size = int(item.batch_size or 0)
@@ -127,7 +133,7 @@ class BulkService:
         days_out = days_to_threshold(current_quantity, -daily_usage, 0) if daily_usage is not None else None
         order_amount = (
             BulkService._calculate_order_amount(
-                current_total=current_quantity,
+                current_total=usable_quantity,
                 max_qty=max_qty,
                 daily_usage=daily_usage,
                 delivery_days=lead_time_days,

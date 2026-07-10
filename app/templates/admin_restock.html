@@ -33,7 +33,7 @@
     {% set usage_tip = "Estimated from recent usage trends and shown in the clearest time unit. Review current stock before ordering." %}
     <section class="panel">
         <div class="table-wrap">
-            <table data-sort-table data-default-sort-column="14" data-default-sort-direction="asc">
+            <table data-sort-table data-default-sort-column="13" data-default-sort-direction="asc">
                 <thead>
                     <tr>
                         <th data-sort-column="0">Item Name</th>
@@ -48,13 +48,12 @@
                         <th data-sort-column="9">Lead Time Days</th>
                         <th data-sort-column="10">Soonest Expiration</th>
                         <th data-sort-column="11">Expired</th>
-                        <th data-sort-column="12">Expiring Soon</th>
-                        <th data-sort-column="13">Still Good</th>
-                        <th data-sort-column="14">Days Until Stockout <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th data-sort-column="15">Reorder Date <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th data-sort-column="16">Last Counted</th>
-                        <th data-sort-column="17">Confidence <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
-                        <th data-sort-column="18">Order Amount</th>
+                        <th data-sort-column="12">Expiring Within {{ current_user.expiration_notice_days }} Days</th>
+                        <th data-sort-column="13">Days Until Stockout <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
+                        <th data-sort-column="14">Reorder Date <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
+                        <th data-sort-column="15">Last Counted</th>
+                        <th data-sort-column="16">Confidence <button type="button" class="info-tip" aria-label="{{ estimate_tip }}" data-tooltip="{{ estimate_tip }}">i</button></th>
+                        <th data-sort-column="17">Order Amount</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -86,7 +85,6 @@
                         <td data-sort-value="{{ expiration.soonest_sort_value if expiration else '9999-12-31' }}">{{ expiration.soonest_label if expiration else '-' }}</td>
                         <td data-sort-value="{{ expiration.expired_count if expiration else 0 }}">{{ expiration.expired_count if expiration else '-' }}</td>
                         <td data-sort-value="{{ expiration.expiring_soon_count if expiration else 0 }}">{{ expiration.expiring_soon_count if expiration else '-' }}</td>
-                        <td data-sort-value="{{ expiration.good_count if expiration else 0 }}">{{ expiration.good_count if expiration else '-' }}</td>
                         <td class="{{ row.days_class }}" data-sort-value="{{ row.days_until_stockout if row.days_until_stockout is not none else 999999 }}">{% if row.days_until_stockout is not none %}{{ row.days_until_stockout if row.days_until_stockout <= 365 else 365 }}{% else %}N/A{% endif %}</td>
                         <td data-sort-value="{{ row.suggested_reorder_date.strftime('%Y-%m-%d') if row.suggested_reorder_date else '9999-12-31' }}">{{ row.suggested_reorder_date.strftime('%Y-%m-%d') if row.suggested_reorder_date else 'N/A' }}</td>
                         <td data-sort-value="{{ row.last_counted_at.strftime('%Y-%m-%d') if row.last_counted_at else '9999-12-31' }}">{{ row.last_counted_at.strftime('%Y-%m-%d') if row.last_counted_at else 'N/A' }}</td>

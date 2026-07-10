@@ -28,8 +28,7 @@
                     <th>Lead Time Days</th>
                     <th>Soonest Expiration</th>
                     <th>Expired</th>
-                    <th>Expiring Soon</th>
-                    <th>Still Good</th>
+                    <th>Expiring Within {{ current_user.expiration_notice_days }} Days</th>
                     <th>Days Until Stockout</th>
                     <th>Reorder Date</th>
                     <th>Last Counted</th>
@@ -54,7 +53,6 @@
                     <td>{{ expiration.soonest_label if expiration else '-' }}</td>
                     <td>{{ expiration.expired_count if expiration else '-' }}</td>
                     <td>{{ expiration.expiring_soon_count if expiration else '-' }}</td>
-                    <td>{{ expiration.good_count if expiration else '-' }}</td>
                     <td>{% if row.days_until_stockout is not none %}{{ row.days_until_stockout if row.days_until_stockout <= 365 else 365 }}{% else %}N/A{% endif %}</td>
                     <td>{{ row.suggested_reorder_date.strftime('%Y-%m-%d') if row.suggested_reorder_date else 'N/A' }}</td>
                     <td>{{ row.last_counted_at.strftime('%Y-%m-%d') if row.last_counted_at else 'N/A' }}</td>

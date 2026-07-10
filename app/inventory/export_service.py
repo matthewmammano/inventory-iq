@@ -115,6 +115,7 @@ def build_history_csv_attachment(
 def _location_count_csv_attachment(session: Session, agency: Agency, location: Location) -> EmailAttachment:
     items, storages, counts = build_location_count_rows(session, agency.id, location.id, include_secondary_upcs=True)
     expiration_breakdowns = expiration_breakdowns_by_item(session, agency.id, location.id)
+    expiring_label = _expiring_soon_label(agency)
     fieldnames = [
         "Item Name",
         "Primary UPC",
@@ -125,8 +126,7 @@ def _location_count_csv_attachment(session: Session, agency: Agency, location: L
         *[f"{storage.name} Count" for storage in storages],
         "Soonest Expiration",
         "Expired",
-        "Expiring Soon",
-        "Still Good",
+        expiring_label,
     ]
     rows: list[dict[str, object]] = []
     for item in items:
@@ -140,7 +140,7 @@ def _location_count_csv_attachment(session: Session, agency: Agency, location: L
                 "Minimum Level": item.min_quantity,
                 "Total Quantity": sum(storage_counts.values()),
                 **storage_counts,
-                **_expiration_export_values(expiration_breakdowns.get(item.id)),
+                **_expiration_export_values(expiration_breakdowns.get(item.id), expiring_label),
             }
         )
     return _csv_attachment(
@@ -151,6 +151,7 @@ def _location_count_csv_attachment(session: Session, agency: Agency, location: L
 
 
 def build_restock_csv_attachment(agency: Agency, location_name: str, rows: Sequence[Any]) -> EmailAttachment:
+    expiring_label = _expiring_soon_label(agency)
     fieldnames = [
         "Item Name",
         "Unit",
@@ -164,8 +165,7 @@ def build_restock_csv_attachment(agency: Agency, location_name: str, rows: Seque
         "Lead Time Days",
         "Soonest Expiration",
         "Expired",
-        "Expiring Soon",
-        "Still Good",
+        expiring_label,
         "Days Until Stockout",
         "Reorder Date",
         "Last Counted",
@@ -184,7 +184,7 @@ def build_restock_csv_attachment(agency: Agency, location_name: str, rows: Seque
             "Maximum Level": row.max_quantity if row.max_quantity > 0 else "",
             "Batch Size": row.item.batch_size or "",
             "Lead Time Days": row.lead_time_days,
-            **_expiration_export_values(row.expiration_breakdown),
+            **_expiration_export_values(row.expiration_breakdown, expiring_label),
             "Days Until Stockout": _days_until_stockout_export(row.days_until_stockout),
             "Reorder Date": row.suggested_reorder_date.strftime("%Y-%m-%d") if row.suggested_reorder_date else "N/A",
             "Last Counted": row.last_counted_at.strftime("%Y-%m-%d") if row.last_counted_at else "N/A",
@@ -226,19 +226,21 @@ def _secondary_upcs(item: Item) -> str:
     return "; ".join(sorted(upc.upc for upc in item.secondary_upcs if upc.active))
 
 
-def _expiration_export_values(expiration: ExpirationBreakdown | None) -> dict[str, object]:
+def _expiring_soon_label(agency: Agency) -> str:
+    return f"Expiring Within {agency.expiration_notice_days} Days"
+
+
+def _expiration_export_values(expiration: ExpirationBreakdown | None, expiring_label: str) -> dict[str, object]:
     if expiration is None:
         return {
             "Soonest Expiration": "-",
             "Expired": "-",
-            "Expiring Soon": "-",
-            "Still Good": "-",
+            expiring_label: "-",
         }
     return {
         "Soonest Expiration": expiration.soonest_label,
         "Expired": expiration.expired_count,
-        "Expiring Soon": expiration.expiring_soon_count,
-        "Still Good": expiration.good_count,
+        expiring_label: expiration.expiring_soon_count,
     }
 
 
