@@ -10,6 +10,7 @@
 
 {% block content %}
 <form id="scan-form" method="POST" action="{{ url_for('admin.scan_storages' if admin else 'guest.scan_storages', squad=squad) }}" class="stack" data-validation-submit="manual">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="item_id" value="{{ item.id }}">
     <input type="hidden" name="same_location_error" id="same_location_error" value="0">
     {% if not admin %}

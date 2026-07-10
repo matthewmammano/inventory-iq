@@ -69,6 +69,7 @@
 </section>
 
 <form id="hidden-form" method="POST" class="hidden">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="item_id" id="item_id" value="{{ item.id }}">
     <input type="hidden" name="counter_value" id="counter_value" value="1" data-min-value="{{ minimum_scan_quantity }}">
     <input type="hidden" name="from_storage_id" id="from_storage_id" value="{{ from_storage if from_storage in [-1, -2] else from_storage.id }}">

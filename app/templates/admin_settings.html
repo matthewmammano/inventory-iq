@@ -17,6 +17,7 @@
 
 {% block content %}
 <form id="settings-form" method="POST" action="{{ url_for('admin.settings_page', squad=squad) }}" class="panel" data-validation-submit="manual">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="panel-header">
         <div>
             <h2>Admin Settings</h2>

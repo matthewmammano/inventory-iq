@@ -11,6 +11,7 @@ from alembic import command
 from alembic.config import Config
 from flask import Flask, has_request_context, request, send_from_directory, url_for
 from flask_login import LoginManager, current_user
+from flask_wtf import CSRFProtect
 from loguru import logger
 from werkzeug.middleware.proxy_fix import ProxyFix
 
@@ -27,7 +28,11 @@ from app.shared.form_validation import validation_attrs
 from app.shared.html_formatting import bold_item_name
 from app.shared.logging import setup_logging
 from app.shared.model_registry import import_model_modules
+from app.shared.rate_limit import register_rate_limiting
 from app.shared.request_logging import register_request_logging
+from app.shared.security_headers import register_security_headers
+
+csrf = CSRFProtect()
 
 login_manager = LoginManager()
 
@@ -54,9 +59,11 @@ def create_app() -> Flask:
     app = Flask(__name__, instance_path=str(_instance_path()))
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # Railway sits one reverse-proxy hop in front
     _configure_app(app)
+    register_request_logging(app)  # must register before any extension that can short-circuit via before_request (CSRF, login)
     _init_extensions(app)
     _register_blueprints(app)
-    register_request_logging(app)
+    register_security_headers(app)
+    register_rate_limiting(app)
     register_error_handlers(app)
     _register_template_filters(app)
     _register_template_context(app)
@@ -96,6 +103,9 @@ def _configure_app(app: Flask) -> None:
         EMAIL_SENDER_NAME=settings.email_sender_name,
         EMAIL_TIMEOUT_SECONDS=settings.email_timeout_seconds,
         ADMIN_ALERT_EMAIL=settings.admin_alert_email,
+        SESSION_COOKIE_HTTPONLY=True,
+        SESSION_COOKIE_SAMESITE="Lax",
+        SESSION_COOKIE_SECURE=settings.is_prod,
     )
     if settings.database_url.startswith("sqlite"):
         Path(app.instance_path).mkdir(parents=True, exist_ok=True)
@@ -108,6 +118,7 @@ def _init_extensions(app: Flask) -> None:
     cast(Any, login_manager).login_view = "auth.login"
     login_manager.login_message = "Please log in to access this page."
     login_manager.login_message_category = "warning"
+    csrf.init_app(app)
 
 
 def _run_dev_migrations() -> None:

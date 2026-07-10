@@ -404,14 +404,19 @@ def _stock_section_sort_key(
 
 
 def _sort_datetime_value(value: Any) -> datetime | None:
+    """Parse a stored alert-detail timestamp as naive UTC, matching this app's storage convention.
+
+    Alert detail JSON is untrusted at this boundary: older rows may still carry an
+    offset-aware ISO string, which would otherwise crash `sorted()` when mixed with
+    naive fallback values (see the `time_scanned` default-timezone bug this guards against).
+    """
     if not value:
         return None
-    if isinstance(value, datetime):
-        return value
     try:
-        return datetime.fromisoformat(str(value))
+        parsed = value if isinstance(value, datetime) else datetime.fromisoformat(str(value))
     except ValueError:
         return None
+    return parsed.replace(tzinfo=None) if parsed.tzinfo is not None else parsed
 
 
 def _display_datetime(value: Any, timezone: str) -> str:

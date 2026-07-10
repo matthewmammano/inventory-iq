@@ -50,9 +50,7 @@
 {% endblock %}
 
 {% block extra_js %}
-<script src="https://cdn.jsdelivr.net/npm/fuse.js@6.6.2"
-        crossorigin="anonymous"
-        defer></script>
+<script src="{{ url_for('static', filename='js/vendor/fuse.min.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/upc-scanner.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/inventory-search.js') }}" defer></script>
 {% endblock %}

@@ -3,6 +3,7 @@
 {% macro upc_review_actions(scan, items, ignored=False) %}
 <div class="upc-review-actions">
     <form method="POST" class="inline-form upc-review-link" data-validation-submit="manual" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
         <input type="hidden" name="action" value="RESOLVE">
         <select class="upc-review-select" name="item_id">
@@ -14,11 +15,13 @@
         <button class="success-button" type="submit">Link</button>
     </form>
     <form method="POST" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
         <input type="hidden" name="action" value="{{ 'UNIGNORE' if ignored else 'IGNORE' }}">
         <button class="quiet-button" type="submit">{{ 'Unignore' if ignored else 'Ignore' }}</button>
     </form>
     <form method="POST" class="inline-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
         <input type="hidden" name="action" value="REMOVE">
         <button class="danger-button" type="submit">Cancel</button>
@@ -71,6 +74,7 @@
             <p>What item should this barcode open?</p>
         </div>
         <form method="POST" class="inline-form upc-add-form" data-validation-submit="manual" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="action" value="ADD">
             <input name="upc" autocomplete="off" autofocus {{ validation_attrs("upc12", placeholder="12-digit UPC") }}>
             <button class="success-button" type="submit">Add</button>

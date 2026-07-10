@@ -14,7 +14,7 @@ Inventory IQ is a Flask app organized by domain. Runtime/setup details live in [
 - `app/inventory/`: guest/admin scan flows, item data, balances, action history, bulk actions, UPC review, reports.
 - `app/alerts/`: alert generation, recipient filtering, email rendering/delivery.
 - `app/prediction/`: usage trends, restock forecasting, model retraining.
-- `app/shared/`: config, database/session setup, logging, scheduler, validators, email client, time utilities.
+- `app/shared/`: config, database/session setup, logging, scheduler, validators, email client, time utilities, security headers, rate limiting.
 
 ## Layers
 

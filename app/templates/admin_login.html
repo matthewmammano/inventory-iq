@@ -8,6 +8,7 @@
 
 {% block content %}
 <form method="POST" class="login-panel">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <p class="helper">Enter the admin PIN to continue.</p>
     <input id="pin-value" type="hidden" name="password" value="">
     <div id="pin-display" class="pin-display" aria-label="PIN entry">----</div>

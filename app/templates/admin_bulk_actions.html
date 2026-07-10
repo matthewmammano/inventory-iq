@@ -10,6 +10,7 @@
 
 {% block content %}
 <form id="bulk-action-form" method="POST" class="panel stack" data-bulk-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% for item_id in item_ids %}
     <input type="hidden" name="item_ids" value="{{ item_id }}">
     {% endfor %}

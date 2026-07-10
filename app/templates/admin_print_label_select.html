@@ -8,6 +8,7 @@
 
 {% block content %}
 <form method="POST" class="search bulk-select" data-bulk-item-select>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="status" data-selected-count>0 items selected</div>
     <input type="search" id="bulk-item-search" placeholder="Search items or UPCs" autocomplete="off">
     <label class="select-all-row">

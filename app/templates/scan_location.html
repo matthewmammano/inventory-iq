@@ -22,6 +22,7 @@
         </div>
     </div>
     <form method="POST" class="panel-body stack" data-validation-live="submit">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="item_id" value="{{ item_id }}">
         <div class="choice-grid" data-validate-group="required_choice" data-group-name="agency_location_id" data-label="Location">
             {% for location in locations %}

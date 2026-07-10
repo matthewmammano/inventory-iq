@@ -24,7 +24,7 @@ from sqlalchemy import Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship, validates
 from sqlalchemy.orm import Session as OrmSession
 
-from app.shared.clock import utc_now, utc_now_naive
+from app.shared.clock import utc_now_naive
 from app.shared.database import Base
 from app.shared.timezone_utils import convert_utc_to_local
 from app.shared.validators import (
@@ -66,7 +66,7 @@ class Item(Base):
     batch_size: Mapped[int | None] = mapped_column(Integer, default=1)
     restock_delivery_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
     prior_daily_usage: Mapped[float | None] = mapped_column(Float, nullable=True)
-    last_accessed: Mapped[datetime | None] = mapped_column(DateTime, default=utc_now)
+    last_accessed: Mapped[datetime | None] = mapped_column(DateTime, default=utc_now_naive)
 
     action_logs = relationship("ActionLog", back_populates="item", lazy="select")
     secondary_upcs = relationship("ItemSecondaryUpc", back_populates="item", cascade="all, delete-orphan", lazy="select")
@@ -184,8 +184,8 @@ class UnknownUpcScan(Base):
     status: Mapped[UnknownUpcStatus] = mapped_column(SAEnum(UnknownUpcStatus), default=UnknownUpcStatus.PENDING, index=True)
     suggested_item_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("items.id"), nullable=True)
     lookup_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, index=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, onupdate=utc_now)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, index=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, onupdate=utc_now_naive)
 
     suggested_item = relationship("Item", lazy="selectin")
 
@@ -261,7 +261,7 @@ class ActionLog(Base):
     from_storage_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("agency_storages.id"))
     to_storage_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("agency_storages.id"))
     admin_action: Mapped[bool] = mapped_column(Boolean)
-    time_scanned: Mapped[datetime | None] = mapped_column(DateTime, default=utc_now, nullable=False)
+    time_scanned: Mapped[datetime | None] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
 
     item = relationship("Item", back_populates="action_logs", lazy="select")
     from_storage = relationship("Storage", foreign_keys=[from_storage_id], lazy="select")
@@ -322,7 +322,7 @@ class InventoryStorageBalance(Base):
     quantity: Mapped[int] = mapped_column(Integer, default=0)
     last_counted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     last_takeout_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
 
     item = relationship("Item", lazy="selectin")
     storage = relationship("Storage", lazy="selectin")
@@ -352,7 +352,7 @@ class InventoryExpirationBalance(Base):
     expires_on: Mapped[date] = mapped_column(Date)
     quantity: Mapped[int] = mapped_column(Integer, default=0)
     last_counted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
 
     item = relationship("Item", lazy="selectin")
     storage = relationship("Storage", lazy="selectin")
@@ -379,7 +379,7 @@ class ActionLogExpirationLine(Base):
     action_log_id: Mapped[int] = mapped_column(Integer, ForeignKey("action_logs.id", ondelete="CASCADE"), index=True)
     expires_on: Mapped[date | None] = mapped_column(Date, nullable=True)
     quantity: Mapped[int] = mapped_column(Integer)
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
 
     action_log = relationship("ActionLog", back_populates="expiration_lines", lazy="selectin")
 

@@ -67,11 +67,15 @@
 <button class="danger-button" type="button" data-delete-trigger data-delete-confirm-target="{{ modal_id }}-delete-confirm">Delete {{ entity_label }}</button>
 {%- endmacro %}
 
+{% macro tag_chip(tag) -%}
+<span class="tag" data-tag-bg="{{ tag.color }}" data-tag-fg="{{ tag.text_color }}">{{ tag.tag_name }}</span>
+{%- endmacro %}
+
 {% macro delete_confirm_panel(modal_id, delete_url, entity_label) -%}
 <div class="modal-delete-confirm hidden" id="{{ modal_id }}-delete-confirm" data-delete-confirm>
     <p>Delete {{ entity_label }}? It will be hidden after saving.</p>
     <div class="button-row">
-        <form method="POST" action="{{ delete_url }}"><button class="danger-button" type="submit">Yes, Delete</button></form>
+        <form method="POST" action="{{ delete_url }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="danger-button" type="submit">Yes, Delete</button></form>
         <button class="quiet-button" type="button" data-delete-cancel>Cancel</button>
     </div>
 </div>
@@ -133,7 +137,7 @@
                         <td>{{ item.upc }}</td>
                         <td>{% for code in item.secondary_upcs %}<div>{{ code.upc }}</div>{% else %}None{% endfor %}</td>
                         <td>{{ item.increments }}</td>
-                        <td><div class="tag-row">{% for tag in item.tags %}<span class="tag" style="background-color: {{ tag.color }}; color: {{ tag.text_color }}; border-color: {{ tag.text_color }};">{{ tag.tag_name }}</span>{% endfor %}</div></td>
+                        <td><div class="tag-row">{% for tag in item.tags %}{{ tag_chip(tag) }}{% endfor %}</div></td>
                         <td>{{ item.min_quantity }}</td>
                         <td>{{ item.max_quantity }}</td>
                         <td>{{ item.batch_size }}</td>
@@ -156,6 +160,7 @@
             <div class="modal admin-data-modal">
                 <h2>Edit Item</h2>
                 <form method="POST" action="{{ url_for('admin.admin_update_item', squad=squad, item_id=item.id) }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {{ item_fields(item) }}
                     <div class="button-row">
                         <button class="success-button" type="submit">Save Changes</button>
@@ -172,6 +177,7 @@
             <div class="modal admin-data-modal">
                 <h2>Add Item</h2>
                 <form method="POST" action="{{ url_for('admin.admin_create_item', squad=squad) }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {{ item_fields() }}
                     <div class="button-row">
                         <button class="success-button" type="submit">Add Item</button>
@@ -220,7 +226,7 @@
                 <tbody>
                     {% for tag in tags %}
                     <tr>
-                        <td><span class="row-name-cell">{{ modal_open_button("tag-modal-" ~ tag.id, "Edit " ~ tag.tag_name) }}<span class="tag" style="background-color: {{ tag.color }}; color: {{ tag.text_color }}; border-color: {{ tag.text_color }};">{{ tag.tag_name }}</span></span></td>
+                        <td><span class="row-name-cell">{{ modal_open_button("tag-modal-" ~ tag.id, "Edit " ~ tag.tag_name) }}{{ tag_chip(tag) }}</span></td>
                         <td>{{ tag.color }}</td>
                     </tr>
                     {% endfor %}
@@ -235,6 +241,7 @@
             <div class="modal admin-data-modal">
                 <h2>Edit Tag</h2>
                 <form method="POST" action="{{ url_for('admin.admin_update_tag', squad=squad, tag_id=tag.id) }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {{ tag_fields(tag) }}
                     <div class="button-row">
                         <button class="success-button" type="submit">Save Changes</button>
@@ -251,6 +258,7 @@
             <div class="modal admin-data-modal">
                 <h2>Add Tag</h2>
                 <form method="POST" action="{{ url_for('admin.admin_create_tag', squad=squad) }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {{ tag_fields() }}
                     <div class="button-row">
                         <button class="success-button" type="submit">Add Tag</button>
@@ -290,6 +298,7 @@
             <div class="modal admin-data-modal">
                 <h2>Edit Notification</h2>
                 <form method="POST" action="{{ url_for('admin.admin_update_notification', squad=squad, recipient_id=recipient.id) }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {{ notification_fields(recipient) }}
                     <div class="button-row">
                         <button class="success-button" type="submit">Save Changes</button>
@@ -306,6 +315,7 @@
             <div class="modal admin-data-modal">
                 <h2>Add Notification</h2>
                 <form method="POST" action="{{ url_for('admin.admin_create_notification', squad=squad) }}" novalidate>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {{ notification_fields() }}
                     <div class="button-row">
                         <button class="success-button" type="submit">Add Notification</button>
@@ -323,4 +333,5 @@
 <script src="{{ url_for('static', filename='js/tabs.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/modal-actions.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/dynamic-field-list.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/tag-chip-colors.js') }}" defer></script>
 {% endblock %}

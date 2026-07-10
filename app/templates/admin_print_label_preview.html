@@ -5,7 +5,7 @@
 {% block sub_title %}{{ labels|length }} shelf cards{% endblock %}
 {% block main_class %}label-preview-main{% endblock %}
 {% block header_right %}
-<button class="success-button" type="button" onclick="window.print()">Print</button>
+<button class="success-button" type="button" data-print-trigger>Print</button>
 <a class="header-action" href="{{ url_for('admin.print_labels', squad=squad) }}">Back to Labels</a>
 {% endblock %}
 
@@ -25,4 +25,8 @@
     </article>
     {% endfor %}
 </section>
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/print-trigger.js') }}" defer></script>
 {% endblock %}

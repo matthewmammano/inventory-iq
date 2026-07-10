@@ -60,6 +60,7 @@
         <h2>History Report</h2>
         <p>Choose a date range for <strong>{{ active_location_name }}</strong>. Leave either date blank to include all dates.</p>
         <form method="POST" action="{{ email_action }}" class="stack" data-history-print-form data-validation-live="submit">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="agency_location_id" value="{{ active_location_id or '' }}">
             <label class="setting-row">
                 <span class="setting-name">Start Date</span>

@@ -4,11 +4,7 @@
 
 - Make all code SUPER OO design pattern, line number restricted, files in folder SOFT restricted (for modules). Attempt to create MORE modules AND submodules. Attempt to make `__init__.py` files to be best practice (I think I should be included smth like exports I forget). Makes editing easier if less LOC per file. Restrict function LOC too AND depth! JUST GENERAL CLEANUP ALL!
 
-- Tighten Production Safety
-  - is there any types of SAFETY things like rate limits, certain increased loading times, DDOS prevention, other attack prevention that I should ADD to my code?!
-  - Keep schema/bootstrap and local QA setup scripts explicit and documented.
-  - Extra security hardening beyond core v1 needs.
-  - CSP hardening: move inline scripts/styles to static assets, then remove `unsafe-inline`.
+- Have IIQ logo AND Agency logo (both top corners... maybe)
 
 - Relook at the HELP docs, re-create all using a NEW agent call better. Make one for spam / important marking help on email accounts!
 

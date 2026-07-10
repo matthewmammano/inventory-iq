@@ -7,6 +7,7 @@ from pydantic import ValidationError
 
 from app.shared.database import get_session
 from app.shared.email_addresses import email_domain
+from app.shared.rate_limit import AUTH_ATTEMPT_LIMITS, limiter
 
 from . import bp
 from .password_reset_service import create_password_reset_pin, reset_password_with_pin
@@ -17,6 +18,7 @@ PASSWORD_REQUIRED_MESSAGE = "Password is required."  # nosec B105 - user-facing 
 
 
 @bp.route("/", methods=["GET", "POST"])
+@limiter.limit("; ".join(AUTH_ATTEMPT_LIMITS), methods=["POST"])
 def login():
     if request.method == "POST":
         email = request.form.get("email", "").strip()
@@ -57,6 +59,7 @@ def login():
 
 
 @bp.route("/forgot-password", methods=["GET", "POST"])
+@limiter.limit("; ".join(AUTH_ATTEMPT_LIMITS), methods=["POST"])
 def forgot_password():
     if request.method == "POST":
         email = request.form.get("email", "").strip()
@@ -77,6 +80,7 @@ def forgot_password():
 
 
 @bp.route("/reset-password", methods=["GET", "POST"])
+@limiter.limit("; ".join(AUTH_ATTEMPT_LIMITS), methods=["POST"])
 def reset_password():
     if request.method == "POST":
         email = request.form.get("email", "").strip()

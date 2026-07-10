@@ -30,6 +30,14 @@ def register_error_handlers(app: Flask) -> None:
         )
         return _err("Error", "Access Denied", "You don't have permission to access this page.", 403)
 
+    @app.errorhandler(429)
+    def rate_limited(error):
+        logger.warning(
+            "Request denied with 429 rate limit error",
+            extra={"status_code": 429, "method": request.method, "path": request.path, "endpoint": request.endpoint},
+        )
+        return _err("Error", "Too Many Attempts", "Please wait a moment and try again.", 429)
+
     @app.errorhandler(500)
     def internal(error):
         source_error = getattr(error, "original_exception", None) or error

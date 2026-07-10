@@ -69,7 +69,7 @@
                                     aria-label="Open item trend"
                                     title="Open item trend"
                                     data-trend-url="{{ url_for('admin.item_trend_chart', squad=squad, item_id=row.item.id, agency_location_id=active_location.id) }}">
-                                    <img class="item-trend-icon" src="https://img.icons8.com/?size=100&amp;id=116120&amp;format=png&amp;color=000000" alt="" aria-hidden="true">
+                                    <img class="item-trend-icon" src="{{ url_for('static', filename='images/icons/trend.png') }}" alt="" aria-hidden="true">
                                 </button>
                             </div>
                         </td>
@@ -108,6 +108,7 @@
         <p>Select who should receive the restock report.</p>
         {% if notification_recipients %}
         <form method="POST" action="{{ url_for('admin.send_restock_email', squad=squad) }}" class="stack" data-validation-live="submit">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="active_location_id" value="{{ active_location_id or '' }}">
             {{ email_recipient_options(notification_recipients) }}
             <div class="button-row">

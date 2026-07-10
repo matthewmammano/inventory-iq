@@ -30,6 +30,7 @@
 
 {% block content %}
 <form method="POST" action="{{ form_action or '' }}" class="stack{% if compact_entry %} expiration-form-compact{% endif %}" data-expiration-form>
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% for name, value in hidden_fields %}
     <input type="hidden" name="{{ name }}" value="{{ value }}">
     {% endfor %}

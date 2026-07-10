@@ -31,6 +31,7 @@ from app.inventory.schema import ScanItemQuery, ScanStartQuery
 from app.inventory.search_payload import load_item_search_payload
 from app.inventory.upc_service import record_unknown_upc
 from app.shared.database import get_session
+from app.shared.rate_limit import AUTH_ATTEMPT_LIMITS, limiter
 from app.shared.utils import (
     get_squad_from_request,
     is_static_request,
@@ -108,6 +109,7 @@ def _record_unknown_upc_from_request(squad: str) -> str | None:
 
 
 @bp.route("/<squad>/admin", methods=["GET", "POST"])
+@limiter.limit("; ".join(AUTH_ATTEMPT_LIMITS), methods=["POST"])
 def admin_login(squad: str) -> Any:
     token = current_device_token()
     if request.method == "POST":

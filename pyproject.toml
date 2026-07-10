@@ -9,6 +9,8 @@ dependencies = [
     "alembic",
     "Flask",
     "Flask-Login",
+    "Flask-WTF",
+    "Flask-Limiter",
     "gunicorn",
     "psycopg[binary]",
     "SQLAlchemy",

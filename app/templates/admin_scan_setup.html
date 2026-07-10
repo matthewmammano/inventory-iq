@@ -15,6 +15,7 @@
     action="{{ url_for('admin.admin_scan_items', squad=squad) }}"
     class="stack"
     data-validation-submit="manual">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="same_location_error" id="same_location_error" value="0">
 
     <section class="selector">

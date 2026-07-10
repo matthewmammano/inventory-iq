@@ -6,12 +6,21 @@ Runtime, environment, and operational commands for Inventory IQ. Architecture li
 
 - Python 3.13
 - Flask
+- Flask-WTF (CSRF protection)
+- Flask-Limiter (rate limiting)
 - SQLAlchemy
 - Alembic
 - Pydantic Settings
 - Loguru
 - Gunicorn
 - PostgreSQL in production; local default is SQLite.
+
+## Security
+
+- Every state-changing form carries a CSRF token; validated globally via `Flask-WTF`'s `CSRFProtect` (`app/__init__.py`). The `/api/debug/report` diagnostics endpoint is the one intentional `@csrf.exempt` -- it is fired by background `fetch()` from unauthenticated pages and only logs client telemetry.
+- Rate limiting (`app/shared/rate_limit.py`) applies a global default (`200/minute`, `2000/hour` per IP) plus a stricter `10/minute`, `50/hour` limit on login, forgot-password, reset-password, and admin-PIN-login POSTs. Storage is in-memory, which is correct only because the app runs a single gunicorn worker -- add a shared backend (e.g. Redis) before scaling to multiple workers or instances.
+- Response headers (`app/shared/security_headers.py`) set a Content-Security-Policy with no `unsafe-inline`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, and (in prod) `Strict-Transport-Security`. All JS/CSS/images are served from `app/static/`; no inline `<script>`/`<style>`/`onclick` and no third-party CDN scripts remain.
+- Session cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` in prod.
 
 ## Local Setup
 
