@@ -2,9 +2,14 @@ document.addEventListener("DOMContentLoaded", () => {
     const buttons = document.querySelectorAll("[data-report-print-url]");
     if (!buttons.length) return;
 
+    // Buttons carry a `data-report-print-area` attribute whose *value* is the target
+    // section's selector, so a bare `[data-report-print-area]` query also matches the
+    // buttons themselves. Resolve each button's target section once and clear only those.
+    const printAreas = [...buttons].map((button) => document.querySelector(button.dataset.reportPrintArea || "")).filter(Boolean);
+
     const cleanupPrintState = () => {
         document.body.classList.remove("printing-report");
-        document.querySelectorAll("[data-report-print-area]").forEach((printArea) => printArea.replaceChildren());
+        printAreas.forEach((printArea) => printArea.replaceChildren());
     };
 
     buttons.forEach((button) => {
