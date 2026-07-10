@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from app.shared.form_parsing import selected_int_ids
+from app.shared.validators import parse_non_negative_int
 
 
 @dataclass(frozen=True, slots=True)
@@ -60,11 +61,11 @@ def _quantity_values(form: Any, prefix: str) -> dict[tuple[int, int], str]:
 
 
 def _invalid_quantity_cells(values: dict[tuple[int, int], str]) -> set[tuple[int, int]]:
-    return {key for key, value in values.items() if not value.isdigit()}
+    return {key for key, value in values.items() if parse_non_negative_int(value) is None}
 
 
 def _non_negative_quantities(values: dict[tuple[int, int], str]) -> dict[tuple[int, int], int]:
-    return {key: int(value) for key, value in values.items() if value.isdigit()}
+    return {key: parsed for key, value in values.items() if (parsed := parse_non_negative_int(value)) is not None}
 
 
 def _missing_required_count_cells(

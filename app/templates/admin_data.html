@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}Data{% endblock %}
+{% block header_title %}Data{% endblock %}
+{% block sub_title %}View, add, edit, or remove items, locations, tags, and notifications{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>{% endblock %}
+
+{% macro edit_icon() -%}
+<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M12 20h9"></path>
+    <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4Z"></path>
+</svg>
+{%- endmacro %}
+
+{% macro field(name, value, label, attrs="", wide=False) -%}
+<label class="edit-field{% if wide %} wide-field{% endif %}"><span>{{ label }}</span><input class="table-input" name="{{ name }}" value="{{ value if value is not none else '' }}" {{ attrs|safe }}></label>
+{%- endmacro %}
+
+{% macro select_field(name, value, label, options) -%}
+{% set selected_value = value.value if value.value is defined else value %}
+<label class="edit-field"><span>{{ label }}</span><select class="table-input" name="{{ name }}">
+    {% for option_value, option_label in options %}
+    <option value="{{ option_value }}" {% if selected_value == option_value %}selected{% endif %}>{{ option_label }}</option>
+    {% endfor %}
+</select></label>
+{%- endmacro %}
+
+{% macro checkbox_field(name, checked, label) -%}
+<label class="check-option"><input type="checkbox" name="{{ name }}" value="1" {% if checked %}checked{% endif %}> {{ label }}</label>
+{%- endmacro %}
+
+{% macro checkbox_list_field(title, name, options, selected_ids, group_attrs="") -%}
+{% set selected_id_values = selected_ids or [] %}
+<div class="edit-field wide-field">
+    <span>{{ title }}</span>
+    <div class="checkbox-list" aria-label="{{ title }}" {{ group_attrs|safe }}>
+        {% for option in options %}
+        {% set option_label = option.tag_name if option.tag_name is defined else option.name %}
+        <label class="check-option"><input type="checkbox" name="{{ name }}" value="{{ option.id }}" {% if option.id in selected_id_values %}checked{% endif %}> {{ option_label }}</label>
+        {% endfor %}
+    </div>
+</div>
+{%- endmacro %}
+
+{% macro secondary_upc_field(existing_upcs, id_prefix) -%}
+<div class="edit-field wide-field">
+    <span>Secondary UPCs</span>
+    <div class="secondary-upc-list" id="{{ id_prefix }}-upc-list" data-dynamic-list data-dynamic-pattern="^\d{12}$">
+        {% for upc in existing_upcs %}
+        <input class="table-input" id="{{ id_prefix }}-upc-{{ loop.index0 }}" name="secondary_upcs" value="{{ upc }}" data-dynamic-input {{ validation_attrs("upc12") }}>
+        {% endfor %}
+        <input class="table-input" id="{{ id_prefix }}-upc-{{ existing_upcs|length }}" name="secondary_upcs" value="" placeholder="12-digit UPC" data-dynamic-input {{ validation_attrs("upc12") }}>
+    </div>
+    <small class="field-hint-passive">Clear a UPC and save to remove it. A new blank UPC appears once the last one is filled in.</small>
+</div>
+{%- endmacro %}
+
+{% macro readonly_check(value, label) -%}
+<input class="readonly-check" type="checkbox" aria-label="{{ label }}" {% if value %}checked{% endif %} disabled>
+{%- endmacro %}
+
+{% macro modal_open_button(modal_id, label) -%}
+<button type="button" class="row-action-button" data-modal-open="{{ modal_id }}" aria-label="{{ label }}" title="{{ label }}">{{ edit_icon() }}</button>
+{%- endmacro %}
+
+{% macro delete_trigger(modal_id, entity_label) -%}
+<button class="danger-button" type="button" data-delete-trigger data-delete-confirm-target="{{ modal_id }}-delete-confirm">Delete {{ entity_label }}</button>
+{%- endmacro %}
+
+{% macro delete_confirm_panel(modal_id, delete_url, entity_label) -%}
+<div class="modal-delete-confirm hidden" id="{{ modal_id }}-delete-confirm" data-delete-confirm>
+    <p>Delete {{ entity_label }}? It will be hidden after saving.</p>
+    <div class="button-row">
+        <form method="POST" action="{{ delete_url }}"><button class="danger-button" type="submit">Yes, Delete</button></form>
+        <button class="quiet-button" type="button" data-delete-cancel>Cancel</button>
+    </div>
+</div>
+{%- endmacro %}
+
+{% macro item_fields(item=none) -%}
+{{ field("name", item.name if item else "", "Item Name", validation_attrs("item_name", placeholder="e.g. Adult BVM" if not item else none), wide=True) }}
+{{ field("image", item.image if item else "", "Image", validation_attrs("image_source", placeholder="https://example.com/image.jpg"), wide=True) }}
+{{ field("increments", item.increments if item else "", "Increments", validation_attrs("increments", placeholder="e.g. each")) }}
+<div class="toggle-row">
+    {{ checkbox_field("guest_quick_adjust", item.guest_quick_adjust if item else false, "Expanded ±5, ±10") }}
+    {{ checkbox_field("expiration_tracking_enabled", item.expiration_tracking_enabled if item else false, "Track Expiration Dates") }}
+</div>
+{{ field("min_quantity", item.min_quantity if item else "", "Minimum Quantity", validation_attrs("positive_int", placeholder="e.g. 5" if not item else none)) }}
+{{ field("max_quantity", item.max_quantity if item else "", "Maximum Quantity", validation_attrs("positive_int", placeholder="e.g. 20" if not item else none, compare_to="min_quantity", compare_mode="number_gt", compare_message="Maximum Quantity must be greater than Minimum Quantity.")) }}
+{{ field("batch_size", item.batch_size if item else 1, "Order Size", validation_attrs("positive_int")) }}
+{{ field("restock_delivery_days", item.restock_delivery_days if item else "", "Lead Time Override", validation_attrs("optional_positive_int", placeholder="e.g. 7")) }}
+{{ field("expiration_notice_days_override", item.expiration_notice_days_override if item else "", "Expiration Warning Override", validation_attrs("optional_positive_int", placeholder="Uses default")) }}
+{{ checkbox_list_field("Tags", "tag_ids", tags, item.tag_ids if item else []) }}
+{{ secondary_upc_field(item.secondary_upcs|map(attribute="upc")|list if item else [], "item-" ~ item.id if item else "item-add") }}
+{%- endmacro %}
+
+{% macro tag_fields(tag=none) -%}
+{{ field("tag_name", tag.tag_name if tag else "", "Tag Name", validation_attrs("tag_name", placeholder="e.g. Airway" if not tag else none)) }}
+{{ field("color", tag.color if tag else "#FFFFFF", "Color", validation_attrs("hex_color", required=True)) }}
+{%- endmacro %}
+
+{% macro notification_fields(recipient=none) -%}
+{{ field("email", recipient.email if recipient else "", "Email Address", validation_attrs("email_128", required=True, placeholder="name@example.com" if not recipient else none), wide=True) }}
+{{ checkbox_list_field("Locations", "location_filter_ids", locations, recipient.location_filter_ids if recipient else [], 'data-validate-group="required_choice" data-group-name="location_filter_ids" data-label="Locations" data-invalid-selector=".check-option"') }}
+{{ select_field("alert_frequency", recipient.alert_frequency if recipient else "HOURLY", "Alert Frequency", alert_email_frequency_choices) }}
+{{ field("quiet_start_time", recipient.quiet_start_time if recipient else "", "Quiet Start", validation_attrs("hhmm_time", pair_with="quiet_end_time")) }}
+{{ field("quiet_end_time", recipient.quiet_end_time if recipient else "", "Quiet End", validation_attrs("hhmm_time", pair_with="quiet_start_time")) }}
+<small>Blank disables quiet hours. Uses squad timezone.</small>
+<fieldset><legend>Alerts</legend>{% for field_name, label in notification_alert_fields %}{{ checkbox_field(field_name, recipient.preference_enabled(field_name) if recipient else false, label) }}{% endfor %}</fieldset>
+<fieldset><legend>Summaries</legend>{% for field_name, label in notification_summary_fields %}{{ checkbox_field(field_name, recipient.preference_enabled(field_name) if recipient else false, label) }}{% endfor %}</fieldset>
+{%- endmacro %}
+
+{% block content %}
+<div class="tabbed-panel">
+    <section class="tab-strip">
+        <a class="tab-button{% if active_tab == 'items' %} active{% endif %}" href="#items" data-tab="items">Items</a>
+        <a class="tab-button{% if active_tab == 'locations' %} active{% endif %}" href="#locations" data-tab="locations">Locations</a>
+        <a class="tab-button{% if active_tab == 'tags' %} active{% endif %}" href="#tags" data-tab="tags">Tags</a>
+        <a class="tab-button{% if active_tab == 'notifications' %} active{% endif %}" href="#notifications" data-tab="notifications">Notifications</a>
+    </section>
+
+    <section class="panel tab-panel{% if active_tab != 'items' %} hidden{% endif %}" id="items">
+        {% if items|length == 0 %}
+        <div class="empty-state"><h2>No items found</h2></div>
+        {% else %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Name</th><th>Primary UPC</th><th>Secondary UPCs</th><th>Increments</th><th>Tags</th><th>Min Quantity</th><th>Max Quantity</th><th>Order Size</th><th>Lead Time Override</th><th>Track Expiration?</th><th>Expiration Warning Override</th><th>Expanded ±5, ±10</th><th>Last Accessed</th><th>Image</th></tr></thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td><span class="row-name-cell">{{ modal_open_button("item-modal-" ~ item.id, "Edit " ~ item.name) }}{{ item.name|bold_item_name }}</span></td>
+                        <td>{{ item.upc }}</td>
+                        <td>{% for code in item.secondary_upcs %}<div>{{ code.upc }}</div>{% else %}None{% endfor %}</td>
+                        <td>{{ item.increments }}</td>
+                        <td><div class="tag-row">{% for tag in item.tags %}<span class="tag" style="background-color: {{ tag.color }}; color: {{ tag.text_color }}; border-color: {{ tag.text_color }};">{{ tag.tag_name }}</span>{% endfor %}</div></td>
+                        <td>{{ item.min_quantity }}</td>
+                        <td>{{ item.max_quantity }}</td>
+                        <td>{{ item.batch_size }}</td>
+                        <td>{{ item.restock_delivery_days if item.restock_delivery_days is not none else 'Default' }}</td>
+                        <td>{{ item.expiration_tracking_enabled }}</td>
+                        <td>{{ item.expiration_notice_days_override if item.expiration_notice_days_override is not none else 'Default' }}</td>
+                        <td>{{ item.guest_quick_adjust }}</td>
+                        <td>{{ item.get_last_accessed_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if item.last_accessed else 'Never' }}</td>
+                        <td><img class="table-thumbnail" src="{{ item.image|image_src }}" alt="{{ item.name }}" loading="lazy" decoding="async"></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        <div class="add-row"><button class="success-button" type="button" data-modal-open="item-modal-add">Add Item</button></div>
+
+        {% for item in items %}
+        <div class="modal-backdrop hidden" id="item-modal-{{ item.id }}">
+            <div class="modal admin-data-modal">
+                <h2>Edit Item</h2>
+                <form method="POST" action="{{ url_for('admin.admin_update_item', squad=squad, item_id=item.id) }}" novalidate>
+                    {{ item_fields(item) }}
+                    <div class="button-row">
+                        <button class="success-button" type="submit">Save Changes</button>
+                        <button class="quiet-button" type="button" data-modal-close>Cancel</button>
+                        {{ delete_trigger("item-modal-" ~ item.id, "Item") }}
+                    </div>
+                </form>
+                {{ delete_confirm_panel("item-modal-" ~ item.id, url_for('admin.admin_delete_item', squad=squad, item_id=item.id), "Item") }}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="modal-backdrop hidden" id="item-modal-add">
+            <div class="modal admin-data-modal">
+                <h2>Add Item</h2>
+                <form method="POST" action="{{ url_for('admin.admin_create_item', squad=squad) }}" novalidate>
+                    {{ item_fields() }}
+                    <div class="button-row">
+                        <button class="success-button" type="submit">Add Item</button>
+                        <button class="quiet-button" type="button" data-modal-close>Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel tab-panel{% if active_tab != 'locations' %} hidden{% endif %}" id="locations">
+        {% if locations|length == 0 %}
+        <div class="empty-state"><h2>No locations found</h2></div>
+        {% else %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Location</th><th>Storage</th><th>User Access From</th><th>User Access To</th></tr></thead>
+                <tbody>
+                    {% for location in locations %}
+                        {% if location.storages|length == 0 %}
+                        <tr><td>{{ location.name }}</td><td>No storages</td><td></td><td></td></tr>
+                        {% else %}
+                            {% for storage in location.storages %}
+                            <tr>
+                                {% if loop.first %}<td rowspan="{{ location.storages|length }}">{{ location.name }}</td>{% endif %}
+                                <td>{{ storage.name }}</td>
+                                <td>{{ storage.user_access_from }}</td>
+                                <td>{{ storage.user_access_to }}</td>
+                            </tr>
+                            {% endfor %}
+                        {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </section>
+
+    <section class="panel tab-panel{% if active_tab != 'tags' %} hidden{% endif %}" id="tags">
+        {% if tags|length == 0 %}
+        <div class="empty-state"><h2>No tags found</h2></div>
+        {% else %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Tag Name</th><th>Color</th></tr></thead>
+                <tbody>
+                    {% for tag in tags %}
+                    <tr>
+                        <td><span class="row-name-cell">{{ modal_open_button("tag-modal-" ~ tag.id, "Edit " ~ tag.tag_name) }}<span class="tag" style="background-color: {{ tag.color }}; color: {{ tag.text_color }}; border-color: {{ tag.text_color }};">{{ tag.tag_name }}</span></span></td>
+                        <td>{{ tag.color }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        <div class="add-row"><button class="success-button" type="button" data-modal-open="tag-modal-add">Add Tag</button></div>
+
+        {% for tag in tags %}
+        <div class="modal-backdrop hidden" id="tag-modal-{{ tag.id }}">
+            <div class="modal admin-data-modal">
+                <h2>Edit Tag</h2>
+                <form method="POST" action="{{ url_for('admin.admin_update_tag', squad=squad, tag_id=tag.id) }}" novalidate>
+                    {{ tag_fields(tag) }}
+                    <div class="button-row">
+                        <button class="success-button" type="submit">Save Changes</button>
+                        <button class="quiet-button" type="button" data-modal-close>Cancel</button>
+                        {{ delete_trigger("tag-modal-" ~ tag.id, "Tag") }}
+                    </div>
+                </form>
+                {{ delete_confirm_panel("tag-modal-" ~ tag.id, url_for('admin.admin_delete_tag', squad=squad, tag_id=tag.id), "Tag") }}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="modal-backdrop hidden" id="tag-modal-add">
+            <div class="modal admin-data-modal">
+                <h2>Add Tag</h2>
+                <form method="POST" action="{{ url_for('admin.admin_create_tag', squad=squad) }}" novalidate>
+                    {{ tag_fields() }}
+                    <div class="button-row">
+                        <button class="success-button" type="submit">Add Tag</button>
+                        <button class="quiet-button" type="button" data-modal-close>Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+
+    <section class="panel tab-panel{% if active_tab != 'notifications' %} hidden{% endif %}" id="notifications">
+        {% if notifications|length == 0 %}
+        <div class="empty-state"><h2>No emails found</h2></div>
+        {% else %}
+        <div class="table-wrap">
+            <table>
+                <thead><tr><th>Email</th><th>Locations</th><th>Alert Frequency</th><th>Quiet Hours</th>{% for _field, label in notification_alert_fields %}<th>{{ label }}</th>{% endfor %}{% for _field, label in notification_summary_fields %}<th>{{ label }}</th>{% endfor %}</tr></thead>
+                <tbody>
+                    {% for recipient in notifications %}
+                    <tr>
+                        <td><span class="row-name-cell">{{ modal_open_button("notif-modal-" ~ recipient.id, "Edit " ~ recipient.email) }}{{ recipient.email }}</span></td>
+                        <td>{% if recipient.location_filter_ids %}{{ recipient.location_filter_ids|join(", ") }}{% else %}All{% endif %}</td>
+                        <td>{{ recipient.alert_frequency.label }}</td>
+                        <td>{{ recipient.quiet_hours_label }}</td>
+                        {% for field, label in notification_alert_fields %}<td>{{ readonly_check(recipient.preference_enabled(field), label) }}</td>{% endfor %}
+                        {% for field, label in notification_summary_fields %}<td>{{ readonly_check(recipient.preference_enabled(field), label) }}</td>{% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+        <div class="add-row"><button class="success-button" type="button" data-modal-open="notif-modal-add">Add Notification</button></div>
+
+        {% for recipient in notifications %}
+        <div class="modal-backdrop hidden" id="notif-modal-{{ recipient.id }}">
+            <div class="modal admin-data-modal">
+                <h2>Edit Notification</h2>
+                <form method="POST" action="{{ url_for('admin.admin_update_notification', squad=squad, recipient_id=recipient.id) }}" novalidate>
+                    {{ notification_fields(recipient) }}
+                    <div class="button-row">
+                        <button class="success-button" type="submit">Save Changes</button>
+                        <button class="quiet-button" type="button" data-modal-close>Cancel</button>
+                        {{ delete_trigger("notif-modal-" ~ recipient.id, "Notification") }}
+                    </div>
+                </form>
+                {{ delete_confirm_panel("notif-modal-" ~ recipient.id, url_for('admin.admin_delete_notification', squad=squad, recipient_id=recipient.id), "Notification") }}
+            </div>
+        </div>
+        {% endfor %}
+
+        <div class="modal-backdrop hidden" id="notif-modal-add">
+            <div class="modal admin-data-modal">
+                <h2>Add Notification</h2>
+                <form method="POST" action="{{ url_for('admin.admin_create_notification', squad=squad) }}" novalidate>
+                    {{ notification_fields() }}
+                    <div class="button-row">
+                        <button class="success-button" type="submit">Add Notification</button>
+                        <button class="quiet-button" type="button" data-modal-close>Cancel</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </section>
+</div>
+{% endblock %}
+
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/admin-data.css') }}">{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/tabs.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/modal-actions.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/dynamic-field-list.js') }}" defer></script>
+{% endblock %}

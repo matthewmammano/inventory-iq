@@ -65,7 +65,7 @@ class Item(Base):
     max_quantity: Mapped[int] = mapped_column(Integer)
     batch_size: Mapped[int | None] = mapped_column(Integer, default=1)
     restock_delivery_days: Mapped[int | None] = mapped_column(Integer, nullable=True)
-    prior_daily_usage: Mapped[float] = mapped_column(Float)
+    prior_daily_usage: Mapped[float | None] = mapped_column(Float, nullable=True)
     last_accessed: Mapped[datetime | None] = mapped_column(DateTime, default=utc_now)
 
     action_logs = relationship("ActionLog", back_populates="item", lazy="select")

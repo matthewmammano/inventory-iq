@@ -52,16 +52,6 @@ def _required_non_negative_int(field_name: str):
     return AfterValidator(lambda value: validate_non_negative_integer(value, field_name, allow_none=False))
 
 
-def _required_non_negative_float(field_name: str):
-    def validate(value: float | int) -> float:
-        normalized = float(value)
-        if normalized < 0:
-            raise ValueError(f"{field_name} must be non-negative")
-        return normalized
-
-    return AfterValidator(validate)
-
-
 def _parsed_required_non_negative_int(field_name: str):
     def parse(value: int | str | None) -> int:
         if value is None or value == "":
@@ -101,7 +91,6 @@ RequiredCountInput = Annotated[int, _parsed_required_non_negative_int("Quantity"
 AdminPin = Annotated[str, AfterValidator(validate_pin)]
 AdminPinChange = Annotated[str | None, BeforeValidator(_blank_to_none), AfterValidator(lambda value: validate_pin(value) if value else None)]
 TagColor = Annotated[str, AfterValidator(normalize_hex_color)]
-NonNegativeFloat = Annotated[float, _required_non_negative_float("value")]
 
 
 @dataclass(frozen=True)

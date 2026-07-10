@@ -2,6 +2,7 @@
 
 import re
 import string
+from datetime import date
 from urllib.parse import urlparse
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
@@ -168,3 +169,21 @@ def parse_optional_int(value: int | str | None) -> int | None:
         return int(str(value).strip())
     except (ValueError, TypeError):
         return None
+
+
+def parse_non_negative_int(value: str | None) -> int | None:
+    """Parse a digit-only string into a non-negative int, or None when blank/invalid."""
+    if value is None:
+        return None
+    stripped = str(value).strip()
+    return int(stripped) if stripped.isdigit() else None
+
+
+def validate_iso_date(value: str, field_name: str) -> date:
+    """Validate a YYYY-MM-DD date string."""
+    if len(value) != 10:
+        raise ValueError(f"{field_name} must use YYYY-MM-DD.")
+    try:
+        return date.fromisoformat(value)
+    except ValueError as exc:
+        raise ValueError(f"{field_name} must be a valid date.") from exc

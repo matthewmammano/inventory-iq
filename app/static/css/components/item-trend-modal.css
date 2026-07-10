@@ -4,6 +4,12 @@
   align-items: center;
 }
 
+.usage-estimate-tag {
+  color: #8b5d10;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .item-trend-button {
   width: 28px;
   height: 28px;

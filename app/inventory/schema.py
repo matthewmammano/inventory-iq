@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel, BeforeValidator, Field, ValidationInfo, field_validator, model_validator
 
 from app.shared.validation_types import ItemName, OptionalParsedInt, OptionalPositiveInt, Quantity, RequiredCountInput
+from app.shared.validators import validate_iso_date
 
 from .constants import OperationType
 
@@ -62,13 +63,7 @@ class HistoryDateRange(BaseModel):
         if not isinstance(value, str):
             return value
         label = "Start date" if info.field_name == "start_date" else "End date"
-        if len(value) != 10:
-            raise ValueError(f"{label} must use YYYY-MM-DD.")
-        try:
-            date.fromisoformat(value)
-        except ValueError as exc:
-            raise ValueError(f"{label} must be a valid date.") from exc
-        return value
+        return validate_iso_date(value, label)
 
     @model_validator(mode="after")
     def validate_range(self) -> "HistoryDateRange":

@@ -11,7 +11,6 @@ from app.shared.validation_types import (
     ImageSource,
     Increments,
     ItemName,
-    NonNegativeFloat,
     OptionalPositiveInt,
     PositiveInt,
     QuietTime,
@@ -21,9 +20,7 @@ from app.shared.validation_types import (
 
 
 class AdminItemForm(BaseModel):
-    id: int | None = None
     name: ItemName
-    active: bool = True
     guest_quick_adjust: bool = False
     increments: Increments = None
     tag_ids: list[int] = Field(default_factory=list)
@@ -34,7 +31,6 @@ class AdminItemForm(BaseModel):
     max_quantity: PositiveInt
     batch_size: PositiveInt
     restock_delivery_days: OptionalPositiveInt = None
-    prior_daily_usage: NonNegativeFloat
     secondary_upcs: list[str] = Field(default_factory=list)
 
     @model_validator(mode="after")
@@ -53,16 +49,12 @@ class AdminItemForm(BaseModel):
 
 
 class AdminTagForm(BaseModel):
-    id: int | None = None
     tag_name: TagName
     color: TagColor
-    active: bool = True
 
 
 class AdminNotificationFormBase(BaseModel):
-    id: int | None = None
     email: EmailAddress128
-    active: bool = True
     location_filter_ids: list[int] | None = None
     quiet_start_time: QuietTime = None
     quiet_end_time: QuietTime = None
@@ -76,7 +68,7 @@ class AdminNotificationFormBase(BaseModel):
 
     @model_validator(mode="after")
     def validate_location_filters(self):
-        if self.active and not self.location_filter_ids:
+        if not self.location_filter_ids:
             raise ValueError("Select at least one location.")
         return self
 

@@ -76,7 +76,7 @@
                         <td data-sort-value="{{ row.item.increments }}">{{ row.item.increments }}</td>
                         <td class="{{ row.current_total_class }}" data-sort-value="{{ row.current_total }}">{{ row.current_total }}</td>
                         <td class="{{ row.projected_total_class }}" data-sort-value="{{ row.projected_lead_time_total if row.projected_lead_time_total is not none else 999999 }}">{{ row.projected_lead_time_total if row.projected_lead_time_total is not none else 'N/A' }}</td>
-                        <td data-sort-value="{{ row.daily_usage_rate if row.daily_usage_rate is not none else 999999 }}">{{ row.usage_display if row.usage_display is not none else 'N/A' }}</td>
+                        <td data-sort-value="{{ row.daily_usage_rate if row.daily_usage_rate is not none else 999999 }}">{{ row.usage_display if row.usage_display is not none else 'N/A' }}{% if row.used_fallback and row.usage_display is not none %} <small class="usage-estimate-tag" title="Estimated from a manually set initial usage rate, not yet learned from scan history.">(est.)</small>{% endif %}</td>
                         <td class="{{ row.min_quantity_class }}" data-sort-value="{{ row.min_quantity }}">{{ row.min_quantity if row.min_quantity > 0 else '-' }}</td>
                         <td data-sort-value="{{ row.gap_to_min }}">{{ row.gap_to_min if row.gap_to_min > 0 else '' }}</td>
                         <td data-sort-value="{{ row.max_quantity }}">{{ row.max_quantity if row.max_quantity > 0 else '-' }}</td>

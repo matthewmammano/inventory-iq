@@ -9,10 +9,9 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import Agency, Location
 from app.inventory.balance_service import get_location_last_counted_dates
-from app.inventory.location_state_policy import days_to_threshold, effective_lead_time_days
+from app.inventory.location_state_policy import bound_daily_usage, days_to_threshold, effective_lead_time_days
 from app.inventory.location_state_service import recompute_item_location_state
 from app.inventory.models import InventoryItemLocationState, Item
-from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
 from app.prediction.estimator import reorder_date
 from app.prediction.formatting import format_usage_rate, rounded_confidence_percent
 from app.shared.timezone_utils import convert_utc_to_local
@@ -102,7 +101,9 @@ class BulkService:
         )
         persisted_trend = state.trend_per_day if state is not None else None
         has_trained_trend = persisted_trend is not None and last_counted_at is not None
-        daily_usage = BulkService._trained_daily_usage(persisted_trend) if has_trained_trend else None
+        daily_usage = (
+            BulkService._trained_daily_usage(persisted_trend) if has_trained_trend else BulkService._fallback_daily_usage(item.prior_daily_usage)
+        )
         days_low = days_to_threshold(current_quantity, -daily_usage, min_qty) if daily_usage is not None else None
         days_out = days_to_threshold(current_quantity, -daily_usage, 0) if daily_usage is not None else None
         order_amount = (
@@ -143,10 +144,14 @@ class BulkService:
     def _trained_daily_usage(trend_per_day: float | None) -> float | None:
         if trend_per_day is None:
             return None
-        return min(
-            max(max(0.0, -float(trend_per_day)), MIN_EFFECTIVE_DAILY_USAGE),
-            MAX_EFFECTIVE_DAILY_USAGE,
-        )
+        return bound_daily_usage(max(0.0, -float(trend_per_day)))
+
+    @staticmethod
+    def _fallback_daily_usage(prior_daily_usage: float | None) -> float | None:
+        """Bound a support-provided initial usage estimate the same way a trained trend is bounded."""
+        if prior_daily_usage is None:
+            return None
+        return bound_daily_usage(max(0.0, float(prior_daily_usage)))
 
     @staticmethod
     def _location_states_by_item_id(

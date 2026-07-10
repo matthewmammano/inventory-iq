@@ -36,6 +36,7 @@ ROUTE_MODULES = (
     "app.diagnostics.routes",
     "app.inventory.routes.admin",
     "app.inventory.routes.admin_bulk",
+    "app.inventory.routes.admin_data",
     "app.inventory.routes.admin_help",
     "app.inventory.routes.admin_reports",
     "app.inventory.routes.admin_scan",

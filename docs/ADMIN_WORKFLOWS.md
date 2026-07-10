@@ -30,14 +30,14 @@ Guest capabilities depend on agency settings:
 - Keep item selection and grid behavior consistent with existing bulk templates and scripts.
 - Bulk quantity validation should highlight invalid cells before save, require counts before stale-item restocks, and keep the final write blocked on backend validation.
 
-## View/Edit Data
+## Data (Items, Tags, Notifications)
 
-- Edit active items, tags, locations/storages, and notification recipients through review-before-save screens.
-- Preserve soft-delete behavior for items and recipient rows.
+- One merged Data page lists items, locations, tags, and notification recipients; locations are read-only, the rest support add/edit/delete.
+- Items, tags, and notification recipients are created, edited, and deleted one row at a time through per-row modals; see the "Single-Item Modal CRUD" pattern in [CONVENTIONS.md](CONVENTIONS.md). There is no bulk multi-row editing or review-before-save step.
+- Preserve soft-delete behavior for items, tags, and recipient rows.
 - Keep login email and notification recipient emails separate.
-- New item management must not ship partial behavior; see [TODO.md](TODO.md).
-- Edit screens should use shared Python-defined validation rules for both server validation and generated input attributes.
-- Review-before-save modals should show concise user-facing labels and values, while failed saves should flash short retry guidance instead of raw validation internals.
+- Data-page screens should use shared Python-defined validation rules for both server validation and generated input attributes.
+- Each modal save/delete is a plain form POST followed by a redirect and a flash message naming the specific row affected (e.g. `Item "X" saved.`); failed saves flash short retry guidance instead of raw validation internals.
 
 ## History And Reports
 
@@ -48,6 +48,7 @@ Guest capabilities depend on agency settings:
 ## UPC Review
 
 - Unknown UPC scans are held for admin classification.
+- The Pending UPCs page always shows the full Pending and Ignored lists together; there is no single-review or "return to tasks" mode. A `focus_upc` query param only highlights a row, it never hides the rest.
 - Online lookup suggestions are uncertain and must be worded as assistance, not truth.
 - Linking a UPC should preserve agency-level uniqueness rules from [DATA_MODEL.md](DATA_MODEL.md).
 - UPC entry should validate length, digits, and check digit in the browser before submit when practical, then re-check the same rules in Python.
@@ -57,3 +58,4 @@ Guest capabilities depend on agency settings:
 - Restock values are estimates from recent usage and current balance data.
 - UI text must tell admins to review current stock before ordering.
 - Trend logic belongs in `app/prediction/`; restock/admin presentation belongs in `app/inventory/`.
+- Before an item has a trained usage trend, the Restock page falls back to `items.prior_daily_usage` when set (a one-time estimate provided during setup, not user-editable); Confidence stays blank for these estimated rows so admins can tell a rough estimate apart from a trained trend.

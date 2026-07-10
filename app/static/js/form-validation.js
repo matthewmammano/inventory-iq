@@ -332,7 +332,7 @@
     }
 
     function hintKey(node) {
-        return node.matches("[data-validate-group]") ? `group:${node.dataset.groupName}` : node.name;
+        return node.matches("[data-validate-group]") ? `group:${node.dataset.groupName}` : (node.id || node.name);
     }
 
     function invalidTargets(group) {

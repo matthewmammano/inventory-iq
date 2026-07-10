@@ -20,9 +20,9 @@ from app.inventory.upc_service import (
     resolve_unknown_upc,
     unignore_unknown_upc,
 )
+from app.shared.constants import SAVE_RETRY_MESSAGE
 from app.shared.database import get_session
 
-SAVE_RETRY_MESSAGE = "Changes could not be saved. Review entries and try again."
 PENDING_UPC_REVIEW_ACTIONS = {
     PendingUpcReviewAction.IGNORE: (ignore_unknown_upc, "Pending UPC ignored", "UPC ignored."),
     PendingUpcReviewAction.UNIGNORE: (unignore_unknown_upc, "Pending UPC restored", "UPC moved back to pending."),
@@ -37,20 +37,14 @@ def pending_upcs(squad: str) -> Any:
     with get_session() as s:
         review_upcs = list_review_unknown_upcs(s, current_user.id)
         items = list_items(current_user.id, session=s)
-    return_to = request.args.get("return_to", "")
     focus_upc = request.args.get("focus_upc", "").strip()
-    if return_to == "tasks" and not focus_upc:
-        focus_upc = _first_pending_upc(review_upcs)
-    single_review = return_to == "tasks"
     return render_template(
         "admin_pending_upcs.html",
         squad=squad,
-        pending_upcs=_focused_upcs(review_upcs, UnknownUpcStatus.PENDING, focus_upc),
-        ignored_upcs=[] if single_review else _focused_upcs(review_upcs, UnknownUpcStatus.IGNORE, focus_upc),
+        pending_upcs=_upcs_by_status(review_upcs, UnknownUpcStatus.PENDING),
+        ignored_upcs=_upcs_by_status(review_upcs, UnknownUpcStatus.IGNORE),
         items=items,
         focus_upc=focus_upc,
-        return_to=return_to,
-        single_review=single_review,
         admin=True,
         user_timezone=current_user.timezone,
     )
@@ -99,8 +93,10 @@ def _save_pending_upc_review(squad: str) -> Any:
 
 def _add_pending_upc(squad: str) -> Any:
     upc = request.form.get("upc", "").strip()
-    if validation_message := _pending_upc_error(upc):
-        flash(validation_message, "warning")
+    try:
+        upc = validate_upc_code(upc)
+    except ValueError as exc:
+        flash(str(exc), "warning")
         return redirect(_pending_upc_redirect(squad))
     try:
         with get_session() as s:
@@ -114,20 +110,6 @@ def _add_pending_upc(squad: str) -> Any:
         logger.warning("Pending UPC validation reached backend", extra={"error": str(exc)})
         flash(_pending_upc_service_error(str(exc)), "warning")
         return redirect(_pending_upc_redirect(squad))
-
-
-def _pending_upc_error(upc: str) -> str:
-    if not upc:
-        return "Enter a UPC."
-    if not upc.isdigit():
-        return "UPC must contain digits only."
-    if len(upc) != 12:
-        return "UPC must be 12 digits."
-    try:
-        validate_upc_code(upc)
-    except ValueError:
-        return "Invalid UPC code."
-    return ""
 
 
 def _pending_upc_service_error(error: str) -> str:
@@ -146,21 +128,11 @@ def _request_validation_message(exc: ValidationError) -> str:
     return str(errors[0]["msg"])
 
 
-def _focused_upcs(scans: list[UnknownUpcScan], status: UnknownUpcStatus, focus_upc: str) -> list[UnknownUpcScan]:
-    rows = [scan for scan in scans if scan.status == status]
-    if focus_upc:
-        return [scan for scan in rows if scan.upc == focus_upc]
-    return rows
-
-
-def _first_pending_upc(scans: list[UnknownUpcScan]) -> str:
-    pending = next((scan for scan in scans if scan.status == UnknownUpcStatus.PENDING), None)
-    return pending.upc if pending else ""
+def _upcs_by_status(scans: list[UnknownUpcScan], status: UnknownUpcStatus) -> list[UnknownUpcScan]:
+    return [scan for scan in scans if scan.status == status]
 
 
 def _pending_upc_redirect(squad: str, *, focus_upc: str | None = None):
-    if request.form.get("return_to") == "tasks" or request.args.get("return_to") == "tasks":
-        return url_for("admin.pending_tasks", squad=squad)
     if focus_upc:
         return url_for("admin.pending_upcs", squad=squad, focus_upc=focus_upc)
     return url_for("admin.pending_upcs", squad=squad)

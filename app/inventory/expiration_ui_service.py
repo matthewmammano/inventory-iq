@@ -13,6 +13,7 @@ from app.inventory.constants import OperationType
 from app.inventory.expiration_service import ExpirationAllocation, effective_expiration_notice_days, known_expiration_options
 from app.inventory.models import InventoryExpirationBalance, InventoryStorageBalance, Item
 from app.shared.clock import utc_now_naive
+from app.shared.validators import parse_non_negative_int
 
 MAX_NEW_EXPIRATION_ROWS = 10
 
@@ -404,9 +405,10 @@ def _expiration_breakdown(
 def _quantity(value: str | None) -> int:
     if value in (None, ""):
         return 0
-    if not str(value).isdigit():
+    parsed = parse_non_negative_int(value)
+    if parsed is None:
         raise ValueError("Expiration quantities must be 0 or higher.")
-    return int(str(value))
+    return parsed
 
 
 def _date_value(value: str | None) -> date | None:

@@ -7,6 +7,8 @@ def format_usage_rate(rate_per_day: float | int | None) -> str | None:
         return None
 
     daily_rate = abs(float(rate_per_day))
+    if daily_rate == 0:
+        return "0 per day"
     options = [
         ("day", daily_rate),
         ("week", daily_rate * 7),

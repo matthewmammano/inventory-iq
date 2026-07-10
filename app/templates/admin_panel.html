@@ -7,13 +7,13 @@
 
 {% block content %}
 <section class="grid admin-menu">
-    <a class="card" href="{{ url_for('admin.admin_panel_views', squad=squad) }}">
-        <h2>View Data</h2>
-        <p>Preview items, locations, tags, and notifications.</p>
+    <a class="card" href="{{ url_for('admin.admin_data', squad=squad) }}">
+        <h2>Data</h2>
+        <p>View, add, edit, or remove items, tags, and notifications.</p>
     </a>
-    <a class="card" href="{{ url_for('admin.admin_edit_data', squad=squad) }}">
-        <h2>Edit Data</h2>
-        <p>Edit items, tags, and notifications.</p>
+    <a class="card" href="{{ url_for('admin.pending_upcs', squad=squad) }}">
+        <h2>Pending UPCs</h2>
+        <p>Link, ignore, or remove unrecognized barcodes.</p>
     </a>
     <a class="card" href="{{ url_for('admin.admin_scan_items', squad=squad) }}">
         <h2>Stock Actions</h2>

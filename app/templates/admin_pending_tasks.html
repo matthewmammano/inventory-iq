@@ -47,7 +47,7 @@
                     <h3>Review New Barcodes Requested</h3>
                     <p>{{ tasks.new_barcode_count }} barcode{% if tasks.new_barcode_count != 1 %}s{% endif %} need linked or ignored.</p>
                 </div>
-                <a class="warning-button" href="{{ url_for('admin.pending_upcs', squad=squad, return_to='tasks') }}">Review Barcodes</a>
+                <a class="warning-button" href="{{ url_for('admin.pending_upcs', squad=squad) }}">Review Barcodes</a>
             </div>
             {% endif %}
         {% endif %}

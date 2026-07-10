@@ -1032,6 +1032,13 @@ input[type="checkbox"]:focus-visible {
   box-shadow: inset 0 0 0 3px rgba(159, 52, 52, 0.28);
 }
 
+.required-marker {
+  display: inline !important;
+  color: var(--color-danger-border);
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .field-hint {
   display: block;
   width: fit-content;

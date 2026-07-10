@@ -17,8 +17,6 @@
   - Add date rows lazily: start with one, add one after a date is entered, stop at quantity/max allocation.
   - Keep expiration date inputs and quantity steppers aligned in compact two-column rows.
 
-- combine VIEW and EDIT data pages. keep look of VIEW page. just add a small edit icon next to each row (to edit OR delete) AND an ADD button at the end. EACH button press SHOULD open a modal, that way only ONE item edited / removed / added at a time and SAVED individually before next. easier UX/UI. also easier for text entry corrections and flash messages!
-
 - is there a way to make CUSTOM bad connection / 504 / etc pages WITHOUT railway / chrome defaults? save pages in cache for this?
   - Register a service worker on your frontend that intercepts fetch failures (also status checks) and serves a cached custom page instead of letting the browser/Railway show the default
 
