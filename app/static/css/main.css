@@ -534,6 +534,16 @@ td.danger-text {
   background: var(--color-white);
 }
 
+.expiration-total-mismatch {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
+  color: var(--color-danger-border);
+}
+
+.expiration-group-incomplete {
+  border-color: var(--color-danger-border);
+}
+
 .expiration-rows {
   display: grid;
   gap: 10px;
@@ -2038,11 +2048,25 @@ body.loading-active > *:not(.loading-overlay) {
   text-align: center;
 }
 
+.bulk-combined-table th[scope="row"] {
+  padding-top: 18px;
+  padding-bottom: 15px;
+}
+
 .bulk-combined-table td {
   position: relative;
   padding: 30px 0 15px 0;
   vertical-align: top;
   text-align: center;
+}
+
+.bulk-combined-table tbody tr td,
+.bulk-combined-table tbody tr th {
+  border-bottom: 2px solid var(--color-soft-line);
+}
+
+.bulk-combined-table .storage-group-start {
+  border-left: 2px solid var(--color-soft-line);
 }
 
 .bulk-combined-table td .field-hint {
@@ -2137,6 +2161,11 @@ body.loading-active > *:not(.loading-overlay) {
 .required-cell {
   background: var(--color-warning-bg);
   box-shadow: inset 0 0 0 2px rgba(165, 114, 16, 0.2);
+}
+
+tr.suggested-row > th,
+tr.suggested-row > td:not(.required-cell):not(.invalid-cell) {
+  background: var(--color-warning-bg);
 }
 
 .invalid-cell {

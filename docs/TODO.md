@@ -1,23 +1,27 @@
 # My TODO
 
+## MVP Priority — Fix These First (In Order)
+
+Must follow AGENTS.md exactly: modular, DRY, compact, clean, KISS, production-grade. Go one item at a time; each gets its own `type(scope): description` commit.
+
+1. DONE - **Count/Restock suggested-fillout highlighting** — On Count/Restock (bulk or single), highlight rows that are stale/suggested for fillout. Leaving a suggested Restock quantity blank must still be allowed.
+2. **Expiration-aware restock math** — Exclude EXPIRED quantity from `current_total` before computing suggested reorder amount in `BulkService._analyze_item`/`_calculate_order_amount` (`app/prediction/bulk_service.py`), since expired stock isn't real usable inventory. Leave "expiring soon" stock out of the math (still usable) — keep it informational-only on the restock page as it is today.
+3. **Expiration alert latency fix** — Remove the `expires_on is None` gate in `app/inventory/mutation_service.py` and `app/inventory/bulk_edit_service.py` so `sync_expiration_alerts` always runs after any expiration allocation save, not only "Other/Not Listed" entries. Today a restock/count against a known, specific expiring-soon date waits up to ~24h for the daily cron instead of alerting immediately. De-duplicate the repeated conditional into one shared helper.
+4. **Expiration entry: restrict RESTOCK to new dates only** — RESTOCK's interstitial (`app/templates/expiration_entry.html`, `app/inventory/expiration_ui_service.py`) should only allow entering brand-new expiration dates for the delivered delta, not reallocate into pre-existing known lots. COUNT (full reconciliation across all known lots + new dates + Other) and TAKEOUT/TRANSFER (select from existing lots + Other only) already behave correctly — no change needed there. While in this page, also apply: compact grouping across locations/storages, and keep expiration date inputs and quantity steppers aligned in compact two-column rows.
+5. **Dedupe `location_state_service.py` single-item vs. bulk queries** — `_load_location_rollup`/`_location_rollups_by_key` and `_location_state_settings`/`_load_location_state_rebuild_rows` run the same SQL shape twice (single-row vs. grouped-by-key). Consolidate each pair into one shared query so a future field change can't drift between the two paths.
+6. **Delete confirmed-dead CSS + fix broken variable** — Delete the CSS files under `app/static/css/core/`, `layouts/`, `components/`, `pages/` confirmed to have zero references anywhere in the codebase (`variables.css`, `reset.css`, `admin-layout.css`, `scan-storages.css`, `scanning.css`, `bulk-quantity.css`, `buttons.css`, `flash-messages.css`, `inventory-thresholds.css`, `navigation.css`, `tables.css`, `tags.css`, `auth.css`, `errors.css`, `index.css` — ~1,099 lines total). Fix `--color-surface-highlight` referenced in `app/static/css/components/item-trend-modal.css:82`, which is never defined anywhere — the trend-scale button's active-state highlight silently renders nothing.
+
+---
+
+- remove the (est.) from USAGE bc it already has it on COL HEADER!
+
 - Wanna unify the CSS / HTML items way way more for all pages. Make it SUPER reusable, but also modular with different ways in CSS and stuff to MAKE A HUGE CUT IN LINES OF CODE! I also want to add some animations, shadows, etc. Things pressable interactions should have, etc. PERFECTION! do research on BEST UI practices, how to do this, using MOSTLY PURE CSS/HTML (unless there is something else that could allow me to go EVEN FEWER LOC)! Think hard, suggest MORE styling things to add, make sure CSS / HTML documented in the main.css or whatever so ALWAYS things are reused when possible instead of new similar styling created! And DYNAMIC EVERYTHING for all devices!!!
-
-- Make sure when user does a COUNT or RESTOCK for ALL (or really anything)... each entry is highlighted to show if it is SUGGESTED FILLOUT or not (COUNTs that are stale)... BUT if they didn't enter a RESTOCK for that item or anything... they ARE ALLOWED to not enter it's count it is still highlighted and suggested tho!
-
-- Tighten ALL alert / stock updates / email logic together, clean, simple, minimal, best crons!
 
 - Make all code SUPER OO design pattern, line number restricted, files in folder SOFT restricted (for modules). Attempt to create MORE modules AND submodules. Attempt to make `__init__.py` files to be best practice (I think I should be included smth like exports I forget). Makes editing easier if less LOC per file. Restrict function LOC too AND depth! JUST GENERAL CLEANUP ALL!
 
 - Have IIQ logo AND Agency logo (both top corners... maybe)
 
 - Relook at the HELP docs, re-create all using a NEW agent call better. Make one for spam / important marking help on email accounts!
-
-- EXPIRATION
-  - How should expiration dates (FUTURE and CURRENTLY EXPIRED) affect the RESTOCK page and what suggested orderings are!? MATH! FIX THINK HOW!
-  - Expiration correction page polish:
-    - Group like items together across locations/storages with compact location/storage sub-rows.
-    - Add date rows lazily: start with one, add one after a date is entered, stop at quantity/max allocation.
-    - Keep expiration date inputs and quantity steppers aligned in compact two-column rows.
 
 - is there a way to make CUSTOM bad connection / 504 / etc pages WITHOUT railway / chrome defaults? save pages in cache for this?
   - Register a service worker on your frontend that intercepts fetch failures (also status checks) and serves a cached custom page instead of letting the browser/Railway show the default

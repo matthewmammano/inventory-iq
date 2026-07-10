@@ -134,6 +134,23 @@ def required_count_storage_ids(
     return get_required_count_storage_ids(session, agency_id, agency_location_id, [item.id for item in items], cutoff)
 
 
+def suggested_restock_item_ids(
+    session: Session,
+    agency_id: int,
+    agency_location_id: int,
+    items: list[Item],
+) -> set[int]:
+    """Return item IDs with a positive suggested reorder amount at this location."""
+    if not items:
+        return set()
+    item_ids = {item.id for item in items}
+    return {
+        row["item"].id
+        for row in BulkService.get_restock_analysis(session, agency_id, agency_location_id)
+        if row["item"].id in item_ids and (row["order_amount"] or 0) > 0
+    }
+
+
 def _sync_bulk_expirations(
     session: Session,
     logs,

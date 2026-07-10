@@ -61,7 +61,7 @@ def sync_expiration_lines_for_action(
     allocations: Sequence[ExpirationAllocation],
 ) -> None:
     """Attach expiration allocations to an action and update expiration balances."""
-    if action.item_id is None:
+    if action.item_id is None or not (action.item and action.item.expiration_tracking_enabled):
         return
     _validate_allocations(action, allocations)
     lines = [ActionLogExpirationLine(action_log=action, expires_on=line.expires_on, quantity=line.quantity) for line in allocations]
@@ -185,16 +185,19 @@ def _replace_storage_expiration_balances(
         )
     )
     now = utc_now()
+    quantity_by_date: dict[date, int] = {}
     for allocation in allocations:
         if allocation.expires_on is None:
             continue
+        quantity_by_date[allocation.expires_on] = quantity_by_date.get(allocation.expires_on, 0) + allocation.quantity
+    for expires_on, quantity in quantity_by_date.items():
         session.add(
             InventoryExpirationBalance(
                 agency_id=agency_id,
                 item_id=item_id,
                 storage_id=storage_id,
-                expires_on=allocation.expires_on,
-                quantity=allocation.quantity,
+                expires_on=expires_on,
+                quantity=quantity,
                 last_counted_at=counted_at,
                 updated_at=now,
             )

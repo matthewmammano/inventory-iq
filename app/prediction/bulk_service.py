@@ -72,6 +72,25 @@ class BulkService:
             raise
 
     @staticmethod
+    def get_order_amount_for_item(
+        session: Session,
+        agency_id: int,
+        agency_location_id: int,
+        item: Item,
+    ) -> int | None:
+        """Suggested reorder amount for one item at one location, for lightweight single-item surfaces (e.g. the scan screen)."""
+        agency_settings = session.get(Agency, agency_id)
+        state = BulkService._location_states_by_item_id(session, agency_id, agency_location_id, [item]).get(item.id)
+        last_counted_at = BulkService._last_counted_at_by_item_id(
+            session,
+            agency_id,
+            agency_location_id,
+            [item.id],
+            agency_settings.timezone if agency_settings else "UTC",
+        ).get(item.id)
+        return BulkService._analyze_item(item, agency_settings, state, last_counted_at)["order_amount"]
+
+    @staticmethod
     def get_location(session: Session, agency_id: int, agency_location_id: int) -> Location | None:
         return (
             session.execute(

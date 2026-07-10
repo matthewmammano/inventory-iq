@@ -36,6 +36,11 @@
         <div>
             <div class="unit">{{ item.increments }}</div>
             <div class="name">{{ item.name|bold_item_name }}</div>
+            {% if stale_count %}
+            <small class="field-hint field-hint-passive" data-count-stale>Count stale — recount suggested</small>
+            {% elif suggested_restock_amount %}
+            <small class="field-hint field-hint-passive" data-suggested-restock>Suggested restock: {{ suggested_restock_amount }}</small>
+            {% endif %}
         </div>
     </div>
 

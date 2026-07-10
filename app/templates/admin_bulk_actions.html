@@ -24,28 +24,31 @@
                     <tr>
                         <th rowspan="2">Item</th>
                         {% for storage in storages %}
-                        <th colspan="2">{{ storage.name }}</th>
+                        <th class="storage-group-start" colspan="2">{{ storage.name }}</th>
                         {% endfor %}
                     </tr>
                     <tr>
                         {% for storage in storages %}
-                        <th>Count</th>
+                        <th class="storage-group-start">Count</th>
                         <th>Restock</th>
                         {% endfor %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for row in rows %}
-                    <tr>
+                    <tr class="{% if row.stale or row.suggested_restock %}suggested-row{% endif %}">
                         <th scope="row">
                             {{ row.item.name|bold_item_name }}
+                            {% if row.suggested_restock %}
+                            <small class="field-hint field-hint-passive" data-suggested-restock>Suggested restock</small>
+                            {% endif %}
                             {% if row.expiration_tracking_enabled %}
                             <small class="field-hint field-hint-passive expiration-bulk-reminder" data-expiration-reminder>Keep nearby for expiration dates.</small>
                             {% endif %}
                         </th>
                         {% for cell in row.cells %}
                         <td
-                            class="{% if cell.count_required %}required-cell{% endif %}{% if cell.invalid %} invalid-cell{% endif %}"
+                            class="storage-group-start{% if cell.count_required %} required-cell{% endif %}{% if cell.invalid %} invalid-cell{% endif %}"
                             data-count-cell
                             data-count-required="{{ 1 if cell.count_required else 0 }}">
                             {% if cell.count_required %}
