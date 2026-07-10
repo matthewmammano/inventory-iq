@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from sqlalchemy.orm import Session
 
 from .bulk_location_service import save_bulk_location_count, save_bulk_location_restock
-from .expiration_service import ExpirationAllocation
+from .expiration_service import ExpirationAllocation, sync_expiration_alerts_after_save
 
 
 class BulkEditEmptyError(ValueError):
@@ -38,9 +38,6 @@ def save_bulk_edit(
     restock_logs = (
         save_bulk_location_restock(session, agency_id, agency_location_id, restocks, expiration_allocations_by_key or {}) if restocks else 0
     )
-    if any(allocation.expires_on is None for allocations in (expiration_allocations_by_key or {}).values() for allocation in allocations):
-        from app.alerts.alert_service import sync_expiration_alerts
-
-        sync_expiration_alerts(session, agency_id=agency_id)
+    sync_expiration_alerts_after_save(session, agency_id, any((expiration_allocations_by_key or {}).values()))
     session.commit()
     return BulkEditSaveResult(count_logs, restock_logs)

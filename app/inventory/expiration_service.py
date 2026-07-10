@@ -55,6 +55,15 @@ def known_expiration_options(
     )
 
 
+def sync_expiration_alerts_after_save(session: Session, agency_id: int, has_expiration_allocations: bool) -> None:
+    """Refresh expiration alerts immediately after saving allocations, instead of waiting for the daily audit cron."""
+    if not has_expiration_allocations:
+        return
+    from app.alerts.alert_service import sync_expiration_alerts
+
+    sync_expiration_alerts(session, agency_id=agency_id)
+
+
 def sync_expiration_lines_for_action(
     session: Session,
     action: ActionLog,
