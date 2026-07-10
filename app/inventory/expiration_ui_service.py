@@ -343,6 +343,9 @@ def _requires_expiration_entry(item: Item, spec: ExpirationEntrySpec) -> bool:
 
 
 def _expiration_options(session: Session, agency_id: int, spec: ExpirationEntrySpec) -> list[ExpirationOption]:
+    if spec.operation_type == OperationType.RESTOCK:
+        # A restock is a delivery: only new dates for the incoming quantity apply, never reallocating existing lots.
+        return []
     balances = known_expiration_options(session, agency_id, spec.item_id, spec.storage_id)
     return [
         ExpirationOption(

@@ -117,6 +117,14 @@ document.addEventListener("DOMContentLoaded", () => {
         return valid;
     }
 
+    function renderOtherHighlight(group) {
+        const otherRow = group.querySelector("[data-exp-other-row]");
+        const otherQty = otherRow?.querySelector("[data-exp-qty]");
+        if (!otherRow || !otherQty) return;
+        const discouraged = otherRow.dataset.expOtherDiscouraged === "1";
+        otherRow.classList.toggle("expiration-other-discouraged", discouraged && quantity(otherQty) > 0);
+    }
+
     function renderMinusButtons(group) {
         group.querySelectorAll("[data-exp-minus]").forEach((button) => {
             button.disabled = quantity(button.closest(".expiration-stepper")?.querySelector("[data-exp-qty]")) <= 0;
@@ -152,6 +160,7 @@ document.addEventListener("DOMContentLoaded", () => {
             totalLabel?.classList.toggle("expiration-total-mismatch", mismatch);
             group.classList.toggle("expiration-group-incomplete", mismatch);
             complete = rowsValid && complete && totalMatches;
+            renderOtherHighlight(group);
             renderMinusButtons(group);
             group.querySelectorAll("[data-exp-plus]").forEach((button) => {
                 button.disabled = total >= target;

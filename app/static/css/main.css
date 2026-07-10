@@ -474,6 +474,10 @@ td.danger-text {
   align-items: center;
 }
 
+.expiration-item-group .panel-body {
+  gap: 8px;
+}
+
 .expiration-form-compact {
   gap: 10px;
 }
@@ -485,10 +489,6 @@ td.danger-text {
 
 .expiration-form-compact .expiration-row {
   padding: 9px 10px;
-}
-
-.expiration-form-compact .expiration-rows {
-  gap: 8px;
 }
 
 .expiration-group-actions {
@@ -546,7 +546,7 @@ td.danger-text {
 
 .expiration-rows {
   display: grid;
-  gap: 10px;
+  gap: 8px;
 }
 
 .expiration-row {
@@ -597,6 +597,11 @@ td.danger-text {
 
 .expiration-other {
   background: #f4f0df;
+}
+
+.expiration-other.expiration-other-discouraged {
+  border-color: var(--color-danger-border);
+  background: var(--color-danger-bg);
 }
 
 .expiration-row-invalid {

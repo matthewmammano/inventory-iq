@@ -105,10 +105,15 @@
                     {% endif %}
 
                     {% if group.spec.allows_other %}
-                    <div class="expiration-row expiration-static-row expiration-other">
+                    {% set other_discouraged = group.spec.operation_type.is_count or group.spec.operation_type.is_restock %}
+                    <div class="expiration-row expiration-static-row expiration-other" data-exp-other-row data-exp-other-discouraged="{{ 1 if other_discouraged else 0 }}">
                         <div>
                             <strong>Other / Not Listed</strong>
-                            <small>Use only when the right expiration date cannot be selected or entered.</small>
+                            {% if other_discouraged %}
+                            <small>Not suggested if you have the actual date — using Other makes expiration tracking less accurate.</small>
+                            {% else %}
+                            <small>Only use this if none of the dates above match what's actually being taken.</small>
+                            {% endif %}
                         </div>
                         {{ expiration_stepper("exp_other_" ~ group.spec.key, 0, target, group.item.name ~ " other expiration quantity") }}
                     </div>
