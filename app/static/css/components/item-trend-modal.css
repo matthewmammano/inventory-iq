@@ -79,7 +79,7 @@
 
 .item-trend-scale-button.is-active {
   border-color: var(--color-primary-dark);
-  background: var(--color-surface-highlight);
+  background: var(--color-primary);
   color: var(--color-primary-dark);
 }
 
