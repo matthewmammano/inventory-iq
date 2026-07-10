@@ -1,6 +1,7 @@
 """Register shared HTML error pages for Flask."""
 
 from flask import Flask, render_template, request
+from flask_wtf.csrf import CSRFError
 from loguru import logger
 
 from app.shared.request_logging import log_missing_route
@@ -21,6 +22,14 @@ def register_error_handlers(app: Flask) -> None:
     def not_found(error):
         log_missing_route(request.path, request.method)
         return _err("Error", "Page Not Found", "The page you're looking for doesn't exist.", 404)
+
+    @app.errorhandler(CSRFError)
+    def csrf_error(error):
+        logger.warning(
+            "Request denied with CSRF error",
+            extra={"status_code": 400, "method": request.method, "path": request.path, "endpoint": request.endpoint},
+        )
+        return _err("Error", "Page Expired", "This page was left open too long. Refresh the page and try again.", 400)
 
     @app.errorhandler(403)
     def forbidden(error):

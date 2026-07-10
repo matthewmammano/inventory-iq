@@ -7,19 +7,19 @@ tags: Admins, Scanning
 
 ## The Difference
 
-Admin stock actions use the same inventory actions as scanning, but admins are not limited by guest permissions. That makes admin scanning better for corrections and setup.
+**Stock Actions**, in the Admin Panel, uses the same Count/Restock/Takeout/Transfer actions as guest scanning, but without the direction and permission limits guests have. That makes it the right tool for corrections, setup, and anything a guest's permissions do not allow.
 
 ## Admin Stock Actions
 
-- Count can correct the known current quantity.
-- Restock can record received stock.
-- Takeout can record stock leaving inventory.
-- Transfer can move stock between storages or locations.
+- **Count** corrects the current quantity to what you physically see.
+- **Restock** records received stock.
+- **Takeout** records stock leaving inventory.
+- **Transfer** moves stock between storages or locations.
 
 ## Guest Scans
 
-Guest scans should follow the normal workflow for routine activity. Guest options may be limited so accidental corrections or unwanted storage movement are less likely.
+Guests use the same four actions from the scan flow, but Guest Permissions (Settings page) can restrict which ones they see and which storage directions they can use, so accidental corrections or unwanted storage moves are less likely on a shared device.
 
 ## When To Use Admin Instead
 
-Use admin when you need to correct a count, choose a route guests cannot use, review a new barcode, or verify a workflow before others use it.
+Use Stock Actions when you need to correct a count, use a direction guests cannot, review a new barcode, or verify a workflow before guests start using it. See [Fixing A Wrong Item Count](fixing-wrong-item-count) for the most common correction case.

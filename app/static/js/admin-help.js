@@ -9,19 +9,16 @@ document.addEventListener("DOMContentLoaded", () => {
         element,
         index,
         tags: (element.dataset.helpTags || "").split("|"),
-        title: normalize(element.dataset.helpTitle),
-        summary: normalize(element.dataset.helpSummary),
-        search: normalize(element.dataset.helpSearch),
+        title: element.dataset.helpTitle || "",
+        summary: element.dataset.helpSummary || "",
+        search: element.dataset.helpSearch || "",
     }));
     const empty = document.querySelector("[data-help-empty]");
+    const fuse = buildSearch(articles);
     let selectedTag = "";
 
-    function normalize(value) {
-        return (value || "").toLowerCase().replace(/[^a-z0-9]+/g, " ").trim();
-    }
-
-    function queryTerms() {
-        return normalize(search.value).split(" ").filter(Boolean);
+    function matchesSelectedTag(article) {
+        return !selectedTag || article.tags.includes(selectedTag);
     }
 
     function updateTagButtons() {
@@ -32,48 +29,26 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    function termScore(article, term) {
-        if (article.title.split(" ").some((word) => word.startsWith(term))) return 90;
-        if (article.title.includes(term)) return 70;
-        if (article.tags.some((tag) => tag.includes(term))) return 55;
-        if (article.summary.includes(term)) return 35;
-        return article.search.includes(term) ? 10 : 0;
-    }
-
-    function matchesSelectedTag(article) {
-        return !selectedTag || article.tags.includes(selectedTag);
-    }
-
-    function searchScore(article, terms) {
-        if (terms.length === 0) return 0;
-
-        let score = 0;
-        for (const term of terms) {
-            const scoreForTerm = termScore(article, term);
-            if (scoreForTerm === 0) return -1;
-            score += scoreForTerm;
-        }
-        return score;
-    }
-
     function updateResults() {
-        const terms = queryTerms();
-        const filteredArticles = articles.map((article) => ({
-            ...article,
-            visible: matchesSelectedTag(article),
-            score: searchScore(article, terms),
-        })).map((article) => ({
-            ...article,
-            visible: article.visible && article.score >= 0,
-        }));
-        const orderedArticles = terms.length
-            ? [...filteredArticles].sort((first, second) => second.score - first.score || first.index - second.index)
-            : filteredArticles;
+        const query = search.value.trim();
+        const matches = query ? fuse.search(query) : null;
+        const scoreByIndex = new Map(matches ? matches.map((result) => [result.item.index, result.score ?? 0]) : []);
+
+        const ordered = query
+            ? [...articles].sort((first, second) => {
+                  const firstMatched = scoreByIndex.has(first.index);
+                  const secondMatched = scoreByIndex.has(second.index);
+                  if (firstMatched !== secondMatched) return firstMatched ? -1 : 1;
+                  if (firstMatched && secondMatched) return scoreByIndex.get(first.index) - scoreByIndex.get(second.index);
+                  return first.index - second.index;
+              })
+            : articles;
 
         let visibleCount = 0;
-        orderedArticles.forEach((article) => {
-            article.element.hidden = !article.visible;
-            visibleCount += Number(article.visible);
+        ordered.forEach((article) => {
+            const visible = matchesSelectedTag(article) && (!query || scoreByIndex.has(article.index));
+            article.element.hidden = !visible;
+            visibleCount += Number(visible);
             grid.appendChild(article.element);
         });
         empty.classList.toggle("hidden", visibleCount !== 0);
@@ -89,3 +64,27 @@ document.addEventListener("DOMContentLoaded", () => {
     search.addEventListener("input", updateResults);
     updateResults();
 });
+
+function buildSearch(articles) {
+    if (typeof Fuse !== "undefined") {
+        return new Fuse(articles, {
+            keys: [
+                { name: "title", weight: 0.5 },
+                { name: "tags", weight: 0.25 },
+                { name: "summary", weight: 0.15 },
+                { name: "search", weight: 0.1 },
+            ],
+            threshold: 0.35,
+            ignoreLocation: true,
+            includeScore: true,
+        });
+    }
+    return {
+        search: (query) => {
+            const normalized = query.toLowerCase();
+            return articles
+                .filter((article) => `${article.title} ${article.summary} ${article.tags.join(" ")} ${article.search}`.toLowerCase().includes(normalized))
+                .map((item) => ({ item, score: 0 }));
+        },
+    };
+}

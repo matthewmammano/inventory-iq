@@ -1,5 +1,9 @@
 # My TODO
 
+- Wanna unify the CSS / HTML items way way more for all pages. Make it SUPER reusable, but also modular with different ways in CSS and stuff to MAKE A HUGE CUT IN LINES OF CODE! I also want to add some animations, shadows, etc. Things pressable interactions should have, etc. PERFECTION! do research on BEST UI practices, how to do this, using MOSTLY PURE CSS/HTML (unless there is something else that could allow me to go EVEN FEWER LOC)! Think hard, suggest MORE styling things to add, make sure CSS / HTML documented in the main.css or whatever so ALWAYS things are reused when possible instead of new similar styling created! And DYNAMIC EVERYTHING for all devices!!!
+
+- Make sure when user does a COUNT or RESTOCK for ALL (or really anything)... each entry is highlighted to show if it is SUGGESTED FILLOUT or not (COUNTs that are stale)... BUT if they didn't enter a RESTOCK for that item or anything... they ARE ALLOWED to not enter it's count it is still highlighted and suggested tho!
+
 - Tighten ALL alert / stock updates / email logic together, clean, simple, minimal, best crons!
 
 - Make all code SUPER OO design pattern, line number restricted, files in folder SOFT restricted (for modules). Attempt to create MORE modules AND submodules. Attempt to make `__init__.py` files to be best practice (I think I should be included smth like exports I forget). Makes editing easier if less LOC per file. Restrict function LOC too AND depth! JUST GENERAL CLEANUP ALL!
@@ -8,15 +12,15 @@
 
 - Relook at the HELP docs, re-create all using a NEW agent call better. Make one for spam / important marking help on email accounts!
 
-- Expiration correction page polish:
-  - Group like items together across locations/storages with compact location/storage sub-rows.
-  - Add date rows lazily: start with one, add one after a date is entered, stop at quantity/max allocation.
-  - Keep expiration date inputs and quantity steppers aligned in compact two-column rows.
+- EXPIRATION
+  - How should expiration dates (FUTURE and CURRENTLY EXPIRED) affect the RESTOCK page and what suggested orderings are!? MATH! FIX THINK HOW!
+  - Expiration correction page polish:
+    - Group like items together across locations/storages with compact location/storage sub-rows.
+    - Add date rows lazily: start with one, add one after a date is entered, stop at quantity/max allocation.
+    - Keep expiration date inputs and quantity steppers aligned in compact two-column rows.
 
 - is there a way to make CUSTOM bad connection / 504 / etc pages WITHOUT railway / chrome defaults? save pages in cache for this?
   - Register a service worker on your frontend that intercepts fetch failures (also status checks) and serves a cached custom page instead of letting the browser/Railway show the default
-
-- How should expiration dates (FUTURE and CURRENTLY EXPIRED) affect the RESTOCK page and what suggested orderings are!? MATH! FIX THINK HOW!
 
 - design a better favicon, logo, front page for NON USERS!!! like an about page with features and everything!
 
@@ -42,9 +46,6 @@
   - MANDATORY:
     - Trends to promote the AI use, reviewed by ME beforehand, to describe how much benefit I am providing, etc.
 
-- add notification alert number (cached for 15 minutes OR until page open) for things like UPC unknowns, restock how many adviced (low WITHIN stock time), etc ADMIN PAGES
-  - like for restock advised add.
-
 - certain pages REQUIRE keyboard use (as touchscreen / on-screen keyboard not best UI). investigate restricting some pages to keyboard-only use and make sure it is clear to users that they need a keyboard for that page. how to do? how to NOT ban users with keyboard AND touchscreen, only non-keyboard users.
 
 - RAILWAY combine ENV vars and secrets into ONE place for all my COMPUTE (crons and web and DB) and make sure they are all in sync. maybe web-1. figure out which services even need which ENVs.
@@ -69,4 +70,4 @@
 
 - USER ID CARD SCANS for guest operations (for later accountability features).
 
-- Per-location item min/max/fallback usage overrides (bc BEACH has more calls then BORO for example).
+- Per-location item min/max/fallback usage overrides (bc BEACH has more calls then BORO for example). different reorder, nums needed, etc for ALL locations. WE NEVER rec transfers between locations, that is USER DISCREPENCY!

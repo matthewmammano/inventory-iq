@@ -1,25 +1,23 @@
 ---
 id: linking-new-barcodes
 title: Linking New Barcodes
-summary: Connect a new or alternate barcode to the correct item.
+summary: Connect a new or alternate barcode to the correct item from Pending UPCs.
 tags: Barcodes, Items
 ---
 
 ## What Linking Means
 
-Linking a barcode tells Inventory IQ that a scanned UPC belongs to an item. After it is linked, future scans of that barcode will open the item automatically.
+Linking a barcode tells Inventory IQ that a scanned UPC belongs to an existing item. After it is linked, every future scan of that barcode opens that item automatically, as a secondary UPC alongside its primary one.
 
 ## Common Reason
 
-The same inventory item may arrive with a different package, supplier, size label, or barcode. If it should count as the same inventory item, link the new UPC to the existing item.
+The same inventory item may arrive with a different package, supplier, size label, or barcode. If it should still count as the same inventory item, link the new UPC instead of creating a duplicate item.
 
 ## Link Carefully
 
-1. Review the scanned UPC.
+1. Open **Pending UPCs** and review the scanned UPC.
 2. Search for the correct existing item.
 3. Link only when you are sure the barcode represents that item.
-4. Scan again afterward if you want to confirm it opens correctly.
+4. Scan it again afterward to confirm it opens the right item.
 
-## Important
-
-Online lookup suggestions can help, but they are not proof. The admin decides what the barcode should mean in this inventory.
+> Online lookup suggestions shown on this page can help identify a product, but they are not proof of what it should count as in your inventory. The admin decides what a barcode means here — see [Handling Unknown Barcodes](handling-unknown-barcodes) for the full review flow.
