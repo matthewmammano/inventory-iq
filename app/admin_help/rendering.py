@@ -1,15 +1,15 @@
 """Small safe renderer for admin help article text.
 
 Supports a deliberately narrow markdown subset: headings (##/###), paragraphs,
-lists (-/1.), a callout line (> ), and two inline styles (**bold**, [text](url)).
-Everything else is escaped literally rather than silently dropped.
+lists (-/1.), a callout line (> ), and three inline styles (**bold**, `code`,
+[text](url)). Everything else is escaped literally rather than silently dropped.
 """
 
 import re
 
 from markupsafe import Markup, escape
 
-_INLINE_TOKEN = re.compile(r"\*\*(?P<bold>[^*]+)\*\*|\[(?P<text>[^\]]+)\]\((?P<url>[^)]+)\)")
+_INLINE_TOKEN = re.compile(r"\*\*(?P<bold>[^*]+)\*\*|`(?P<code>[^`]+)`|\[(?P<text>[^\]]+)\]\((?P<url>[^)]+)\)")
 
 
 def render_help_markdown(markdown: str) -> str:
@@ -98,6 +98,8 @@ def _render_inline(text: str) -> Markup:
         pieces.append(escape(text[last_end : match.start()]))
         if match.group("bold") is not None:
             pieces.append(Markup("<strong>{}</strong>").format(match.group("bold")))
+        elif match.group("code") is not None:
+            pieces.append(Markup("<code>{}</code>").format(match.group("code")))
         else:
             pieces.append(_render_link(match.group("text"), match.group("url")))
         last_end = match.end()
