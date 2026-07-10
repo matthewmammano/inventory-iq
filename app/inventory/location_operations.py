@@ -7,7 +7,7 @@ from app.auth.models import Storage
 from app.inventory.balance_service import build_location_quantity_rows, sync_balances_for_actions
 from app.inventory.constants import OperationType
 from app.inventory.models import ActionLog, Item
-from app.shared.clock import utc_now
+from app.shared.clock import utc_now_naive
 
 
 def get_location_storages(
@@ -48,7 +48,7 @@ def save_location_count(
     storages = get_location_storages(session, agency_id, agency_location_id)
     storage_ids = {storage.id for storage in storages}
     item_ids = _active_item_ids(session, agency_id)
-    now = utc_now()
+    now = utc_now_naive()
     logs = [
         ActionLog(
             agency_id=agency_id,
@@ -78,7 +78,7 @@ def save_location_restock(
     storages = get_location_storages(session, agency_id, agency_location_id)
     storage_ids = {storage.id for storage in storages}
     item_ids = _active_item_ids(session, agency_id)
-    now = utc_now()
+    now = utc_now_naive()
     logs = [
         ActionLog(
             agency_id=agency_id,

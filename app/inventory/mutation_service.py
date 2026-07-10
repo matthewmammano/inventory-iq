@@ -8,7 +8,7 @@ from app.auth.models import Storage
 from app.inventory.balance_service import sync_balances_for_actions
 from app.inventory.location_state_service import sync_location_states_for_actions
 from app.prediction.validation import validate_location_restock
-from app.shared.clock import utc_now
+from app.shared.clock import utc_now_naive
 from app.shared.database import managed_session
 
 from .constants import OperationType
@@ -169,7 +169,7 @@ def _storage_rows(
 
 
 def _touch_item_last_accessed(item: Item) -> None:
-    item.last_accessed = utc_now()
+    item.last_accessed = utc_now_naive()
 
 
 def _add_action_log(
@@ -190,7 +190,7 @@ def _add_action_log(
         to_storage_id=to_storage,
         quantity=quantity,
         admin_action=admin_action,
-        time_scanned=utc_now(),
+        time_scanned=utc_now_naive(),
     )
     session.add(action)
     session.flush()

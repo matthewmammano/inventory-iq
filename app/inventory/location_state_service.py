@@ -165,26 +165,9 @@ def _load_location_rollup(
     item_id: int,
     agency_location_id: int,
 ) -> LocationStateRollup:
-    row = session.execute(
-        select(
-            func.coalesce(func.sum(InventoryStorageBalance.quantity), 0),
-            func.max(InventoryStorageBalance.last_counted_at),
-            func.max(InventoryStorageBalance.updated_at),
-            func.max(InventoryStorageBalance.last_takeout_at),
-        )
-        .join(Storage, Storage.id == InventoryStorageBalance.storage_id)
-        .where(
-            InventoryStorageBalance.agency_id == agency_id,
-            InventoryStorageBalance.item_id == item_id,
-            Storage.location_id == agency_location_id,
-        )
-    ).one()
-    return LocationStateRollup(
-        total_quantity=int(row[0] or 0),
-        last_counted_at=row[1],
-        last_activity_at=row[2],
-        last_takeout_at=row[3],
-    )
+    key = ItemLocationKey(agency_id, item_id, agency_location_id)
+    rollups = _location_rollups_by_key(session, agency_id, item_id=item_id, agency_location_id=agency_location_id)
+    return rollups.get(key, _empty_location_rollup())
 
 
 def _empty_location_rollup() -> LocationStateRollup:
@@ -253,33 +236,25 @@ def _location_state_settings(
     item_id: int,
     agency_location_id: int,
 ) -> LocationStateSettings | None:
-    row = session.execute(
-        select(
-            Item.min_quantity,
-            Agency.lead_time_days,
-            Item.restock_delivery_days,
-            Item.prior_daily_usage,
-        )
-        .join(Agency, Agency.id == Item.agency_id)
-        .join(Location, Location.agency_id == Agency.id)
-        .where(
-            Agency.id == agency_id,
-            Item.id == item_id,
-            Item.active.is_(True),
-            Location.id == agency_location_id,
-        )
-    ).one_or_none()
-    if row is None:
-        return None
-    return LocationStateSettings(
-        min_quantity=int(row[0] or 0),
-        lead_time_days=effective_lead_time_days(row[1], row[2]),
-        restock_delivery_days=row[2],
-        prior_daily_usage=float(row[3] or 0),
-    )
+    key = ItemLocationKey(agency_id, item_id, agency_location_id)
+    settings_by_key = _location_state_settings_by_key(session, agency_id, item_id=item_id, agency_location_id=agency_location_id)
+    return settings_by_key.get(key)
 
 
 def _load_location_state_rebuild_rows(session: Session, agency_id: int | None) -> list[LocationStateRebuildInput]:
+    return [
+        LocationStateRebuildInput(key.agency_id, key.item_id, key.agency_location_id, settings)
+        for key, settings in _location_state_settings_by_key(session, agency_id).items()
+    ]
+
+
+def _location_state_settings_by_key(
+    session: Session,
+    agency_id: int | None,
+    *,
+    item_id: int | None = None,
+    agency_location_id: int | None = None,
+) -> dict[ItemLocationKey, LocationStateSettings]:
     stmt = (
         select(
             Item.agency_id,
@@ -297,20 +272,19 @@ def _load_location_state_rebuild_rows(session: Session, agency_id: int | None) -
     )
     if agency_id is not None:
         stmt = stmt.where(Item.agency_id == agency_id)
-    return [
-        LocationStateRebuildInput(
-            agency_id=row[0],
-            item_id=row[1],
-            agency_location_id=row[2],
-            settings=LocationStateSettings(
-                min_quantity=int(row[3] or 0),
-                lead_time_days=effective_lead_time_days(row[4], row[5]),
-                restock_delivery_days=row[5],
-                prior_daily_usage=float(row[6] or 0),
-            ),
+    if item_id is not None:
+        stmt = stmt.where(Item.id == item_id)
+    if agency_location_id is not None:
+        stmt = stmt.where(Location.id == agency_location_id)
+    return {
+        ItemLocationKey(row[0], row[1], row[2]): LocationStateSettings(
+            min_quantity=int(row[3] or 0),
+            lead_time_days=effective_lead_time_days(row[4], row[5]),
+            restock_delivery_days=row[5],
+            prior_daily_usage=float(row[6] or 0),
         )
         for row in session.execute(stmt).all()
-    ]
+    }
 
 
 def _state_rows_by_key(
@@ -327,6 +301,9 @@ def _state_rows_by_key(
 def _location_rollups_by_key(
     session: Session,
     agency_id: int | None,
+    *,
+    item_id: int | None = None,
+    agency_location_id: int | None = None,
 ) -> dict[ItemLocationKey, LocationStateRollup]:
     stmt = (
         select(
@@ -343,6 +320,10 @@ def _location_rollups_by_key(
     )
     if agency_id is not None:
         stmt = stmt.where(InventoryStorageBalance.agency_id == agency_id)
+    if item_id is not None:
+        stmt = stmt.where(InventoryStorageBalance.item_id == item_id)
+    if agency_location_id is not None:
+        stmt = stmt.where(Storage.location_id == agency_location_id)
     return {
         ItemLocationKey(row[0], row[1], row[2]): LocationStateRollup(
             total_quantity=int(row[3] or 0),
