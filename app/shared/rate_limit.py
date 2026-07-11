@@ -12,7 +12,7 @@ from flask_limiter.util import get_remote_address
 DEFAULT_LIMITS = ("200 per minute", "2000 per hour")
 AUTH_ATTEMPT_LIMITS = ("10 per minute", "50 per hour")
 
-limiter = Limiter(key_func=get_remote_address, default_limits=list(DEFAULT_LIMITS))
+limiter = Limiter(key_func=get_remote_address, default_limits=list(DEFAULT_LIMITS), storage_uri="memory://")
 
 
 def register_rate_limiting(app: Flask) -> None:

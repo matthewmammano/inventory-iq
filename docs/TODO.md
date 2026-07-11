@@ -1,18 +1,5 @@
 # My TODO
 
-## MVP Priority — Fix These First (In Order)
-
-Must follow AGENTS.md exactly: modular, DRY, compact, clean, KISS, production-grade. Go one item at a time; each gets its own `type(scope): description` commit.
-
-1. DONE - **Count/Restock suggested-fillout highlighting** — On Count/Restock (bulk or single), highlight rows that are stale/suggested for fillout. Leaving a suggested Restock quantity blank must still be allowed.
-2. DONE - **Expiration-aware restock math** — Exclude EXPIRED quantity from `current_total` before computing suggested reorder amount in `BulkService._analyze_item`/`_calculate_order_amount` (`app/prediction/bulk_service.py`), since expired stock isn't real usable inventory. Leave "expiring soon" stock out of the math (still usable) — keep it informational-only on the restock page as it is today.
-3. DONE - **Expiration alert latency fix** — Remove the `expires_on is None` gate in `app/inventory/mutation_service.py` and `app/inventory/bulk_edit_service.py` so `sync_expiration_alerts` always runs after any expiration allocation save, not only "Other/Not Listed" entries. Today a restock/count against a known, specific expiring-soon date waits up to ~24h for the daily cron instead of alerting immediately. De-duplicate the repeated conditional into one shared helper.
-4. DONE - **Expiration entry: restrict RESTOCK to new dates only** — RESTOCK's interstitial (`app/templates/expiration_entry.html`, `app/inventory/expiration_ui_service.py`) should only allow entering brand-new expiration dates for the delivered delta, not reallocate into pre-existing known lots. COUNT (full reconciliation across all known lots + new dates + Other) and TAKEOUT/TRANSFER (select from existing lots + Other only) already behave correctly — no change needed there. While in this page, also apply: compact grouping across locations/storages, and keep expiration date inputs and quantity steppers aligned in compact two-column rows.
-5. DONE - **Dedupe `location_state_service.py` single-item vs. bulk queries** — `_load_location_rollup`/`_location_rollups_by_key` and `_location_state_settings`/`_load_location_state_rebuild_rows` run the same SQL shape twice (single-row vs. grouped-by-key). Consolidate each pair into one shared query so a future field change can't drift between the two paths.
-6. DONE - **Delete confirmed-dead CSS + fix broken variable** — Delete the CSS files under `app/static/css/core/`, `layouts/`, `components/`, `pages/` confirmed to have zero references anywhere in the codebase (`variables.css`, `reset.css`, `admin-layout.css`, `scan-storages.css`, `scanning.css`, `bulk-quantity.css`, `buttons.css`, `flash-messages.css`, `inventory-thresholds.css`, `navigation.css`, `tables.css`, `tags.css`, `auth.css`, `errors.css`, `index.css` — ~1,099 lines total). Fix `--color-surface-highlight` referenced in `app/static/css/components/item-trend-modal.css:82`, which is never defined anywhere — the trend-scale button's active-state highlight silently renders nothing.
-
----
-
 - make url agency id instead of name!
 
 - remove the (est.) from USAGE bc it already has it on COL HEADER!
