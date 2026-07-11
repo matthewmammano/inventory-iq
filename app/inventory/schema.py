@@ -10,7 +10,7 @@ from pydantic import BaseModel, BeforeValidator, Field, ValidationInfo, field_va
 from app.shared.validation_types import ItemName, OptionalParsedInt, OptionalPositiveInt, Quantity, RequiredCountInput
 from app.shared.validators import validate_iso_date
 
-from .constants import OperationType
+from .constants import OperationType, VirtualLocation
 
 
 def _blank_to_none(value: Any) -> Any:
@@ -44,7 +44,7 @@ class ScanItemQuery(BaseModel):
     @model_validator(mode="after")
     def default_takeout_destination(self) -> "ScanItemQuery":
         if self.to_storage_id is None and not self.user_count_allow and not self.user_restock_allow:
-            self.to_storage_id = -1
+            self.to_storage_id = VirtualLocation.TAKEOUT
         return self
 
 

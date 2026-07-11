@@ -1,6 +1,6 @@
 """Constants and enums for inventory module."""
 
-from enum import StrEnum
+from enum import IntEnum, StrEnum, unique
 from typing import Final
 
 
@@ -57,9 +57,18 @@ UNKNOWN_UPC_STATUS_MESSAGES: Final[dict[UnknownUpcStatus, str]] = {
 }
 
 
-VIRTUAL_LOCATION_RESTOCK: Final[int] = -1
-VIRTUAL_LOCATION_COUNT: Final[int] = -2
-VIRTUAL_LOCATION_TAKEOUT: Final[int] = -1
+@unique
+class VirtualLocation(IntEnum):
+    """Sentinel `storage_id` values standing in for a real `Storage.id` in scan routing.
+
+    `@unique` makes it impossible to accidentally reuse a value across members, which
+    previously caused RESTOCK and TAKEOUT to silently collide at -1.
+    """
+
+    RESTOCK = -1
+    COUNT = -2
+    TAKEOUT = -3
+
 
 UPC_GENERATION_PREFIX: Final[str] = "042"
 UPC_LENGTH: Final[int] = 12

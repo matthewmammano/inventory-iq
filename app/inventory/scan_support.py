@@ -16,12 +16,7 @@ from app.auth.queries import get_agency_permissions, get_storage, list_locations
 from app.shared.html_formatting import bold_item_name
 from app.shared.validators import parse_optional_int
 
-from .constants import (
-    VIRTUAL_LOCATION_COUNT,
-    VIRTUAL_LOCATION_RESTOCK,
-    VIRTUAL_LOCATION_TAKEOUT,
-    OperationType,
-)
+from .constants import OperationType, VirtualLocation
 
 
 class ScanSurface(StrEnum):
@@ -114,15 +109,15 @@ def operation_from_storage_ids(
     from_storage_id: int | None,
     to_storage_id: int | None,
 ) -> tuple[OperationType, int | None, int | None]:
-    if from_storage_id == VIRTUAL_LOCATION_RESTOCK:
+    if from_storage_id == VirtualLocation.RESTOCK:
         return OperationType.RESTOCK, None, to_storage_id
-    if from_storage_id == VIRTUAL_LOCATION_COUNT:
+    if from_storage_id == VirtualLocation.COUNT:
         return OperationType.COUNT, None, to_storage_id
     if from_storage_id == to_storage_id:
         raise ValueError("Invalid operation parameters")
     if from_storage_id and from_storage_id > 0 and to_storage_id and to_storage_id > 0:
         return OperationType.TRANSFER, from_storage_id, to_storage_id
-    if from_storage_id and from_storage_id > 0 and to_storage_id == VIRTUAL_LOCATION_TAKEOUT:
+    if from_storage_id and from_storage_id > 0 and to_storage_id == VirtualLocation.TAKEOUT:
         return OperationType.TAKEOUT, from_storage_id, None
     raise ValueError("Invalid operation parameters")
 
@@ -135,10 +130,10 @@ def resolve_scan_location(
     session: Session | None = None,
 ):
     parsed_id = parse_optional_int(storage_id)
-    if parsed_id in (VIRTUAL_LOCATION_RESTOCK, VIRTUAL_LOCATION_COUNT):
+    if parsed_id in (VirtualLocation.RESTOCK, VirtualLocation.COUNT):
         return parsed_id
-    if takeout_allowed and parsed_id == VIRTUAL_LOCATION_TAKEOUT:
-        return VIRTUAL_LOCATION_TAKEOUT
+    if takeout_allowed and parsed_id == VirtualLocation.TAKEOUT:
+        return VirtualLocation.TAKEOUT
     return get_storage(parsed_id, agency_id, session) if parsed_id is not None else None
 
 
@@ -154,9 +149,9 @@ def validate_scan_route(
     if from_storage_id is None or to_storage_id is None:
         return "Invalid storage combination."
 
-    if from_storage_id == VIRTUAL_LOCATION_RESTOCK and not permissions.restock:
+    if from_storage_id == VirtualLocation.RESTOCK and not permissions.restock:
         return "RESTOCK is not allowed for this scan."
-    if from_storage_id == VIRTUAL_LOCATION_COUNT and not permissions.count:
+    if from_storage_id == VirtualLocation.COUNT and not permissions.count:
         return "COUNT is not allowed for this scan."
 
     choices = load_scan_storage_choices(agency_id, is_admin, session)
@@ -205,11 +200,11 @@ def storage_selection_subtitle(item_name: str) -> Markup:
 
 
 def format_scan_location_label(location, *, is_admin: bool, takeout_allowed: bool = False) -> str:
-    if location == VIRTUAL_LOCATION_RESTOCK:
+    if location == VirtualLocation.RESTOCK:
         return "RESTOCK"
-    if location == VIRTUAL_LOCATION_COUNT:
+    if location == VirtualLocation.COUNT:
         return "COUNT"
-    if takeout_allowed and location == VIRTUAL_LOCATION_TAKEOUT:
+    if takeout_allowed and location == VirtualLocation.TAKEOUT:
         return "TAKE"
     if not isinstance(location, Storage):
         return "Unknown"
@@ -331,9 +326,9 @@ def _single_from_id(
 ) -> int | None:
     choices = [storage.id for storage in from_storages]
     if permissions.restock:
-        choices.append(VIRTUAL_LOCATION_RESTOCK)
+        choices.append(VirtualLocation.RESTOCK)
     if permissions.count:
-        choices.append(VIRTUAL_LOCATION_COUNT)
+        choices.append(VirtualLocation.COUNT)
     return choices[0] if len(choices) == 1 else None
 
 
@@ -360,16 +355,16 @@ def _valid_from_ids(
 ) -> list[int]:
     choices = [storage.id for storage in from_storages]
     if permissions.restock and to_storages:
-        choices.append(VIRTUAL_LOCATION_RESTOCK)
+        choices.append(VirtualLocation.RESTOCK)
     if permissions.count and to_storages:
-        choices.append(VIRTUAL_LOCATION_COUNT)
+        choices.append(VirtualLocation.COUNT)
     return choices
 
 
 def _valid_to_ids(to_storages: list[Storage], from_storage_id: int | None) -> list[int]:
-    if from_storage_id in (VIRTUAL_LOCATION_RESTOCK, VIRTUAL_LOCATION_COUNT):
+    if from_storage_id in (VirtualLocation.RESTOCK, VirtualLocation.COUNT):
         return [storage.id for storage in to_storages]
     return [
-        VIRTUAL_LOCATION_TAKEOUT,
+        VirtualLocation.TAKEOUT,
         *(storage.id for storage in to_storages if storage.id != from_storage_id),
     ]

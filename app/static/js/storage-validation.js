@@ -21,8 +21,8 @@ document.addEventListener("DOMContentLoaded", () => {
         }
         return (
             fromVal.value === toVal.value
-            || (fromVal.value === "-2" && toVal.value === "-1")
-            || (fromVal.value === "-1" && toVal.value === "-1")
+            || (fromVal.value === "-2" && toVal.value === "-3")
+            || (fromVal.value === "-1" && toVal.value === "-3")
         );
     }
 
