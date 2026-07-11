@@ -162,7 +162,6 @@ class BulkService:
             "confidence_display": rounded_confidence_percent(state.confidence_percent if has_trained_trend and state else None),
             "daily_usage_rate": daily_usage,
             "usage_display": format_usage_rate(daily_usage),
-            "used_fallback": not has_trained_trend,
         }
 
     @staticmethod

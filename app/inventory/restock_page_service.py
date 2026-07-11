@@ -30,7 +30,6 @@ class RestockPageRow:
     confidence_display: int | None
     daily_usage_rate: float | None
     usage_display: str | None
-    used_fallback: bool
     current_total_class: str
     projected_total_class: str
     min_quantity_class: str
@@ -68,7 +67,6 @@ def _page_row(row: dict[str, Any], expiration_breakdown: ExpirationBreakdown | N
         confidence_display=row["confidence_display"],
         daily_usage_rate=row["daily_usage_rate"],
         usage_display=row["usage_display"],
-        used_fallback=row["used_fallback"],
         current_total_class=classes["current_total_class"],
         projected_total_class=classes.get("projected_total_class", ""),
         min_quantity_class=classes.get("min_quantity_class", ""),
