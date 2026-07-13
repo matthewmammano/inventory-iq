@@ -123,6 +123,7 @@ class AlertDefinition:
     stock_rank: int = 0
     discrete_event: bool = False
     resend_after: timedelta | None = None
+    countable: bool = True  # pluralize `label` with the summary tile count; False for uncountable phrases
 
     @property
     def color(self) -> str:
@@ -131,17 +132,17 @@ class AlertDefinition:
 
 ALERT_DEFINITIONS = {
     AlertType.STOCKOUT: AlertDefinition(
-        "stockouts", AlertSeverity.CRITICAL, NotificationPreferenceKey.STOCKOUT, stock_rank=400, resend_after=ALERT_RESEND_COOLDOWN
+        "stockout", AlertSeverity.CRITICAL, NotificationPreferenceKey.STOCKOUT, stock_rank=400, resend_after=ALERT_RESEND_COOLDOWN
     ),
     AlertType.STOCKOUT_FORECAST: AlertDefinition(
-        "predicted stockouts",
+        "predicted stockout",
         AlertSeverity.HIGH,
         NotificationPreferenceKey.STOCKOUT_FORECAST,
         stock_rank=300,
         resend_after=ALERT_RESEND_COOLDOWN,
     ),
     AlertType.LOW_STOCK: AlertDefinition(
-        "low stock", AlertSeverity.MEDIUM, NotificationPreferenceKey.LOW_STOCK, stock_rank=200, resend_after=ALERT_RESEND_COOLDOWN
+        "low stock", AlertSeverity.MEDIUM, NotificationPreferenceKey.LOW_STOCK, stock_rank=200, resend_after=ALERT_RESEND_COOLDOWN, countable=False
     ),
     AlertType.LOW_STOCK_FORECAST: AlertDefinition(
         "predicted low stock",
@@ -149,26 +150,45 @@ ALERT_DEFINITIONS = {
         NotificationPreferenceKey.LOW_STOCK_FORECAST,
         stock_rank=100,
         resend_after=ALERT_RESEND_COOLDOWN,
+        countable=False,
     ),
     AlertType.STALE_COUNT: AlertDefinition(
-        "stale counts", AlertSeverity.LOW, NotificationPreferenceKey.STALE_COUNT, discrete_event=True, resend_after=ALERT_RESEND_COOLDOWN
+        "stale count", AlertSeverity.LOW, NotificationPreferenceKey.STALE_COUNT, discrete_event=True, resend_after=ALERT_RESEND_COOLDOWN
     ),
-    AlertType.RARE_TAKEOUT: AlertDefinition("rare takeouts", AlertSeverity.LOW, NotificationPreferenceKey.RARE_TAKEOUT, discrete_event=True),
-    AlertType.UNKNOWN_UPC: AlertDefinition("unknown UPCs", AlertSeverity.LOW, discrete_event=True, resend_after=ALERT_RESEND_COOLDOWN),
-    AlertType.COUNT_ACTION: AlertDefinition("count activity", AlertSeverity.INFO, NotificationPreferenceKey.COUNT_ACTION, discrete_event=True),
-    AlertType.RESTOCK_ACTION: AlertDefinition("restock activity", AlertSeverity.INFO, NotificationPreferenceKey.RESTOCK_ACTION, discrete_event=True),
-    AlertType.TAKEOUT_ACTION: AlertDefinition("takeout activity", AlertSeverity.INFO, NotificationPreferenceKey.TAKEOUT_ACTION, discrete_event=True),
+    AlertType.RARE_TAKEOUT: AlertDefinition("rare takeout", AlertSeverity.LOW, NotificationPreferenceKey.RARE_TAKEOUT, discrete_event=True),
+    AlertType.UNKNOWN_UPC: AlertDefinition(
+        "unknown UPC", AlertSeverity.LOW, NotificationPreferenceKey.UNKNOWN_UPC, discrete_event=True, resend_after=ALERT_RESEND_COOLDOWN
+    ),
+    AlertType.COUNT_ACTION: AlertDefinition(
+        "count activity", AlertSeverity.INFO, NotificationPreferenceKey.COUNT_ACTION, discrete_event=True, countable=False
+    ),
+    AlertType.RESTOCK_ACTION: AlertDefinition(
+        "restock activity", AlertSeverity.INFO, NotificationPreferenceKey.RESTOCK_ACTION, discrete_event=True, countable=False
+    ),
+    AlertType.TAKEOUT_ACTION: AlertDefinition(
+        "takeout activity", AlertSeverity.INFO, NotificationPreferenceKey.TAKEOUT_ACTION, discrete_event=True, countable=False
+    ),
     AlertType.TRANSFER_ACTION: AlertDefinition(
-        "transfer activity", AlertSeverity.INFO, NotificationPreferenceKey.TRANSFER_ACTION, discrete_event=True
+        "transfer activity", AlertSeverity.INFO, NotificationPreferenceKey.TRANSFER_ACTION, discrete_event=True, countable=False
     ),
     AlertType.EXPIRED_STOCK: AlertDefinition(
-        "expired stock", AlertSeverity.HIGH, NotificationPreferenceKey.EXPIRED_STOCK, discrete_event=True, resend_after=ALERT_RESEND_COOLDOWN
+        "expired stock",
+        AlertSeverity.HIGH,
+        NotificationPreferenceKey.EXPIRED_STOCK,
+        discrete_event=True,
+        resend_after=ALERT_RESEND_COOLDOWN,
+        countable=False,
     ),
     AlertType.EXPIRING_SOON: AlertDefinition(
-        "expiring soon", AlertSeverity.MEDIUM, NotificationPreferenceKey.EXPIRING_SOON, discrete_event=True, resend_after=ALERT_RESEND_COOLDOWN
+        "expiring soon",
+        AlertSeverity.MEDIUM,
+        NotificationPreferenceKey.EXPIRING_SOON,
+        discrete_event=True,
+        resend_after=ALERT_RESEND_COOLDOWN,
+        countable=False,
     ),
     AlertType.EXPIRATION_COUNT_NEEDED: AlertDefinition(
-        "expiration counts needed",
+        "expiration count needed",
         AlertSeverity.LOW,
         NotificationPreferenceKey.EXPIRATION_COUNT_NEEDED,
         discrete_event=True,
@@ -188,7 +208,6 @@ STOCK_ALERT_TYPES = frozenset(STOCK_ALERT_RANK)
 PREFERENCE_BY_TYPE = {
     alert_type: definition.preference_key for alert_type, definition in ALERT_DEFINITIONS.items() if definition.preference_key is not None
 }
-LABEL_BY_TYPE = {alert_type: definition.label for alert_type, definition in ALERT_DEFINITIONS.items()}
 # Canonical display priority (stockout -> forecast -> low -> ... -> expiration), used to order email summary tiles.
 ALERT_TYPE_ORDER = {alert_type: index for index, alert_type in enumerate(ALERT_DEFINITIONS)}
 DISCRETE_EVENT_TYPES = {alert_type for alert_type, definition in ALERT_DEFINITIONS.items() if definition.discrete_event}

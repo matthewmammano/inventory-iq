@@ -13,9 +13,11 @@ from app.inventory.constants import OperationType
 from app.inventory.expiration_service import ExpirationAllocation, effective_expiration_notice_days, known_expiration_options
 from app.inventory.models import InventoryExpirationBalance, InventoryStorageBalance, Item
 from app.shared.clock import utc_now_naive
-from app.shared.validators import parse_non_negative_int
+from app.shared.validators import parse_non_negative_int, validate_plausible_date
 
 MAX_NEW_EXPIRATION_ROWS = 10
+EXPIRATION_DATE_MIN = date(2000, 1, 1)
+EXPIRATION_DATE_MAX_YEARS_AHEAD = 15  # p99 EMS shelf life
 
 
 @dataclass(frozen=True, slots=True)
@@ -445,6 +447,10 @@ def _date_value(value: str | None) -> date | None:
     if not value:
         return None
     try:
-        return date.fromisoformat(value)
+        parsed = date.fromisoformat(value)
     except ValueError as exc:
         raise ValueError("Enter expiration dates as YYYY-MM-DD.") from exc
+    today = utc_now_naive().date()
+    return validate_plausible_date(
+        parsed, "Expiration date", min_date=EXPIRATION_DATE_MIN, max_date=today.replace(year=today.year + EXPIRATION_DATE_MAX_YEARS_AHEAD)
+    )

@@ -13,11 +13,11 @@ from app.shared.email_client import (
     email_configured,
     send_email,
 )
-from app.shared.file_retention import keep_newest_files
+from app.shared.file_retention import keep_newest_groups
 
 from .schema import EmailBatch
 
-ALERT_FILE_RETENTION_COUNT = 10
+ALERT_FILE_RETENTION_COUNT = 10  # sent emails to keep (each is one html/txt pair plus any attachments)
 
 
 def deliver_batch(
@@ -94,4 +94,4 @@ def _alert_file_path() -> Path:
 
 
 def _prune_alert_files(alerts_dir: Path) -> None:
-    keep_newest_files(alerts_dir, "*_alert.*", ALERT_FILE_RETENTION_COUNT)
+    keep_newest_groups(alerts_dir, "*_alert.html", ALERT_FILE_RETENTION_COUNT)

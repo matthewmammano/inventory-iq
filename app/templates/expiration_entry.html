@@ -22,7 +22,7 @@
 {% macro new_expiration_row(group, index) -%}
 <div class="expiration-row expiration-date-row" data-exp-new-row>
     <span class="expiration-date-label">Expiration Date</span>
-    <input class="expiration-date-input" name="exp_new_date_{{ group.spec.key }}_{{ index }}" {{ validation_attrs("iso_date") }}>
+    <input class="expiration-date-input" name="exp_new_date_{{ group.spec.key }}_{{ index }}" {{ validation_attrs("iso_date", min_date="2000-01-01") }}>
     {{ expiration_stepper("exp_new_qty_" ~ group.spec.key ~ "_" ~ index, 0, group.spec.quantity, group.item.name ~ " new expiration quantity") }}
     <small class="field-hint expiration-date-warning hidden" data-exp-date-warning>Enter an expiration date for this quantity.</small>
 </div>

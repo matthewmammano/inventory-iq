@@ -187,3 +187,10 @@ def validate_iso_date(value: str, field_name: str) -> date:
         return date.fromisoformat(value)
     except ValueError as exc:
         raise ValueError(f"{field_name} must be a valid date.") from exc
+
+
+def validate_plausible_date(value: date, field_name: str, *, min_date: date, max_date: date) -> date:
+    """Reject dates outside a plausible range (catches year typos like 0026 for 2026)."""
+    if value < min_date or value > max_date:
+        raise ValueError(f"{field_name} must be between {min_date.isoformat()} and {max_date.isoformat()}.")
+    return value

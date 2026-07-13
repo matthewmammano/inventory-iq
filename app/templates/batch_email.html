@@ -147,7 +147,7 @@
 
     {% for section in batch.sections %}
       <div class="panel" style="border-top: 4px solid {{ section.color }};">
-        <span class="section-count">{{ section.rows|length }} row{% if section.rows|length != 1 %}s{% endif %}</span>
+        <span class="section-count">{{ section.rows|length }} {{ "row"|pluralize(section.rows|length) }}</span>
         <h2 style="color: {{ section.color }};">{{ section.title }}</h2>
         <p class="note">{{ section.note }}</p>
         <div class="table-scroll">

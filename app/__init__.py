@@ -31,6 +31,7 @@ from app.shared.model_registry import import_model_modules
 from app.shared.rate_limit import register_rate_limiting
 from app.shared.request_logging import register_request_logging
 from app.shared.security_headers import register_security_headers
+from app.shared.text_formatting import pluralize
 
 csrf = CSRFProtect()
 
@@ -137,6 +138,7 @@ def _register_blueprints(app: Flask) -> None:
 
 def _register_template_filters(app: Flask) -> None:
     app.add_template_filter(bold_item_name, "bold_item_name")
+    app.add_template_filter(pluralize, "pluralize")
     app.add_template_global(validation_attrs, "validation_attrs")
 
     @app.template_filter("image_src")

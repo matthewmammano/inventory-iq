@@ -22,6 +22,7 @@ class NotificationPreferenceKey(StrEnum):
     RESTOCK_ACTION = "RESTOCK_ACTION"
     TAKEOUT_ACTION = "TAKEOUT_ACTION"
     TRANSFER_ACTION = "TRANSFER_ACTION"
+    UNKNOWN_UPC = "UNKNOWN_UPC"
     EXPIRED_STOCK = "EXPIRED_STOCK"
     EXPIRING_SOON = "EXPIRING_SOON"
     EXPIRATION_COUNT_NEEDED = "EXPIRATION_COUNT_NEEDED"
@@ -118,6 +119,7 @@ NOTIFICATION_PREFERENCES = (
     NotificationPreference(NotificationPreferenceKey.RESTOCK_ACTION, "alert_for_restock", "Restock", NotificationPreferenceGroup.ALERT, True),
     NotificationPreference(NotificationPreferenceKey.TAKEOUT_ACTION, "alert_for_takeout", "Takeout", NotificationPreferenceGroup.ALERT, False),
     NotificationPreference(NotificationPreferenceKey.TRANSFER_ACTION, "alert_for_transfer", "Transfer", NotificationPreferenceGroup.ALERT, False),
+    NotificationPreference(NotificationPreferenceKey.UNKNOWN_UPC, "alert_for_unknown_upc", "Unknown UPC", NotificationPreferenceGroup.ALERT, True),
     NotificationPreference(NotificationPreferenceKey.EXPIRED_STOCK, "alert_for_expired_stock", "Expired", NotificationPreferenceGroup.ALERT, True),
     NotificationPreference(NotificationPreferenceKey.EXPIRING_SOON, "alert_for_expiring_soon", "Expiring", NotificationPreferenceGroup.ALERT, True),
     NotificationPreference(

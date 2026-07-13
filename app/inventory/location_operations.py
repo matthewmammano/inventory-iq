@@ -29,6 +29,26 @@ def get_location_storages(
     )
 
 
+def get_locations_storages(
+    session: Session,
+    agency_id: int,
+    agency_location_ids: list[int],
+) -> list[Storage]:
+    """Return storages for a set of locations, e.g. a recipient's location filter."""
+    return list(
+        session.execute(
+            select(Storage)
+            .where(
+                Storage.agency_id == agency_id,
+                Storage.location_id.in_(agency_location_ids),
+            )
+            .order_by(Storage.name)
+        )
+        .scalars()
+        .all()
+    )
+
+
 def build_location_count_rows(
     session: Session,
     agency_id: int,
