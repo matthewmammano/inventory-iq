@@ -3,47 +3,47 @@
 {% block title %}Admin Panel{% endblock %}
 {% block header_title %}Admin Panel{% endblock %}
 {% block sub_title %}{{ panel_subtitle }}{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('guest.index', squad=squad) }}">Exit Admin</a>{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('guest.index', agency_id=agency_id) }}">Exit Admin</a>{% endblock %}
 
 {% block content %}
 <section class="grid admin-menu">
-    <a class="card" href="{{ url_for('admin.admin_data', squad=squad) }}">
+    <a class="card" href="{{ url_for('admin.admin_data', agency_id=agency_id) }}">
         <h2>Data</h2>
         <p>View, add, edit, or remove items, tags, and notifications.</p>
     </a>
-    <a class="card" href="{{ url_for('admin.pending_upcs', squad=squad) }}">
+    <a class="card" href="{{ url_for('admin.pending_upcs', agency_id=agency_id) }}">
         <h2>Pending UPCs</h2>
         <p>Link, ignore, or remove unrecognized barcodes.</p>
     </a>
-    <a class="card" href="{{ url_for('admin.admin_scan_items', squad=squad) }}">
+    <a class="card" href="{{ url_for('admin.admin_scan_items', agency_id=agency_id) }}">
         <h2>Stock Actions</h2>
         <p>Count, restock, take out, or transfer inventory.</p>
     </a>
-    <a class="card" href="{{ url_for('admin.restock', squad=squad) }}">
+    <a class="card" href="{{ url_for('admin.restock', agency_id=agency_id) }}">
         <h2>Restock</h2>
         <p>Generate reorder recommendations.</p>
     </a>
-    <a class="card" href="{{ url_for('admin.bulk_actions', squad=squad) }}">
+    <a class="card" href="{{ url_for('admin.bulk_actions', agency_id=agency_id) }}">
         <h2>Bulk Action</h2>
         <p>Count or receive stock by location.</p>
     </a>
-    <a class="card" href="{{ url_for('admin.print_labels', squad=squad) }}">
+    <a class="card" href="{{ url_for('admin.print_labels', agency_id=agency_id) }}">
         <h2>Print Labels</h2>
         <p>Print shelf cards with item names and UPCs.</p>
     </a>
-    <a class="card" href="{{ url_for('admin.inventory_counts', squad=squad) }}">
+    <a class="card" href="{{ url_for('admin.inventory_counts', agency_id=agency_id) }}">
         <h2>Inventory Levels</h2>
         <p>Review counts across locations.</p>
     </a>
-    <a class="card" href="{{ url_for('admin.admin_history', squad=squad) }}">
+    <a class="card" href="{{ url_for('admin.admin_history', agency_id=agency_id) }}">
         <h2>View History</h2>
         <p>See all past inventory changes.</p>
     </a>
-    <a class="card" href="{{ url_for('admin.settings_page', squad=squad) }}">
+    <a class="card" href="{{ url_for('admin.settings_page', agency_id=agency_id) }}">
         <h2>Settings</h2>
         <p>Squad permissions and alert thresholds.</p>
     </a>
-    <a class="card" href="{{ url_for('admin.admin_help', squad=squad) }}">
+    <a class="card" href="{{ url_for('admin.admin_help', agency_id=agency_id) }}">
         <h2>Help Center</h2>
         <p>Read short answers for common admin questions.</p>
     </a>

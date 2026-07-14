@@ -38,13 +38,13 @@ from app.shared.constants import SAVE_RETRY_MESSAGE
 from app.shared.database import get_session
 
 
-@bp.route("/<squad>/admin-panel/data")
-def admin_data(squad: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/data")
+def admin_data(agency_id: int) -> Any:
     with get_session() as s:
         context = _admin_data_context(s, current_user.id)
     return render_template(
         "admin_data.html",
-        squad=squad,
+        agency_id=agency_id,
         active_tab=request.args.get("tab", "items"),
         alert_email_frequency_choices=ALERT_EMAIL_FREQUENCY_CHOICES,
         notification_alert_fields=ALERT_NOTIFICATION_FIELDS,
@@ -68,91 +68,91 @@ def _admin_data_context(session: Session, agency_id: int) -> dict[str, Any]:
     }
 
 
-def _redirect_to_tab(squad: str, tab: str) -> Any:
-    return redirect(url_for("admin.admin_data", squad=squad, tab=tab))
+def _redirect_to_tab(agency_id: int, tab: str) -> Any:
+    return redirect(url_for("admin.admin_data", agency_id=agency_id, tab=tab))
 
 
-@bp.route("/<squad>/admin-panel/data/items", methods=["POST"])
-def admin_create_item(squad: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/data/items", methods=["POST"])
+def admin_create_item(agency_id: int) -> Any:
     return _save_row(
-        squad,
+        agency_id,
         "items",
         lambda item: f'Item "{item.name}" added.',
         lambda s: create_item(s, current_user.id, AdminItemForm.model_validate(item_form_values(request.form))),
     )
 
 
-@bp.route("/<squad>/admin-panel/data/items/<int:item_id>", methods=["POST"])
-def admin_update_item(squad: str, item_id: int) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/data/items/<int:item_id>", methods=["POST"])
+def admin_update_item(agency_id: int, item_id: int) -> Any:
     return _save_row(
-        squad,
+        agency_id,
         "items",
         lambda item: f'Item "{item.name}" saved.',
         lambda s: update_item(s, current_user.id, item_id, AdminItemForm.model_validate(item_form_values(request.form))),
     )
 
 
-@bp.route("/<squad>/admin-panel/data/items/<int:item_id>/delete", methods=["POST"])
-def admin_delete_item(squad: str, item_id: int) -> Any:
-    return _save_row(squad, "items", lambda item: f'Item "{item.name}" removed.', lambda s: delete_item(s, current_user.id, item_id))
+@bp.route("/<int:agency_id>/admin-panel/data/items/<int:item_id>/delete", methods=["POST"])
+def admin_delete_item(agency_id: int, item_id: int) -> Any:
+    return _save_row(agency_id, "items", lambda item: f'Item "{item.name}" removed.', lambda s: delete_item(s, current_user.id, item_id))
 
 
-@bp.route("/<squad>/admin-panel/data/tags", methods=["POST"])
-def admin_create_tag(squad: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/data/tags", methods=["POST"])
+def admin_create_tag(agency_id: int) -> Any:
     return _save_row(
-        squad,
+        agency_id,
         "tags",
         lambda tag: f'Tag "{tag.tag_name}" added.',
         lambda s: create_tag(s, current_user.id, AdminTagForm.model_validate(tag_form_values(request.form))),
     )
 
 
-@bp.route("/<squad>/admin-panel/data/tags/<int:tag_id>", methods=["POST"])
-def admin_update_tag(squad: str, tag_id: int) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/data/tags/<int:tag_id>", methods=["POST"])
+def admin_update_tag(agency_id: int, tag_id: int) -> Any:
     return _save_row(
-        squad,
+        agency_id,
         "tags",
         lambda tag: f'Tag "{tag.tag_name}" saved.',
         lambda s: update_tag(s, current_user.id, tag_id, AdminTagForm.model_validate(tag_form_values(request.form))),
     )
 
 
-@bp.route("/<squad>/admin-panel/data/tags/<int:tag_id>/delete", methods=["POST"])
-def admin_delete_tag(squad: str, tag_id: int) -> Any:
-    return _save_row(squad, "tags", lambda tag: f'Tag "{tag.tag_name}" removed.', lambda s: delete_tag(s, current_user.id, tag_id))
+@bp.route("/<int:agency_id>/admin-panel/data/tags/<int:tag_id>/delete", methods=["POST"])
+def admin_delete_tag(agency_id: int, tag_id: int) -> Any:
+    return _save_row(agency_id, "tags", lambda tag: f'Tag "{tag.tag_name}" removed.', lambda s: delete_tag(s, current_user.id, tag_id))
 
 
-@bp.route("/<squad>/admin-panel/data/notifications", methods=["POST"])
-def admin_create_notification(squad: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/data/notifications", methods=["POST"])
+def admin_create_notification(agency_id: int) -> Any:
     return _save_row(
-        squad,
+        agency_id,
         "notifications",
         lambda recipient: f'Notification "{recipient.email}" added.',
         lambda s: create_notification(s, current_user.id, AdminNotificationForm.model_validate(notification_form_values(request.form))),
     )
 
 
-@bp.route("/<squad>/admin-panel/data/notifications/<int:recipient_id>", methods=["POST"])
-def admin_update_notification(squad: str, recipient_id: int) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/data/notifications/<int:recipient_id>", methods=["POST"])
+def admin_update_notification(agency_id: int, recipient_id: int) -> Any:
     return _save_row(
-        squad,
+        agency_id,
         "notifications",
         lambda recipient: f'Notification "{recipient.email}" saved.',
         lambda s: update_notification(s, current_user.id, recipient_id, AdminNotificationForm.model_validate(notification_form_values(request.form))),
     )
 
 
-@bp.route("/<squad>/admin-panel/data/notifications/<int:recipient_id>/delete", methods=["POST"])
-def admin_delete_notification(squad: str, recipient_id: int) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/data/notifications/<int:recipient_id>/delete", methods=["POST"])
+def admin_delete_notification(agency_id: int, recipient_id: int) -> Any:
     return _save_row(
-        squad,
+        agency_id,
         "notifications",
         lambda recipient: f'Notification "{recipient.email}" removed.',
         lambda s: delete_notification(s, current_user.id, recipient_id),
     )
 
 
-def _save_row(squad: str, tab: str, success_message: Callable[[Any], str], action: Callable[[Session], Any]) -> Any:
+def _save_row(agency_id: int, tab: str, success_message: Callable[[Any], str], action: Callable[[Session], Any]) -> Any:
     try:
         with get_session() as s:
             result = action(s)
@@ -164,4 +164,4 @@ def _save_row(squad: str, tab: str, success_message: Callable[[Any], str], actio
     except Exception:
         logger.exception("Admin data save failed unexpectedly", extra={"tab": tab})
         flash(SAVE_RETRY_MESSAGE, "error")
-    return _redirect_to_tab(squad, tab)
+    return _redirect_to_tab(agency_id, tab)

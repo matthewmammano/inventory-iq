@@ -3,7 +3,7 @@
 {% block title %}Data{% endblock %}
 {% block header_title %}Data{% endblock %}
 {% block sub_title %}View, add, edit, or remove items, locations, tags, and notifications{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>{% endblock %}
 
 {% macro edit_icon() -%}
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -159,7 +159,7 @@
         <div class="modal-backdrop hidden" id="item-modal-{{ item.id }}">
             <div class="modal admin-data-modal">
                 <h2>Edit Item</h2>
-                <form method="POST" action="{{ url_for('admin.admin_update_item', squad=squad, item_id=item.id) }}" novalidate>
+                <form method="POST" action="{{ url_for('admin.admin_update_item', agency_id=agency_id, item_id=item.id) }}" novalidate>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {{ item_fields(item) }}
                     <div class="button-row">
@@ -168,7 +168,7 @@
                         {{ delete_trigger("item-modal-" ~ item.id, "Item") }}
                     </div>
                 </form>
-                {{ delete_confirm_panel("item-modal-" ~ item.id, url_for('admin.admin_delete_item', squad=squad, item_id=item.id), "Item") }}
+                {{ delete_confirm_panel("item-modal-" ~ item.id, url_for('admin.admin_delete_item', agency_id=agency_id, item_id=item.id), "Item") }}
             </div>
         </div>
         {% endfor %}
@@ -176,7 +176,7 @@
         <div class="modal-backdrop hidden" id="item-modal-add">
             <div class="modal admin-data-modal">
                 <h2>Add Item</h2>
-                <form method="POST" action="{{ url_for('admin.admin_create_item', squad=squad) }}" novalidate>
+                <form method="POST" action="{{ url_for('admin.admin_create_item', agency_id=agency_id) }}" novalidate>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {{ item_fields() }}
                     <div class="button-row">
@@ -240,7 +240,7 @@
         <div class="modal-backdrop hidden" id="tag-modal-{{ tag.id }}">
             <div class="modal admin-data-modal">
                 <h2>Edit Tag</h2>
-                <form method="POST" action="{{ url_for('admin.admin_update_tag', squad=squad, tag_id=tag.id) }}" novalidate>
+                <form method="POST" action="{{ url_for('admin.admin_update_tag', agency_id=agency_id, tag_id=tag.id) }}" novalidate>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {{ tag_fields(tag) }}
                     <div class="button-row">
@@ -249,7 +249,7 @@
                         {{ delete_trigger("tag-modal-" ~ tag.id, "Tag") }}
                     </div>
                 </form>
-                {{ delete_confirm_panel("tag-modal-" ~ tag.id, url_for('admin.admin_delete_tag', squad=squad, tag_id=tag.id), "Tag") }}
+                {{ delete_confirm_panel("tag-modal-" ~ tag.id, url_for('admin.admin_delete_tag', agency_id=agency_id, tag_id=tag.id), "Tag") }}
             </div>
         </div>
         {% endfor %}
@@ -257,7 +257,7 @@
         <div class="modal-backdrop hidden" id="tag-modal-add">
             <div class="modal admin-data-modal">
                 <h2>Add Tag</h2>
-                <form method="POST" action="{{ url_for('admin.admin_create_tag', squad=squad) }}" novalidate>
+                <form method="POST" action="{{ url_for('admin.admin_create_tag', agency_id=agency_id) }}" novalidate>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {{ tag_fields() }}
                     <div class="button-row">
@@ -297,7 +297,7 @@
         <div class="modal-backdrop hidden" id="notif-modal-{{ recipient.id }}">
             <div class="modal admin-data-modal">
                 <h2>Edit Notification</h2>
-                <form method="POST" action="{{ url_for('admin.admin_update_notification', squad=squad, recipient_id=recipient.id) }}" novalidate>
+                <form method="POST" action="{{ url_for('admin.admin_update_notification', agency_id=agency_id, recipient_id=recipient.id) }}" novalidate>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {{ notification_fields(recipient) }}
                     <div class="button-row">
@@ -306,7 +306,7 @@
                         {{ delete_trigger("notif-modal-" ~ recipient.id, "Notification") }}
                     </div>
                 </form>
-                {{ delete_confirm_panel("notif-modal-" ~ recipient.id, url_for('admin.admin_delete_notification', squad=squad, recipient_id=recipient.id), "Notification") }}
+                {{ delete_confirm_panel("notif-modal-" ~ recipient.id, url_for('admin.admin_delete_notification', agency_id=agency_id, recipient_id=recipient.id), "Notification") }}
             </div>
         </div>
         {% endfor %}
@@ -314,7 +314,7 @@
         <div class="modal-backdrop hidden" id="notif-modal-add">
             <div class="modal admin-data-modal">
                 <h2>Add Notification</h2>
-                <form method="POST" action="{{ url_for('admin.admin_create_notification', squad=squad) }}" novalidate>
+                <form method="POST" action="{{ url_for('admin.admin_create_notification', agency_id=agency_id) }}" novalidate>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                     {{ notification_fields() }}
                     <div class="button-row">

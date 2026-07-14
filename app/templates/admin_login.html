@@ -2,8 +2,8 @@
 
 {% block title %}Admin Login{% endblock %}
 {% block header_title %}Admin Login{% endblock %}
-{% block sub_title %}Enter the PIN for {{ squad }}{% endblock %}
-{% block header_right %}<a class="exit" href="{{ url_for('guest.index', squad=squad) }}">Exit Admin</a>{% endblock %}
+{% block sub_title %}Enter the PIN for {{ agency_name }}{% endblock %}
+{% block header_right %}<a class="exit" href="{{ url_for('guest.index', agency_id=agency_id) }}">Exit Admin</a>{% endblock %}
 {% block main_class %}pin-shell{% endblock %}
 
 {% block content %}

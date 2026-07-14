@@ -30,24 +30,24 @@ class ScanSurface(StrEnum):
     def endpoint(self, endpoint_name: str) -> str:
         return f"{self.value.lower()}.{endpoint_name}"
 
-    def fallback_url(self, squad: str) -> str:
+    def fallback_url(self, agency_id: int) -> str:
         if self == ScanSurface.ADMIN:
-            return url_for("admin.admin_scan_items", squad=squad)
-        return url_for("guest.index", squad=squad)
+            return url_for("admin.admin_scan_items", agency_id=agency_id)
+        return url_for("guest.index", agency_id=agency_id)
 
-    def scan_item_error_url(self, squad: str) -> str:
+    def scan_item_error_url(self, agency_id: int) -> str:
         if self == ScanSurface.ADMIN:
-            return url_for("admin.admin_panel", squad=squad)
-        return url_for("guest.index", squad=squad)
+            return url_for("admin.admin_panel", agency_id=agency_id)
+        return url_for("guest.index", agency_id=agency_id)
 
-    def scan_item_cancel_url(self, squad: str, from_storage_id: Any, to_storage_id: Any) -> str:
+    def scan_item_cancel_url(self, agency_id: int, from_storage_id: Any, to_storage_id: Any) -> str:
         if self == ScanSurface.ADMIN:
-            return self.admin_scan_items_url(squad, from_storage_id=from_storage_id, to_storage_id=to_storage_id)
-        return url_for("guest.index", squad=squad)
+            return self.admin_scan_items_url(agency_id, from_storage_id=from_storage_id, to_storage_id=to_storage_id)
+        return url_for("guest.index", agency_id=agency_id)
 
     def admin_scan_items_url(
         self,
-        squad: str,
+        agency_id: int,
         *,
         from_storage_id: Any,
         to_storage_id: Any,
@@ -55,7 +55,7 @@ class ScanSurface(StrEnum):
     ) -> str:
         return url_for(
             "admin.admin_scan_items",
-            squad=squad,
+            agency_id=agency_id,
             from_storage_id=from_storage_id,
             to_storage_id=to_storage_id,
             scan_error=scan_error,
@@ -75,14 +75,14 @@ class ScanStorageChoices:
     default_location_id: int | None
 
 
-def get_scan_permissions(squad: str, *, is_admin: bool = False) -> ScanPermissions:
+def get_scan_permissions(agency_id: int, *, is_admin: bool = False) -> ScanPermissions:
     if is_admin:
         return ScanPermissions(count=True, restock=True)
     try:
-        row = get_agency_permissions(squad)
+        row = get_agency_permissions(agency_id)
         return ScanPermissions(count=row.count, restock=row.restock) if row else ScanPermissions(False, False)
     except Exception:
-        logger.exception("Scan permissions lookup failed", extra={"squad": squad, "admin": is_admin})
+        logger.exception("Scan permissions lookup failed", extra={"agency_id": agency_id, "admin": is_admin})
         return ScanPermissions(count=False, restock=False)
 
 
@@ -285,7 +285,7 @@ def can_skip_storage_selection(
 
 def redirect_to_scan_item(
     surface: ScanSurface,
-    squad: str,
+    agency_id: int,
     item_id: int,
     from_storages: list[Storage],
     to_storages: list[Storage],
@@ -295,7 +295,7 @@ def redirect_to_scan_item(
     return redirect(
         url_for(
             surface.endpoint("scan_item"),
-            squad=squad,
+            agency_id=agency_id,
             item_id=item_id,
             from_storage_id=from_id,
             to_storage_id=to_id,

@@ -70,7 +70,7 @@
                         {% if show_recount_links %}
                         <a
                             class="quiet-button expiration-recount-link"
-                            href="{{ url_for('admin.bulk_edit', squad=squad, agency_location_id=group.storage.location_id, item_ids=group.item.id) }}">
+                            href="{{ url_for('admin.bulk_edit', agency_id=agency_id, agency_location_id=group.storage.location_id, item_ids=group.item.id) }}">
                             Count Wrong? Recount
                         </a>
                         {% endif %}

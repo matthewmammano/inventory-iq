@@ -160,8 +160,8 @@ def _register_template_context(app: Flask) -> None:
     def admin_pending_tasks() -> dict[str, Any]:
         if not has_request_context():
             return {"admin_pending_task_count": 0}
-        squad = request.view_args.get("squad") if request.view_args else None
-        if request.endpoint != "admin.admin_panel" or not squad or not current_user.is_authenticated:
+        agency_id = request.view_args.get("agency_id") if request.view_args else None
+        if request.endpoint != "admin.admin_panel" or agency_id is None or not current_user.is_authenticated:
             return {"admin_pending_task_count": 0}
         try:
             from app.inventory.pending_tasks_service import pending_task_count

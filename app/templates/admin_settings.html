@@ -5,7 +5,7 @@
 {% block sub_title %}Squad permissions and alert thresholds{% endblock %}
 {% block header_right %}
     <button class="success-button hidden" id="save-button" type="button" form="settings-form">Save Changes</button>
-    <a class="header-action" id="back-link" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
+    <a class="header-action" id="back-link" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>
 {% endblock %}
 
 {% macro setting_input(name, value, label, attrs) -%}
@@ -16,7 +16,7 @@
 {%- endmacro %}
 
 {% block content %}
-<form id="settings-form" method="POST" action="{{ url_for('admin.settings_page', squad=squad) }}" class="panel" data-validation-submit="manual">
+<form id="settings-form" method="POST" action="{{ url_for('admin.settings_page', agency_id=agency_id) }}" class="panel" data-validation-submit="manual">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <div class="panel-header">
         <div>

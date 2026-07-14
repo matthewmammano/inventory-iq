@@ -30,17 +30,17 @@ PENDING_UPC_REVIEW_ACTIONS = {
 }
 
 
-@bp.route("/<squad>/admin-panel/pending-upcs", methods=["GET", "POST"])
-def pending_upcs(squad: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/pending-upcs", methods=["GET", "POST"])
+def pending_upcs(agency_id: int) -> Any:
     if request.method == "POST":
-        return _save_pending_upc_review(squad)
+        return _save_pending_upc_review(agency_id)
     with get_session() as s:
         review_upcs = list_review_unknown_upcs(s, current_user.id)
         items = list_items(current_user.id, session=s)
     focus_upc = request.args.get("focus_upc", "").strip()
     return render_template(
         "admin_pending_upcs.html",
-        squad=squad,
+        agency_id=agency_id,
         pending_upcs=_upcs_by_status(review_upcs, UnknownUpcStatus.PENDING),
         ignored_upcs=_upcs_by_status(review_upcs, UnknownUpcStatus.IGNORE),
         items=items,
@@ -50,20 +50,20 @@ def pending_upcs(squad: str) -> Any:
     )
 
 
-def _save_pending_upc_review(squad: str) -> Any:
+def _save_pending_upc_review(agency_id: int) -> Any:
     try:
         review_request = PendingUpcReviewRequest.model_validate(request.form.to_dict())
     except ValidationError as exc:
         flash(_request_validation_message(exc), "error")
-        return redirect(_pending_upc_redirect(squad))
+        return redirect(_pending_upc_redirect(agency_id))
 
     if review_request.action == PendingUpcReviewAction.ADD:
-        return _add_pending_upc(squad)
+        return _add_pending_upc(agency_id)
 
     unknown_upc_id = review_request.unknown_upc_id
     if unknown_upc_id is None:
         flash("Pending UPC not found.", "error")
-        return redirect(_pending_upc_redirect(squad))
+        return redirect(_pending_upc_redirect(agency_id))
 
     try:
         with get_session() as s:
@@ -88,16 +88,16 @@ def _save_pending_upc_review(squad: str) -> Any:
             extra={"action": review_request.action.value, "unknown_upc_id": unknown_upc_id, "error": str(exc)},
         )
         flash(str(exc), "error")
-    return redirect(_pending_upc_redirect(squad))
+    return redirect(_pending_upc_redirect(agency_id))
 
 
-def _add_pending_upc(squad: str) -> Any:
+def _add_pending_upc(agency_id: int) -> Any:
     upc = request.form.get("upc", "").strip()
     try:
         upc = validate_upc_code(upc)
     except ValueError as exc:
         flash(str(exc), "warning")
-        return redirect(_pending_upc_redirect(squad))
+        return redirect(_pending_upc_redirect(agency_id))
     try:
         with get_session() as s:
             status = record_unknown_upc(s, current_user.id, upc)
@@ -105,11 +105,11 @@ def _add_pending_upc(squad: str) -> Any:
         is_pending = status == UnknownUpcStatus.PENDING
         logger.info("Pending UPC added from admin review", extra={"status": status.value, "upc": upc})
         flash("Barcode ready to link." if is_pending else status.message, "success" if is_pending else "warning")
-        return redirect(_pending_upc_redirect(squad, focus_upc=upc))
+        return redirect(_pending_upc_redirect(agency_id, focus_upc=upc))
     except ValueError as exc:
         logger.warning("Pending UPC validation reached backend", extra={"error": str(exc)})
         flash(_pending_upc_service_error(str(exc)), "warning")
-        return redirect(_pending_upc_redirect(squad))
+        return redirect(_pending_upc_redirect(agency_id))
 
 
 def _pending_upc_service_error(error: str) -> str:
@@ -132,7 +132,7 @@ def _upcs_by_status(scans: list[UnknownUpcScan], status: UnknownUpcStatus) -> li
     return [scan for scan in scans if scan.status == status]
 
 
-def _pending_upc_redirect(squad: str, *, focus_upc: str | None = None):
+def _pending_upc_redirect(agency_id: int, *, focus_upc: str | None = None):
     if focus_upc:
-        return url_for("admin.pending_upcs", squad=squad, focus_upc=focus_upc)
-    return url_for("admin.pending_upcs", squad=squad)
+        return url_for("admin.pending_upcs", agency_id=agency_id, focus_upc=focus_upc)
+    return url_for("admin.pending_upcs", agency_id=agency_id)

@@ -5,11 +5,11 @@
 {% block sub_title %}{{ page_subtitle }}{% endblock %}
 {% block main_class %}kiosk-main{% endblock %}
 {% block header_right %}
-    <a class="back" href="{{ url_for('admin.admin_scan_items' if admin else 'guest.index', squad=squad) }}">Back to Scan</a>
+    <a class="back" href="{{ url_for('admin.admin_scan_items' if admin else 'guest.index', agency_id=agency_id) }}">Back to Scan</a>
 {% endblock %}
 
 {% block content %}
-<form id="scan-form" method="POST" action="{{ url_for('admin.scan_storages' if admin else 'guest.scan_storages', squad=squad) }}" class="stack" data-validation-submit="manual">
+<form id="scan-form" method="POST" action="{{ url_for('admin.scan_storages' if admin else 'guest.scan_storages', agency_id=agency_id) }}" class="stack" data-validation-submit="manual">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     <input type="hidden" name="item_id" value="{{ item.id }}">
     <input type="hidden" name="same_location_error" id="same_location_error" value="0">

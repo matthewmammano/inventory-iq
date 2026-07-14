@@ -6,13 +6,13 @@
 {% block sub_title %}Review reorder needs and receiving priorities by location{% endblock %}
 {% block header_right %}
     {% if active_location_id %}
-        {% set restock_print_url = url_for('admin.restock_print', squad=squad, agency_location_id=active_location_id) %}
+        {% set restock_print_url = url_for('admin.restock_print', agency_id=agency_id, agency_location_id=active_location_id) %}
     {% else %}
-        {% set restock_print_url = url_for('admin.restock_print', squad=squad) %}
+        {% set restock_print_url = url_for('admin.restock_print', agency_id=agency_id) %}
     {% endif %}
     <button class="button" type="button" data-report-print-url="{{ restock_print_url }}" data-report-print-area="#restock-print-area">Print Report</button>
     <button class="success-button" data-email-modal-open="restock-email-modal" type="button">Email Report</button>
-    <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
+    <a class="header-action" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>
 {% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/item-trend-modal.css') }}">{% endblock %}
 
@@ -20,7 +20,7 @@
 <div class="tabbed-panel">
     <section class="tab-strip">
         {% for location in locations %}
-        <a class="tab-button{% if active_location and location.id == active_location.id %} active{% endif %}" href="{{ url_for('admin.restock', squad=squad, agency_location_id=location.id) }}">{{ location.name }}</a>
+        <a class="tab-button{% if active_location and location.id == active_location.id %} active{% endif %}" href="{{ url_for('admin.restock', agency_id=agency_id, agency_location_id=location.id) }}">{{ location.name }}</a>
         {% endfor %}
     </section>
 
@@ -64,7 +64,7 @@
                                     type="button"
                                     aria-label="Open item trend"
                                     title="Open item trend"
-                                    data-trend-url="{{ url_for('admin.item_trend_chart', squad=squad, item_id=row.item.id, agency_location_id=active_location.id) }}">
+                                    data-trend-url="{{ url_for('admin.item_trend_chart', agency_id=agency_id, item_id=row.item.id, agency_location_id=active_location.id) }}">
                                     <img class="item-trend-icon" src="{{ url_for('static', filename='images/icons/trend.png') }}" alt="" aria-hidden="true">
                                 </button>
                                 <span>{{ row.item.name|bold_item_name }}</span>
@@ -101,7 +101,7 @@
         <h2>Email Report</h2>
         <p>Select who should receive the restock report.</p>
         {% if notification_recipients %}
-        <form method="POST" action="{{ url_for('admin.send_restock_email', squad=squad) }}" class="stack" data-validation-live="submit">
+        <form method="POST" action="{{ url_for('admin.send_restock_email', agency_id=agency_id) }}" class="stack" data-validation-live="submit">
             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="active_location_id" value="{{ active_location_id or '' }}">
             {{ email_recipient_options(notification_recipients) }}

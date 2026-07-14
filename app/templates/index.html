@@ -7,12 +7,12 @@
 {% block header_right %}
     {% if admin %}
         {% if selected_scan_route %}
-        <a class="header-action" href="{{ url_for('admin.admin_scan_items', squad=squad) }}">Back to Route</a>
+        <a class="header-action" href="{{ url_for('admin.admin_scan_items', agency_id=agency_id) }}">Back to Route</a>
         {% else %}
-        <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
+        <a class="header-action" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>
         {% endif %}
     {% else %}
-        <a class="admin" href="{{ url_for('guest.admin_login', squad=squad) }}">Admin</a>
+        <a class="admin" href="{{ url_for('guest.admin_login', agency_id=agency_id) }}">Admin</a>
     {% endif %}
 {% endblock %}
 
@@ -39,7 +39,7 @@
         autofocus>
     <ul
         id="results"
-        data-squad="{{ squad }}"
+        data-agency-id="{{ agency_id }}"
         data-admin="{{ 'true' if admin else 'false' }}"
         data-scan-item-base="{{ scan_item_url_base|default('', true) }}"
         data-scan-error-url="{{ scan_error_url|default('', true) }}"

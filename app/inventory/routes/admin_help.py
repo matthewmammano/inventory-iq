@@ -8,21 +8,21 @@ from app.admin_help.articles import get_help_article, list_help_articles, list_h
 from app.inventory import admin_bp as bp
 
 
-@bp.route("/<squad>/admin-panel/help")
-def admin_help(squad: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/help")
+def admin_help(agency_id: int) -> Any:
     articles = list_help_articles()
     return render_template(
         "admin_help.html",
-        squad=squad,
+        agency_id=agency_id,
         articles=articles,
         tags=list_help_tags(articles),
         admin=True,
     )
 
 
-@bp.route("/<squad>/admin-panel/help/<article_id>")
-def admin_help_article(squad: str, article_id: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/help/<article_id>")
+def admin_help_article(agency_id: int, article_id: str) -> Any:
     article = get_help_article(article_id)
     if article is None:
         abort(404)
-    return render_template("admin_help_article.html", squad=squad, article=article, admin=True)
+    return render_template("admin_help_article.html", agency_id=agency_id, article=article, admin=True)

@@ -6,7 +6,7 @@
 {% block main_class %}label-preview-main{% endblock %}
 {% block header_right %}
 <button class="success-button" type="button" data-print-trigger>Print</button>
-<a class="header-action" href="{{ url_for('admin.print_labels', squad=squad) }}">Back to Labels</a>
+<a class="header-action" href="{{ url_for('admin.print_labels', agency_id=agency_id) }}">Back to Labels</a>
 {% endblock %}
 
 {% block content %}

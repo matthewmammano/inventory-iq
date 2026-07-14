@@ -4,7 +4,7 @@
 {% block header_title %}Help Center{% endblock %}
 {% block sub_title %}{{ article.title }}{% endblock %}
 {% block main_class %}help-main{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_help', squad=squad) }}">Back to Help</a>{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_help', agency_id=agency_id) }}">Back to Help</a>{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-help.css') }}">{% endblock %}
 
 {% block content %}

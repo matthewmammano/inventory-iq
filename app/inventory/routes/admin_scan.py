@@ -40,14 +40,14 @@ class AdminScanRouteSelection:
     label: str
 
 
-@bp.route("/<squad>/admin-panel/scan-items", methods=["GET", "POST"])
-def admin_scan_items(squad: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/scan-items", methods=["GET", "POST"])
+def admin_scan_items(agency_id: int) -> Any:
     if request.method == "POST":
-        return _save_admin_scan_route(squad)
+        return _save_admin_scan_route(agency_id)
 
     scan_route = _selected_admin_scan_route()
     if scan_route is None:
-        return _render_admin_scan_setup(squad)
+        return _render_admin_scan_setup(agency_id)
 
     if request.args.get("scan_error") == "not_found":
         unknown_upc = request.args.get("unknown_upc", "").strip()
@@ -63,7 +63,7 @@ def admin_scan_items(squad: str) -> Any:
         )
         if unknown_upc_status == UnknownUpcStatus.PENDING:
             flash("Choose the item this barcode should open.", "warning")
-            return redirect(url_for("admin.pending_upcs", squad=squad, focus_upc=unknown_upc))
+            return redirect(url_for("admin.pending_upcs", agency_id=agency_id, focus_upc=unknown_upc))
         if unknown_upc_status:
             message = unknown_upc_status.message
         elif unknown_upc:
@@ -81,7 +81,7 @@ def admin_scan_items(squad: str) -> Any:
     return render_template(
         "index.html",
         items_payload=items_payload,
-        squad=squad,
+        agency_id=agency_id,
         logo_img=current_user.image,
         admin=True,
         page_subtitle="Ready for barcode scan or item search",
@@ -90,10 +90,10 @@ def admin_scan_items(squad: str) -> Any:
         selected_to_location_label=scan_route.to_label,
         selected_from_storage_id=scan_route.from_storage_id,
         selected_to_storage_id=scan_route.to_storage_id,
-        scan_item_url_base=url_for("admin.scan_item", squad=squad),
+        scan_item_url_base=url_for("admin.scan_item", agency_id=agency_id),
         scan_error_url=url_for(
             "admin.admin_scan_items",
-            squad=squad,
+            agency_id=agency_id,
             from_storage_id=scan_route.from_storage_id,
             to_storage_id=scan_route.to_storage_id,
             scan_error="not_found",
@@ -114,32 +114,32 @@ def _record_admin_unknown_upc(upc: str) -> UnknownUpcStatus | None:
         return None
 
 
-@bp.route("/<squad>/admin-panel/scan")
-def admin_scan_start(squad: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/scan")
+def admin_scan_start(agency_id: int) -> Any:
     query = ScanStartQuery.model_validate(request.args.to_dict())
     return handle_scan_start(
-        squad,
+        agency_id,
         query.item_id,
         upc=query.upc,
         is_admin=True,
     )
 
 
-@bp.route("/<squad>/admin-panel/scan/storages", methods=["GET", "POST"])
-def scan_storages(squad: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/scan/storages", methods=["GET", "POST"])
+def scan_storages(agency_id: int) -> Any:
     if request.method == "POST":
-        return handle_scan_storages_post(squad, request.form, is_admin=True)
+        return handle_scan_storages_post(agency_id, request.form, is_admin=True)
     query = ScanStartQuery.model_validate(request.args.to_dict())
-    return handle_scan_storages_get(squad, query.item_id, is_admin=True)
+    return handle_scan_storages_get(agency_id, query.item_id, is_admin=True)
 
 
-@bp.route("/<squad>/admin-panel/scan/item", methods=["GET", "POST"])
-def scan_item(squad: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/scan/item", methods=["GET", "POST"])
+def scan_item(agency_id: int) -> Any:
     if request.method == "POST":
-        return handle_scan_item_post(squad, request.form, is_admin=True)
+        return handle_scan_item_post(agency_id, request.form, is_admin=True)
     query = ScanItemQuery.from_query(request.args.to_dict(), is_admin=True)
     return handle_scan_item_get(
-        squad,
+        agency_id,
         query.item_id,
         query.from_storage_id,
         query.to_storage_id,
@@ -147,21 +147,21 @@ def scan_item(squad: str) -> Any:
     )
 
 
-def _render_admin_scan_setup(squad: str) -> Any:
+def _render_admin_scan_setup(agency_id: int) -> Any:
     with get_session() as s:
         storage_choices = load_scan_storage_choices(current_user.id, True, s)
         from_locations = storage_choices.from_storages
         to_locations = storage_choices.to_storages
 
     if not from_locations:
-        logger.error("Admin scan setup failed: no valid source storages are available", extra={"squad": squad})
+        logger.error("Admin scan setup failed: no valid source storages are available", extra={"agency_id": agency_id})
         flash("No valid storages found. Please check your location setup.", "error")
-        return redirect(url_for("admin.admin_panel", squad=squad))
+        return redirect(url_for("admin.admin_panel", agency_id=agency_id))
 
     query = ScanItemQuery.from_query(request.args.to_dict(), is_admin=True)
     return render_template(
         "admin_scan_setup.html",
-        squad=squad,
+        agency_id=agency_id,
         from_locations=from_locations,
         to_locations=to_locations,
         selected_from_id=query.from_storage_id,
@@ -171,13 +171,13 @@ def _render_admin_scan_setup(squad: str) -> Any:
     )
 
 
-def _save_admin_scan_route(squad: str) -> Any:
+def _save_admin_scan_route(agency_id: int) -> Any:
     try:
         route_request = AdminScanRouteRequest.model_validate(request.form.to_dict())
     except ValidationError as exc:
         logger.info("Admin scan setup rejected: submitted route form data was invalid", extra={"error": str(exc)})
         flash("Invalid form data. Please try again.", "error")
-        return redirect(url_for("admin.admin_panel", squad=squad))
+        return redirect(url_for("admin.admin_panel", agency_id=agency_id))
 
     if route_request.same_location_error == "1":
         logger.info(
@@ -188,7 +188,7 @@ def _save_admin_scan_route(squad: str) -> Any:
         return redirect(
             url_for(
                 "admin.admin_scan_items",
-                squad=squad,
+                agency_id=agency_id,
                 from_storage_id=route_request.from_storage_id,
                 to_storage_id=route_request.to_storage_id,
             )
@@ -200,7 +200,7 @@ def _save_admin_scan_route(squad: str) -> Any:
             extra={"from_storage_id": route_request.from_storage_id, "to_storage_id": route_request.to_storage_id},
         )
         flash("Choose valid scan locations.", "error")
-        return redirect(url_for("admin.admin_scan_items", squad=squad))
+        return redirect(url_for("admin.admin_scan_items", agency_id=agency_id))
 
     logger.info(
         "Admin scan route selected",
@@ -209,7 +209,7 @@ def _save_admin_scan_route(squad: str) -> Any:
     return redirect(
         url_for(
             "admin.admin_scan_items",
-            squad=squad,
+            agency_id=agency_id,
             from_storage_id=route_request.from_storage_id,
             to_storage_id=route_request.to_storage_id,
         )

@@ -4,7 +4,7 @@
 {% block header_title %}Help Center{% endblock %}
 {% block sub_title %}Short answers for common admin questions{% endblock %}
 {% block main_class %}help-main{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-help.css') }}">{% endblock %}
 
 {% block content %}
@@ -26,7 +26,7 @@
         {% for article in articles %}
         <a
             class="card help-card"
-            href="{{ url_for('admin.admin_help_article', squad=squad, article_id=article.id) }}"
+            href="{{ url_for('admin.admin_help_article', agency_id=agency_id, article_id=article.id) }}"
             data-help-article
             data-help-tags="{{ article.tag_keys|join('|') }}"
             data-help-title="{{ article.title }}"

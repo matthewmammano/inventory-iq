@@ -7,7 +7,7 @@
 {% block header_right %}
     <a
         class="cancel"
-        href="{{ cancel_url or url_for('admin.admin_scan_items' if admin else 'guest.index', squad=squad) }}">Cancel Scan</a>
+        href="{{ cancel_url or url_for('admin.admin_scan_items' if admin else 'guest.index', agency_id=agency_id) }}">Cancel Scan</a>
 {% endblock %}
 
 {% block content %}

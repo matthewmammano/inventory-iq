@@ -45,11 +45,8 @@ def login():
 
         if agency.check_password(login_request.password):
             login_user(agency)
-            logger.info(
-                "User login succeeded for agency account",
-                extra={"agency_id": agency.id, "squad": agency.display_name},
-            )
-            return redirect(url_for("guest.index", squad=agency.display_name))
+            logger.info("User login succeeded for agency account", extra={"agency_id": agency.id})
+            return redirect(url_for("guest.index", agency_id=agency.id))
 
         logger.warning("Login rejected: password mismatch", extra={"agency_id": agency.id})
         flash("Invalid email or password.", "error")
@@ -115,9 +112,8 @@ def logout():
     session.pop("admin", None)
     session.pop("admin_last_active", None)
     agency_id = current_user.id if current_user.is_authenticated else None
-    squad = current_user.display_name if current_user.is_authenticated else None
     logout_user()
-    logger.info("User logout completed", extra={"agency_id": agency_id, "squad": squad})
+    logger.info("User logout completed", extra={"agency_id": agency_id})
     flash("Logged out.", "success")
     return redirect(url_for("auth.login"))
 

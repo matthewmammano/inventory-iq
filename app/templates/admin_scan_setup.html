@@ -5,14 +5,14 @@
 {% block sub_title %}{{ setup_subtitle }}{% endblock %}
 {% block main_class %}kiosk-main{% endblock %}
 {% block header_right %}
-    <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
+    <a class="header-action" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>
 {% endblock %}
 
 {% block content %}
 <form
     id="scan-form"
     method="POST"
-    action="{{ url_for('admin.admin_scan_items', squad=squad) }}"
+    action="{{ url_for('admin.admin_scan_items', agency_id=agency_id) }}"
     class="stack"
     data-validation-submit="manual">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">

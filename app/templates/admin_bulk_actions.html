@@ -5,7 +5,7 @@
 {% block sub_title %}Location: {{ location.name }}{% endblock %}
 {% block header_right %}
 <button class="success-button hidden" id="bulk-save-button" type="button">Continue</button>
-<a class="header-action" href="{{ url_for('admin.bulk_actions', squad=squad, agency_location_id=location.id) }}" data-bulk-back>Back to Bulk Action</a>
+<a class="header-action" href="{{ url_for('admin.bulk_actions', agency_id=agency_id, agency_location_id=location.id) }}" data-bulk-back>Back to Bulk Action</a>
 {% endblock %}
 
 {% block content %}

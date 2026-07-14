@@ -23,7 +23,6 @@ CONTEXT_KEYS = frozenset(
     {
         "request_id",
         "agency_id",
-        "squad",
         "agency_location_id",
         "admin",
         "task_name",
@@ -66,7 +65,6 @@ def current_log_context() -> dict[str, object]:
     return {
         "request_id": getattr(g, "request_id", None),
         "agency_id": _current_agency_id(),
-        "squad": view_args.get("squad"),
         "agency_location_id": view_args.get("agency_location_id"),
         "admin": bool(session.get("admin")),
     }

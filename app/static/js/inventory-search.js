@@ -5,7 +5,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!search || !list) return;
 
     const items = JSON.parse(list.dataset.items || "[]");
-    const squad = list.dataset.squad;
+    const agencyId = list.dataset.agencyId;
     const isAdmin = list.dataset.admin === "true";
     const scanItemBase = list.dataset.scanItemBase;
     const scanErrorUrl = list.dataset.scanErrorUrl;
@@ -22,7 +22,7 @@ document.addEventListener("DOMContentLoaded", () => {
             });
             return `${scanItemBase}?${params.toString()}`;
         }
-        const base = `/inventory/${encodeURIComponent(squad)}`;
+        const base = `/inventory/${encodeURIComponent(agencyId)}`;
         return isAdmin ? `${base}/admin-panel/scan?item_id=${itemId}` : `${base}/scan?item_id=${itemId}`;
     }
 

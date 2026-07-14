@@ -26,21 +26,16 @@ def get_agency_by_email(email: str, session: Session | None = None) -> Agency | 
         return s.execute(select(Agency).where(Agency.email == email)).scalars().first()
 
 
-def get_agency_by_display_name(display_name: str, session: Session | None = None) -> Agency | None:
-    with managed_session(session) as s:
-        return s.execute(select(Agency).where(Agency.display_name == display_name)).scalars().first()
-
-
 def list_agencies(*, active: bool, session: Session | None = None) -> list[Agency]:
     with managed_session(session) as s:
         stmt = select(Agency).where(Agency.active.is_(active)).order_by(Agency.display_name)
         return list(s.execute(stmt).scalars().all())
 
 
-def get_agency_permissions(display_name: str, session: Session | None = None) -> AgencyScanPermissions | None:
+def get_agency_permissions(agency_id: int, session: Session | None = None) -> AgencyScanPermissions | None:
     """Return guest scan permissions, or None if agency not found."""
     with managed_session(session) as s:
-        row = s.execute(select(Agency.user_count_allow, Agency.user_restock_allow).where(Agency.display_name == display_name)).first()
+        row = s.execute(select(Agency.user_count_allow, Agency.user_restock_allow).where(Agency.id == agency_id)).first()
         return AgencyScanPermissions(count=bool(row.user_count_allow), restock=bool(row.user_restock_allow)) if row else None
 
 

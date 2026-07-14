@@ -7,15 +7,15 @@
 {% block header_right %}
     <button class="button" data-history-modal-open="print" type="button">Print History</button>
     <button class="success-button" data-history-modal-open="email" type="button">Email Report</button>
-    <a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>
+    <a class="header-action" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>
 {% endblock %}
 
 {% block content %}
 <div class="tabbed-panel">
     <section class="tab-strip">
-        <a class="tab-button{% if not active_location_id or active_location_id == 0 %} active{% endif %}" href="{{ url_for('admin.admin_history', squad=squad) }}">All Locations</a>
+        <a class="tab-button{% if not active_location_id or active_location_id == 0 %} active{% endif %}" href="{{ url_for('admin.admin_history', agency_id=agency_id) }}">All Locations</a>
         {% for location in locations %}
-        <a class="tab-button{% if active_location_id and location.id == active_location_id %} active{% endif %}" href="{{ url_for('admin.admin_history', squad=squad, agency_location_id=location.id) }}">{{ location.name }}</a>
+        <a class="tab-button{% if active_location_id and location.id == active_location_id %} active{% endif %}" href="{{ url_for('admin.admin_history', agency_id=agency_id, agency_location_id=location.id) }}">{{ location.name }}</a>
         {% endfor %}
     </section>
 
@@ -30,17 +30,17 @@
         <div class="button-row history-pagination">
             {% if has_next_page %}
             {% if active_location_id %}
-            {% set older_href = url_for('admin.admin_history', squad=squad, agency_location_id=active_location_id, page=page+1) %}
+            {% set older_href = url_for('admin.admin_history', agency_id=agency_id, agency_location_id=active_location_id, page=page+1) %}
             {% else %}
-            {% set older_href = url_for('admin.admin_history', squad=squad, page=page+1) %}
+            {% set older_href = url_for('admin.admin_history', agency_id=agency_id, page=page+1) %}
             {% endif %}
             <a class="success-button" href="{{ older_href }}">Scroll to Older</a>
             {% endif %}
             {% if page > 1 %}
             {% if active_location_id %}
-            {% set newer_href = url_for('admin.admin_history', squad=squad, agency_location_id=active_location_id, page=page-1) %}
+            {% set newer_href = url_for('admin.admin_history', agency_id=agency_id, agency_location_id=active_location_id, page=page-1) %}
             {% else %}
-            {% set newer_href = url_for('admin.admin_history', squad=squad, page=page-1) %}
+            {% set newer_href = url_for('admin.admin_history', agency_id=agency_id, page=page-1) %}
             {% endif %}
             <a class="quiet-button" href="{{ newer_href }}">Scroll to Newer</a>
             {% endif %}
@@ -50,11 +50,11 @@
 </div>
 
 {% if active_location_id %}
-    {% set print_action = url_for('admin.admin_history_print', squad=squad, agency_location_id=active_location_id) %}
+    {% set print_action = url_for('admin.admin_history_print', agency_id=agency_id, agency_location_id=active_location_id) %}
 {% else %}
-    {% set print_action = url_for('admin.admin_history_print', squad=squad) %}
+    {% set print_action = url_for('admin.admin_history_print', agency_id=agency_id) %}
 {% endif %}
-{% set email_action = url_for('admin.admin_history_email', squad=squad) %}
+{% set email_action = url_for('admin.admin_history_email', agency_id=agency_id) %}
 <div class="modal-backdrop hidden" id="history-print-modal" data-email-modal data-history-modal data-print-action="{{ print_action }}" data-user-timezone="{{ user_timezone }}">
     <div class="modal history-print-modal">
         <h2>History Report</h2>

@@ -27,8 +27,8 @@ from app.shared.validators import parse_optional_int
 HISTORY_PAGE_SIZE = 50
 
 
-@bp.route("/<squad>/items/<int:item_id>/locations/<int:agency_location_id>/trend", methods=["GET"])
-def item_trend_chart(squad: str, item_id: int, agency_location_id: int) -> Any:
+@bp.route("/<int:agency_id>/items/<int:item_id>/locations/<int:agency_location_id>/trend", methods=["GET"])
+def item_trend_chart(agency_id: int, item_id: int, agency_location_id: int) -> Any:
     with get_session() as s:
         item = s.scalar(select(Item).where(Item.agency_id == current_user.id, Item.id == item_id))
         location = s.scalar(select(Location).where(Location.agency_id == current_user.id, Location.id == agency_location_id))
@@ -37,9 +37,9 @@ def item_trend_chart(squad: str, item_id: int, agency_location_id: int) -> Any:
         return build_item_trend_chart(s, current_user.id, item, location).model_dump(mode="json")
 
 
-@bp.route("/<squad>/admin-panel/inventory-count-levels")
-@bp.route("/<squad>/admin-panel/inventory-count-levels/<int:agency_location_id>")
-def inventory_counts(squad: str, agency_location_id: int | None = None) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/inventory-count-levels")
+@bp.route("/<int:agency_id>/admin-panel/inventory-count-levels/<int:agency_location_id>")
+def inventory_counts(agency_id: int, agency_location_id: int | None = None) -> Any:
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
         notification_recipients = list_active_emails(current_user.id, s)
@@ -48,7 +48,7 @@ def inventory_counts(squad: str, agency_location_id: int | None = None) -> Any:
 
     return render_template(
         "admin_inventory_counts.html",
-        squad=squad,
+        agency_id=agency_id,
         locations=locations,
         active_location=active_location,
         inventory_data=active_tab.inventory_data,
@@ -59,26 +59,26 @@ def inventory_counts(squad: str, agency_location_id: int | None = None) -> Any:
     )
 
 
-@bp.route("/<squad>/admin-panel/inventory-count-levels/email", methods=["POST"])
-def send_inventory_counts_email(squad: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/inventory-count-levels/email", methods=["POST"])
+def send_inventory_counts_email(agency_id: int) -> Any:
     selected_ids = _selected_notification_recipient_ids(request.form.getlist("notification_recipient_ids"))
     active_location_id = parse_optional_int(request.form.get("active_location_id"))
     with get_session() as s:
         sent, total = send_inventory_count_report(s, current_user.id, selected_ids)
     _flash_email_delivery_result("Inventory report", sent, total, selected_count=len(selected_ids), log_name="Inventory report email")
-    return redirect(_inventory_counts_url(squad, active_location_id))
+    return redirect(_inventory_counts_url(agency_id, active_location_id))
 
 
-@bp.route("/<squad>/admin-panel/inventory-count-levels/print")
-@bp.route("/<squad>/admin-panel/inventory-count-levels/<int:agency_location_id>/print")
-def inventory_counts_print(squad: str, agency_location_id: int | None = None) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/inventory-count-levels/print")
+@bp.route("/<int:agency_id>/admin-panel/inventory-count-levels/<int:agency_location_id>/print")
+def inventory_counts_print(agency_id: int, agency_location_id: int | None = None) -> Any:
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
         active_location = _active_location(locations, agency_location_id)
         active_tab = build_inventory_count_page(s, current_user.id, active_location.id) if active_location else InventoryCountPage([], [])
     return render_template(
         "admin_inventory_counts_print_partial.html",
-        squad=squad,
+        agency_id=agency_id,
         location_name=active_location.name if active_location else "Inventory Report",
         inventory_data=active_tab.inventory_data,
         storages=active_tab.storages,
@@ -86,15 +86,15 @@ def inventory_counts_print(squad: str, agency_location_id: int | None = None) ->
     )
 
 
-def _inventory_counts_url(squad: str, agency_location_id: int | None) -> str:
+def _inventory_counts_url(agency_id: int, agency_location_id: int | None) -> str:
     if agency_location_id:
-        return url_for("admin.inventory_counts", squad=squad, agency_location_id=agency_location_id)
-    return url_for("admin.inventory_counts", squad=squad)
+        return url_for("admin.inventory_counts", agency_id=agency_id, agency_location_id=agency_location_id)
+    return url_for("admin.inventory_counts", agency_id=agency_id)
 
 
-@bp.route("/<squad>/admin-panel/restock")
-@bp.route("/<squad>/admin-panel/restock/<int:agency_location_id>")
-def restock(squad: str, agency_location_id: int | None = None) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/restock")
+@bp.route("/<int:agency_id>/admin-panel/restock/<int:agency_location_id>")
+def restock(agency_id: int, agency_location_id: int | None = None) -> Any:
     try:
         with get_session() as s:
             locations = list_top_locations(current_user.id, s)
@@ -111,7 +111,7 @@ def restock(squad: str, agency_location_id: int | None = None) -> Any:
 
     return render_template(
         "admin_restock.html",
-        squad=squad,
+        agency_id=agency_id,
         locations=locations,
         active_location=active_location,
         restock_data=restock_data,
@@ -121,26 +121,26 @@ def restock(squad: str, agency_location_id: int | None = None) -> Any:
     )
 
 
-@bp.route("/<squad>/admin-panel/restock/email", methods=["POST"])
-def send_restock_email(squad: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/restock/email", methods=["POST"])
+def send_restock_email(agency_id: int) -> Any:
     selected_ids = _selected_notification_recipient_ids(request.form.getlist("notification_recipient_ids"))
     active_location_id = parse_optional_int(request.form.get("active_location_id"))
     with get_session() as s:
         sent, total = send_restock_report(s, current_user.id, selected_ids, active_location_id)
     _flash_email_delivery_result("Restock report", sent, total, selected_count=len(selected_ids), log_name="Restock report email")
-    return redirect(_restock_url(squad, active_location_id))
+    return redirect(_restock_url(agency_id, active_location_id))
 
 
-@bp.route("/<squad>/admin-panel/restock/print")
-@bp.route("/<squad>/admin-panel/restock/<int:agency_location_id>/print")
-def restock_print(squad: str, agency_location_id: int | None = None) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/restock/print")
+@bp.route("/<int:agency_id>/admin-panel/restock/<int:agency_location_id>/print")
+def restock_print(agency_id: int, agency_location_id: int | None = None) -> Any:
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
         active_location = _active_location(locations, agency_location_id)
         restock_data = _restock_rows(s, current_user.id, active_location.id) if active_location else []
     return render_template(
         "admin_restock_print_partial.html",
-        squad=squad,
+        agency_id=agency_id,
         location_name=active_location.name if active_location else "Restock Report",
         restock_data=restock_data,
         admin=True,
@@ -152,10 +152,10 @@ def _restock_rows(session, agency_id: int, agency_location_id: int) -> list[Rest
     return build_restock_page_rows(session, agency_id, agency_location_id)
 
 
-def _restock_url(squad: str, agency_location_id: int | None) -> str:
+def _restock_url(agency_id: int, agency_location_id: int | None) -> str:
     if agency_location_id:
-        return url_for("admin.restock", squad=squad, agency_location_id=agency_location_id)
-    return url_for("admin.restock", squad=squad)
+        return url_for("admin.restock", agency_id=agency_id, agency_location_id=agency_location_id)
+    return url_for("admin.restock", agency_id=agency_id)
 
 
 def _selected_notification_recipient_ids(raw_ids: list[str]) -> list[int]:
@@ -214,9 +214,9 @@ def _history_date_range(
         return None, _validation_message(exc)
 
 
-@bp.route("/<squad>/admin-panel/history")
-@bp.route("/<squad>/admin-panel/history/<int:agency_location_id>")
-def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/history")
+@bp.route("/<int:agency_id>/admin-panel/history/<int:agency_location_id>")
+def admin_history(agency_id: int, agency_location_id: int | None = None) -> Any:
     query = HistoryPageQuery.model_validate(request.args.to_dict())
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
@@ -225,7 +225,7 @@ def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
         action_logs, has_next_page = list_history_logs(s, current_user.id, agency_location_id, query.page_number, HISTORY_PAGE_SIZE)
     return render_template(
         "admin_history.html",
-        squad=squad,
+        agency_id=agency_id,
         locations=locations,
         notification_recipients=notification_recipients,
         action_logs=action_logs,
@@ -239,8 +239,8 @@ def admin_history(squad: str, agency_location_id: int | None = None) -> Any:
     )
 
 
-@bp.route("/<squad>/admin-panel/history/email", methods=["POST"])
-def admin_history_email(squad: str) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/history/email", methods=["POST"])
+def admin_history_email(agency_id: int) -> Any:
     agency_location_id = parse_optional_int(request.form.get("agency_location_id"))
     selected_ids = _selected_notification_recipient_ids(request.form.getlist("notification_recipient_ids"))
     date_range, error = _history_date_range(
@@ -251,7 +251,7 @@ def admin_history_email(squad: str) -> Any:
     )
     if date_range is None:
         flash(error, "error")
-        return redirect(_history_url(squad, agency_location_id))
+        return redirect(_history_url(agency_id, agency_location_id))
     with get_session() as s:
         sent, total = send_history_report(
             s,
@@ -264,12 +264,12 @@ def admin_history_email(squad: str) -> Any:
             date_range.end_label,
         )
     _flash_email_delivery_result("History report", sent, total, selected_count=len(selected_ids), log_name="History report email")
-    return redirect(_history_url(squad, agency_location_id))
+    return redirect(_history_url(agency_id, agency_location_id))
 
 
-@bp.route("/<squad>/admin-panel/history/print")
-@bp.route("/<squad>/admin-panel/history/<int:agency_location_id>/print")
-def admin_history_print(squad: str, agency_location_id: int | None = None) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/history/print")
+@bp.route("/<int:agency_id>/admin-panel/history/<int:agency_location_id>/print")
+def admin_history_print(agency_id: int, agency_location_id: int | None = None) -> Any:
     date_range, error = _history_date_range(
         request.args.to_dict(),
         timezone=current_user.timezone,
@@ -280,7 +280,7 @@ def admin_history_print(squad: str, agency_location_id: int | None = None) -> An
         if request.headers.get("X-Requested-With") == "fetch":
             return error, 400
         flash(error, "error")
-        return redirect(_history_url(squad, agency_location_id))
+        return redirect(_history_url(agency_id, agency_location_id))
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
         agency = s.get(Agency, current_user.id)
@@ -296,9 +296,9 @@ def admin_history_print(squad: str, agency_location_id: int | None = None) -> An
         )
     return render_template(
         "admin_history_print_partial.html",
-        squad=squad,
+        agency_id=agency_id,
         action_logs=action_logs,
-        agency_name=agency.display_name if agency else squad,
+        agency_name=agency.display_name if agency else "Unknown",
         location_name=active_location.name if active_location else "All Locations",
         start_date=date_range.start_label,
         end_date=date_range.end_label,
@@ -307,10 +307,10 @@ def admin_history_print(squad: str, agency_location_id: int | None = None) -> An
     )
 
 
-def _history_url(squad: str, agency_location_id: int | None) -> str:
+def _history_url(agency_id: int, agency_location_id: int | None) -> str:
     if agency_location_id:
-        return url_for("admin.admin_history", squad=squad, agency_location_id=agency_location_id)
-    return url_for("admin.admin_history", squad=squad)
+        return url_for("admin.admin_history", agency_id=agency_id, agency_location_id=agency_location_id)
+    return url_for("admin.admin_history", agency_id=agency_id)
 
 
 def _active_location(locations: list[Location], agency_location_id: int | None) -> Location | None:

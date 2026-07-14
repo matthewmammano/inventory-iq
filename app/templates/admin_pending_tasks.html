@@ -3,7 +3,7 @@
 {% block title %}Pending Tasks{% endblock %}
 {% block header_title %}Pending Tasks{% endblock %}
 {% block sub_title %}Unresolved admin work for this squad{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', squad=squad) }}">Back to Admin</a>{% endblock %}
+{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>{% endblock %}
 
 {% block content %}
 <section class="panel">
@@ -23,7 +23,7 @@
                     <h3>Fix Missing Expiration Dates</h3>
                     <p>{{ tasks.missing_expiration_count }} item/storage pair{% if tasks.missing_expiration_count != 1 %}s{% endif %} need expiration dates checked.</p>
                 </div>
-                <a class="warning-button" href="{{ url_for('admin.pending_expiration_dates', squad=squad) }}">Fix Dates</a>
+                <a class="warning-button" href="{{ url_for('admin.pending_expiration_dates', agency_id=agency_id) }}">Fix Dates</a>
             </div>
             {% endif %}
 
@@ -35,7 +35,7 @@
                 </div>
                 <a
                     class="warning-button"
-                    href="{{ url_for('admin.bulk_edit', squad=squad, agency_location_id=task.agency_location_id, item_ids=task.item_ids|join(',')) }}">
+                    href="{{ url_for('admin.bulk_edit', agency_id=agency_id, agency_location_id=task.agency_location_id, item_ids=task.item_ids|join(',')) }}">
                     Open Recount
                 </a>
             </div>
@@ -47,7 +47,7 @@
                     <h3>Review New Barcodes Requested</h3>
                     <p>{{ tasks.new_barcode_count }} barcode{% if tasks.new_barcode_count != 1 %}s{% endif %} need linked or ignored.</p>
                 </div>
-                <a class="warning-button" href="{{ url_for('admin.pending_upcs', squad=squad) }}">Review Barcodes</a>
+                <a class="warning-button" href="{{ url_for('admin.pending_upcs', agency_id=agency_id) }}">Review Barcodes</a>
             </div>
             {% endif %}
         {% endif %}
