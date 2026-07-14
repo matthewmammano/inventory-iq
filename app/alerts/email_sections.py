@@ -6,13 +6,13 @@ from datetime import UTC, datetime
 from typing import Any
 from zoneinfo import ZoneInfo
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import false, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.auth.location_filters import validate_location_filter_ids
 from app.auth.models import Agency, Location, NotificationRecipient
 from app.auth.notification_preferences import due_summary_preferences
-from app.inventory.location_operations import get_locations_storages
+from app.inventory.location_operations import get_storages_for_locations
 from app.inventory.models import ActionLog, InventoryItemLocationState, Item
 from app.prediction.formatting import rounded_confidence_percent
 from app.shared.timezone_utils import convert_utc_to_local
@@ -216,7 +216,7 @@ def _recipient_storage_ids(session: Session, agency_id: int, location_filter_ids
     location_ids = validate_location_filter_ids(session, agency_id, location_filter_ids)
     if location_ids is None:
         return None
-    return [storage.id for storage in get_locations_storages(session, agency_id, location_ids)]
+    return [storage.id for storage in get_storages_for_locations(session, agency_id, location_ids)]
 
 
 def _stock_section(
@@ -364,9 +364,7 @@ def _summary_section(
         func.coalesce(func.sum(ActionLog.quantity), 0),
     ).where(ActionLog.agency_id == agency_id, ActionLog.time_scanned >= start_at, ActionLog.time_scanned < end_at)
     if storage_ids is not None:
-        stmt = stmt.where(
-            or_(ActionLog.from_storage_id.in_(storage_ids), ActionLog.to_storage_id.in_(storage_ids)) if storage_ids else ActionLog.id == -1
-        )
+        stmt = stmt.where(or_(ActionLog.from_storage_id.in_(storage_ids), ActionLog.to_storage_id.in_(storage_ids)) if storage_ids else false())
     rows = session.execute(stmt.group_by(ActionLog.operation_type).order_by(ActionLog.operation_type)).all()
     return _section(
         f"{report_type} Summary",

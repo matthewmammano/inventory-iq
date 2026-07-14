@@ -88,6 +88,7 @@ class AdminNotificationForm(AdminNotificationFormBase):
     alert_for_restock: bool = _notification_default("alert_for_restock")
     alert_for_takeout: bool = _notification_default("alert_for_takeout")
     alert_for_transfer: bool = _notification_default("alert_for_transfer")
+    alert_for_unknown_upc: bool = _notification_default("alert_for_unknown_upc")
     alert_for_expired_stock: bool = _notification_default("alert_for_expired_stock")
     alert_for_expiring_soon: bool = _notification_default("alert_for_expiring_soon")
     alert_for_expiration_count_needed: bool = _notification_default("alert_for_expiration_count_needed")

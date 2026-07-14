@@ -24,7 +24,7 @@
     <form method="POST" class="panel-body stack" data-validation-live="submit">
         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
         <input type="hidden" name="item_id" value="{{ item_id }}">
-        <div class="choice-grid" data-validate-group="required_choice" data-group-name="agency_location_id" data-label="Location">
+        <div class="choice-grid" {{ validation_group_attrs("agency_location_id", "Location") }}>
             {% for location in locations %}
             <label class="radio-card">
                 <input type="radio" name="agency_location_id" value="{{ location.id }}">

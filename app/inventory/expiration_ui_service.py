@@ -13,7 +13,7 @@ from app.inventory.constants import OperationType
 from app.inventory.expiration_service import ExpirationAllocation, effective_expiration_notice_days, known_expiration_options
 from app.inventory.models import InventoryExpirationBalance, InventoryStorageBalance, Item
 from app.shared.clock import utc_now_naive
-from app.shared.validators import parse_non_negative_int, validate_plausible_date
+from app.shared.validators import parse_non_negative_int, validate_plausible_date, validate_quantity_bound
 
 MAX_NEW_EXPIRATION_ROWS = 10
 EXPIRATION_DATE_MIN = date(2000, 1, 1)
@@ -440,7 +440,7 @@ def _quantity(value: str | None) -> int:
     parsed = parse_non_negative_int(value)
     if parsed is None:
         raise ValueError("Expiration quantities must be 0 or higher.")
-    return parsed
+    return validate_quantity_bound(parsed, "Expiration quantity")
 
 
 def _date_value(value: str | None) -> date | None:
@@ -451,6 +451,5 @@ def _date_value(value: str | None) -> date | None:
     except ValueError as exc:
         raise ValueError("Enter expiration dates as YYYY-MM-DD.") from exc
     today = utc_now_naive().date()
-    return validate_plausible_date(
-        parsed, "Expiration date", min_date=EXPIRATION_DATE_MIN, max_date=today.replace(year=today.year + EXPIRATION_DATE_MAX_YEARS_AHEAD)
-    )
+    max_date = date(today.year + EXPIRATION_DATE_MAX_YEARS_AHEAD, 12, 31)
+    return validate_plausible_date(parsed, "Expiration date", min_date=EXPIRATION_DATE_MIN, max_date=max_date)

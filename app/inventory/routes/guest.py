@@ -16,7 +16,7 @@ from app.auth.device_locations import (
 )
 from app.auth.queries import get_agency_by_display_name, list_top_locations
 from app.inventory import guest_bp as bp
-from app.inventory.admin_edit_service import send_temporary_time_pin
+from app.inventory.admin_edit_service import send_temporary_admin_pin
 from app.inventory.constants import (
     UNKNOWN_UPC_INVALID_MESSAGE,
 )
@@ -122,7 +122,7 @@ def admin_login(squad: str) -> Any:
         if request.form.get("action") == "send_temp_pin":
             with get_session() as s:
                 agency = get_agency_by_display_name(squad, s)
-                if agency is None or not send_temporary_time_pin(s, agency):
+                if agency is None or not send_temporary_admin_pin(s, agency):
                     flash("Temporary PIN could not be sent. Try again.", "error")
                     return _admin_login_response(squad, token)
                 s.commit()

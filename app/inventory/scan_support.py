@@ -113,8 +113,10 @@ def operation_from_storage_ids(
         return OperationType.RESTOCK, None, to_storage_id
     if from_storage_id == VirtualLocation.COUNT:
         return OperationType.COUNT, None, to_storage_id
+    if from_storage_id is None and to_storage_id is None:
+        raise ValueError("Select a source and destination storage")
     if from_storage_id == to_storage_id:
-        raise ValueError("Invalid operation parameters")
+        raise ValueError("Cannot transfer to the same storage")
     if from_storage_id and from_storage_id > 0 and to_storage_id and to_storage_id > 0:
         return OperationType.TRANSFER, from_storage_id, to_storage_id
     if from_storage_id and from_storage_id > 0 and to_storage_id == VirtualLocation.TAKEOUT:

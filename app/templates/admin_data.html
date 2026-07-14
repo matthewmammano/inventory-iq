@@ -105,7 +105,7 @@
 
 {% macro notification_fields(recipient=none) -%}
 {{ field("email", recipient.email if recipient else "", "Email Address", validation_attrs("email_128", required=True, placeholder="name@example.com" if not recipient else none), wide=True) }}
-{{ checkbox_list_field("Locations", "location_filter_ids", locations, recipient.location_filter_ids if recipient else [], 'data-validate-group="required_choice" data-group-name="location_filter_ids" data-label="Locations" data-invalid-selector=".check-option"') }}
+{{ checkbox_list_field("Locations", "location_filter_ids", locations, recipient.location_filter_ids if recipient else [], validation_group_attrs("location_filter_ids", "Locations", invalid_selector=".check-option")) }}
 {{ select_field("alert_frequency", recipient.alert_frequency if recipient else "HOURLY", "Alert Frequency", alert_email_frequency_choices) }}
 {{ field("quiet_start_time", recipient.quiet_start_time if recipient else "", "Quiet Start", validation_attrs("hhmm_time", pair_with="quiet_end_time")) }}
 {{ field("quiet_end_time", recipient.quiet_end_time if recipient else "", "Quiet End", validation_attrs("hhmm_time", pair_with="quiet_start_time")) }}
@@ -269,7 +269,7 @@
         </div>
     </section>
 
-    <section class="panel tab-panel{% if active_tab != 'notifications' %} hidden{% endif %}" id="notifications">
+    <section class="panel tab-panel{% if active_tab != 'notifications' %} hidden{% endif %}" id="notifications" data-existing-emails='{{ notifications|map(attribute="email")|list|tojson }}'>
         {% if notifications|length == 0 %}
         <div class="empty-state"><h2>No emails found</h2></div>
         {% else %}
@@ -334,4 +334,5 @@
 <script src="{{ url_for('static', filename='js/modal-actions.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/dynamic-field-list.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/tag-chip-colors.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/admin-data.js') }}" defer></script>
 {% endblock %}

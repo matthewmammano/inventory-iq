@@ -71,6 +71,18 @@ def validation_attrs(
     return SafeHtmlAttrs(" ".join(_html_attr(key, value) for key, value in attrs.items()))
 
 
+def validation_group_attrs(group_name: str, label: str, *, invalid_selector: str | None = None) -> SafeHtmlAttrs:
+    """Render safe HTML attributes for a required-choice validation group."""
+    attrs: dict[str, Any] = {
+        "data-validate-group": "required_choice",
+        "data-group-name": group_name,
+        "data-label": label,
+    }
+    if invalid_selector:
+        attrs["data-invalid-selector"] = invalid_selector
+    return SafeHtmlAttrs(" ".join(_html_attr(key, value) for key, value in attrs.items()))
+
+
 def _html_attr(key: str, value: Any) -> str:
     if value is True:
         return key

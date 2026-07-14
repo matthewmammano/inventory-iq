@@ -1,9 +1,7 @@
 """Admin data-edit services with explicit ownership checks."""
 
 from collections.abc import Sequence
-from datetime import UTC, datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from loguru import logger
 from pydantic import BaseModel
@@ -20,7 +18,10 @@ from app.auth.notification_preferences import (
 from app.inventory.admin_edit_schema import AdminItemForm, AdminNotificationForm, AdminSettingsForm, AdminTagForm
 from app.inventory.models import Item, ItemSecondaryUpc
 from app.shared.email_client import EMAIL_RETRY_DELAYS_SECONDS, OutboundEmail, send_email
+from app.shared.security import generate_numeric_pin
 from app.shared.validators import parse_non_negative_int
+
+ADMIN_PIN_DIGITS = 4
 
 
 def create_item(session: Session, agency_id: int, form: AdminItemForm) -> Item:
@@ -87,7 +88,9 @@ def delete_tag(session: Session, agency_id: int, tag_id: int) -> ItemTag:
 
 def create_notification(session: Session, agency_id: int, form: AdminNotificationForm) -> NotificationRecipient:
     location_ids = validate_location_filter_ids(session, agency_id, form.location_filter_ids)
-    recipient = _find_recipient_by_email(session, agency_id, form.email) or NotificationRecipient(agency_id=agency_id)
+    recipient = _find_recipient_by_email(session, agency_id, form.email)
+    _reject_active_duplicate_email(recipient)
+    recipient = recipient or NotificationRecipient(agency_id=agency_id)
     session.add(recipient)
     _apply_model_values(recipient, form, exclude={"location_filter_ids", *NOTIFICATION_FIELDS})
     recipient.active = True
@@ -99,6 +102,8 @@ def create_notification(session: Session, agency_id: int, form: AdminNotificatio
 
 def update_notification(session: Session, agency_id: int, recipient_id: int, form: AdminNotificationForm) -> NotificationRecipient:
     recipient = _get_owned_row(session, NotificationRecipient, agency_id, recipient_id, "Notification recipient")
+    if form.email != recipient.email:
+        _reject_active_duplicate_email(_find_recipient_by_email(session, agency_id, form.email))
     location_ids = validate_location_filter_ids(session, agency_id, form.location_filter_ids)
     changed = _apply_model_values_if_changed(recipient, form, exclude={"location_filter_ids", *NOTIFICATION_FIELDS})
     if recipient.location_filter_ids != location_ids:
@@ -130,13 +135,9 @@ def save_admin_settings(session: Session, agency: Agency, values: dict[str, Any]
     return changed
 
 
-def send_temporary_time_pin(session: Session, agency: Agency) -> bool:
-    code = _local_time_code(agency.timezone)
-    body = (
-        "Inventory IQ temporary admin PIN\n\n"
-        f"Your temporary admin PIN is: {code}\n\n"
-        "This code is based on the current time. If you want this reset to a different number, contact support for a manual change."
-    )
+def send_temporary_admin_pin(session: Session, agency: Agency) -> bool:
+    code = generate_numeric_pin(ADMIN_PIN_DIGITS)
+    body = f"Inventory IQ temporary admin PIN\n\nYour temporary admin PIN is: {code}\n\nUse this PIN to sign in, then set a new one in Settings."
     sent = send_email(
         OutboundEmail(subject="Inventory IQ Temporary Admin PIN", text_body=body, to_email=agency.email),
         retry_delays_seconds=EMAIL_RETRY_DELAYS_SECONDS,
@@ -270,6 +271,11 @@ def _find_recipient_by_email(session: Session, agency_id: int, email: str) -> No
     )
 
 
+def _reject_active_duplicate_email(recipient: NotificationRecipient | None) -> None:
+    if recipient is not None and recipient.active:
+        raise ValueError("A notification recipient already exists for this email.")
+
+
 def _apply_model_values(target: Any, source: BaseModel, *, exclude: set[str] | None = None) -> None:
     for key, value in source.model_dump(exclude=exclude or set()).items():
         setattr(target, key, value)
@@ -317,11 +323,3 @@ def _submitted_secondary_upcs(form: Any) -> list[str]:
     if values:
         return [upc for value in values for upc in _split_upcs(value)]
     return _split_upcs(form.get("secondary_upcs", ""))
-
-
-def _local_time_code(timezone: str) -> str:
-    try:
-        now = datetime.now(ZoneInfo(timezone))
-    except Exception:
-        now = datetime.now(UTC)
-    return now.strftime("%H%M")

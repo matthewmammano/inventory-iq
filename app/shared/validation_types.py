@@ -20,6 +20,7 @@ from app.shared.validators import (
     validate_pin,
     validate_pin_length,
     validate_positive_integer,
+    validate_quantity_bound,
     validate_string_length,
 )
 
@@ -60,9 +61,9 @@ def _parsed_required_non_negative_int(field_name: str):
             normalized = validate_non_negative_integer(value, field_name, allow_none=False)
             if normalized is None:
                 raise ValueError(f"{field_name} is required")
-            return normalized
+            return validate_quantity_bound(normalized, field_name)
         if isinstance(value, str) and value.isdigit():
-            return int(value)
+            return validate_quantity_bound(int(value), field_name)
         raise ValueError(f"{field_name} must be a valid number")
 
     return BeforeValidator(parse)
@@ -122,7 +123,6 @@ class FieldRuleName(StrEnum):
     INCREMENTS = "INCREMENTS"
     ITEM_NAME = "ITEM_NAME"
     ISO_DATE = "ISO_DATE"
-    NON_NEGATIVE_NUMBER = "NON_NEGATIVE_NUMBER"
     NON_NEGATIVE_INT = "NON_NEGATIVE_INT"
     PASSWORD = "PASSWORD"  # nosec B105 - validation rule identifier, not a credential
     PIN4 = "PIN4"
@@ -143,9 +143,6 @@ FIELD_SPECS: Mapping[FieldRuleName, FieldSpec] = {
     FieldRuleName.INCREMENTS: FieldSpec("Increments", "Increments cannot exceed 50 characters.", Increments, ("max_length",), maxlength=50),
     FieldRuleName.ITEM_NAME: FieldSpec("Item Name", "Item name is required.", ItemName, ("max_length",), maxlength=100, required=True),
     FieldRuleName.ISO_DATE: FieldSpec("Date", "Enter a valid date.", str, ("iso_date",), input_type="date"),
-    FieldRuleName.NON_NEGATIVE_NUMBER: FieldSpec(
-        "Number", "Enter 0 or higher.", float, ("non_negative_number",), input_type="number", min_value=0, step="any"
-    ),
     FieldRuleName.NON_NEGATIVE_INT: FieldSpec("Quantity", "Enter 0 or higher.", Quantity, ("non_negative_int",), input_type="number", min_value=0),
     FieldRuleName.PASSWORD: FieldSpec(
         "Password",

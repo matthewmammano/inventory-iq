@@ -1,6 +1,5 @@
 """Password reset PIN creation, validation, and email delivery."""
 
-import secrets
 from datetime import timedelta
 
 from loguru import logger
@@ -10,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.shared.clock import utc_now_naive
 from app.shared.email_addresses import email_domain
 from app.shared.email_client import OutboundEmail, send_email
+from app.shared.security import generate_numeric_pin
 
 from .constants import RESET_PIN_DIGITS, RESET_PIN_MAX_ATTEMPTS, RESET_PIN_TTL_MINUTES
 from .models import Agency, PasswordResetPins
@@ -23,7 +23,7 @@ def create_password_reset_pin(session: Session, email: str) -> bool:
         return True
 
     now = utc_now_naive()
-    pin = f"{secrets.randbelow(10**RESET_PIN_DIGITS):0{RESET_PIN_DIGITS}d}"
+    pin = generate_numeric_pin(RESET_PIN_DIGITS)
     _clear_open_pins(session, agency.id, now)
     reset_pin = PasswordResetPins(
         agency_id=agency.id,

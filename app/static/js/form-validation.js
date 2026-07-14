@@ -20,7 +20,10 @@
         field.dataset.validationBound = "1";
         if (DIGIT_RULES.has(field.dataset.validate)) field.addEventListener("input", () => filterDigits(field));
         if (submitOnly(field)) {
-            ["change", "input"].forEach((eventName) => field.addEventListener(eventName, () => clearFieldState(field)));
+            ["change", "input"].forEach((eventName) => field.addEventListener(eventName, () => {
+                clearFieldState(field);
+                relatedFields(field).forEach(clearFieldState);
+            }));
             return;
         }
         const liveEvents = validators(field).includes("image_source") ? ["change"] : ["change", "input"];
@@ -193,7 +196,6 @@
         if (validator === "iso_date" && !/^\d{4}-\d{2}-\d{2}$/.test(value)) return field.dataset.errorMessage;
         if (validator === "max_length" && field.dataset.maxLength && value.length > Number(field.dataset.maxLength)) return field.dataset.errorMessage;
         if (validator === "non_negative_int" && (!/^\d+$/.test(value) || Number(value) < 0)) return field.dataset.errorMessage;
-        if (validator === "non_negative_number" && (Number.isNaN(Number(value)) || Number(value) < 0)) return field.dataset.errorMessage;
         if (validator === "password") return passwordError(value, field);
         if (validator === "pin4" && !/^\d{4}$/.test(value)) return field.dataset.errorMessage;
         if (validator === "pin6" && !/^\d{6}$/.test(value)) return field.dataset.errorMessage;

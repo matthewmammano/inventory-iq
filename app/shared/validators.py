@@ -179,6 +179,16 @@ def parse_non_negative_int(value: str | None) -> int | None:
     return int(stripped) if stripped.isdigit() else None
 
 
+MAX_SCAN_QUANTITY = 100_000
+
+
+def validate_quantity_bound(value: int, field_name: str, *, max_value: int = MAX_SCAN_QUANTITY) -> int:
+    """Reject a quantity above a sane ceiling (catches fat-finger or overflow input)."""
+    if value > max_value:
+        raise ValueError(f"{field_name} must be {max_value:,} or less")
+    return value
+
+
 def validate_iso_date(value: str, field_name: str) -> date:
     """Validate a YYYY-MM-DD date string."""
     if len(value) != 10:

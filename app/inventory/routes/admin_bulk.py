@@ -280,7 +280,10 @@ def _save_bulk_edit(
             "entry_count": result.total_entry_count,
         },
     )
-    flash(f"Saved {result.count_entry_count} count and {result.restock_entry_count} restock entries for {location.name}.", "success")
+    if result.total_entry_count == 0:
+        flash("No changes entered.", "info")
+    else:
+        flash(f"Saved {result.count_entry_count} count and {result.restock_entry_count} restock entries for {location.name}.", "success")
     return redirect(url_for("admin.admin_panel", squad=squad))
 
 

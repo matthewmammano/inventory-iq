@@ -29,7 +29,7 @@ def get_location_storages(
     )
 
 
-def get_locations_storages(
+def get_storages_for_locations(
     session: Session,
     agency_id: int,
     agency_location_ids: list[int],

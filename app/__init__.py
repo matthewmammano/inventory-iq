@@ -24,7 +24,7 @@ from app.inventory import admin_bp, guest_bp
 from app.shared.config import settings
 from app.shared.database import init_db
 from app.shared.email_client import log_email_config_status
-from app.shared.form_validation import validation_attrs
+from app.shared.form_validation import validation_attrs, validation_group_attrs
 from app.shared.html_formatting import bold_item_name
 from app.shared.logging import setup_logging
 from app.shared.model_registry import import_model_modules
@@ -140,6 +140,7 @@ def _register_template_filters(app: Flask) -> None:
     app.add_template_filter(bold_item_name, "bold_item_name")
     app.add_template_filter(pluralize, "pluralize")
     app.add_template_global(validation_attrs, "validation_attrs")
+    app.add_template_global(validation_group_attrs, "validation_group_attrs")
 
     @app.template_filter("image_src")
     def image_src(image_path: str | None) -> str:
