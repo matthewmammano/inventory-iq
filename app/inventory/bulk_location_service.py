@@ -145,9 +145,9 @@ def suggested_restock_item_ids(
         return set()
     item_ids = {item.id for item in items}
     return {
-        row["item"].id
+        row.item.id
         for row in BulkService.get_restock_analysis(session, agency_id, agency_location_id)
-        if row["item"].id in item_ids and (row["order_amount"] or 0) > 0
+        if row.item.id in item_ids and (row.order_amount or 0) > 0
     }
 
 

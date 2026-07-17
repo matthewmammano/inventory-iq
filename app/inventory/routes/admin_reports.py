@@ -22,7 +22,7 @@ from app.prediction.history_service import build_item_trend_chart
 from app.shared.cache import ttl_cache
 from app.shared.database import get_session
 from app.shared.form_parsing import selected_int_ids
-from app.shared.validators import parse_optional_int
+from app.shared.validators import first_validation_error_message, parse_optional_int
 
 HISTORY_PAGE_SIZE = 50
 
@@ -182,16 +182,6 @@ def _flash_email_delivery_result(
     flash(f"Sent {sent} of {total} {label.lower()} email(s).", "error")
 
 
-def _validation_message(exc: ValidationError) -> str:
-    errors = exc.errors()
-    if not errors:
-        return "Invalid form data. Please try again."
-    context = errors[0].get("ctx") or {}
-    if "error" in context:
-        return str(context["error"])
-    return str(errors[0]["msg"])
-
-
 def _history_date_range(
     values: Mapping[str, Any],
     *,
@@ -211,7 +201,7 @@ def _history_date_range(
                 "error": str(exc),
             },
         )
-        return None, _validation_message(exc)
+        return None, first_validation_error_message(exc, "Invalid form data. Please try again.")
 
 
 @bp.route("/<int:agency_id>/admin-panel/history")

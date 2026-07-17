@@ -109,6 +109,14 @@ class NotificationDeliveryKind(StrEnum):
     REPORT = "REPORT"
 
 
+class NotificationOutcome(StrEnum):
+    """Result of one recipient's notification pass, tallied into per-run stats."""
+
+    SENT = "sent"
+    FAILED = "failed"
+    SUPPRESSED = "suppressed"
+
+
 @dataclass(frozen=True)
 class AlertDefinition:
     """Central metadata for one alert type.

@@ -8,6 +8,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from email_validator import EmailNotValidError, validate_email
 from loguru import logger
+from pydantic import ValidationError
 
 PASSWORD_MIN_LENGTH = 10
 PASSWORD_REQUIREMENTS_MESSAGE = "Password must be at least 10 characters and include a letter, number, and symbol."  # nosec B105 - user-facing validation copy
@@ -204,3 +205,14 @@ def validate_plausible_date(value: date, field_name: str, *, min_date: date, max
     if value < min_date or value > max_date:
         raise ValueError(f"{field_name} must be between {min_date.isoformat()} and {max_date.isoformat()}.")
     return value
+
+
+def first_validation_error_message(exc: ValidationError, default: str) -> str:
+    """Turn a Pydantic ValidationError into one user-facing flash message."""
+    errors = exc.errors()
+    if not errors:
+        return default
+    context = errors[0].get("ctx") or {}
+    if "error" in context:
+        return str(context["error"])
+    return str(errors[0]["msg"])

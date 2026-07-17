@@ -9,6 +9,7 @@ resolution or by an age sweep. Any new alert row starts with a clean notificatio
 slate, which is what lets escalation and recurrence notify immediately.
 """
 
+from collections.abc import Collection
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 from typing import Any
@@ -32,7 +33,7 @@ from .audit_queries import (
     load_expiration_count_audit_rows,
     load_state_audit_rows,
 )
-from .constants import ACTION_ALERT_TYPES, AlertStatus, AlertType, ClosedReason
+from .constants import ACTION_ALERT_TYPES, STOCK_ALERT_TYPES, AlertStatus, AlertType, ClosedReason
 from .models import Alert
 from .payloads import (
     ExpirationCountNeededPayload,
@@ -45,8 +46,6 @@ from .payloads import (
 
 STALE_RARE_TYPES = (AlertType.STALE_COUNT, AlertType.RARE_TAKEOUT)
 EXPIRATION_TYPES = (AlertType.EXPIRED_STOCK, AlertType.EXPIRING_SOON, AlertType.EXPIRATION_COUNT_NEEDED)
-STOCK_TYPES = (AlertType.STOCKOUT, AlertType.STOCKOUT_FORECAST, AlertType.LOW_STOCK, AlertType.LOW_STOCK_FORECAST)
-ACTION_TYPES = tuple(ACTION_ALERT_TYPES.values())
 INFORMATIONAL_SWEEP_AGE = timedelta(days=2)
 
 AlertKey = tuple[int, str]  # (agency_id, dedupe_key)
@@ -125,7 +124,7 @@ def sync_stock_alerts(
         return 0
     now = now or _now()
     desired = _desired_stock_alerts(session, agency_id, item_location_keys)
-    open_now = _open_alerts(session, agency_id, STOCK_TYPES, item_location_keys)
+    open_now = _open_alerts(session, agency_id, STOCK_ALERT_TYPES, item_location_keys)
     _reconcile(session, desired, open_now, now)
     return len(desired)
 
@@ -248,7 +247,7 @@ def _close_alert(alert: Alert, now: datetime, reason: ClosedReason) -> None:
 def _open_alerts(
     session: Session,
     agency_id: int | None,
-    alert_types: tuple[AlertType, ...],
+    alert_types: Collection[AlertType],
     item_location_keys: set[ItemLocationKey] | None,
 ) -> dict[AlertKey, Alert]:
     stmt = select(Alert).where(Alert.status == AlertStatus.OPEN, Alert.alert_type.in_(alert_types))
@@ -265,7 +264,7 @@ def _open_alerts(
 def _sweep_informational_alerts(session: Session, agency_id: int | None, now: datetime) -> int:
     cutoff = now - INFORMATIONAL_SWEEP_AGE
     swept = 0
-    for alert in _open_alerts(session, agency_id, ACTION_TYPES, None).values():
+    for alert in _open_alerts(session, agency_id, ACTION_ALERT_TYPES.values(), None).values():
         if alert.opened_at < cutoff:
             _close_alert(alert, now, ClosedReason.SENT)
             swept += 1
@@ -422,7 +421,7 @@ def _open_scan_activity_alert(session: Session, action_log: ActionLog, now: date
         action_log_id=action_log.id,
         item_id=item.id,
         item_name=item.name,
-        operation_type=action_log.operation_type.value,
+        operation_type=action_log.operation_type,
         quantity=action_log.quantity,
         admin_action=bool(action_log.admin_action),
         from_agency_location_id=from_location_id,

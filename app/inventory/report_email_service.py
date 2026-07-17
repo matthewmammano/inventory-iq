@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from typing import NamedTuple
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -26,6 +27,13 @@ from app.shared.timezone_utils import convert_utc_to_local
 
 REPORT_SEVERITY = AlertSeverity.INFO
 ReportRow = dict[str, str | int | float | None]
+
+
+class EmailDeliveryResult(NamedTuple):
+    """How many of the selected recipients a report email actually reached."""
+
+    sent: int
+    total: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,10 +64,10 @@ def send_inventory_count_report(
     session: Session,
     agency_id: int,
     notification_recipient_ids: list[int],
-) -> tuple[int, int]:
+) -> EmailDeliveryResult:
     agency, recipients = _agency_recipients(session, agency_id, notification_recipient_ids)
     if agency is None or not recipients:
-        return 0, 0
+        return EmailDeliveryResult(0, 0)
     return _deliver_batch_to_recipients(
         _build_inventory_count_batch(session, agency),
         recipients,
@@ -76,10 +84,10 @@ def send_history_report(
     end_utc: datetime | None,
     start_date: str,
     end_date: str,
-) -> tuple[int, int]:
+) -> EmailDeliveryResult:
     agency, recipients = _agency_recipients(session, agency_id, notification_recipient_ids)
     if agency is None or not recipients:
-        return 0, 0
+        return EmailDeliveryResult(0, 0)
     export = build_history_csv_attachment(session, agency, agency_location_id, start_utc, end_utc)
     return _deliver_batch_to_recipients(
         _build_history_batch(agency, export, start_date, end_date),
@@ -93,13 +101,13 @@ def send_restock_report(
     agency_id: int,
     notification_recipient_ids: list[int],
     agency_location_id: int | None,
-) -> tuple[int, int]:
+) -> EmailDeliveryResult:
     agency, recipients = _agency_recipients(session, agency_id, notification_recipient_ids)
     if agency is None or not recipients:
-        return 0, 0
+        return EmailDeliveryResult(0, 0)
     location = _report_location(agency, agency_location_id)
     if location is None:
-        return 0, 0
+        return EmailDeliveryResult(0, 0)
     rows = build_restock_page_rows(session, agency.id, location.id)
     return _deliver_batch_to_recipients(
         _build_restock_batch(agency, location.name, rows),
@@ -124,12 +132,12 @@ def _deliver_batch_to_recipients(
     batch_base: EmailBatch,
     recipients: list[NotificationRecipient],
     attachments: tuple[EmailAttachment, ...],
-) -> tuple[int, int]:
+) -> EmailDeliveryResult:
     sent = 0
     for recipient in recipients:
         batch = batch_base.model_copy(update={"agency_email": recipient.email})
         sent += int(deliver_batch(batch, attachments=attachments))
-    return sent, len(recipients)
+    return EmailDeliveryResult(sent, len(recipients))
 
 
 def _selected_recipients(

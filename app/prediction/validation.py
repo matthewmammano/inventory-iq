@@ -1,6 +1,7 @@
 """RESTOCK validation helpers."""
 
 from datetime import timedelta
+from typing import NamedTuple
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -13,12 +14,19 @@ from app.shared.clock import utc_now_naive
 SESSION_REQUIRED_ERROR = "validate_restock requires an active session"
 
 
+class RestockValidation(NamedTuple):
+    """Whether a restock is allowed, and why not if it isn't."""
+
+    ok: bool
+    message: str
+
+
 def validate_restock(
     agency_id: int,
     item_id: int,
     storage_id: int,
     session: Session | None = None,
-) -> tuple[bool, str]:
+) -> RestockValidation:
     """A vendor restock requires fresh counts for every storage in the location."""
     if session is None:
         raise RuntimeError(SESSION_REQUIRED_ERROR)
@@ -34,7 +42,7 @@ def validate_restock(
         .first()
     )
     if storage is None:
-        return False, "Destination storage not found."
+        return RestockValidation(False, "Destination storage not found.")
 
     return validate_location_restock(agency_id, item_id, storage.location_id, session)
 
@@ -44,18 +52,18 @@ def validate_location_restock(
     item_id: int,
     agency_location_id: int,
     session: Session,
-) -> tuple[bool, str]:
+) -> RestockValidation:
     """Require every storage in a location to have a fresh count before restock."""
     stale_storage_ids = get_stale_count_storage_ids(agency_id, item_id, agency_location_id, session)
     if not stale_storage_ids:
-        return True, ""
+        return RestockValidation(True, "")
 
     msg = (
         "RESTOCK requires a full location count first. Count every storage in this "
         f"location within {_restock_validation_days(agency_id, session)} days, "
         "then try the restock again."
     )
-    return False, msg
+    return RestockValidation(False, msg)
 
 
 def get_stale_count_storage_ids(

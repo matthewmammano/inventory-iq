@@ -40,6 +40,7 @@ from .constants import (
     AlertType,
     DeliveryStatus,
     NotificationDeliveryKind,
+    NotificationOutcome,
 )
 from .developer_alerts import send_developer_delivery_failure_alert
 from .email_delivery import deliver_batch
@@ -51,7 +52,7 @@ MORNING_EMAIL_LOCAL_HOUR = 9
 HOURLY_ALERT_INTERVAL = timedelta(hours=1)
 NOTIFICATION_RETRY_DELAYS_SECONDS: tuple[int, ...] = ()  # fail fast; the 10-minute cron is the retry
 SEVERITY_RANK = {severity: rank for rank, severity in enumerate(SEVERITY_ORDER)}
-STAT_KEYS = ("alerts_sent", "reports_sent", "failed", "suppressed")
+STAT_KEYS = tuple(NotificationOutcome)
 
 
 @dataclass(frozen=True)
@@ -65,24 +66,26 @@ class AlertEmail:
 def process_all_alerts(*, force: bool = False, agency_id: int | None = None) -> dict[str, int]:
     """Send every due alert and report email, one pass over active recipients."""
     now = _now()
-    outcomes: Counter[str] = Counter()
+    outcomes: Counter[NotificationOutcome] = Counter()
     with get_session() as session:
         for agency in _active_agencies(session, agency_id):
             for recipient in list_active_emails(agency.id, session, order_by_id=True):
                 outcomes.update(_process_recipient(session, agency, recipient, now, force=force))
         session.commit()
-    stats = {key: outcomes.get(key, 0) for key in STAT_KEYS}
+    stats: dict[str, int] = {key: outcomes.get(key, 0) for key in STAT_KEYS}
     logger.info("Notification email run finished", extra=stats | {"force": force, "agency_id": agency_id})
     return stats
 
 
-def _process_recipient(session: Session, agency: Agency, recipient: NotificationRecipient, now: datetime, *, force: bool) -> list[str]:
+def _process_recipient(
+    session: Session, agency: Agency, recipient: NotificationRecipient, now: datetime, *, force: bool
+) -> list[NotificationOutcome]:
     if not force and _in_quiet_hours(recipient, agency.timezone, now):
-        return ["suppressed"]
+        return [NotificationOutcome.SUPPRESSED]
     return _process_alerts(session, agency, recipient, now, force=force) + _process_report(session, agency, recipient, now, force=force)
 
 
-def _process_alerts(session: Session, agency: Agency, recipient: NotificationRecipient, now: datetime, *, force: bool) -> list[str]:
+def _process_alerts(session: Session, agency: Agency, recipient: NotificationRecipient, now: datetime, *, force: bool) -> list[NotificationOutcome]:
     if not force and not _alert_cadence_ready(session, recipient, agency.timezone, now):
         return []
     due_alerts = _due_alerts(session, agency.id, recipient, now)
@@ -93,12 +96,12 @@ def _process_alerts(session: Session, agency: Agency, recipient: NotificationRec
         return []
     if deliver_batch(email.batch, retry_delays_seconds=NOTIFICATION_RETRY_DELAYS_SECONDS):
         _record_alert_sent(session, agency, recipient, email, now)
-        return ["alerts_sent"]
+        return [NotificationOutcome.SENT]
     _record_failure(session, agency, recipient, NotificationDeliveryKind.ALERT, email.batch, now)
-    return ["failed"]
+    return [NotificationOutcome.FAILED]
 
 
-def _process_report(session: Session, agency: Agency, recipient: NotificationRecipient, now: datetime, *, force: bool) -> list[str]:
+def _process_report(session: Session, agency: Agency, recipient: NotificationRecipient, now: datetime, *, force: bool) -> list[NotificationOutcome]:
     if not force and _already_reported_today(session, recipient, agency.timezone, now):
         return []
     email = _build_report_email(session, agency, recipient, now, force=force)
@@ -106,9 +109,9 @@ def _process_report(session: Session, agency: Agency, recipient: NotificationRec
         return []
     if deliver_batch(email.batch, retry_delays_seconds=NOTIFICATION_RETRY_DELAYS_SECONDS):
         _record_report_sent(session, agency, recipient, email, now)
-        return ["reports_sent"]
+        return [NotificationOutcome.SENT]
     _record_failure(session, agency, recipient, NotificationDeliveryKind.REPORT, email.batch, now)
-    return ["failed"]
+    return [NotificationOutcome.FAILED]
 
 
 # --------------------------------------------------------------------------- #

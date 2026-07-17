@@ -51,6 +51,20 @@ class BulkEditRow:
     suggested_restock: bool
 
 
+@dataclass(frozen=True, slots=True)
+class BulkEditFormState:
+    """Submitted cell values and validation-highlighted cells for one bulk-edit render."""
+
+    counts: Mapping[tuple[int, int], int | str]
+    restocks: Mapping[tuple[int, int], int | str]
+    invalid_cells: set[tuple[int, int]]
+    invalid_restock_cells: set[tuple[int, int]]
+
+    @classmethod
+    def empty(cls) -> "BulkEditFormState":
+        return cls({}, {}, set(), set())
+
+
 @bp.route("/<int:agency_id>/admin-panel/bulk-actions")
 @bp.route("/<int:agency_id>/admin-panel/bulk-actions/<int:agency_location_id>")
 def bulk_actions(agency_id: int, agency_location_id: int | None = None) -> Any:
@@ -140,10 +154,7 @@ def bulk_edit(agency_id: int, agency_location_id: int) -> Any:
                     "invalid_count_cell_count": len(submission.invalid_count_cells),
                     "invalid_restock_cell_count": len(submission.invalid_restock_cells),
                 },
-                submission.raw_counts,
-                submission.raw_restocks,
-                submission.invalid_count_cells,
-                submission.invalid_restock_cells,
+                BulkEditFormState(submission.raw_counts, submission.raw_restocks, submission.invalid_count_cells, submission.invalid_restock_cells),
             )
         if request.method == "POST" and submission.missing_required_count_cells:
             return _reject_bulk_edit(
@@ -154,10 +165,7 @@ def bulk_edit(agency_id: int, agency_location_id: int) -> Any:
                 "Bulk action rejected: required count values are missing before restock",
                 "Count required before restocking highlighted items.",
                 {"missing_count_cell_count": len(submission.missing_required_count_cells)},
-                submission.counts,
-                submission.restocks,
-                submission.missing_required_count_cells,
-                set(),
+                BulkEditFormState(submission.counts, submission.restocks, submission.missing_required_count_cells, set()),
             )
         if request.method == "POST":
             return _save_bulk_edit(s, agency_id, grid.location, submission.counts, submission.restocks, item_ids)
@@ -179,14 +187,11 @@ def _reject_bulk_edit(
     log_message: str,
     flash_message: str,
     extra: Mapping[str, int],
-    submitted_counts: Mapping[tuple[int, int], int | str],
-    submitted_restocks: Mapping[tuple[int, int], int | str],
-    invalid_cells: set[tuple[int, int]],
-    invalid_restock_cells: set[tuple[int, int]],
+    form_state: BulkEditFormState,
 ) -> Any:
     logger.info(log_message, extra={"agency_location_id": grid.location.id, "item_count": len(grid.items), **extra})
     flash(flash_message, "warning")
-    return _render_bulk_edit(session, agency_id, grid, required, submitted_counts, submitted_restocks, invalid_cells, invalid_restock_cells)
+    return _render_bulk_edit(session, agency_id, grid, required, form_state)
 
 
 def _render_bulk_edit(
@@ -194,11 +199,9 @@ def _render_bulk_edit(
     agency_id: int,
     grid,
     required: dict[int, set[int]],
-    submitted_counts: Mapping[tuple[int, int], int | str] | None = None,
-    submitted_restocks: Mapping[tuple[int, int], int | str] | None = None,
-    invalid_cells: set[tuple[int, int]] | None = None,
-    invalid_restock_cells: set[tuple[int, int]] | None = None,
+    form_state: BulkEditFormState | None = None,
 ) -> Any:
+    state = form_state or BulkEditFormState.empty()
     suggested_restock = suggested_restock_item_ids(session, current_user.id, grid.location.id, grid.items)
     return render_template(
         "admin_bulk_actions.html",
@@ -209,10 +212,10 @@ def _render_bulk_edit(
             grid.storages,
             required,
             suggested_restock,
-            submitted_counts or {},
-            submitted_restocks or {},
-            invalid_cells or set(),
-            invalid_restock_cells or set(),
+            state.counts,
+            state.restocks,
+            state.invalid_cells,
+            state.invalid_restock_cells,
         ),
         storages=grid.storages,
         item_ids=[item.id for item in grid.items],

@@ -1,6 +1,7 @@
 """Restock analysis for one agency location."""
 
-from datetime import datetime
+from dataclasses import dataclass
+from datetime import date, datetime
 from math import floor
 
 from loguru import logger
@@ -16,6 +17,29 @@ from app.inventory.models import InventoryItemLocationState, Item
 from app.prediction.estimator import reorder_date
 from app.prediction.formatting import format_usage_rate, rounded_confidence_percent
 from app.shared.timezone_utils import convert_utc_to_local
+
+
+@dataclass(frozen=True, slots=True)
+class RestockAnalysisRow:
+    """One item's restock analysis at a location: typed inputs for templates and sorting."""
+
+    item: Item
+    current_total: int
+    projected_lead_time_total: int | None
+    min_quantity: int
+    max_quantity: int
+    gap_to_min: int
+    lead_time_days: int
+    suggested_reorder_date: date | None
+    last_counted_at: datetime | None
+    days_until_low: float | None
+    days_until_stockout: int | None
+    order_amount: int | None
+    order_amount_display: str
+    confidence_percent: float | None
+    confidence_display: int | None
+    daily_usage_rate: float | None
+    usage_display: str | None
 
 
 class BulkService:
@@ -34,7 +58,7 @@ class BulkService:
         session: Session,
         agency_id: int,
         agency_location_id: int,
-    ) -> list[dict]:
+    ) -> list[RestockAnalysisRow]:
         try:
             agency_settings = session.get(Agency, agency_id)
             items = BulkService.get_active_items(session, agency_id)
@@ -60,10 +84,10 @@ class BulkService:
             ]
             rows.sort(
                 key=lambda row: (
-                    float("inf") if row["days_until_stockout"] is None else row["days_until_stockout"],
-                    -(row["order_amount"] or 0),
-                    row["current_total"],
-                    row["item"].name,
+                    float("inf") if row.days_until_stockout is None else row.days_until_stockout,
+                    -(row.order_amount or 0),
+                    row.current_total,
+                    row.item.name,
                 )
             )
             return rows
@@ -92,7 +116,7 @@ class BulkService:
             agency_settings.timezone if agency_settings else "UTC",
         ).get(item.id)
         expired_quantity = expired_quantity_by_item(session, agency_id, agency_location_id, [item.id]).get(item.id, 0)
-        return BulkService._analyze_item(item, agency_settings, state, last_counted_at, expired_quantity)["order_amount"]
+        return BulkService._analyze_item(item, agency_settings, state, last_counted_at, expired_quantity).order_amount
 
     @staticmethod
     def get_location(session: Session, agency_id: int, agency_location_id: int) -> Location | None:
@@ -114,7 +138,7 @@ class BulkService:
         state: InventoryItemLocationState | None,
         last_counted_at: datetime | None,
         expired_quantity: int = 0,
-    ) -> dict:
+    ) -> RestockAnalysisRow:
         current_quantity = int(state.total_quantity if state else 0)
         usable_quantity = max(current_quantity - expired_quantity, 0)
         min_qty = int(item.min_quantity or 0)
@@ -144,25 +168,25 @@ class BulkService:
             else None
         )
 
-        return {
-            "item": item,
-            "current_total": current_quantity,
-            "projected_lead_time_total": round(current_quantity - daily_usage * lead_time_days) if daily_usage is not None else None,
-            "min_quantity": min_qty,
-            "max_quantity": max_qty,
-            "gap_to_min": max(min_qty - current_quantity, 0),
-            "lead_time_days": lead_time_days,
-            "suggested_reorder_date": reorder_date(days_low, lead_time_days) if days_low is not None else None,
-            "last_counted_at": last_counted_at,
-            "days_until_low": days_low,
-            "days_until_stockout": floor(days_out) if days_out is not None else None,
-            "order_amount": order_amount,
-            "order_amount_display": BulkService._format_order_amount_display(order_amount, days_low),
-            "confidence_percent": state.confidence_percent if has_trained_trend and state else None,
-            "confidence_display": rounded_confidence_percent(state.confidence_percent if has_trained_trend and state else None),
-            "daily_usage_rate": daily_usage,
-            "usage_display": format_usage_rate(daily_usage),
-        }
+        return RestockAnalysisRow(
+            item=item,
+            current_total=current_quantity,
+            projected_lead_time_total=round(current_quantity - daily_usage * lead_time_days) if daily_usage is not None else None,
+            min_quantity=min_qty,
+            max_quantity=max_qty,
+            gap_to_min=max(min_qty - current_quantity, 0),
+            lead_time_days=lead_time_days,
+            suggested_reorder_date=reorder_date(days_low, lead_time_days) if days_low is not None else None,
+            last_counted_at=last_counted_at,
+            days_until_low=days_low,
+            days_until_stockout=floor(days_out) if days_out is not None else None,
+            order_amount=order_amount,
+            order_amount_display=BulkService._format_order_amount_display(order_amount, days_low),
+            confidence_percent=state.confidence_percent if has_trained_trend and state else None,
+            confidence_display=rounded_confidence_percent(state.confidence_percent if has_trained_trend and state else None),
+            daily_usage_rate=daily_usage,
+            usage_display=format_usage_rate(daily_usage),
+        )
 
     @staticmethod
     def _trained_daily_usage(trend_per_day: float | None) -> float | None:

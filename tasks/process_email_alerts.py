@@ -7,24 +7,24 @@ import argparse
 
 from app import create_app
 from app.alerts.email_service import process_all_alerts
-from app.shared.scheduler import SchedulerJobName, claimed_scheduler_run, scheduler_email_period_key
-from app.shared.task_logging import logged_task
+from app.shared.scheduler import SchedulerJobName, run_scheduled_task, scheduler_email_period_key
 
 
 def run(*, force: bool = False) -> None:
     """Send pending alert emails using the normal cadence unless forced."""
     app = create_app()
-    with app.app_context(), logged_task("process_email_alerts", force=force) as task_result:
-        if not force:
-            period_key = scheduler_email_period_key()
-            with claimed_scheduler_run(SchedulerJobName.PROCESS_ALERT_EMAILS, period_key) as run_id:
-                if run_id is None:
-                    task_result["skipped"] = "already_claimed"
-                    return
-                task_result["period_key"] = period_key
-                task_result.update(process_all_alerts(force=force))
-            return
-        task_result.update(process_all_alerts(force=force))
+    with (
+        app.app_context(),
+        run_scheduled_task(
+            "process_email_alerts",
+            SchedulerJobName.PROCESS_ALERT_EMAILS,
+            period_key_fn=scheduler_email_period_key,
+            bypass_claim=force,
+            force=force,
+        ) as task_result,
+    ):
+        if task_result is not None:
+            task_result.update(process_all_alerts(force=force))
 
 
 if __name__ == "__main__":

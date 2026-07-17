@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel, ConfigDict
 
+from app.inventory.constants import OperationType
+
 
 class AlertPayload(BaseModel):
     model_config = ConfigDict(frozen=True)
@@ -24,7 +26,7 @@ class ScanActivityPayload(AlertPayload):
     action_log_id: int
     item_id: int
     item_name: str
-    operation_type: str
+    operation_type: OperationType
     quantity: int
     admin_action: bool
     from_agency_location_id: int | None

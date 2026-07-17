@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.inventory.expiration_ui_service import ExpirationBreakdown, expiration_breakdowns_by_item
 from app.inventory.ui import get_days_until_low_class, get_inventory_level_class, get_order_quantity_class
-from app.prediction.bulk_service import BulkService
+from app.prediction.bulk_service import BulkService, RestockAnalysisRow
 
 
 @dataclass(frozen=True, slots=True)
@@ -41,37 +41,34 @@ class RestockPageRow:
 def build_restock_page_rows(session: Session, agency_id: int, agency_location_id: int) -> list[RestockPageRow]:
     expiration_breakdowns = expiration_breakdowns_by_item(session, agency_id, agency_location_id)
     analysis_rows = BulkService.get_restock_analysis(session, agency_id, agency_location_id)
-    return [_page_row(row, expiration_breakdowns.get(row["item"].id)) for row in analysis_rows]
+    return [_page_row(row, expiration_breakdowns.get(row.item.id)) for row in analysis_rows]
 
 
-def _page_row(row: dict[str, Any], expiration_breakdown: ExpirationBreakdown | None) -> RestockPageRow:
-    current_total = int(row.get("current_total") or 0)
-    min_quantity = int(row.get("min_quantity") or 0)
-    projected_total = int(row.get("projected_lead_time_total") or 0)
-    classes = _restock_cell_classes(current_total, min_quantity, projected_total)
+def _page_row(row: RestockAnalysisRow, expiration_breakdown: ExpirationBreakdown | None) -> RestockPageRow:
+    classes = _restock_cell_classes(row.current_total, row.min_quantity, row.projected_lead_time_total or 0)
     return RestockPageRow(
-        item=row["item"],
-        current_total=current_total,
-        projected_lead_time_total=row["projected_lead_time_total"],
-        min_quantity=min_quantity,
-        max_quantity=int(row.get("max_quantity") or 0),
-        gap_to_min=int(row.get("gap_to_min") or 0),
-        lead_time_days=int(row.get("lead_time_days") or 0),
-        suggested_reorder_date=row["suggested_reorder_date"],
-        last_counted_at=row["last_counted_at"],
-        days_until_low=row["days_until_low"],
-        days_until_stockout=row["days_until_stockout"],
-        order_amount=row["order_amount"],
-        order_amount_display=row["order_amount_display"],
-        confidence_percent=row["confidence_percent"],
-        confidence_display=row["confidence_display"],
-        daily_usage_rate=row["daily_usage_rate"],
-        usage_display=row["usage_display"],
+        item=row.item,
+        current_total=row.current_total,
+        projected_lead_time_total=row.projected_lead_time_total,
+        min_quantity=row.min_quantity,
+        max_quantity=row.max_quantity,
+        gap_to_min=row.gap_to_min,
+        lead_time_days=row.lead_time_days,
+        suggested_reorder_date=row.suggested_reorder_date,
+        last_counted_at=row.last_counted_at,
+        days_until_low=row.days_until_low,
+        days_until_stockout=row.days_until_stockout,
+        order_amount=row.order_amount,
+        order_amount_display=row.order_amount_display,
+        confidence_percent=row.confidence_percent,
+        confidence_display=row.confidence_display,
+        daily_usage_rate=row.daily_usage_rate,
+        usage_display=row.usage_display,
         current_total_class=classes["current_total_class"],
         projected_total_class=classes.get("projected_total_class", ""),
         min_quantity_class=classes.get("min_quantity_class", ""),
-        days_class=get_days_until_low_class(row["days_until_stockout"]),
-        order_class=get_order_quantity_class(row["order_amount"]),
+        days_class=get_days_until_low_class(row.days_until_stockout),
+        order_class=get_order_quantity_class(row.order_amount),
         expiration_breakdown=expiration_breakdown,
     )
 

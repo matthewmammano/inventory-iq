@@ -2,7 +2,7 @@
 
 import threading
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass
 from datetime import datetime
@@ -22,6 +22,7 @@ from app.shared.clock import current_speed, utc_now
 from app.shared.config import settings
 from app.shared.database import get_session
 from app.shared.models import SchedulerRun
+from app.shared.task_logging import logged_task
 
 GLOBAL_SCHEDULER_AGENCY_ID = 0
 
@@ -296,6 +297,37 @@ def claimed_scheduler_run(
         finish_scheduler_run(run_id, SchedulerRunStatus.FAILED, str(exc))
         raise
     finish_scheduler_run(run_id, SchedulerRunStatus.SUCCESS)
+
+
+@contextmanager
+def run_scheduled_task(
+    task_name: str,
+    job_name: SchedulerJobName,
+    *,
+    scheduler_agency_id: int = GLOBAL_SCHEDULER_AGENCY_ID,
+    period_key_fn: Callable[[], str] = scheduler_daily_period_key,
+    bypass_claim: bool = False,
+    **log_context: object,
+) -> Iterator[dict[str, object] | None]:
+    """Run a `tasks/` entry point's body under structured logging and a scheduler claim.
+
+    Yields the task's result dict to fill in, or `None` when this period was already
+    claimed elsewhere (the caller should skip its work). `bypass_claim=True` skips the
+    scheduler claim entirely so the task always runs (used for on-demand `--force` runs).
+    Caller is still responsible for `create_app()` / `app.app_context()`.
+    """
+    with logged_task(task_name, **log_context) as task_result:
+        if bypass_claim:
+            yield task_result
+            return
+        period_key = period_key_fn()
+        with claimed_scheduler_run(job_name, period_key, scheduler_agency_id) as run_id:
+            if run_id is None:
+                task_result["skipped"] = "already_claimed"
+                yield None
+                return
+            task_result["period_key"] = period_key
+            yield task_result
 
 
 def _poll_seconds() -> float:

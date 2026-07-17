@@ -22,6 +22,7 @@ from app.inventory.upc_service import (
 )
 from app.shared.constants import SAVE_RETRY_MESSAGE
 from app.shared.database import get_session
+from app.shared.validators import first_validation_error_message
 
 PENDING_UPC_REVIEW_ACTIONS = {
     PendingUpcReviewAction.IGNORE: (ignore_unknown_upc, "Pending UPC ignored", "UPC ignored."),
@@ -54,7 +55,7 @@ def _save_pending_upc_review(agency_id: int) -> Any:
     try:
         review_request = PendingUpcReviewRequest.model_validate(request.form.to_dict())
     except ValidationError as exc:
-        flash(_request_validation_message(exc), "error")
+        flash(first_validation_error_message(exc, "Choose a valid UPC review action."), "error")
         return redirect(_pending_upc_redirect(agency_id))
 
     if review_request.action == PendingUpcReviewAction.ADD:
@@ -116,16 +117,6 @@ def _pending_upc_service_error(error: str) -> str:
     if error == "Private UPCs must already be linked as primary item UPCs.":
         return "Private item UPCs are already linked."
     return SAVE_RETRY_MESSAGE
-
-
-def _request_validation_message(exc: ValidationError) -> str:
-    errors = exc.errors()
-    if not errors:
-        return "Choose a valid UPC review action."
-    context = errors[0].get("ctx") or {}
-    if "error" in context:
-        return str(context["error"])
-    return str(errors[0]["msg"])
 
 
 def _upcs_by_status(scans: list[UnknownUpcScan], status: UnknownUpcStatus) -> list[UnknownUpcScan]:
