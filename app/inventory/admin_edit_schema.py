@@ -2,7 +2,7 @@
 
 from pydantic import BaseModel, Field, model_validator
 
-from app.auth.notification_preferences import NOTIFICATION_PREFERENCES, AlertEmailFrequency
+from app.auth.notification_preferences import NOTIFICATION_PREFERENCES, AlertEmailFrequency, ScanAlertScope
 from app.inventory.constants import UPC_GENERATION_PREFIX
 from app.inventory.models import validate_upc_code
 from app.shared.validation_types import (
@@ -27,6 +27,7 @@ class AdminItemForm(BaseModel):
     image: ImageSource = None
     expiration_tracking_enabled: bool = False
     expiration_notice_days_override: OptionalPositiveInt = None
+    scan_alert_flagged: bool = False
     min_quantity: PositiveInt
     max_quantity: PositiveInt
     batch_size: PositiveInt
@@ -59,6 +60,7 @@ class AdminNotificationFormBase(BaseModel):
     quiet_start_time: QuietTime = None
     quiet_end_time: QuietTime = None
     alert_frequency: AlertEmailFrequency = AlertEmailFrequency.HOURLY
+    scan_alert_scope: ScanAlertScope = ScanAlertScope.ALL
 
     @model_validator(mode="after")
     def validate_quiet_hours_pair(self):

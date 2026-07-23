@@ -18,7 +18,7 @@ from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.auth.models import Storage
+from app.auth.models import Agency, Location, Storage
 from app.inventory.item_queries import get_agency_item
 from app.inventory.location_state_policy import evaluate_stock_state
 from app.inventory.location_state_service import ItemLocationKey, affected_item_location_keys_for_actions, rebuild_item_location_states
@@ -29,6 +29,7 @@ from .audit_queries import (
     ExpirationAuditRow,
     ExpirationCountAuditRow,
     StateAuditRow,
+    latest_prior_takeout_at,
     load_expiration_audit_rows,
     load_expiration_count_audit_rows,
     load_state_audit_rows,
@@ -44,9 +45,11 @@ from .payloads import (
     UnknownUpcPayload,
 )
 
-STALE_RARE_TYPES = (AlertType.STALE_COUNT, AlertType.RARE_TAKEOUT)
+STALE_TYPES = (AlertType.STALE_COUNT,)
 EXPIRATION_TYPES = (AlertType.EXPIRED_STOCK, AlertType.EXPIRING_SOON, AlertType.EXPIRATION_COUNT_NEEDED)
 INFORMATIONAL_SWEEP_AGE = timedelta(days=2)
+# No takeout ever recorded for this item/location, but the account itself is at least this old.
+RARE_TAKEOUT_NO_PRIOR_ACCOUNT_AGE_DAYS = 365
 
 AlertKey = tuple[int, str]  # (agency_id, dedupe_key)
 
@@ -73,13 +76,14 @@ class AlertSpec:
 
 
 def record_action_log_alerts(session: Session, action_logs: list[ActionLog]) -> None:
-    """Open scan-activity alerts and refresh stock/stale/rare alerts for affected items."""
+    """Open scan-activity and rare-takeout alerts, and refresh stock/stale alerts for affected items."""
     if not action_logs:
         return
 
     now = _now()
     for action in action_logs:
         _open_scan_activity_alert(session, action, now)
+        _open_rare_takeout_alert(session, action, now)
 
     keys = affected_item_location_keys_for_actions(session, action_logs)
     stock_count = sync_stock_alerts(session, item_location_keys=keys, now=now)
@@ -136,15 +140,14 @@ def sync_state_audit_alerts(
     item_location_keys: set[ItemLocationKey] | None = None,
     now: datetime | None = None,
 ) -> int:
-    """Reconcile stale-count and rare-takeout alerts from current item/location state."""
+    """Reconcile stale-count alerts from current item/location state."""
     if item_location_keys is not None and not item_location_keys:
         return 0
     now = now or _now()
     desired: dict[AlertKey, AlertSpec] = {}
     for row in load_state_audit_rows(session, agency_id, item_location_keys):
         _add_stale_count_spec(desired, row, now)
-        _add_rare_takeout_spec(desired, row, now)
-    open_now = _open_alerts(session, agency_id, STALE_RARE_TYPES, item_location_keys)
+    open_now = _open_alerts(session, agency_id, STALE_TYPES, item_location_keys)
     _reconcile(session, desired, open_now, now)
     return len(desired)
 
@@ -339,28 +342,6 @@ def _add_stale_count_spec(desired: dict[AlertKey, AlertSpec], row: StateAuditRow
     desired[spec.key] = spec
 
 
-def _add_rare_takeout_spec(desired: dict[AlertKey, AlertSpec], row: StateAuditRow, now: datetime) -> None:
-    days = int(row.alert_rare_scan_days or 0)
-    if days <= 0 or row.last_takeout_at is None:
-        return
-    days_since = _days_since_current_date(now, row.last_takeout_at)
-    if days_since is not None and days_since < days:
-        return
-    detail = RareTakeoutPayload(
-        item_id=row.item_id,
-        item_name=row.item_name,
-        agency_location_id=row.location_id,
-        location_name=row.location_name,
-        days_since_last_takeout=days_since,
-        last_takeout_at=row.last_takeout_at,
-        current_total=row.total_quantity,
-        rare_scan_days=days,
-    ).as_json()
-    stamp = _iso(row.last_takeout_at) or "NEVER"
-    spec = AlertSpec(row.agency_id, f"RARE:{row.item_id}:{row.location_id}:{stamp}", AlertType.RARE_TAKEOUT, row.item_id, row.location_id, detail)
-    desired[spec.key] = spec
-
-
 def _add_expiration_stock_spec(desired: dict[AlertKey, AlertSpec], row: ExpirationAuditRow, today: date) -> None:
     days_until = (row.expires_on - today).days
     if days_until < 0:
@@ -429,8 +410,51 @@ def _open_scan_activity_alert(session: Session, action_log: ActionLog, now: date
         from_location_name=_storage_history_name(session, action_log.agency_id, action_log.from_storage_id),
         to_location_name=_storage_history_name(session, action_log.agency_id, action_log.to_storage_id),
         time_scanned=action_log.time_scanned,
+        item_alert_flagged=bool(item.scan_alert_flagged),
     ).as_json()
     spec = AlertSpec(action_log.agency_id, f"ACTION:{action_log.id}", alert_type, item.id, to_location_id or from_location_id, detail)
+    _open_or_refresh(session, spec, now)
+
+
+def _open_rare_takeout_alert(session: Session, action_log: ActionLog, now: datetime) -> None:
+    """Open a rare-takeout alert if this scan just broke a long silence for this item/location.
+
+    Fires when either the gap since the item/location's previous takeout, or -- if it has
+    never been taken out before -- the agency's account age, clears the configured threshold.
+    """
+    if not action_log.is_takeout or action_log.item_id is None or action_log.from_storage_id is None:
+        return
+    item = _load_action_item(session, action_log)
+    if item is None:
+        return
+    location_id = _storage_location_id(session, action_log.agency_id, action_log.from_storage_id)
+    if location_id is None:
+        return
+    agency = session.get(Agency, action_log.agency_id)
+    threshold_days = int(agency.alert_rare_scan_days or 0) if agency else 0
+    if agency is None or threshold_days <= 0:
+        return
+
+    scanned_at = action_log.time_scanned or now
+    previous_takeout_at = latest_prior_takeout_at(session, action_log.agency_id, item.id, location_id, before_action_id=action_log.id)
+    days_since = _days_since_current_date(scanned_at, previous_takeout_at)
+    if previous_takeout_at is not None:
+        if days_since is None or days_since < threshold_days:
+            return
+    elif (scanned_at.date() - agency.created_at.date()).days < RARE_TAKEOUT_NO_PRIOR_ACCOUNT_AGE_DAYS:
+        return
+
+    detail = RareTakeoutPayload(
+        item_id=item.id,
+        item_name=item.name,
+        agency_location_id=location_id,
+        location_name=_location_name(session, action_log.agency_id, location_id),
+        days_since_last_takeout=days_since,
+        last_takeout_at=previous_takeout_at,
+        current_total=_state_total_quantity(session, action_log.agency_id, item.id, location_id),
+        rare_scan_days=threshold_days,
+    ).as_json()
+    spec = AlertSpec(action_log.agency_id, f"RARE:{action_log.id}", AlertType.RARE_TAKEOUT, item.id, location_id, detail)
     _open_or_refresh(session, spec, now)
 
 
@@ -462,6 +486,22 @@ def _storage_row(session: Session, agency_id: int, storage_id: int | None) -> St
         return None
     storage = session.get(Storage, storage_id)
     return storage if storage and storage.agency_id == agency_id else None
+
+
+def _location_name(session: Session, agency_id: int, location_id: int) -> str:
+    location = session.get(Location, location_id)
+    return location.name if location and location.agency_id == agency_id else str(location_id)
+
+
+def _state_total_quantity(session: Session, agency_id: int, item_id: int, location_id: int) -> int:
+    total = session.scalar(
+        select(InventoryItemLocationState.total_quantity).where(
+            InventoryItemLocationState.agency_id == agency_id,
+            InventoryItemLocationState.item_id == item_id,
+            InventoryItemLocationState.agency_location_id == location_id,
+        )
+    )
+    return int(total or 0)
 
 
 def _days_since_current_date(now: datetime, observed_at: datetime | None) -> int | None:

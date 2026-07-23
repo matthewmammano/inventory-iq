@@ -12,24 +12,23 @@ from sqlalchemy import Select, func, select
 from sqlalchemy.orm import Session
 
 from app.auth.models import Agency, Location, Storage
+from app.inventory.constants import OperationType
 from app.inventory.location_state_service import ItemLocationKey
-from app.inventory.models import InventoryExpirationBalance, InventoryItemLocationState, InventoryStorageBalance, Item
+from app.inventory.models import ActionLog, InventoryExpirationBalance, InventoryItemLocationState, InventoryStorageBalance, Item
 
 
 @dataclass(frozen=True)
 class StateAuditRow:
-    """Flat state row for the stale-count and rare-takeout audit."""
+    """Flat state row for the stale-count audit."""
 
     agency_id: int
     count_last_days: int
-    alert_rare_scan_days: int
     item_id: int
     item_name: str
     location_id: int
     location_name: str
     total_quantity: int
     last_counted_at: datetime | None
-    last_takeout_at: datetime | None
 
 
 @dataclass(frozen=True)
@@ -72,14 +71,12 @@ def load_state_audit_rows(
         select(
             Agency.id,
             Agency.count_last_days,
-            Agency.alert_rare_scan_days,
             Item.id,
             Item.name,
             Location.id,
             Location.name,
             InventoryItemLocationState.total_quantity,
             InventoryItemLocationState.last_counted_at,
-            InventoryItemLocationState.last_takeout_at,
         )
         .join(Item, Item.agency_id == Agency.id)
         .join(Location, Location.agency_id == Agency.id)
@@ -105,14 +102,12 @@ def load_state_audit_rows(
         StateAuditRow(
             agency_id=row[0],
             count_last_days=int(row[1] or 0),
-            alert_rare_scan_days=int(row[2] or 0),
-            item_id=row[3],
-            item_name=row[4],
-            location_id=row[5],
-            location_name=row[6],
-            total_quantity=int(row[7] or 0),
-            last_counted_at=row[8],
-            last_takeout_at=row[9],
+            item_id=row[2],
+            item_name=row[3],
+            location_id=row[4],
+            location_name=row[5],
+            total_quantity=int(row[6] or 0),
+            last_counted_at=row[7],
         )
         for row in session.execute(stmt).all()
     ]
@@ -249,3 +244,27 @@ def _expiration_tracked_totals(session: Session, agency_id: int | None) -> dict[
         (row[0], row[1], row[3]): _count_audit_row(row, storage_quantity=0, tracked_expiration_quantity=int(row[7] or 0))
         for row in session.execute(stmt).all()
     }
+
+
+def latest_prior_takeout_at(
+    session: Session,
+    agency_id: int,
+    item_id: int,
+    location_id: int,
+    *,
+    before_action_id: int,
+) -> datetime | None:
+    """Return the most recent takeout timestamp for this item/location strictly before one action."""
+    return session.scalar(
+        select(ActionLog.time_scanned)
+        .join(Storage, Storage.id == ActionLog.from_storage_id)
+        .where(
+            ActionLog.agency_id == agency_id,
+            ActionLog.item_id == item_id,
+            ActionLog.operation_type == OperationType.TAKEOUT,
+            ActionLog.id < before_action_id,
+            Storage.location_id == location_id,
+        )
+        .order_by(ActionLog.id.desc())
+        .limit(1)
+    )

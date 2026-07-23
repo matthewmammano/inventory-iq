@@ -15,7 +15,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth.models import Location
-from app.auth.notification_preferences import ALERT_EMAIL_FREQUENCY_CHOICES, ALERT_NOTIFICATION_FIELDS, SUMMARY_NOTIFICATION_FIELDS
+from app.auth.notification_preferences import (
+    ALERT_EMAIL_FREQUENCY_CHOICES,
+    ALERT_NOTIFICATION_FIELDS,
+    SCAN_ALERT_SCOPE_CHOICES,
+    SUMMARY_NOTIFICATION_FIELDS,
+)
 from app.auth.queries import list_active_emails, list_tags
 from app.inventory import admin_bp as bp
 from app.inventory.admin_edit_schema import AdminItemForm, AdminNotificationForm, AdminTagForm
@@ -47,6 +52,7 @@ def admin_data(agency_id: int) -> Any:
         agency_id=agency_id,
         active_tab=request.args.get("tab", "items"),
         alert_email_frequency_choices=ALERT_EMAIL_FREQUENCY_CHOICES,
+        scan_alert_scope_choices=SCAN_ALERT_SCOPE_CHOICES,
         notification_alert_fields=ALERT_NOTIFICATION_FIELDS,
         notification_summary_fields=SUMMARY_NOTIFICATION_FIELDS,
         admin=True,

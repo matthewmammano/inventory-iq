@@ -23,6 +23,10 @@ class UnknownUpcPayload(AlertPayload):
 
 
 class ScanActivityPayload(AlertPayload):
+    """`item_alert_flagged` defaults False so alert rows opened before this field
+    existed still deserialize; it records whether the item was flagged for scan
+    alerts at alert-open time, for recipients scoped to flagged-only items."""
+
     action_log_id: int
     item_id: int
     item_name: str
@@ -34,6 +38,7 @@ class ScanActivityPayload(AlertPayload):
     from_location_name: str | None
     to_location_name: str | None
     time_scanned: datetime | None
+    item_alert_flagged: bool = False
 
 
 class StaleCountPayload(AlertPayload):
@@ -47,12 +52,20 @@ class StaleCountPayload(AlertPayload):
 
 
 class RareTakeoutPayload(AlertPayload):
+    """A takeout was just scanned after a long silence for this item/location.
+
+    `last_takeout_at` is the *previous* takeout (before the one that triggered this
+    alert) -- the gap between it and the triggering scan is what made this rare.
+    Both `last_takeout_at` and `days_since_last_takeout` are None when this item/location
+    had no prior takeout at all (the alert fired from account age instead).
+    """
+
     item_id: int
     item_name: str
     agency_location_id: int
     location_name: str
     days_since_last_takeout: int | None
-    last_takeout_at: datetime
+    last_takeout_at: datetime | None
     current_total: int
     rare_scan_days: int
 

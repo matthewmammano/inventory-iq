@@ -50,6 +50,24 @@ ALERT_EMAIL_FREQUENCY_LABELS = {
 ALERT_EMAIL_FREQUENCY_CHOICES = tuple((frequency.value, frequency.label) for frequency in AlertEmailFrequency)
 
 
+class ScanAlertScope(StrEnum):
+    """Which items a recipient's scan-activity alerts (count/restock/takeout/transfer) cover."""
+
+    ALL = "ALL"
+    FLAGGED = "FLAGGED"
+
+    @property
+    def label(self) -> str:
+        return SCAN_ALERT_SCOPE_LABELS[self]
+
+
+SCAN_ALERT_SCOPE_LABELS = {
+    ScanAlertScope.ALL: "All items",
+    ScanAlertScope.FLAGGED: "Flagged items only",
+}
+SCAN_ALERT_SCOPE_CHOICES = tuple((scope.value, scope.label) for scope in ScanAlertScope)
+
+
 @dataclass(frozen=True)
 class NotificationPreference:
     key: NotificationPreferenceKey

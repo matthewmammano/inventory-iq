@@ -14,6 +14,7 @@ from app.auth.notification_preferences import (
     NOTIFICATION_FIELDS,
     PREFERENCE_BY_FIELD,
     AlertEmailFrequency,
+    ScanAlertScope,
 )
 from app.inventory.admin_edit_schema import AdminItemForm, AdminNotificationForm, AdminSettingsForm, AdminTagForm
 from app.inventory.models import Item, ItemSecondaryUpc
@@ -160,6 +161,7 @@ def item_form_values(form: Any) -> dict[str, Any]:
         "image": _blank_to_none(form.get("image")),
         "expiration_tracking_enabled": _checkbox_is_checked(form, "expiration_tracking_enabled"),
         "expiration_notice_days_override": _blank_to_none(form.get("expiration_notice_days_override")),
+        "scan_alert_flagged": _checkbox_is_checked(form, "scan_alert_flagged"),
         "min_quantity": form.get("min_quantity"),
         "max_quantity": form.get("max_quantity"),
         "batch_size": form.get("batch_size") or 1,
@@ -184,6 +186,7 @@ def notification_form_values(form: Any) -> dict[str, Any]:
         "quiet_start_time": _blank_to_none(form.get("quiet_start_time")),
         "quiet_end_time": _blank_to_none(form.get("quiet_end_time")),
         "alert_frequency": form.get("alert_frequency") or AlertEmailFrequency.HOURLY,
+        "scan_alert_scope": form.get("scan_alert_scope") or ScanAlertScope.ALL,
     } | {field: _checkbox_is_checked(form, field) for field in NOTIFICATION_FIELDS}
 
 

@@ -88,6 +88,7 @@
 <div class="toggle-row">
     {{ checkbox_field("guest_quick_adjust", item.guest_quick_adjust if item else false, "Expanded ±5, ±10") }}
     {{ checkbox_field("expiration_tracking_enabled", item.expiration_tracking_enabled if item else false, "Track Expiration Dates") }}
+    {{ checkbox_field("scan_alert_flagged", item.scan_alert_flagged if item else false, "Flag for Scan Alerts") }}
 </div>
 {{ field("min_quantity", item.min_quantity if item else "", "Minimum Quantity", validation_attrs("positive_int", placeholder="e.g. 5" if not item else none)) }}
 {{ field("max_quantity", item.max_quantity if item else "", "Maximum Quantity", validation_attrs("positive_int", placeholder="e.g. 20" if not item else none, compare_to="min_quantity", compare_mode="number_gt", compare_message="Maximum Quantity must be greater than Minimum Quantity.")) }}
@@ -110,6 +111,8 @@
 {{ field("quiet_start_time", recipient.quiet_start_time if recipient else "", "Quiet Start", validation_attrs("hhmm_time", pair_with="quiet_end_time")) }}
 {{ field("quiet_end_time", recipient.quiet_end_time if recipient else "", "Quiet End", validation_attrs("hhmm_time", pair_with="quiet_start_time")) }}
 <small>Blank disables quiet hours. Uses squad timezone.</small>
+{{ select_field("scan_alert_scope", recipient.scan_alert_scope if recipient else "ALL", "Scan Alert Scope", scan_alert_scope_choices) }}
+<small>Applies to Count/Restock/Takeout/Transfer alerts below: all items, or only items flagged for scan alerts.</small>
 <fieldset><legend>Alerts</legend>{% for field_name, label in notification_alert_fields %}{{ checkbox_field(field_name, recipient.preference_enabled(field_name) if recipient else false, label) }}{% endfor %}</fieldset>
 <fieldset><legend>Summaries</legend>{% for field_name, label in notification_summary_fields %}{{ checkbox_field(field_name, recipient.preference_enabled(field_name) if recipient else false, label) }}{% endfor %}</fieldset>
 {%- endmacro %}
@@ -129,7 +132,7 @@
         {% else %}
         <div class="table-wrap">
             <table>
-                <thead><tr><th>Name</th><th>Primary UPC</th><th>Secondary UPCs</th><th>Increments</th><th>Tags</th><th>Min Quantity</th><th>Max Quantity</th><th>Order Size</th><th>Lead Time Override</th><th>Track Expiration?</th><th>Expiration Warning Override</th><th>Expanded ±5, ±10</th><th>Last Accessed</th><th>Image</th></tr></thead>
+                <thead><tr><th>Name</th><th>Primary UPC</th><th>Secondary UPCs</th><th>Increments</th><th>Tags</th><th>Min Quantity</th><th>Max Quantity</th><th>Order Size</th><th>Lead Time Override</th><th>Track Expiration?</th><th>Expiration Warning Override</th><th>Expanded ±5, ±10</th><th>Flagged for Scan Alerts?</th><th>Last Accessed</th><th>Image</th></tr></thead>
                 <tbody>
                     {% for item in items %}
                     <tr>
@@ -145,6 +148,7 @@
                         <td>{{ item.expiration_tracking_enabled }}</td>
                         <td>{{ item.expiration_notice_days_override if item.expiration_notice_days_override is not none else 'Default' }}</td>
                         <td>{{ item.guest_quick_adjust }}</td>
+                        <td>{{ item.scan_alert_flagged }}</td>
                         <td>{{ item.get_last_accessed_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if item.last_accessed else 'Never' }}</td>
                         <td><img class="table-thumbnail" src="{{ item.image|image_src }}" alt="{{ item.name }}" loading="lazy" decoding="async"></td>
                     </tr>
@@ -275,7 +279,7 @@
         {% else %}
         <div class="table-wrap">
             <table>
-                <thead><tr><th>Email</th><th>Locations</th><th>Alert Frequency</th><th>Quiet Hours</th>{% for _field, label in notification_alert_fields %}<th>{{ label }}</th>{% endfor %}{% for _field, label in notification_summary_fields %}<th>{{ label }}</th>{% endfor %}</tr></thead>
+                <thead><tr><th>Email</th><th>Locations</th><th>Alert Frequency</th><th>Quiet Hours</th><th>Scan Alert Scope</th>{% for _field, label in notification_alert_fields %}<th>{{ label }}</th>{% endfor %}{% for _field, label in notification_summary_fields %}<th>{{ label }}</th>{% endfor %}</tr></thead>
                 <tbody>
                     {% for recipient in notifications %}
                     <tr>
@@ -283,6 +287,7 @@
                         <td>{% if recipient.location_filter_ids %}{{ recipient.location_filter_ids|join(", ") }}{% else %}All{% endif %}</td>
                         <td>{{ recipient.alert_frequency.label }}</td>
                         <td>{{ recipient.quiet_hours_label }}</td>
+                        <td>{{ recipient.scan_alert_scope.label }}</td>
                         {% for field, label in notification_alert_fields %}<td>{{ readonly_check(recipient.preference_enabled(field), label) }}</td>{% endfor %}
                         {% for field, label in notification_summary_fields %}<td>{{ readonly_check(recipient.preference_enabled(field), label) }}</td>{% endfor %}
                     </tr>

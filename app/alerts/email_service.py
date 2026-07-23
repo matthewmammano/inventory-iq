@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.location_filters import alert_matches_location_filter, validate_location_filter_ids
 from app.auth.models import Agency, NotificationRecipient
-from app.auth.notification_preferences import AlertEmailFrequency, NotificationPreference, due_summary_preferences
+from app.auth.notification_preferences import AlertEmailFrequency, NotificationPreference, ScanAlertScope, due_summary_preferences
 from app.auth.queries import list_active_emails
 from app.inventory.models import InventoryItemLocationState
 from app.shared.clock import utc_now_naive
@@ -29,6 +29,7 @@ from app.shared.email_subjects import INVENTORY_SUMMARIES_TITLE, inventory_summa
 from app.shared.text_formatting import pluralize
 
 from .constants import (
+    ACTION_ALERT_TYPES,
     ALERT_DEFINITIONS,
     ALERT_TYPE_ORDER,
     PREFERENCE_BY_TYPE,
@@ -162,6 +163,12 @@ def _last_notified_by_alert(session: Session, recipient_id: int, alert_ids: list
 def _recipient_allows_alert(session: Session, recipient: NotificationRecipient, alert: Alert) -> bool:
     preference = PREFERENCE_BY_TYPE.get(alert.alert_type)
     if preference and not recipient.preference_enabled(preference):
+        return False
+    if (
+        recipient.scan_alert_scope == ScanAlertScope.FLAGGED
+        and alert.alert_type in ACTION_ALERT_TYPES.values()
+        and not alert.detail.get("item_alert_flagged")
+    ):
         return False
     try:
         location_ids = validate_location_filter_ids(session, recipient.agency_id, recipient.location_filter_ids)

@@ -61,6 +61,7 @@ class Item(Base):
     image: Mapped[str | None] = mapped_column(String(1024))
     expiration_tracking_enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     expiration_notice_days_override: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    scan_alert_flagged: Mapped[bool] = mapped_column(Boolean, default=False)
     min_quantity: Mapped[int] = mapped_column(Integer)
     max_quantity: Mapped[int] = mapped_column(Integer)
     batch_size: Mapped[int | None] = mapped_column(Integer, default=1)

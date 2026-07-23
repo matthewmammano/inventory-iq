@@ -340,8 +340,8 @@ def _rare_takeout_row(alert: Alert, timezone: str) -> dict[str, Any]:
     return {
         "item_name": payload.item_name,
         "location_name": payload.location_name,
-        "days_since_last_takeout": payload.days_since_last_takeout,
-        "last_takeout_at": _display_datetime(payload.last_takeout_at, timezone),
+        "days_since_last_takeout": payload.days_since_last_takeout if payload.days_since_last_takeout is not None else "Never",
+        "last_takeout_at": _display_datetime(payload.last_takeout_at, timezone) if payload.last_takeout_at else "Never",
         "current_total": _format_total_quantity(payload.current_total),
     }
 

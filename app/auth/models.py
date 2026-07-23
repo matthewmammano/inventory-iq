@@ -26,7 +26,7 @@ from app.shared.validators import (
 
 from .constants import BLACK_HEX, WHITE_HEX
 from .location_filters import normalize_location_filter_ids
-from .notification_preferences import DEFAULT_ENABLED_BY_KEY, PREFERENCE_BY_FIELD, AlertEmailFrequency, NotificationPreferenceKey
+from .notification_preferences import DEFAULT_ENABLED_BY_KEY, PREFERENCE_BY_FIELD, AlertEmailFrequency, NotificationPreferenceKey, ScanAlertScope
 
 
 class Agency(Base, UserMixin):
@@ -152,6 +152,10 @@ class NotificationRecipient(Base):
     alert_frequency: Mapped[AlertEmailFrequency] = mapped_column(
         SAEnum(AlertEmailFrequency, native_enum=False, length=16),
         default=AlertEmailFrequency.HOURLY,
+    )
+    scan_alert_scope: Mapped[ScanAlertScope] = mapped_column(
+        SAEnum(ScanAlertScope, native_enum=False, length=16),
+        default=ScanAlertScope.ALL,
     )
 
     preferences = relationship(
