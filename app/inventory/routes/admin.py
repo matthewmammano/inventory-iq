@@ -74,7 +74,7 @@ def admin_panel(agency_id: int) -> Any:
         "admin_panel.html",
         agency_id=agency_id,
         contact_phone=current_app.config.get("CONTACT_PHONE", ""),
-        panel_subtitle=f"{current_user.display_name} inventory controls",
+        panel_subtitle="Inventory Controls",
         admin=True,
     )
 
