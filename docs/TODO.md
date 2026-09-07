@@ -1,5 +1,7 @@
 # My TODO
 
+- make it so that on scrolling in screens with tables... and stuff where pages are typically very large in scrolling... maybe just portions scroll instead... so admin-panel/data page... maybe JUST the table scrolls... that way we ALWAYS see the "Back to Admin" on top, the {"Items", "Locations", ...} selectors, and the table header {"Name", "Primary UPC", etc}.
+
 - make header smaller height AND fixed top EVEN on scrolls! make sure nothing else affected / covered by this change!
 
 - Wanna unify the CSS / HTML items way way more for all pages. Make it SUPER reusable, but also modular with different ways in CSS and stuff to MAKE A HUGE CUT IN LINES OF CODE! I also want to add some animations, shadows, etc. Things pressable interactions should have, etc. PERFECTION! do research on BEST UI practices, how to do this, using MOSTLY PURE CSS/HTML (unless there is something else that could allow me to go EVEN FEWER LOC)! Think hard, suggest MORE styling things to add, make sure CSS / HTML documented in the main.css or whatever so ALWAYS things are reused when possible instead of new similar styling created! And DYNAMIC EVERYTHING for all devices!!!
