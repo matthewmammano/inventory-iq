@@ -8,6 +8,12 @@
     if (!modal || !chart || !title || !summary || !scales || !close) return;
 
     const DAY_MS = 86_400_000;
+    const HISTORY_COLOR = "#3a3a3a";
+    const ACTIVITY_UP_COLOR = "#2f7d5c";
+    const ACTIVITY_DOWN_COLOR = "#9b5b18";
+    const TREND_COLOR = "#9f3434";
+    const DISCREPANCY_COLOR = "#dc2626";
+    const DISCREPANCY_EPSILON = 0.01;
     const RANGE_OPTIONS = [
         { key: "all", label: "Full History", days: null },
         { key: "year", label: "Past Year", days: 365 },
@@ -129,7 +135,9 @@
         };
     };
 
-    const buildSvg = (payload, s) => `
+    const buildSvg = (payload, s) => {
+        const historyPoints = mergeHistory(payload.count_points, payload.operation_points);
+        return `
         <svg viewBox="0 0 980 360" role="img" aria-label="Item inventory trend">
             <text x="26" y="40" font-size="15" font-weight="800" fill="#20242a">Quantity (units)</text>
             <text x="68" y="342" font-size="14" font-weight="800" fill="#20242a">${dateLabel(s.minDate)}</text>
@@ -139,18 +147,56 @@
             `).join("")}
             <line x1="68" y1="306" x2="912" y2="306" stroke="#81734c" stroke-width="2"/>
             <line x1="68" y1="70" x2="68" y2="306" stroke="#81734c" stroke-width="2"/>
-            ${polyline(payload.count_points, s, "#1f4e79", 3)}
-            ${payload.operation_points.map((p) => dot(p, s, 4, "#9b5b18")).join("")}
-            ${payload.count_points.map((p) => dot(p, s, 8, "#1f4e79")).join("")}
-            ${polyline(payload.trendline_points, s, "#9f3434", 5)}
+            ${stepSegments(historyPoints, s)}
+            ${activityDots(historyPoints, s)}
+            ${payload.count_points.map((p) => countDot(p, s)).join("")}
+            ${polyline(payload.trendline_points, s, TREND_COLOR, 5, true)}
             ${currentEstimateMarker(payload.trendline_points, s)}
         </svg>`;
+    };
 
-    const polyline = (points, s, color, width) => points.length < 2 ? "" :
-        `<polyline fill="none" stroke="${color}" stroke-width="${width}" points="${points.map((p) => `${s.x(p.at)},${s.y(p.quantity)}`).join(" ")}"/>`;
+    // One real quantity-over-time line: counts and logged activity merged in time order.
+    // Quantity is piecewise-constant between events, so each segment steps flat then jumps
+    // at the next event instead of a diagonal that implies smooth drift.
+    const mergeHistory = (countPoints, operationPoints) =>
+        [...countPoints, ...operationPoints].sort((a, b) => new Date(a.at) - new Date(b.at));
+
+    const hasDiscrepancy = (point) =>
+        point.discrepancy !== null && point.discrepancy !== undefined && Math.abs(point.discrepancy) > DISCREPANCY_EPSILON;
+
+    const stepSegments = (points, s) => points.slice(1).map((to, i) => {
+        const from = points[i];
+        const x0 = s.x(from.at);
+        const y0 = s.y(from.quantity);
+        const x1 = s.x(to.at);
+        const y1 = s.y(to.quantity);
+        const color = hasDiscrepancy(to) ? DISCREPANCY_COLOR : HISTORY_COLOR;
+        return `<polyline fill="none" stroke="${color}" stroke-width="3" points="${x0},${y0} ${x1},${y0} ${x1},${y1}"/>`;
+    }).join("");
+
+    // Color activity dots by their effect on this location's quantity (up vs down) rather
+    // than raw operation type, so a transfer-in reads the same as a restock and a
+    // transfer-out reads the same as a takeout.
+    const activityDots = (historyPoints, s) => historyPoints.slice(1).map((point, i) => {
+        if (point.operation === "COUNT") return "";
+        const prev = historyPoints[i];
+        const color = point.quantity >= prev.quantity ? ACTIVITY_UP_COLOR : ACTIVITY_DOWN_COLOR;
+        return `<circle cx="${s.x(point.at)}" cy="${s.y(point.quantity)}" r="4" fill="${color}"></circle>`;
+    }).join("");
+
+    const polyline = (points, s, color, width, dashed) => points.length < 2 ? "" :
+        `<polyline fill="none" stroke="${color}" stroke-width="${width}"${dashed ? ' stroke-dasharray="12 8"' : ""} points="${points.map((p) => `${s.x(p.at)},${s.y(p.quantity)}`).join(" ")}"/>`;
 
     const dot = (point, s, radius, color) =>
         `<circle cx="${s.x(point.at)}" cy="${s.y(point.quantity)}" r="${radius}" fill="${color}"><title>${point.operation}: ${point.quantity}</title></circle>`;
+
+    const countDot = (point, s) => {
+        if (!hasDiscrepancy(point)) return dot(point, s, 8, HISTORY_COLOR);
+        const sign = point.discrepancy > 0 ? "+" : "";
+        return `<circle cx="${s.x(point.at)}" cy="${s.y(point.quantity)}" r="8" fill="${HISTORY_COLOR}">
+                <title>COUNT: ${point.quantity} (expected ${point.expected_quantity} from logged activity, discrepancy ${sign}${point.discrepancy})</title>
+            </circle>`;
+    };
 
     const currentEstimateMarker = (trendlinePoints, s) => {
         if (!trendlinePoints.length) return "";
@@ -158,10 +204,10 @@
         const x = s.x(point.at);
         const y = s.y(point.quantity);
         return `
-            <circle cx="${x}" cy="${y}" r="10" fill="#ffffff" stroke="#9f3434" stroke-width="3">
+            <circle cx="${x}" cy="${y}" r="10" fill="#ffffff" stroke="${TREND_COLOR}" stroke-width="3">
                 <title>Current estimate: ${point.quantity}</title>
             </circle>
-            <circle cx="${x}" cy="${y}" r="4" fill="#9f3434" aria-hidden="true"></circle>
+            <circle cx="${x}" cy="${y}" r="4" fill="${TREND_COLOR}" aria-hidden="true"></circle>
         `;
     };
 

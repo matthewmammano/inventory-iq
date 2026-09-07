@@ -20,6 +20,8 @@ class TrendChartPoint(BaseModel):
     at: str
     quantity: float
     operation: str | None = None
+    expected_quantity: float | None = None
+    discrepancy: float | None = None
 
 
 class ItemTrendChartResponse(BaseModel):

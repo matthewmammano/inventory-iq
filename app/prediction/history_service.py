@@ -1,6 +1,7 @@
 """Item/location trend chart data."""
 
 from datetime import datetime
+from itertools import pairwise
 
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
@@ -24,6 +25,7 @@ def build_item_trend_chart(
     """Return count anchors, operation dots, and learned trendline for one location."""
     storage_ids = get_location_storage_ids(session, agency_id, location.id)
     count_anchors = extract_count_anchors(session, agency_id, item.id, location.id)
+    discrepancies = _count_discrepancies(session, agency_id, item.id, storage_ids, count_anchors)
     operation_points = _operation_points(session, agency_id, item.id, storage_ids)
     trend = get_inventory_trend(session, agency_id, item.id, location.id)
     visible_trend = _visible_trend(trend.trend_per_day) if trend and trend.trend_per_day is not None else None
@@ -32,7 +34,10 @@ def build_item_trend_chart(
         item_name=item.name,
         agency_location_id=location.id,
         location_name=location.name,
-        count_points=[_point(anchor.counted_at, anchor.total_quantity, OperationType.COUNT.value) for anchor in count_anchors],
+        count_points=[
+            _point(anchor.counted_at, anchor.total_quantity, OperationType.COUNT.value, *discrepancies.get(anchor.counted_at, (None, None)))
+            for anchor in count_anchors
+        ],
         operation_points=operation_points,
         trendline_points=_trendline_points(
             count_anchors[-1] if count_anchors else None,
@@ -81,6 +86,50 @@ def _operation_points(
     return operation_points
 
 
+def _count_discrepancies(
+    session: Session,
+    agency_id: int,
+    item_id: int,
+    storage_ids: list[int],
+    anchors: list[CountAnchor],
+) -> dict[datetime, tuple[float, float]]:
+    """Map each count anchor (after the first) to (expected_quantity, discrepancy).
+
+    "Expected" replays only trusted restock/takeout/transfer activity since the prior
+    count onto that prior count's total. A nonzero discrepancy means the physical
+    count disagreed with what logged activity predicted.
+    """
+    if not storage_ids or len(anchors) < 2:
+        return {}
+    rows = list(
+        session.execute(
+            select(ActionLog)
+            .where(
+                ActionLog.agency_id == agency_id,
+                ActionLog.item_id == item_id,
+                ActionLog.operation_type != OperationType.COUNT,
+                ActionLog.time_scanned.isnot(None),
+                or_(
+                    ActionLog.from_storage_id.in_(storage_ids),
+                    ActionLog.to_storage_id.in_(storage_ids),
+                ),
+                ActionLog.time_scanned > anchors[0].counted_at,
+                ActionLog.time_scanned <= anchors[-1].counted_at,
+            )
+            .order_by(ActionLog.time_scanned, ActionLog.id)
+        ).scalars()
+    )
+    discrepancies: dict[datetime, tuple[float, float]] = {}
+    for prev_anchor, anchor in pairwise(anchors):
+        quantities: dict[int, int] = dict.fromkeys(storage_ids, 0)
+        for log in rows:
+            if prev_anchor.counted_at < log.time_scanned <= anchor.counted_at:
+                _apply_log(quantities, log)
+        expected = prev_anchor.total_quantity + sum(quantities.values())
+        discrepancies[anchor.counted_at] = (expected, anchor.total_quantity - expected)
+    return discrepancies
+
+
 def _apply_log(quantities: dict[int, int], log: ActionLog) -> None:
     to_storage_id = log.to_storage_id
     from_storage_id = log.from_storage_id
@@ -119,5 +168,17 @@ def _visible_trend(trend_per_day: float) -> float:
     return round(trend_per_day, 2) or 0.0
 
 
-def _point(at: datetime, quantity: float, operation: str | None) -> TrendChartPoint:
-    return TrendChartPoint(at=at.isoformat(), quantity=round(float(quantity), 2), operation=operation)
+def _point(
+    at: datetime,
+    quantity: float,
+    operation: str | None,
+    expected_quantity: float | None = None,
+    discrepancy: float | None = None,
+) -> TrendChartPoint:
+    return TrendChartPoint(
+        at=at.isoformat(),
+        quantity=round(float(quantity), 2),
+        operation=operation,
+        expected_quantity=round(float(expected_quantity), 2) if expected_quantity is not None else None,
+        discrepancy=round(float(discrepancy), 2) if discrepancy is not None else None,
+    )

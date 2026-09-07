@@ -119,21 +119,35 @@
 }
 
 .count-dot,
-.operation-dot {
+.activity-dot {
   width: 12px;
   height: 12px;
   border-radius: 999px;
-  background: #1f4e79;
+  background: #3a3a3a;
 }
 
-.operation-dot {
+.activity-dot {
   width: 8px;
   height: 8px;
+}
+
+.activity-dot-up {
+  background: #2f7d5c;
+}
+
+.activity-dot-down {
   background: #9b5b18;
+}
+
+.discrepancy-line {
+  width: 24px;
+  height: 3px;
+  background: #dc2626;
 }
 
 .trend-line {
   width: 24px;
-  height: 4px;
-  background: #9f3434;
+  height: 0;
+  border-top: 4px dashed #9f3434;
+  background: none;
 }
