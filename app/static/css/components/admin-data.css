@@ -121,9 +121,6 @@
 .modal-delete-confirm {
   display: grid;
   gap: 10px;
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid var(--color-soft-line);
 }
 
 .modal-delete-confirm.hidden {

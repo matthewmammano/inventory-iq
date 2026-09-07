@@ -71,8 +71,9 @@
 <span class="tag" data-tag-bg="{{ tag.color }}" data-tag-fg="{{ tag.text_color }}">{{ tag.tag_name }}</span>
 {%- endmacro %}
 
-{% macro delete_confirm_panel(modal_id, delete_url, entity_label) -%}
+{% macro delete_confirm_panel(modal_id, delete_url, entity_label, entity_name) -%}
 <div class="modal-delete-confirm hidden" id="{{ modal_id }}-delete-confirm" data-delete-confirm>
+    <h2>{{ entity_name }}</h2>
     <p>Delete {{ entity_label }}? It will be hidden after saving.</p>
     <div class="button-row">
         <form method="POST" action="{{ delete_url }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="danger-button" type="submit">Yes, Delete</button></form>
@@ -162,17 +163,19 @@
         {% for item in items %}
         <div class="modal-backdrop hidden" id="item-modal-{{ item.id }}">
             <div class="modal admin-data-modal">
-                <h2>Edit Item</h2>
-                <form method="POST" action="{{ url_for('admin.admin_update_item', agency_id=agency_id, item_id=item.id) }}" novalidate>
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    {{ item_fields(item) }}
-                    <div class="button-row">
-                        <button class="success-button" type="submit">Save Changes</button>
-                        <button class="quiet-button" type="button" data-modal-close>Cancel</button>
-                        {{ delete_trigger("item-modal-" ~ item.id, "Item") }}
-                    </div>
-                </form>
-                {{ delete_confirm_panel("item-modal-" ~ item.id, url_for('admin.admin_delete_item', agency_id=agency_id, item_id=item.id), "Item") }}
+                <div data-modal-view="edit">
+                    <h2>Edit Item</h2>
+                    <form method="POST" action="{{ url_for('admin.admin_update_item', agency_id=agency_id, item_id=item.id) }}" novalidate>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {{ item_fields(item) }}
+                        <div class="button-row">
+                            <button class="success-button" type="submit">Save Changes</button>
+                            <button class="quiet-button" type="button" data-modal-close>Cancel</button>
+                            {{ delete_trigger("item-modal-" ~ item.id, "Item") }}
+                        </div>
+                    </form>
+                </div>
+                {{ delete_confirm_panel("item-modal-" ~ item.id, url_for('admin.admin_delete_item', agency_id=agency_id, item_id=item.id), "Item", item.name) }}
             </div>
         </div>
         {% endfor %}
@@ -243,17 +246,19 @@
         {% for tag in tags %}
         <div class="modal-backdrop hidden" id="tag-modal-{{ tag.id }}">
             <div class="modal admin-data-modal">
-                <h2>Edit Tag</h2>
-                <form method="POST" action="{{ url_for('admin.admin_update_tag', agency_id=agency_id, tag_id=tag.id) }}" novalidate>
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    {{ tag_fields(tag) }}
-                    <div class="button-row">
-                        <button class="success-button" type="submit">Save Changes</button>
-                        <button class="quiet-button" type="button" data-modal-close>Cancel</button>
-                        {{ delete_trigger("tag-modal-" ~ tag.id, "Tag") }}
-                    </div>
-                </form>
-                {{ delete_confirm_panel("tag-modal-" ~ tag.id, url_for('admin.admin_delete_tag', agency_id=agency_id, tag_id=tag.id), "Tag") }}
+                <div data-modal-view="edit">
+                    <h2>Edit Tag</h2>
+                    <form method="POST" action="{{ url_for('admin.admin_update_tag', agency_id=agency_id, tag_id=tag.id) }}" novalidate>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {{ tag_fields(tag) }}
+                        <div class="button-row">
+                            <button class="success-button" type="submit">Save Changes</button>
+                            <button class="quiet-button" type="button" data-modal-close>Cancel</button>
+                            {{ delete_trigger("tag-modal-" ~ tag.id, "Tag") }}
+                        </div>
+                    </form>
+                </div>
+                {{ delete_confirm_panel("tag-modal-" ~ tag.id, url_for('admin.admin_delete_tag', agency_id=agency_id, tag_id=tag.id), "Tag", tag.tag_name) }}
             </div>
         </div>
         {% endfor %}
@@ -301,17 +306,19 @@
         {% for recipient in notifications %}
         <div class="modal-backdrop hidden" id="notif-modal-{{ recipient.id }}">
             <div class="modal admin-data-modal">
-                <h2>Edit Notification</h2>
-                <form method="POST" action="{{ url_for('admin.admin_update_notification', agency_id=agency_id, recipient_id=recipient.id) }}" novalidate>
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                    {{ notification_fields(recipient) }}
-                    <div class="button-row">
-                        <button class="success-button" type="submit">Save Changes</button>
-                        <button class="quiet-button" type="button" data-modal-close>Cancel</button>
-                        {{ delete_trigger("notif-modal-" ~ recipient.id, "Notification") }}
-                    </div>
-                </form>
-                {{ delete_confirm_panel("notif-modal-" ~ recipient.id, url_for('admin.admin_delete_notification', agency_id=agency_id, recipient_id=recipient.id), "Notification") }}
+                <div data-modal-view="edit">
+                    <h2>Edit Notification</h2>
+                    <form method="POST" action="{{ url_for('admin.admin_update_notification', agency_id=agency_id, recipient_id=recipient.id) }}" novalidate>
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        {{ notification_fields(recipient) }}
+                        <div class="button-row">
+                            <button class="success-button" type="submit">Save Changes</button>
+                            <button class="quiet-button" type="button" data-modal-close>Cancel</button>
+                            {{ delete_trigger("notif-modal-" ~ recipient.id, "Notification") }}
+                        </div>
+                    </form>
+                </div>
+                {{ delete_confirm_panel("notif-modal-" ~ recipient.id, url_for('admin.admin_delete_notification', agency_id=agency_id, recipient_id=recipient.id), "Notification", recipient.email) }}
             </div>
         </div>
         {% endfor %}

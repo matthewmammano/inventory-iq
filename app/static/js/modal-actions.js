@@ -15,13 +15,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     document.querySelectorAll("[data-delete-trigger]").forEach((trigger) => {
         const confirmPanel = document.getElementById(trigger.dataset.deleteConfirmTarget);
+        const editView = trigger.closest("[data-modal-view='edit']");
         trigger.addEventListener("click", () => {
+            editView?.classList.add("hidden");
             confirmPanel?.classList.remove("hidden");
-            trigger.classList.add("hidden");
         });
         confirmPanel?.querySelector("[data-delete-cancel]")?.addEventListener("click", () => {
             confirmPanel.classList.add("hidden");
-            trigger.classList.remove("hidden");
+            editView?.classList.remove("hidden");
         });
     });
 });
