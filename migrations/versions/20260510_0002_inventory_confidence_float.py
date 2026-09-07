@@ -18,6 +18,9 @@ depends_on = None
 
 
 def upgrade() -> None:
+    bind = op.get_bind()
+    if "inventory_trends" not in sa.inspect(bind).get_table_names():
+        return
     with op.batch_alter_table("inventory_trends") as batch_op:
         batch_op.alter_column(
             "confidence_percent",
@@ -28,6 +31,9 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    bind = op.get_bind()
+    if "inventory_trends" not in sa.inspect(bind).get_table_names():
+        return
     with op.batch_alter_table("inventory_trends") as batch_op:
         batch_op.alter_column(
             "confidence_percent",
