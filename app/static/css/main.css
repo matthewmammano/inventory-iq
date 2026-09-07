@@ -1254,7 +1254,7 @@ td.sorted-cell {
   width: min(100%, 58px);
   height: 42px;
   display: block;
-  object-fit: contain;
+  object-fit: cover;
   border: 1px solid var(--color-soft-line);
   border-radius: var(--radius-sm);
   background: var(--color-white);
@@ -2114,7 +2114,7 @@ body.loading-active > *:not(.loading-overlay) {
   width: 100%;
   min-height: 0;
   max-height: 0.68in;
-  object-fit: contain;
+  object-fit: cover;
   align-self: center;
   justify-self: start;
 }
