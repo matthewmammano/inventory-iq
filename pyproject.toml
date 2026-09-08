@@ -39,15 +39,35 @@ line-length = 150
 
 [tool.ruff]
 line-length = 150
+extend-exclude = ["scripts/demo_data"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B", "C4", "SIM", "RUF", "NPY", "PTH", "N", "ERA"]
+# C90 actually turns on the mccabe check below (it was configured but never selected).
+# PLR codes are the length/complexity subset only, not the full noisy pylint-refactor family.
+# Docstring presence (D101-103) stays an AGENTS.md-only rule, not ruff-enforced -- 380
+# pre-existing gaps made it too disruptive to turn on as a hard gate.
+select = [
+    "E", "F", "I", "UP", "B", "C4", "SIM", "RUF", "NPY", "PTH", "N", "ERA",
+    "C90", "PLR0911", "PLR0912", "PLR0913", "PLR0915", "ARG", "A",
+]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
 
+[tool.importlinter]
+root_packages = ["app"]
+
+[[tool.importlinter.contracts]]
+name = "Foundational shared modules stay domain-free"
+type = "forbidden"
+source_modules = ["app.shared.config", "app.shared.database", "app.shared.clock", "app.shared.validators"]
+forbidden_modules = ["app.inventory", "app.auth", "app.prediction", "app.alerts", "app.diagnostics", "app.admin_help"]
+
 [tool.pyright]
 include = ["app", "scripts", "tasks"]
+# scripts/demo_data has its own separate dependency set (scripts/demo_data/requirements.txt,
+# e.g. numpy/pandas) and isn't installed into the main app venv this checks against.
+exclude = ["scripts/demo_data"]
 pythonVersion = "3.13"
 venvPath = "."
 venv = ".venv"
@@ -56,6 +76,7 @@ reportMissingTypeStubs = false
 
 [tool.mypy]
 python_version = "3.13"
+exclude = ["^scripts/demo_data/"]
 
 [[tool.mypy.overrides]]
 module = ["flask_login", "flask_login.*"]
@@ -68,3 +89,8 @@ ignore_missing_imports = true
 [tool.djlint]
 profile = "jinja"
 ignore = "H006,H013,H014,H021,H029,H030,H031,T001,T003"
+
+[tool.vulture]
+paths = ["app", "scripts", "tasks"]
+exclude = ["scripts/demo_data/"]
+min_confidence = 80

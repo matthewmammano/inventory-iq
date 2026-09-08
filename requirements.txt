@@ -48,6 +48,8 @@ MarkupSafe==3.0.3
 Werkzeug==3.1.7
 
 # Dev tooling
+vulture==2.16
+import-linter==2.15
 cfgv==3.5.0
 distlib==0.4.0
 filelock==3.29.0
