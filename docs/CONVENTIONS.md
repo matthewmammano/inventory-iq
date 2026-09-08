@@ -1,6 +1,6 @@
 # Repo Conventions
 
-Inventory IQ-specific conventions only. Generic engineering rules live in [../AGENTS.md](../AGENTS.md). Architecture, data, deploy, and observability facts live in their dedicated docs.
+Inventory IQ-specific conventions only. Architecture, data, deploy, and observability facts live in their dedicated docs.
 
 ## UI Text
 

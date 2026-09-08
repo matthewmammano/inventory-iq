@@ -51,6 +51,14 @@ Prefer concrete identifiers and counts:
 - Scheduler/task claim, success, skip, and failure.
 - Unexpected exceptions with enough IDs to reproduce safely.
 
+## Background Jobs
+
+Every scheduled/background job must be idempotent (safe to run twice) and guarded against overlapping runs. This repo already has the pattern — new jobs reuse it rather than inventing a new mechanism:
+
+- `app/shared/scheduler.py`'s `claimed_scheduler_run(job_name, period_key, agency_id)` atomically claims one time window per job via a DB-level `UniqueConstraint` on `(job_name, agency_id, period_key)` (`SchedulerRun` in `app/shared/models.py`) -- a second concurrent/duplicate attempt to claim the same window is rejected at the database, not just in-process.
+- `app/shared/task_logging.py`'s `logged_task(task_name, **context)` wraps a run with a generated `task_run_id`, logging `"Task started"`/`"Task finished"`/`"Task failed"` with duration automatically -- see `tasks/retrain_models.py` for the standard shape a production cron entrypoint follows.
+- `task_run_id` is already a recognized context key (`app/shared/logging.py`'s `CONTEXT_KEYS`), so any log line inside a `logged_task` block is automatically correlated to its run without adding it manually.
+
 ## Client Diagnostics
 
 `POST /api/debug/report` ([app/diagnostics/](../app/diagnostics/)) logs one `"Client diagnostics received"` event per report: browser/device fields plus server-resolved `ip`/`country`/`city` under a nested `client_diagnostics` key, with `correlated_request_id` alongside it at the top level for grepping against the failing request's `X-Request-ID`. The client (`app/static/js/diagnostics.js`) sends once per browser session and again on unhandled JS errors/failed fetches — not on every request. Geo lookups are best-effort, cached per-process by IP (`app/diagnostics/geo_lookup.py`), and the endpoint is rate-limited per IP.

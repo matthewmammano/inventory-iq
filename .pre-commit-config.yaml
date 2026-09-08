@@ -65,6 +65,12 @@ repos:
         args: [--profile=jinja, --lint]
         files: ^app/.*templates/.*\.html$
 
+  # Dead code detection
+  - repo: https://github.com/jendrikseipp/vulture
+    rev: v2.16
+    hooks:
+      - id: vulture
+
   # App import smoke check
   - repo: local
     hooks:
@@ -72,5 +78,14 @@ repos:
         name: Flask app import
         entry: python -c "from app import create_app; create_app()"
         language: system
+        pass_filenames: false
+        types: [python]
+
+      # No native pre-commit repo hook is published for import-linter; run it via pip like flask-app-import.
+      - id: import-linter
+        name: Import layering check
+        entry: lint-imports
+        language: python
+        additional_dependencies: [import-linter==2.15]
         pass_filenames: false
         types: [python]

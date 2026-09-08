@@ -9,6 +9,8 @@ description: Generate production-safe git change guidance after inspecting the r
 
 Produce git guidance from evidence, not memory. Inspect the worktree first, classify the real intent, and output the smallest useful answer the user requested.
 
+**Execution:** never run `git add`, `git commit`, `git push`, or `gh pr create` - only print the command. The only exception is an explicit, same-message grant of permission for that specific action (e.g. "you have permission to run this," "run it yourself"); approving a plan or saying "ok" does not count.
+
 ## Required Inspection
 
 1. Read repository instructions first, especially `AGENTS.md` and any files it references.

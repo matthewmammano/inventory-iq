@@ -13,7 +13,7 @@ Runtime, environment, and operational commands for Inventory IQ. Architecture li
 - Pydantic Settings
 - Loguru
 - Gunicorn
-- PostgreSQL in production; local default is SQLite.
+- PostgreSQL in production; local default is SQLite. This is a known, accepted dev/prod parity gap (SQLite has no local-install cost for solo dev). Stick to the SQLAlchemy query layer rather than raw SQL so code keeps working on both; if raw SQL is ever unavoidable, keep it dialect-agnostic.
 
 ## Security
 
