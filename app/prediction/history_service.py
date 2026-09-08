@@ -40,7 +40,7 @@ def build_item_trend_chart(
         ],
         operation_points=operation_points,
         trendline_points=_trendline_points(
-            count_anchors[-1] if count_anchors else None,
+            _last_known_point(count_anchors, operation_points),
             visible_trend,
         ),
         trend_per_day=visible_trend,
@@ -113,8 +113,8 @@ def _count_discrepancies(
                     ActionLog.from_storage_id.in_(storage_ids),
                     ActionLog.to_storage_id.in_(storage_ids),
                 ),
-                ActionLog.time_scanned > anchors[0].counted_at,
-                ActionLog.time_scanned <= anchors[-1].counted_at,
+                ActionLog.time_scanned >= anchors[0].counted_at,
+                ActionLog.time_scanned < anchors[-1].counted_at,
             )
             .order_by(ActionLog.time_scanned, ActionLog.id)
         ).scalars()
@@ -123,7 +123,8 @@ def _count_discrepancies(
     for prev_anchor, anchor in pairwise(anchors):
         quantities: dict[int, int] = dict.fromkeys(storage_ids, 0)
         for log in rows:
-            if prev_anchor.counted_at < log.time_scanned <= anchor.counted_at:
+            scanned_at = log.time_scanned
+            if scanned_at is not None and prev_anchor.counted_at <= scanned_at < anchor.counted_at:
                 _apply_log(quantities, log)
         expected = prev_anchor.total_quantity + sum(quantities.values())
         discrepancies[anchor.counted_at] = (expected, anchor.total_quantity - expected)
@@ -142,20 +143,34 @@ def _apply_log(quantities: dict[int, int], log: ActionLog) -> None:
         quantities[from_storage_id] -= log.quantity
 
 
+def _last_known_point(
+    count_anchors: list[CountAnchor],
+    operation_points: list[TrendChartPoint],
+) -> tuple[datetime, float] | None:
+    """Most recent real datapoint -- a count or a logged restock/takeout/transfer, whichever is newer."""
+    candidates: list[tuple[datetime, float]] = []
+    if count_anchors:
+        candidates.append((count_anchors[-1].counted_at, count_anchors[-1].total_quantity))
+    if operation_points:
+        candidates.append((datetime.fromisoformat(operation_points[-1].at), operation_points[-1].quantity))
+    return max(candidates, key=lambda point: point[0]) if candidates else None
+
+
 def _trendline_points(
-    last_count: CountAnchor | None,
+    last_point: tuple[datetime, float] | None,
     trend_per_day: float | None,
 ) -> list[TrendChartPoint]:
-    if last_count is None or trend_per_day is None:
+    if last_point is None or trend_per_day is None:
         return []
-    now = _now_for(last_count.counted_at)
+    last_at, last_quantity = last_point
+    now = _now_for(last_at)
     return [
-        _point(last_count.counted_at, last_count.total_quantity, "TREND"),
-        _trend_point(now, last_count.counted_at, last_count.total_quantity, trend_per_day),
+        _point(last_at, last_quantity, "TREND"),
+        _trend_point(now, last_at, last_quantity, trend_per_day),
     ]
 
 
-def _trend_point(at: datetime, start_at: datetime, start_quantity: int, trend_per_day: float) -> TrendChartPoint:
+def _trend_point(at: datetime, start_at: datetime, start_quantity: float, trend_per_day: float) -> TrendChartPoint:
     days = (at - start_at).total_seconds() / 86_400
     return _point(at, max(start_quantity + trend_per_day * days, 0.0), "TREND")
 
