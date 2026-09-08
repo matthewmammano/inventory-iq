@@ -1,0 +1,7 @@
+# Dev-only extras for the synthetic demo-data generator (scripts/demo_data/).
+# Not part of the app's runtime dependencies -- install into the app's own
+# venv only when you need to run generate.py:
+#   pip install -r scripts/demo_data/requirements.txt
+numpy==2.5.2
+pandas==3.0.5
+tqdm==4.70.0

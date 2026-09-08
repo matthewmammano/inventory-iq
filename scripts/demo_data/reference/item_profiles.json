@@ -1,0 +1,3027 @@
+{
+  "generated_at": "2026-09-07",
+  "year_trend": [
+    {
+      "year": 2022,
+      "multiplier": 1.1046188091263216
+    },
+    {
+      "year": 2023,
+      "multiplier": 1.1046188091263216
+    },
+    {
+      "year": 2024,
+      "multiplier": 0.8247078464106845
+    },
+    {
+      "year": 2025,
+      "multiplier": 1.070673344462994
+    },
+    {
+      "year": 2026,
+      "multiplier": 1.070673344462994
+    }
+  ],
+  "items": {
+    "Sterile Water (250mL)": {
+      "name": "Sterile Water (250mL)",
+      "category": "Bleeding",
+      "takeout": {
+        "scans_per_day": 0.165575025,
+        "qty_mean": 1.016,
+        "qty_sigma": 0.4714566929133858,
+        "confidence": "real",
+        "note": "334 real events, used directly"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 26,
+      "batch_size": 24,
+      "restock_delivery_days": 12
+    },
+    "Combine Pad - 5x9": {
+      "name": "Combine Pad - 5x9",
+      "category": "Bleeding",
+      "takeout": {
+        "scans_per_day": 0.159667794,
+        "qty_mean": 2.008,
+        "qty_sigma": 0.7878486055776893,
+        "confidence": "real",
+        "note": "293 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 4,
+      "max_quantity": 66,
+      "batch_size": 62,
+      "restock_delivery_days": 8
+    },
+    "Gauze Pad - 4x4": {
+      "name": "Gauze Pad - 4x4",
+      "category": "Bleeding",
+      "takeout": {
+        "scans_per_day": 0.20696618,
+        "qty_mean": 4.248,
+        "qty_sigma": 1.5,
+        "confidence": "real",
+        "note": "349 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 12,
+      "max_quantity": 184,
+      "batch_size": 172,
+      "restock_delivery_days": 12
+    },
+    "Multi-Trauma Dressing - 12x30": {
+      "name": "Multi-Trauma Dressing - 12x30",
+      "category": "Bleeding",
+      "takeout": {
+        "scans_per_day": 0.011169536,
+        "qty_mean": 1.059,
+        "qty_sigma": 0.2219074598677998,
+        "confidence": "real",
+        "note": "33 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 5,
+      "batch_size": 3,
+      "restock_delivery_days": 11
+    },
+    "Chest Seal": {
+      "name": "Chest Seal",
+      "category": "Bleeding",
+      "takeout": {
+        "scans_per_day": 0.003941892999999999,
+        "qty_mean": 1.667,
+        "qty_sigma": 0.4469106178764247,
+        "confidence": "real",
+        "note": "17 real events, used directly"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 6,
+      "batch_size": 4,
+      "restock_delivery_days": 4
+    },
+    "Roller Gauze - 2\"": {
+      "name": "Roller Gauze - 2\"",
+      "category": "Bleeding",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 2.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 0 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 50,
+      "batch_size": 48,
+      "restock_delivery_days": 14
+    },
+    "Roller Gauze - 4\"": {
+      "name": "Roller Gauze - 4\"",
+      "category": "Bleeding",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 2.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 0 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 50,
+      "batch_size": 48,
+      "restock_delivery_days": 11
+    },
+    "Tourniquet": {
+      "name": "Tourniquet",
+      "category": "Bleeding",
+      "takeout": {
+        "scans_per_day": 0.0039405149999999995,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "22 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 6,
+      "batch_size": 4,
+      "restock_delivery_days": 12
+    },
+    "Band-Aids": {
+      "name": "Band-Aids",
+      "category": "Bleeding",
+      "takeout": {
+        "scans_per_day": 0.013798667999999998,
+        "qty_mean": 3.476,
+        "qty_sigma": 1.3127157652474108,
+        "confidence": "real",
+        "note": "41 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 8,
+      "batch_size": 6,
+      "restock_delivery_days": 4
+    },
+    "Clear Tape - 1\"": {
+      "name": "Clear Tape - 1\"",
+      "category": "Tape",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 0 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 22,
+      "batch_size": 20,
+      "restock_delivery_days": 8
+    },
+    "Lancet": {
+      "name": "Lancet",
+      "category": "Glucose",
+      "takeout": {
+        "scans_per_day": 0.028913177999999998,
+        "qty_mean": 2.932,
+        "qty_sigma": 0.550818553888131,
+        "confidence": "real",
+        "note": "62 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 22,
+      "batch_size": 20,
+      "restock_delivery_days": 7
+    },
+    "Glucometer Test Strips": {
+      "name": "Glucometer Test Strips",
+      "category": "Glucose",
+      "takeout": {
+        "scans_per_day": 0.019709918000000003,
+        "qty_mean": 1.1,
+        "qty_sigma": 0.49,
+        "confidence": "real",
+        "note": "63 real events, used directly"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 14,
+      "batch_size": 12,
+      "restock_delivery_days": 13
+    },
+    "Cloth Tape - 2\"": {
+      "name": "Cloth Tape - 2\"",
+      "category": "Tape",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 0 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 22,
+      "batch_size": 20,
+      "restock_delivery_days": 10
+    },
+    "Cloth Tape - 3\"": {
+      "name": "Cloth Tape - 3\"",
+      "category": "Tape",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 0 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 22,
+      "batch_size": 20,
+      "restock_delivery_days": 12
+    },
+    "Pink Oral Airway - 40mm": {
+      "name": "Pink Oral Airway - 40mm",
+      "category": "Oral Airway",
+      "takeout": {
+        "scans_per_day": 0.012096891111111112,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "14 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 10,
+      "batch_size": 8,
+      "restock_delivery_days": 8
+    },
+    "Blue Oral Airway - 50mm": {
+      "name": "Blue Oral Airway - 50mm",
+      "category": "Oral Airway",
+      "takeout": {
+        "scans_per_day": 0.011767909111111112,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "12 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 6,
+      "batch_size": 4,
+      "restock_delivery_days": 5
+    },
+    "Black Oral Airway - 60mm": {
+      "name": "Black Oral Airway - 60mm",
+      "category": "Oral Airway",
+      "takeout": {
+        "scans_per_day": 0.01176845111111111,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "14 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 17,
+      "batch_size": 15,
+      "restock_delivery_days": 9
+    },
+    "White Oral Airway - 70mm": {
+      "name": "White Oral Airway - 70mm",
+      "category": "Oral Airway",
+      "takeout": {
+        "scans_per_day": 0.011439714611111112,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "11 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 6,
+      "batch_size": 4,
+      "restock_delivery_days": 4
+    },
+    "Green Oral Airway - 80mm": {
+      "name": "Green Oral Airway - 80mm",
+      "category": "Oral Airway",
+      "takeout": {
+        "scans_per_day": 0.0026275,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "16 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 16,
+      "batch_size": 14,
+      "restock_delivery_days": 12
+    },
+    "Yellow Oral Airway - 90mm": {
+      "name": "Yellow Oral Airway - 90mm",
+      "category": "Oral Airway",
+      "takeout": {
+        "scans_per_day": 0.007883656,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "27 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 10,
+      "batch_size": 8,
+      "restock_delivery_days": 10
+    },
+    "Red Oral Airway - 100mm": {
+      "name": "Red Oral Airway - 100mm",
+      "category": "Oral Airway",
+      "takeout": {
+        "scans_per_day": 0.003941184,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "19 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 13,
+      "batch_size": 11,
+      "restock_delivery_days": 11
+    },
+    "Orange Oral Airway - 110mm": {
+      "name": "Orange Oral Airway - 110mm",
+      "category": "Oral Airway",
+      "takeout": {
+        "scans_per_day": 0.003284375,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "16 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 10,
+      "batch_size": 8,
+      "restock_delivery_days": 7
+    },
+    "Complete Kit": {
+      "name": "Complete Kit",
+      "category": "Oral Airway",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 6 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 10,
+      "batch_size": 8,
+      "restock_delivery_days": 14
+    },
+    "Nasal Airway - 20Fr": {
+      "name": "Nasal Airway - 20Fr",
+      "category": "Nasal Airway",
+      "takeout": {
+        "scans_per_day": 0.006570639999999999,
+        "qty_mean": 1.1,
+        "qty_sigma": 0.2727272727272727,
+        "confidence": "real",
+        "note": "28 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 11,
+      "batch_size": 9,
+      "restock_delivery_days": 13
+    },
+    "Nasal Airway - 22Fr": {
+      "name": "Nasal Airway - 22Fr",
+      "category": "Nasal Airway",
+      "takeout": {
+        "scans_per_day": 0.007882848,
+        "qty_mean": 1.25,
+        "qty_sigma": 0.476,
+        "confidence": "real",
+        "note": "33 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 8,
+      "batch_size": 6,
+      "restock_delivery_days": 12
+    },
+    "Nasal Airway - 24Fr": {
+      "name": "Nasal Airway - 24Fr",
+      "category": "Nasal Airway",
+      "takeout": {
+        "scans_per_day": 0.008538324,
+        "qty_mean": 1.077,
+        "qty_sigma": 0.24698235840297125,
+        "confidence": "real",
+        "note": "32 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 11,
+      "batch_size": 9,
+      "restock_delivery_days": 5
+    },
+    "Nasal Airway - 26Fr": {
+      "name": "Nasal Airway - 26Fr",
+      "category": "Nasal Airway",
+      "takeout": {
+        "scans_per_day": 0.012482064000000001,
+        "qty_mean": 1.211,
+        "qty_sigma": 0.4302229562345169,
+        "confidence": "real",
+        "note": "39 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 13,
+      "batch_size": 11,
+      "restock_delivery_days": 8
+    },
+    "Nasal Airway - 28Fr": {
+      "name": "Nasal Airway - 28Fr",
+      "category": "Nasal Airway",
+      "takeout": {
+        "scans_per_day": 0.008539752,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "33 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 9,
+      "batch_size": 7,
+      "restock_delivery_days": 3
+    },
+    "Nasal Airway - 30Fr": {
+      "name": "Nasal Airway - 30Fr",
+      "category": "Nasal Airway",
+      "takeout": {
+        "scans_per_day": 0.010511988,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "41 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 4,
+      "batch_size": 2,
+      "restock_delivery_days": 5
+    },
+    "Nasal Airway - 32Fr": {
+      "name": "Nasal Airway - 32Fr",
+      "category": "Nasal Airway",
+      "takeout": {
+        "scans_per_day": 0.006570639999999999,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "28 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 14,
+      "batch_size": 12,
+      "restock_delivery_days": 11
+    },
+    "Nasal Airway - 34Fr": {
+      "name": "Nasal Airway - 34Fr",
+      "category": "Nasal Airway",
+      "takeout": {
+        "scans_per_day": 0.011169,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "40 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 10,
+      "batch_size": 8,
+      "restock_delivery_days": 11
+    },
+    "Nasal Airway - 36Fr": {
+      "name": "Nasal Airway - 36Fr",
+      "category": "Nasal Airway",
+      "takeout": {
+        "scans_per_day": 0.010512957,
+        "qty_mean": 1.188,
+        "qty_sigma": 0.6111111111111112,
+        "confidence": "real",
+        "note": "31 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 10,
+      "batch_size": 8,
+      "restock_delivery_days": 14
+    },
+    "Surgi-Lube": {
+      "name": "Surgi-Lube",
+      "category": "Nasal Airway",
+      "takeout": {
+        "scans_per_day": 0.013797184,
+        "qty_mean": 3.048,
+        "qty_sigma": 0.7874015748031495,
+        "confidence": "real",
+        "note": "34 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 42,
+      "batch_size": 40,
+      "restock_delivery_days": 7
+    },
+    "NRB - Adult": {
+      "name": "NRB - Adult",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.35807975400000003,
+        "qty_mean": 1.367,
+        "qty_sigma": 0.5932699341623995,
+        "confidence": "real",
+        "note": "687 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 7,
+      "max_quantity": 57,
+      "batch_size": 50,
+      "restock_delivery_days": 7
+    },
+    "NRB - Child": {
+      "name": "NRB - Child",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.06438764999999999,
+        "qty_mean": 1.327,
+        "qty_sigma": 0.5026375282592314,
+        "confidence": "real",
+        "note": "139 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 52,
+      "batch_size": 50,
+      "restock_delivery_days": 8
+    },
+    "NRB - Infant": {
+      "name": "NRB - Infant",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.017323873666666666,
+        "qty_mean": 2.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "11 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 22,
+      "batch_size": 20,
+      "restock_delivery_days": 5
+    },
+    "NC - Adult": {
+      "name": "NC - Adult",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.261500616,
+        "qty_mean": 1.204,
+        "qty_sigma": 0.5074750830564784,
+        "confidence": "real",
+        "note": "493 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 4,
+      "max_quantity": 54,
+      "batch_size": 50,
+      "restock_delivery_days": 4
+    },
+    "NC - Child": {
+      "name": "NC - Child",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.049939344,
+        "qty_mean": 1.513,
+        "qty_sigma": 0.4732319894249835,
+        "confidence": "real",
+        "note": "116 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 49,
+      "batch_size": 47,
+      "restock_delivery_days": 8
+    },
+    "BVM - Adult": {
+      "name": "BVM - Adult",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.055196249999999995,
+        "qty_mean": 1.024,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "156 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 5
+    },
+    "BVM - Child": {
+      "name": "BVM - Child",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.012483184999999997,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "37 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 16,
+      "batch_size": 14,
+      "restock_delivery_days": 10
+    },
+    "BVM - Infant": {
+      "name": "BVM - Infant",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.0059137600000000005,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "28 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 7,
+      "batch_size": 5,
+      "restock_delivery_days": 8
+    },
+    "HEPA Filter": {
+      "name": "HEPA Filter",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.017980886666666668,
+        "qty_mean": 1.25,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "14 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 12
+    },
+    "PEEP Valve": {
+      "name": "PEEP Valve",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.004598125,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "16 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 11
+    },
+    "CPAP": {
+      "name": "CPAP",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.011825483999999999,
+        "qty_mean": 1.111,
+        "qty_sigma": 0.41224122412241226,
+        "confidence": "real",
+        "note": "54 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 4,
+      "batch_size": 2,
+      "restock_delivery_days": 6
+    },
+    "CPAP Filter": {
+      "name": "CPAP Filter",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.017652182666666665,
+        "qty_mean": 2.5,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "13 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 8,
+      "batch_size": 6,
+      "restock_delivery_days": 12
+    },
+    "Yankauer Set": {
+      "name": "Yankauer Set",
+      "category": "Suction",
+      "takeout": {
+        "scans_per_day": 0.048621296,
+        "qty_mean": 1.095,
+        "qty_sigma": 0.26757990867579906,
+        "confidence": "real",
+        "note": "124 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 12
+    },
+    "French Catheter - 6Fr": {
+      "name": "French Catheter - 6Fr",
+      "category": "Suction",
+      "takeout": {
+        "scans_per_day": 0.017652446666666665,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "14 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 11,
+      "batch_size": 9,
+      "restock_delivery_days": 7
+    },
+    "French Catheter - 8Fr": {
+      "name": "French Catheter - 8Fr",
+      "category": "Suction",
+      "takeout": {
+        "scans_per_day": 0.0026286260000000002,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "18 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 16,
+      "batch_size": 14,
+      "restock_delivery_days": 6
+    },
+    "French Catheter - 10Fr": {
+      "name": "French Catheter - 10Fr",
+      "category": "Suction",
+      "takeout": {
+        "scans_per_day": 0.017324006666666666,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "14 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 10,
+      "batch_size": 8,
+      "restock_delivery_days": 11
+    },
+    "French Catheter - 12Fr": {
+      "name": "French Catheter - 12Fr",
+      "category": "Suction",
+      "takeout": {
+        "scans_per_day": 0.0019715049999999997,
+        "qty_mean": 1.667,
+        "qty_sigma": 0.5656868626274745,
+        "confidence": "real",
+        "note": "17 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 17,
+      "batch_size": 15,
+      "restock_delivery_days": 5
+    },
+    "French Catheter - 14Fr": {
+      "name": "French Catheter - 14Fr",
+      "category": "Suction",
+      "takeout": {
+        "scans_per_day": 0.0019720609999999998,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "18 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 7,
+      "batch_size": 5,
+      "restock_delivery_days": 5
+    },
+    "French Catheter - 16Fr": {
+      "name": "French Catheter - 16Fr",
+      "category": "Suction",
+      "takeout": {
+        "scans_per_day": 0.016995029666666668,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "13 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 13,
+      "batch_size": 11,
+      "restock_delivery_days": 3
+    },
+    "French Catheter - 18Fr": {
+      "name": "French Catheter - 18Fr",
+      "category": "Suction",
+      "takeout": {
+        "scans_per_day": 0.017323392666666666,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "13 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 17,
+      "batch_size": 15,
+      "restock_delivery_days": 12
+    },
+    "Suction Container and Lid": {
+      "name": "Suction Container and Lid",
+      "category": "Suction",
+      "takeout": {
+        "scans_per_day": 0.029566989999999998,
+        "qty_mean": 1.044,
+        "qty_sigma": 0.19731800766283522,
+        "confidence": "real",
+        "note": "85 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 23,
+      "batch_size": 21,
+      "restock_delivery_days": 10
+    },
+    "Gloves - Small": {
+      "name": "Gloves - Small",
+      "category": "Gloves/Masks",
+      "takeout": {
+        "scans_per_day": 0.024309,
+        "qty_mean": 1.054,
+        "qty_sigma": 0.2144212523719165,
+        "confidence": "real",
+        "note": "80 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 8,
+      "batch_size": 6,
+      "restock_delivery_days": 11
+    },
+    "Gloves - Medium": {
+      "name": "Gloves - Medium",
+      "category": "Gloves/Masks",
+      "takeout": {
+        "scans_per_day": 0.114986634,
+        "qty_mean": 1.114,
+        "qty_sigma": 0.3698384201077199,
+        "confidence": "real",
+        "note": "264 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 12
+    },
+    "Gloves -  Large": {
+      "name": "Gloves -  Large",
+      "category": "Gloves/Masks",
+      "takeout": {
+        "scans_per_day": 0.136670265,
+        "qty_mean": 1.087,
+        "qty_sigma": 0.4158233670653174,
+        "confidence": "real",
+        "note": "299 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 8
+    },
+    "Gloves - X-Large": {
+      "name": "Gloves - X-Large",
+      "category": "Gloves/Masks",
+      "takeout": {
+        "scans_per_day": 0.062418356,
+        "qty_mean": 1.105,
+        "qty_sigma": 0.4253393665158371,
+        "confidence": "real",
+        "note": "148 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 9
+    },
+    "Surgical Mask": {
+      "name": "Surgical Mask",
+      "category": "Gloves/Masks",
+      "takeout": {
+        "scans_per_day": 0.048617999999999995,
+        "qty_mean": 8.865,
+        "qty_sigma": 0.8635081782289904,
+        "confidence": "real",
+        "note": "100 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 6,
+      "max_quantity": 1506,
+      "batch_size": 1500,
+      "restock_delivery_days": 5
+    },
+    "N95 Mask": {
+      "name": "N95 Mask",
+      "category": "Gloves/Masks",
+      "takeout": {
+        "scans_per_day": 0.00591375,
+        "qty_mean": 10.333,
+        "qty_sigma": 0.719926449240298,
+        "confidence": "real",
+        "note": "24 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 62,
+      "batch_size": 60,
+      "restock_delivery_days": 4
+    },
+    "Eye Protection": {
+      "name": "Eye Protection",
+      "category": "PPE",
+      "takeout": {
+        "scans_per_day": 0.003284736,
+        "qty_mean": 1.6,
+        "qty_sigma": 0.5,
+        "confidence": "real",
+        "note": "19 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 10
+    },
+    "Respirator Filters": {
+      "name": "Respirator Filters",
+      "category": "PPE",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 7 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 29,
+      "batch_size": 27,
+      "restock_delivery_days": 8
+    },
+    "Gown/Apron": {
+      "name": "Gown/Apron",
+      "category": "PPE",
+      "takeout": {
+        "scans_per_day": 0.004597632,
+        "qty_mean": 1.571,
+        "qty_sigma": 0.4633991088478676,
+        "confidence": "real",
+        "note": "19 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 162,
+      "batch_size": 160,
+      "restock_delivery_days": 9
+    },
+    "Faceshield": {
+      "name": "Faceshield",
+      "category": "PPE",
+      "takeout": {
+        "scans_per_day": 0.0026275,
+        "qty_mean": 1.25,
+        "qty_sigma": 0.3464,
+        "confidence": "real",
+        "note": "16 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 202,
+      "batch_size": 200,
+      "restock_delivery_days": 11
+    },
+    "Shoe Covers": {
+      "name": "Shoe Covers",
+      "category": "PPE",
+      "takeout": {
+        "scans_per_day": 0.0052572520000000005,
+        "qty_mean": 3.25,
+        "qty_sigma": 0.4550769230769231,
+        "confidence": "real",
+        "note": "18 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 156,
+      "batch_size": 154,
+      "restock_delivery_days": 10
+    },
+    "Tyvek Suit - Large": {
+      "name": "Tyvek Suit - Large",
+      "category": "PPE",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 3 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 16,
+      "batch_size": 14,
+      "restock_delivery_days": 9
+    },
+    "Tyvek Suit - X-Large": {
+      "name": "Tyvek Suit - X-Large",
+      "category": "PPE",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 3 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 118,
+      "batch_size": 116,
+      "restock_delivery_days": 9
+    },
+    "Tyvek Suit - 2X-Large": {
+      "name": "Tyvek Suit - 2X-Large",
+      "category": "PPE",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 3 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 40,
+      "batch_size": 38,
+      "restock_delivery_days": 6
+    },
+    "Biohazard Bags": {
+      "name": "Biohazard Bags",
+      "category": "PPE",
+      "takeout": {
+        "scans_per_day": 0.009647212333333334,
+        "qty_mean": 1.125,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "13 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 3
+    },
+    "Amber - Bleach Wipes": {
+      "name": "Amber - Bleach Wipes",
+      "category": "Disinfection",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 2.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 7 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 8
+    },
+    "Purple - Alcohol Wipes": {
+      "name": "Purple - Alcohol Wipes",
+      "category": "Disinfection",
+      "takeout": {
+        "scans_per_day": 0.03399054033333333,
+        "qty_mean": 1.5,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "11 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 11,
+      "batch_size": 9,
+      "restock_delivery_days": 5
+    },
+    "Red - Germicide Wipes": {
+      "name": "Red - Germicide Wipes",
+      "category": "Disinfection",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 2.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 2 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 3,
+      "batch_size": 1,
+      "restock_delivery_days": 7
+    },
+    "Grey - Combo Wipes": {
+      "name": "Grey - Combo Wipes",
+      "category": "Disinfection",
+      "takeout": {
+        "scans_per_day": 0.0026286260000000002,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "18 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 6,
+      "batch_size": 4,
+      "restock_delivery_days": 12
+    },
+    "C-Collar - Adult": {
+      "name": "C-Collar - Adult",
+      "category": "Immobilization",
+      "takeout": {
+        "scans_per_day": 0.09396243,
+        "qty_mean": 1.112,
+        "qty_sigma": 0.30305755395683454,
+        "confidence": "real",
+        "note": "213 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 6
+    },
+    "C-Collar - Child": {
+      "name": "C-Collar - Child",
+      "category": "Immobilization",
+      "takeout": {
+        "scans_per_day": 0.022996448,
+        "qty_mean": 1.143,
+        "qty_sigma": 0.42607174103237094,
+        "confidence": "real",
+        "note": "69 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 20,
+      "batch_size": 18,
+      "restock_delivery_days": 4
+    },
+    "Head Blocks - Adult": {
+      "name": "Head Blocks - Adult",
+      "category": "Immobilization",
+      "takeout": {
+        "scans_per_day": 0.0059137600000000005,
+        "qty_mean": 1.111,
+        "qty_sigma": 0.2826282628262826,
+        "confidence": "real",
+        "note": "28 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 17,
+      "batch_size": 15,
+      "restock_delivery_days": 6
+    },
+    "Head Blocks - Child": {
+      "name": "Head Blocks - Child",
+      "category": "Immobilization",
+      "takeout": {
+        "scans_per_day": 0.007227657,
+        "qty_mean": 1.636,
+        "qty_sigma": 0.7493887530562348,
+        "confidence": "real",
+        "note": "30 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 16,
+      "batch_size": 14,
+      "restock_delivery_days": 6
+    },
+    "SAM Splint": {
+      "name": "SAM Splint",
+      "category": "Splint",
+      "takeout": {
+        "scans_per_day": 0.023652000000000003,
+        "qty_mean": 1.111,
+        "qty_sigma": 0.35373537353735374,
+        "confidence": "real",
+        "note": "80 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 7,
+      "batch_size": 5,
+      "restock_delivery_days": 10
+    },
+    "Board Splints - 12\" ": {
+      "name": "Board Splints - 12\" ",
+      "category": "Splint",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 0 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 7,
+      "batch_size": 5,
+      "restock_delivery_days": 9
+    },
+    "Board Splints - 18\" ": {
+      "name": "Board Splints - 18\" ",
+      "category": "Splint",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 0 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 7,
+      "batch_size": 5,
+      "restock_delivery_days": 12
+    },
+    "Board Splints - 3x15": {
+      "name": "Board Splints - 3x15",
+      "category": "Splint",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 3 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 9,
+      "batch_size": 7,
+      "restock_delivery_days": 10
+    },
+    "Board Splints - 3x36": {
+      "name": "Board Splints - 3x36",
+      "category": "Splint",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 3 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 10,
+      "batch_size": 8,
+      "restock_delivery_days": 7
+    },
+    "Board Splints - 3x54": {
+      "name": "Board Splints - 3x54",
+      "category": "Splint",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 3 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 12
+    },
+    "Cravat": {
+      "name": "Cravat",
+      "category": "Splint",
+      "takeout": {
+        "scans_per_day": 0.11234753400000001,
+        "qty_mean": 1.842,
+        "qty_sigma": 0.7502714440825189,
+        "confidence": "real",
+        "note": "226 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 3,
+      "max_quantity": 39,
+      "batch_size": 36,
+      "restock_delivery_days": 5
+    },
+    "BP Cuff - Large Adult ": {
+      "name": "BP Cuff - Large Adult ",
+      "category": "Vitals",
+      "takeout": {
+        "scans_per_day": 0.01143986111111111,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "8 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 4,
+      "batch_size": 2,
+      "restock_delivery_days": 3
+    },
+    "BP Cuff - Adult": {
+      "name": "BP Cuff - Adult",
+      "category": "Vitals",
+      "takeout": {
+        "scans_per_day": 0.005256602,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "17 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 7,
+      "batch_size": 5,
+      "restock_delivery_days": 4
+    },
+    "BP Cuff - Automatic": {
+      "name": "BP Cuff - Automatic",
+      "category": "Vitals",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 5 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 3,
+      "batch_size": 1,
+      "restock_delivery_days": 11
+    },
+    "BP Cuff - Child": {
+      "name": "BP Cuff - Child",
+      "category": "Vitals",
+      "takeout": {
+        "scans_per_day": 0.01143986111111111,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "8 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 7,
+      "batch_size": 5,
+      "restock_delivery_days": 8
+    },
+    "BP Cuff - Infant": {
+      "name": "BP Cuff - Infant",
+      "category": "Vitals",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 6 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 7,
+      "batch_size": 5,
+      "restock_delivery_days": 5
+    },
+    "Stethoscope": {
+      "name": "Stethoscope",
+      "category": "Vitals",
+      "takeout": {
+        "scans_per_day": 0.012424990111111112,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "13 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 7,
+      "batch_size": 5,
+      "restock_delivery_days": 9
+    },
+    "Pulse Oximeter": {
+      "name": "Pulse Oximeter",
+      "category": "Vitals",
+      "takeout": {
+        "scans_per_day": 0.0052576,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "25 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 4,
+      "batch_size": 2,
+      "restock_delivery_days": 5
+    },
+    "Aspirin": {
+      "name": "Aspirin",
+      "category": "Medications",
+      "takeout": {
+        "scans_per_day": 0.006213055555555556,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "8 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 8,
+      "batch_size": 6,
+      "restock_delivery_days": 11
+    },
+    "Epi Pen - Adult": {
+      "name": "Epi Pen - Adult",
+      "category": "Medications",
+      "takeout": {
+        "scans_per_day": 0.003286374,
+        "qty_mean": 2.0,
+        "qty_sigma": 0.6325,
+        "confidence": "real",
+        "note": "18 real events, used directly"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 8,
+      "batch_size": 6,
+      "restock_delivery_days": 8
+    },
+    "Epi Pen - Child": {
+      "name": "Epi Pen - Child",
+      "category": "Medications",
+      "takeout": {
+        "scans_per_day": 0.0026275,
+        "qty_mean": 2.25,
+        "qty_sigma": 0.5773333333333333,
+        "confidence": "real",
+        "note": "16 real events, used directly"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 7,
+      "batch_size": 5,
+      "restock_delivery_days": 7
+    },
+    "Narcan": {
+      "name": "Narcan",
+      "category": "Medications",
+      "takeout": {
+        "scans_per_day": 0.010632728333333334,
+        "qty_mean": 1.5715,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "13 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 14,
+      "batch_size": 12,
+      "restock_delivery_days": 6
+    },
+    "Glucose": {
+      "name": "Glucose",
+      "category": "Medications",
+      "takeout": {
+        "scans_per_day": 0.02694129,
+        "qty_mean": 1.22,
+        "qty_sigma": 0.33934426229508197,
+        "confidence": "real",
+        "note": "79 real events, used directly"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 8,
+      "batch_size": 6,
+      "restock_delivery_days": 10
+    },
+    "AED Pad - Adult": {
+      "name": "AED Pad - Adult",
+      "category": "CPR",
+      "takeout": {
+        "scans_per_day": 0.0256256,
+        "qty_mean": 1.154,
+        "qty_sigma": 0.6057192374350087,
+        "confidence": "real",
+        "note": "75 real events, used directly"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 7,
+      "batch_size": 5,
+      "restock_delivery_days": 7
+    },
+    "AED Pad - Child": {
+      "name": "AED Pad - Child",
+      "category": "CPR",
+      "takeout": {
+        "scans_per_day": 0.0078825,
+        "qty_mean": 1.417,
+        "qty_sigma": 0.6732533521524346,
+        "confidence": "real",
+        "note": "32 real events, used directly"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 8,
+      "batch_size": 6,
+      "restock_delivery_days": 4
+    },
+    "AED Battery": {
+      "name": "AED Battery",
+      "category": "CPR",
+      "takeout": {
+        "scans_per_day": 0.0016988630136986302,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "5 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 3,
+      "batch_size": 1,
+      "restock_delivery_days": 4
+    },
+    "ZOLL LifeBand": {
+      "name": "ZOLL LifeBand",
+      "category": "CPR",
+      "takeout": {
+        "scans_per_day": 0.008540015,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "36 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 5,
+      "batch_size": 3,
+      "restock_delivery_days": 14
+    },
+    "Trauma Shear": {
+      "name": "Trauma Shear",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.008540015,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "36 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 17,
+      "batch_size": 15,
+      "restock_delivery_days": 13
+    },
+    "Seat Belt Cutter": {
+      "name": "Seat Belt Cutter",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.0036620833333333336,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "8 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 9,
+      "batch_size": 7,
+      "restock_delivery_days": 11
+    },
+    "Ring Cutter": {
+      "name": "Ring Cutter",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.006666666666666667,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 6 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 3,
+      "batch_size": 1,
+      "restock_delivery_days": 6
+    },
+    "Pen Light": {
+      "name": "Pen Light",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.015113759999999999,
+        "qty_mean": 1.087,
+        "qty_sigma": 0.25942962281508736,
+        "confidence": "real",
+        "note": "42 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 11,
+      "batch_size": 9,
+      "restock_delivery_days": 14
+    },
+    "Emergency Blanket": {
+      "name": "Emergency Blanket",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 5 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 30,
+      "batch_size": 28,
+      "restock_delivery_days": 12
+    },
+    "Tongue Depressor": {
+      "name": "Tongue Depressor",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.005915,
+        "qty_mean": 2.778,
+        "qty_sigma": 0.7354211663066955,
+        "confidence": "real",
+        "note": "18 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 202,
+      "batch_size": 200,
+      "restock_delivery_days": 11
+    },
+    "Vomit Bag": {
+      "name": "Vomit Bag",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.005255,
+        "qty_mean": 1.5,
+        "qty_sigma": 0.3333333333333333,
+        "confidence": "real",
+        "note": "16 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 24,
+      "batch_size": 22,
+      "restock_delivery_days": 8
+    },
+    "Basin": {
+      "name": "Basin",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.136012877,
+        "qty_mean": 1.271,
+        "qty_sigma": 0.4335169158143195,
+        "confidence": "real",
+        "note": "308 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 22,
+      "batch_size": 20,
+      "restock_delivery_days": 6
+    },
+    "Triage Tags": {
+      "name": "Triage Tags",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 6 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 6,
+      "batch_size": 4,
+      "restock_delivery_days": 4
+    },
+    "Alcohol Pad": {
+      "name": "Alcohol Pad",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.02365363,
+        "qty_mean": 7.25,
+        "qty_sigma": 1.5,
+        "confidence": "real",
+        "note": "55 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 602,
+      "batch_size": 600,
+      "restock_delivery_days": 13
+    },
+    "Ice Pack": {
+      "name": "Ice Pack",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.189225484,
+        "qty_mean": 1.587,
+        "qty_sigma": 0.6427221172022685,
+        "confidence": "real",
+        "note": "378 real events, used directly"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 4,
+      "max_quantity": 40,
+      "batch_size": 36,
+      "restock_delivery_days": 8
+    },
+    "Heat Pack": {
+      "name": "Heat Pack",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.042704809999999996,
+        "qty_mean": 1.446,
+        "qty_sigma": 0.5691562932226832,
+        "confidence": "real",
+        "note": "105 real events, used directly"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 26,
+      "batch_size": 24,
+      "restock_delivery_days": 5
+    },
+    "Chux Pad": {
+      "name": "Chux Pad",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.026282282,
+        "qty_mean": 3.025,
+        "qty_sigma": 0.8181818181818182,
+        "confidence": "real",
+        "note": "48 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 77,
+      "batch_size": 75,
+      "restock_delivery_days": 6
+    },
+    "Mega Mover": {
+      "name": "Mega Mover",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.020369612,
+        "qty_mean": 1.032,
+        "qty_sigma": 0.17151162790697674,
+        "confidence": "real",
+        "note": "68 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 7,
+      "batch_size": 5,
+      "restock_delivery_days": 9
+    },
+    "OB Kit": {
+      "name": "OB Kit",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.0013143380000000002,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.15,
+        "confidence": "real",
+        "note": "15 real events, used directly"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 4,
+      "batch_size": 2,
+      "restock_delivery_days": 5
+    },
+    "Bulb Syringe": {
+      "name": "Bulb Syringe",
+      "category": "Miscellaneous",
+      "takeout": {
+        "scans_per_day": 0.0039429389999999995,
+        "qty_mean": 1.5,
+        "qty_sigma": 0.3333333333333333,
+        "confidence": "real",
+        "note": "18 real events, used directly"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 7,
+      "batch_size": 5,
+      "restock_delivery_days": 12
+    },
+    "Quick Clot": {
+      "name": "Quick Clot",
+      "category": "Bleeding",
+      "takeout": {
+        "scans_per_day": 0.008333333333333333,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 2 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 11
+    },
+    "Albuterol": {
+      "name": "Albuterol",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.011111111111111112,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 2 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": true,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 11
+    },
+    "Nebulizer Mask": {
+      "name": "Nebulizer Mask",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.017652446666666665,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.4,
+        "confidence": "hybrid",
+        "note": "7 real events, blended with category default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 8
+    },
+    "Small Volume Nebulizer": {
+      "name": "Small Volume Nebulizer",
+      "category": "Other Airway",
+      "takeout": {
+        "scans_per_day": 0.0033333333333333335,
+        "qty_mean": 1.0,
+        "qty_sigma": 0.3,
+        "confidence": "estimated",
+        "note": "only 3 real events -- domain-knowledge default"
+      },
+      "expiration": {
+        "tracked": false,
+        "fefo_compliance_rate": 0.95,
+        "wrong_pick_rate": 0.03,
+        "forgot_log_rate": 0.02
+      },
+      "reorder_trigger": {
+        "center_ratio": 1.0,
+        "spread_ratio": 0.2
+      },
+      "min_quantity": 2,
+      "max_quantity": 12,
+      "batch_size": 10,
+      "restock_delivery_days": 10
+    }
+  }
+}

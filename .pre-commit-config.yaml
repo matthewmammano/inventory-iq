@@ -27,6 +27,9 @@ repos:
       - id: mixed-line-ending
         args: [--fix=lf]
       - id: check-added-large-files
+        # scripts/demo_data/reference/log.csv (~690KB) is real calibration data the
+        # generator's model is built from, not accidental bloat -- default 500KB is too low.
+        args: [--maxkb=1024]
 
   # Secret scanning
   - repo: https://github.com/gitleaks/gitleaks
