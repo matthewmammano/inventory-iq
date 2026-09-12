@@ -18,7 +18,7 @@ def keep_newest_groups(directory: Path, anchor_pattern: str, max_groups: int) ->
     """Delete oldest file groups so generated folders stay small.
 
     A group is every file sharing the stem (name before the first `.`) of one
-    `anchor_pattern` match -- e.g. a sent email's html/txt bodies plus its CSV
+    `anchor_pattern` match, e.g. a sent email's html/txt bodies plus its CSV
     attachments all share one stem and are kept or deleted together.
     """
     anchors = sorted(

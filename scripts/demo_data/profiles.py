@@ -1,4 +1,4 @@
-"""Pydantic schema for the per-item generation profile -- the single source of
+"""Pydantic schema for the per-item generation profile: the single source of
 truth for both the real Item schema fields (setup.py writes these to the DB)
 and the generation behavior (planner.py samples from these). Built once by
 build_profiles.py, stored as reference/item_profiles.json, and just loaded
@@ -14,13 +14,13 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class DataConfidence(StrEnum):
-    """How this item's takeout numbers were derived -- kept on the record so a
+    """How this item's takeout numbers were derived: kept on the record so a
     future reviewer can tell "real data" apart from "domain-knowledge guess"
     at a glance, instead of every item looking equally authoritative."""
 
-    REAL = "real"  # >=15 real events -- real per-item rate/qty trusted directly
-    HYBRID = "hybrid"  # 5-14 real events -- real signal blended with a category default
-    ESTIMATED = "estimated"  # <5 real events -- domain-knowledge default, rate capped low
+    REAL = "real"  # >=15 real events: real per-item rate/qty trusted directly
+    HYBRID = "hybrid"  # 5-14 real events: real signal blended with a category default
+    ESTIMATED = "estimated"  # <5 real events: domain-knowledge default, rate capped low
 
 
 class TakeoutProfile(BaseModel):
@@ -49,7 +49,7 @@ class TakeoutProfile(BaseModel):
 
 class ExpirationBehavior(BaseModel):
     """FEFO (first-expired-first-out) pick behavior. Fixed rates, not fit per
-    item -- these describe a human habit, not this item's physical reality."""
+    item: these describe a human habit, not this item's physical reality."""
 
     model_config = ConfigDict(frozen=True)
 
@@ -79,7 +79,7 @@ class ReorderTriggerProfile(BaseModel):
 class ItemGenerationProfile(BaseModel):
     """Everything the generator needs for one item. min_quantity/max_quantity/
     batch_size/restock_delivery_days are written to the real Item row AS WELL
-    as used for generation -- one corrected value, not two systems that can
+    as used for generation: one corrected value, not two systems that can
     disagree."""
 
     model_config = ConfigDict(frozen=True)

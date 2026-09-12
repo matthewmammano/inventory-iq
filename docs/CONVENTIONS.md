@@ -42,7 +42,7 @@ Inventory IQ-specific conventions only. Architecture, data, deploy, and observab
 - Read-only list pages that allow add/edit/delete (e.g. Data: Items, Tags, Notifications) use one small edit-icon button per row that opens that row's own modal; there is no bulk multi-row editing or change-review-before-save step for these.
 - One icon opens one modal that can both edit the row and delete it: the modal shows the editable fields plus a `Delete <Entity>` button; clicking it reveals an inline confirm step (`Delete <Entity>? It will be hidden after saving.` + `Yes, Delete` / `Cancel`) in the same modal, not a second modal.
 - A trailing `Add <Entity>` button opens a separate blank-form modal for creating one new row.
-- Each modal's form is a plain `method="POST"` submit to a dedicated single-row create/update/delete route, followed by a redirect back to the same tab and a flash message. Do not build a fetch/AJAX/JSON layer for these — the existing flash + redirect pattern is sufficient and keeps error handling on the server.
+- Each modal's form is a plain `method="POST"` submit to a dedicated single-row create/update/delete route, followed by a redirect back to the same tab and a flash message. Do not build a fetch/AJAX/JSON layer for these; the existing flash + redirect pattern is sufficient and keeps error handling on the server.
 - Keep `validation_attrs(...)` on every field exactly as on any other form; nothing about this pattern changes how frontend validation attributes are produced.
 
 ## Validation Pattern

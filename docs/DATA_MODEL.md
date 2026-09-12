@@ -17,7 +17,7 @@ Core persistence rules for Inventory IQ. Schema changes require Alembic migratio
 - `action_log_expiration_lines`: expiration-date allocations captured for one inventory event.
 - `inventory_storage_balances`: derived current per-item/per-storage quantity for fast reads.
 - `inventory_expiration_balances`: derived current per-item/per-storage/per-expiration-date quantity for expiration-aware scans and alerts.
-- `inventory_item_location_states`: derived per-item/per-location rollup, threshold, trend, and forecast *numbers* only -- no alert-lifecycle fields at all. Alert type and severity are computed live from these numbers wherever needed, never stored.
+- `inventory_item_location_states`: derived per-item/per-location rollup, threshold, trend, and forecast *numbers* only; no alert-lifecycle fields at all. Alert type and severity are computed live from these numbers wherever needed, never stored.
 - `alerts`: every notifiable problem, stock and discrete alike (stockout/low-stock conditions as well as unknown UPC, stale count, rare takeout, scan activity, and expiration facts). Lifecycle is `status` `OPEN`/`CLOSED` plus a `closed_reason`; severity is derived from `alert_type` and never stored. Stock alerts carry an empty `detail` and render live from state; discrete alerts snapshot their `detail`.
 - `alert_notifications`: append-only per-recipient ledger (`alert_id`, `notification_recipient_id`, `email_delivery_id`, `notified_at`). The absence of a row for a (recipient, alert) pair is what makes a recipient due.
 - `email_deliveries`: write-once send audit (subject/preview only, no body). Never a queue or content cache.

@@ -7,7 +7,7 @@ tags: Locations, Settings
 
 ## Simple Definition
 
-A **location** is a place — a building, site, or branch. A **storage** is a countable area inside that place, like a shelf, cooler, or closet.
+A **location** is a place: a building, site, or branch. A **storage** is a countable area inside that place, like a shelf, cooler, or closet.
 
 ## Example
 
@@ -19,6 +19,6 @@ Storages make counts more useful. If the front shelf is empty but back storage s
 
 ## Good Naming
 
-Use names people recognize while standing in the real place — "Front Cooler," not "Storage 2." Clear names reduce wrong scans.
+Use names people recognize while standing in the real place: "Front Cooler," not "Storage 2." Clear names reduce wrong scans.
 
-> Locations and storages themselves are viewed on the Data page's Locations tab, but adding, renaming, or removing one is a support-assisted change, not a self-service Settings option — see [Admin Settings](admin-settings).
+> Locations and storages themselves are viewed on the Data page's Locations tab, but adding, renaming, or removing one is a support-assisted change, not a self-service Settings option. See [Admin Settings](admin-settings).

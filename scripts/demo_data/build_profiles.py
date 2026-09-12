@@ -1,4 +1,4 @@
-"""Build item_profiles.json -- run once (or whenever the source catalog/log
+"""Build item_profiles.json: run once (or whenever the source catalog/log
 changes), not on every generate.py run.
 
 Confidence tiers, per your instruction that real takeout data is "~85%
@@ -10,7 +10,7 @@ events:
                                      capped at ~1/year or rarer
 
 Category defaults and item overrides below are domain knowledge (real-world
-EMS/first-aid supply usage patterns), not fit from data -- that's the point:
+EMS/first-aid supply usage patterns), not fit from data; that's the point:
 for items too rare to have a reliable sample, a first responder's actual
 understanding of how often a tourniquet or an Epi-Pen gets used is a better
 estimate than extrapolating from 2 real events over 4 years.
@@ -42,7 +42,7 @@ HYBRID_EVENTS_THRESHOLD = 5
 ESTIMATED_MAX_SCANS_PER_DAY = 1 / 300  # ~ once every 10 months, "1/year or rarer"
 
 # ---------------------------------------------------------------- domain-knowledge defaults
-# (scans_per_day, qty_mean) -- deliberately rough; only used when real data is thin.
+# (scans_per_day, qty_mean): deliberately rough; only used when real data is thin.
 CATEGORY_DEFAULTS: dict[str, tuple[float, float]] = {
     "Bleeding": (1 / 10, 2.0),
     "Tape": (1 / 20, 1.0),
@@ -123,7 +123,7 @@ def _confidence_and_takeout(name: str, category: str, per_item_row: dict | None)
         qty_mean=default_qty,
         qty_sigma=0.3,
         confidence=DataConfidence.ESTIMATED,
-        note=f"only {n_events} real events -- domain-knowledge default",
+        note=f"only {n_events} real events: domain-knowledge default",
     )
 
 
@@ -134,7 +134,7 @@ def _corrected_levels(takeout: TakeoutProfile, catalog_batch: int, restock_pool:
     a few weeks of typical use, sized to real restock deliveries when we have
     them, catalog values only as a last-resort floor."""
     daily_usage = takeout.scans_per_day * takeout.qty_mean
-    # ~2 weeks of typical use, floor of 2 -- a rarely-used safety item (e.g. BVM,
+    # ~2 weeks of typical use, floor of 2, a rarely-used safety item (e.g. BVM,
     # used every ~45 days) still needs a buffer; "2 weeks of a slow rate" alone
     # rounds to ~1, which is the same "runs to nothing" problem as before.
     usage_based_min = max(round(daily_usage * 14), 2)
@@ -145,7 +145,7 @@ def _corrected_levels(takeout: TakeoutProfile, catalog_batch: int, restock_pool:
     max_quantity = min_quantity + batch_size
 
     # Real COUNT history is the most direct evidence of what a shelf ever actually
-    # held -- when we have it, never let max_quantity run past what real life did
+    # held; when we have it, never let max_quantity run past what real life did
     # (the batch fallback above still leans on catalog reorder_amount for
     # thin-restock items, which is exactly what was 2-20x off in the first place).
     if len(count_pool) >= 3:
@@ -157,7 +157,7 @@ def _corrected_levels(takeout: TakeoutProfile, catalog_batch: int, restock_pool:
 
 
 def _year_trend(log: pd.DataFrame, window_start: date, window_end: date) -> tuple[YearTrend, ...]:
-    """Real year-over-year event volume, not an assumed growth curve -- 2023-2025
+    """Real year-over-year event volume, not an assumed growth curve: 2023-2025
     are full real years; scale each by its ratio to their average. The two
     partial years at the edges of the real dump (2022, 2026) inherit the
     nearest full year's level rather than their own (misleadingly low) partial count."""
@@ -186,7 +186,7 @@ def main() -> None:
     window_end = cfg.GENERATION_END_DATE
     window_start = date(window_end.year - cfg.YEARS_BACK, window_end.month, window_end.day)
 
-    rng = np.random.default_rng(42)  # fixed seed -- rerunning this builder should be reproducible
+    rng = np.random.default_rng(42)  # fixed seed: rerunning this builder should be reproducible
     profiles: dict[str, ItemGenerationProfile] = {}
     for row in items.itertuples(index=False):
         takeout = _confidence_and_takeout(row.name, row.category, per_item.get(row.name))
@@ -212,7 +212,7 @@ def main() -> None:
     out_path.write_text(catalog.model_dump_json(indent=2))
 
     by_confidence = pd.Series([p.takeout.confidence for p in profiles.values()]).value_counts()
-    print(f"wrote {out_path} -- {len(profiles)} items")
+    print(f"wrote {out_path}: {len(profiles)} items")
     print(by_confidence.to_string())
     print("year trend:", {yt.year: round(yt.multiplier, 2) for yt in catalog.year_trend})
 

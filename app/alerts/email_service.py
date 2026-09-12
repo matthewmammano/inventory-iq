@@ -4,7 +4,7 @@ Each run asks, per recipient: which open alerts are they allowed to see, which
 are due given their notification history, and is it the right time for their
 cadence? A recipient is due for an alert when they have never been notified about
 it, or when its type allows resending and the cooldown has elapsed. Escalation
-and recurrence need no special case -- they produce a brand-new alert row, which
+and recurrence need no special case: they produce a brand-new alert row, which
 has no notification history and is therefore due at once. Content is rendered
 fresh at send time; only a lightweight audit row and ledger entries are stored.
 """
@@ -98,7 +98,7 @@ def _process_alerts(session: Session, agency: Agency, recipient: NotificationRec
     if deliver_batch(email.batch, retry_delays_seconds=NOTIFICATION_RETRY_DELAYS_SECONDS):
         _record_alert_sent(session, agency, recipient, email, now)
         return [NotificationOutcome.SENT]
-    _record_failure(session, agency, recipient, NotificationDeliveryKind.ALERT, email.batch, now)
+    _record_failure(session, agency, recipient, NotificationDeliveryKind.ALERT, email.batch)
     return [NotificationOutcome.FAILED]
 
 
@@ -111,7 +111,7 @@ def _process_report(session: Session, agency: Agency, recipient: NotificationRec
     if deliver_batch(email.batch, retry_delays_seconds=NOTIFICATION_RETRY_DELAYS_SECONDS):
         _record_report_sent(session, agency, recipient, email, now)
         return [NotificationOutcome.SENT]
-    _record_failure(session, agency, recipient, NotificationDeliveryKind.REPORT, email.batch, now)
+    _record_failure(session, agency, recipient, NotificationDeliveryKind.REPORT, email.batch)
     return [NotificationOutcome.FAILED]
 
 
@@ -304,8 +304,18 @@ def _preview_text(batch: EmailBatch) -> str:
 # --------------------------------------------------------------------------- #
 
 
+@dataclass(frozen=True, slots=True)
+class DeliveryOutcome:
+    """What kind of delivery this was, how it ended, and when (SENT deliveries only)."""
+
+    kind: NotificationDeliveryKind
+    status: DeliveryStatus
+    sent_at: datetime | None
+
+
 def _record_alert_sent(session: Session, agency: Agency, recipient: NotificationRecipient, email: AlertEmail, now: datetime) -> None:
-    delivery = _new_delivery(agency, recipient, NotificationDeliveryKind.ALERT, DeliveryStatus.SENT, email.batch, sent_at=now)
+    outcome = DeliveryOutcome(NotificationDeliveryKind.ALERT, DeliveryStatus.SENT, now)
+    delivery = _new_delivery(agency, recipient, email.batch, outcome)
     session.add(delivery)
     session.flush()
     for alert in email.notified_alerts:
@@ -317,14 +327,14 @@ def _record_alert_sent(session: Session, agency: Agency, recipient: Notification
 
 
 def _record_report_sent(session: Session, agency: Agency, recipient: NotificationRecipient, email: AlertEmail, now: datetime) -> None:
-    session.add(_new_delivery(agency, recipient, NotificationDeliveryKind.REPORT, DeliveryStatus.SENT, email.batch, sent_at=now))
+    outcome = DeliveryOutcome(NotificationDeliveryKind.REPORT, DeliveryStatus.SENT, now)
+    session.add(_new_delivery(agency, recipient, email.batch, outcome))
     logger.info("Notification report email delivered", extra={"agency_id": agency.id, "notification_recipient_id": recipient.id})
 
 
-def _record_failure(
-    session: Session, agency: Agency, recipient: NotificationRecipient, kind: NotificationDeliveryKind, batch: EmailBatch, now: datetime
-) -> None:
-    delivery = _new_delivery(agency, recipient, kind, DeliveryStatus.ERROR, batch, sent_at=None)
+def _record_failure(session: Session, agency: Agency, recipient: NotificationRecipient, kind: NotificationDeliveryKind, batch: EmailBatch) -> None:
+    outcome = DeliveryOutcome(kind, DeliveryStatus.ERROR, None)
+    delivery = _new_delivery(agency, recipient, batch, outcome)
     delivery.error_type = "EMAIL_DELIVERY_FAILED"
     delivery.error_message = "Email provider did not accept the notification delivery."
     session.add(delivery)
@@ -336,24 +346,16 @@ def _record_failure(
     send_developer_delivery_failure_alert(delivery)
 
 
-def _new_delivery(
-    agency: Agency,
-    recipient: NotificationRecipient,
-    kind: NotificationDeliveryKind,
-    status: DeliveryStatus,
-    batch: EmailBatch,
-    *,
-    sent_at: datetime | None,
-) -> EmailDelivery:
+def _new_delivery(agency: Agency, recipient: NotificationRecipient, batch: EmailBatch, outcome: DeliveryOutcome) -> EmailDelivery:
     return EmailDelivery(
         agency_id=agency.id,
         notification_recipient_id=recipient.id,
         recipient_email_snapshot=recipient.email,
-        kind=kind,
-        status=status,
+        kind=outcome.kind,
+        status=outcome.status,
         subject=batch.subject,
         preview_text=_preview_text(batch),
-        sent_at=sent_at,
+        sent_at=outcome.sent_at,
     )
 
 

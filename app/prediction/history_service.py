@@ -147,7 +147,7 @@ def _last_known_point(
     count_anchors: list[CountAnchor],
     operation_points: list[TrendChartPoint],
 ) -> tuple[datetime, float] | None:
-    """Most recent real datapoint -- a count or a logged restock/takeout/transfer, whichever is newer."""
+    """Most recent real datapoint: a count or a logged restock/takeout/transfer, whichever is newer."""
     candidates: list[tuple[datetime, float]] = []
     if count_anchors:
         candidates.append((count_anchors[-1].counted_at, count_anchors[-1].total_quantity))

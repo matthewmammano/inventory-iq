@@ -15,7 +15,7 @@ Open **Settings** from the Admin Panel.
 - **Admin PIN** is the code that unlocks admin pages from the guest screen. See [Account Security](account-security-and-access) for how the PIN session behaves.
 - **Guest Permissions** decide which stock actions (Count, Restock, Takeout, Transfer) a non-admin scanner is allowed to use, and in which direction. See [Admin Stock Actions Vs Guest Scans](admin-vs-guest-stock-actions).
 - **Device Default Location** saves the usual location a device starts from, so scanners on a fixed device do not have to pick a location every time.
-- **Expiration Warning Days** sets the squad-wide default for how many days before expiration a tracked item counts as "expiring soon." Individual items can override this — see [Tracking Expiration Dates](tracking-expiration-dates).
+- **Expiration Warning Days** sets the squad-wide default for how many days before expiration a tracked item counts as "expiring soon." Individual items can override this. See [Tracking Expiration Dates](tracking-expiration-dates).
 
 ## What You Cannot Change Here
 

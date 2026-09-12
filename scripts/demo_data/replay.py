@@ -1,12 +1,12 @@
 """Replay a PlannedEvent list through the real app service layer.
 
 Every mutation goes through the same functions the live app calls (mutation_service
-.inventory_operation, bulk_edit_service.save_bulk_edit, upc_service.*) -- real
+.inventory_operation, bulk_edit_service.save_bulk_edit, upc_service.*): real
 guard logic runs, and can reject an event, exactly as it would for a live user.
 Rejections are caught, logged, and skipped rather than bypassed.
 
 Historical timestamps are achieved via the app's own built-in dev clock
-(app/shared/clock.py, dev_clock.json) -- every utc_now()/utc_now_naive() call
+(app/shared/clock.py, dev_clock.json): every utc_now()/utc_now_naive() call
 anywhere in the app respects it, so real "requires a fresh count" / "is this
 stale" checks evaluate correctly against simulated time, not wall-clock time.
 """
@@ -67,7 +67,7 @@ def clear_fake_clock() -> None:
 
 
 def _progress(events: list[PlannedEvent], desc: str) -> tqdm:
-    """miniters=2% of the stream, mininterval=0 -- refresh is driven by event count, not
+    """miniters=2% of the stream, mininterval=0: refresh is driven by event count, not
     wall-clock time, so the bar visibly steps every 2% regardless of how slow replay is."""
     step = max(1, len(events) // 50)
     return tqdm(events, desc=desc, miniters=step, mininterval=0, dynamic_ncols=True, unit="ev")
@@ -90,7 +90,7 @@ def replay_location(db: Session, agency_id: int, rig: LocationRig, items_by_name
                 continue  # unknown_upc_* handled separately, agency-scoped not location-scoped
             db.commit()
             stats.applied += 1
-        except Exception as exc:  # noqa: BLE001 -- intentionally broad: any rejection is a valid, loggable outcome
+        except Exception as exc:  # noqa: BLE001, intentionally broad: any rejection is a valid, loggable outcome
             db.rollback()
             stats.record_skip(f"{ev.kind}:{type(exc).__name__}", str(exc))
         bar.set_postfix(applied=stats.applied, skipped=stats.skipped)
@@ -192,6 +192,6 @@ def final_rebuild(db: Session, agency_id: int) -> None:
     rebuild_inventory_balances(db, agency_id)
     db.commit()
     retrain_agency_trends(db, agency_id)  # fits trend_per_day/confidence/segment_count from COUNT history
-    db.commit()  # session autoflush=False -- must land before rebuild_item_location_states queries state rows
+    db.commit()  # session autoflush=False: must land before rebuild_item_location_states queries state rows
     generate_scheduled_alerts(db, agency_id)  # rebuilds item/location states + reconciles all alert types
     db.commit()

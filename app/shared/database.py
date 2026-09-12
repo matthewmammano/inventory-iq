@@ -40,7 +40,7 @@ def normalize_database_url(database_url: str) -> str:
 
 
 def create_all() -> None:
-    """Create all tables (dev/test only — use Alembic in production)."""
+    """Create all tables (dev/test only; use Alembic in production)."""
     if _engine is None:
         raise RuntimeError("Call init_db() first.")
     Base.metadata.create_all(bind=_engine)

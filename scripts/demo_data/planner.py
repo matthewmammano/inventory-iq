@@ -43,7 +43,7 @@ class PlannedEvent:
     admin_action: bool = False
     expiration_allocations: list[tuple[date | None, int]] | None = None
 
-    # kind == "bulk_session" (always single-item -- each item gets its own bulk_session events)
+    # kind == "bulk_session" (always single-item, each item gets its own bulk_session events)
     counts: dict[tuple[str, str], int] = field(default_factory=dict)  # (item_name, storage_name) -> qty
     restocks: dict[tuple[str, str], int] = field(default_factory=dict)
     restock_expirations: dict[str, list[tuple[date | None, int]]] = field(default_factory=dict)  # storage_name -> allocations
@@ -110,11 +110,11 @@ def _shelf_life_days(rng: np.random.Generator) -> int:
 
 # ---------------------------------------------------------------- global cadence (not fit per item, on purpose)
 def plan_item_session_times(location_multiplier: float, window_start: date, window_end: date, ref: RefData, rng: np.random.Generator) -> list[datetime]:
-    """One shared check-in cadence, applied independently to every item -- not
+    """One shared check-in cadence, applied independently to every item: not
     derived from that item's own usage rate. Busier locations check more often.
 
     Every item's timeline starts with this forced initial COUNT within the
-    first few days -- otherwise the normal 20-250 day gap to the first
+    first few days; otherwise the normal 20-250 day gap to the first
     scheduled checkpoint left a long stretch where TAKEOUT scans could occur
     before anything ever established what was actually on the shelf (a real
     system can't log a takeout of an item it hasn't counted in yet)."""
@@ -146,7 +146,7 @@ def _apply_scan_compliance(rng: np.random.Generator, true_qty: float) -> int | N
 # ---------------------------------------------------------------- expiration lots (FEFO)
 @dataclass(slots=True)
 class _ExpirationLots:
-    """Minimal per-storage ledger of open dated lots, oldest first -- just
+    """Minimal per-storage ledger of open dated lots, oldest first: just
     enough state to make "takes the soonest-expiring lot" a real mechanic
     instead of an unconnected random date draw."""
 
@@ -161,7 +161,7 @@ class _ExpirationLots:
     def take(self, rng: np.random.Generator, qty: int, expiration: ExpirationBehavior) -> list[tuple[date | None, int]]:
         """Consume `qty` units per FEFO-ish behavior. The real app validates that
         allocations sum to the action's full quantity whenever the item is
-        expiration-tracked -- there's no "log nothing" option -- so "forgot" means
+        expiration-tracked (there's no "log nothing" option), so "forgot" means
         logging the full amount as an unspecified date, not an empty allocation."""
         if qty <= 0:
             return []
@@ -170,7 +170,7 @@ class _ExpirationLots:
             self._consume_fefo(qty)  # physically still comes from the front; logged as unspecified-date
             return [(None, qty)]
         if not self.lots:
-            return [(None, qty)]  # nothing tracked yet -- still must cover the full quantity
+            return [(None, qty)]  # nothing tracked yet; still must cover the full quantity
         pick_wrong = roll < expiration.forgot_log_rate + expiration.wrong_pick_rate and len(self.lots) > 1
         index = int(rng.integers(1, len(self.lots))) if pick_wrong else 0
         return self._consume_at(index, qty)
@@ -182,7 +182,7 @@ class _ExpirationLots:
         """A physical COUNT is ground truth. If the ledger believes more is on
         hand than was actually counted, trim the soonest-expiring lots first
         (oldest stock is what's most likely already gone). If it believes less,
-        the extra is real but untracked -- log it as unspecified-date. Returns
+        the extra is real but untracked: log it as unspecified-date. Returns
         the allocation for the COUNT action itself, which must sum to `observed`
         (same real-app rule as every other op type on a tracked item)."""
         lot_total = sum(qty for _, qty in self.lots)
@@ -234,7 +234,7 @@ def build_item_events(
     expiration_tracked = profile.expiration.tracked and "expiration" not in disabled_features
     if expiration_tracked:
         # Seed with an assumed dated lot matching the same "recently stocked" assumption
-        # the balance itself already makes -- starting empty instead would make the very
+        # the balance itself already makes; starting empty instead would make the very
         # first COUNT 100% "unspecified" (the real app only records known-dated portions
         # to InventoryExpirationBalance), permanently mismatching against the total and
         # tripping EXPIRATION_COUNT_NEEDED on nearly every tracked item from day one.
@@ -244,7 +244,7 @@ def build_item_events(
     prev_t = datetime.combine(window_start, time(0))
 
     for idx, t in enumerate(session_times):
-        # The very first checkpoint IS the item's genesis -- nothing existed to
+        # The very first checkpoint IS the item's genesis: nothing existed to
         # take out before it, so there's no prior elapsed period to generate
         # usage for (the max(...,1) floor below exists for every later gap,
         # where real time has actually passed).
@@ -255,13 +255,13 @@ def build_item_events(
             expected_scans = profile.takeout.scans_per_day * location_multiplier * year_mult * elapsed_days / n_storages
             n_scans = int(rng.poisson(max(expected_scans, 0.0)))
             # Scans must be processed in the order they'll actually appear on the
-            # timeline -- a real person can't take out more than what's physically
+            # timeline: a real person can't take out more than what's physically
             # left. Drawing quantities before ordering (as before) let a burst of
             # scans between two checkpoints sum past the starting balance, which
             # the app's own trend chart correctly reconstructs as a transient dip
             # below zero. Pick days first, sort, THEN draw each qty against
             # whatever remains at that point in the sequence. Never land ON
-            # prev_t's own calendar day -- a scan there could get a random
+            # prev_t's own calendar day: a scan there could get a random
             # time-of-day earlier than prev_t's own checkpoint timestamp and
             # sort before it, implying a takeout before that count ever happened.
             scan_days = sorted(prev_t.date() + timedelta(days=int(rng.integers(1, elapsed_days + 1))) for _ in range(n_scans))
@@ -273,14 +273,14 @@ def build_item_events(
                 true_qty = min(_lognormal_from_mean(rng, profile.takeout.qty_mean, profile.takeout.qty_sigma), remaining)
                 remaining -= true_qty
                 is_admin_actor = rng.random() < cfg.ADMIN_TAKEOUT_TRANSFER_RATE
-                # over-report noise (~1%) can log MORE than the true amount taken --
+                # over-report noise (~1%) can log MORE than the true amount taken;
                 # someone can still only physically log what was on the shelf, so
                 # cap the logged amount at what was actually there before this scan.
                 logged_qty = _apply_scan_compliance(rng, true_qty)
                 if logged_qty is not None:
                     logged_qty = min(logged_qty, max(round(available_before), 1))
                 # allocation must sum to the LOGGED quantity (what the action records),
-                # not the true physical quantity -- they diverge whenever compliance
+                # not the true physical quantity; they diverge whenever compliance
                 # noise under/over-reports, and the real app requires an exact match.
                 allocations = lots[s].take(rng, logged_qty, profile.expiration) if lots and logged_qty else []
                 if logged_qty is None:
@@ -300,7 +300,7 @@ def build_item_events(
             expiring_soon = False
             if lots:
                 # Every COUNT of a tracked item needs an allocation too (same real
-                # rule as TAKEOUT/TRANSFER/RESTOCK) -- reconcile the internal lot
+                # rule as TAKEOUT/TRANSFER/RESTOCK); reconcile the internal lot
                 # ledger against what was actually counted.
                 sev.count_expirations[s] = lots[s].reconcile(observed)
 
@@ -341,14 +341,14 @@ def build_item_events(
                         expires_on = t.date() + timedelta(days=_shelf_life_days(rng))
                         lots[s].add(expires_on, restock_qty)
                         # This must also be attached to the RESTOCK action itself, not just
-                        # tracked internally -- otherwise no real InventoryExpirationBalance
+                        # tracked internally: otherwise no real InventoryExpirationBalance
                         # row is ever created, and EXPIRED_STOCK/EXPIRING_SOON alerts (and the
                         # whole point of tracking expiration) can never fire on anything.
                         sev.restock_expirations[s] = [(expires_on, restock_qty)]
         events.append(sev)
         prev_t = t
 
-    # Start no earlier than the day after the first real COUNT -- a transfer out
+    # Start no earlier than the day after the first real COUNT: a transfer out
     # of a storage that hasn't been established yet has the same "activity
     # before anything was ever counted in" problem as an early takeout.
     transfer_start = (session_times[0].date() + timedelta(days=1)) if session_times else window_start
@@ -367,14 +367,14 @@ def _plan_transfer_stream(
     ref: RefData,
     expiration_tracked: bool,
 ) -> list[PlannedEvent]:
-    """Transfers move stock between storages -- a light, independent stream;
+    """Transfers move stock between storages: a light, independent stream;
     they don't consume stock so they sit outside the usage/floor/restock loop."""
     if len(storages) < 2:
         return []
     transfer_rate_per_day = profile.takeout.scans_per_day * cfg.TRANSFER_SHARE_OF_TAKEOUT
     active_days = max((window_end - window_start).days, 1)
     day_range = [window_start + timedelta(days=i) for i in range(active_days)]
-    # Apply the same real year-over-year trend TAKEOUT uses -- otherwise transfers
+    # Apply the same real year-over-year trend TAKEOUT uses: otherwise transfers
     # stay flat across a year (e.g. 2024) that every other op type shows a real dip in.
     year_mults = np.array([ref.catalog.year_multiplier(d.year) for d in day_range])
     expected_events = transfer_rate_per_day * location_multiplier * year_mults.sum()
@@ -389,7 +389,7 @@ def _plan_transfer_stream(
     for d in days:
         # This stream doesn't track a live per-storage balance (unlike the main
         # takeout loop), so cap at min_quantity as a rough "typical low-end stock"
-        # ceiling -- keeps an occasional large draw from transferring out more
+        # ceiling: keeps an occasional large draw from transferring out more
         # than a low-stock item plausibly has on hand.
         qty = max(1, min(round(_lognormal_from_mean(rng, profile.takeout.qty_mean, profile.takeout.qty_sigma)), profile.min_quantity))
         src, dst = rng.choice(storages, size=2, replace=False)
@@ -438,7 +438,7 @@ def inject_errors(events: list[PlannedEvent], rng: np.random.Generator, disabled
         if ev.operation_type == "TAKEOUT" and rng.random() < cfg.WRONG_OP_THEN_FIXED_RATE:
             fixup_ts = ev.ts + timedelta(seconds=int(rng.integers(10, 600)))
             # Real validation requires a full-quantity allocation whenever the item
-            # is expiration-tracked, for every op type -- no lot ledger reachable
+            # is expiration-tracked, for every op type; no lot ledger reachable
             # here, so log it as unspecified-date.
             allocations = [(None, ev.quantity)] if ev.item_name in tracked_names else None
             fixup = PlannedEvent(
@@ -458,7 +458,7 @@ def _clamp_negative_dips(events: list[PlannedEvent]) -> list[PlannedEvent]:
     scan duplicates and the independent transfer stream don't share that state,
     so a TAKEOUT/TRANSFER from either can still land when the real physical
     balance is already too low. Walk the real timeline and clamp any such event
-    to what's actually left -- guarantees "never draws past zero" unconditionally,
+    to what's actually left: guarantees "never draws past zero" unconditionally,
     regardless of which mechanism produced the event."""
     balances: dict[tuple[str, str], float] = {}
     kept: list[PlannedEvent] = []
@@ -476,7 +476,7 @@ def _clamp_negative_dips(events: list[PlannedEvent]) -> list[PlannedEvent]:
             if e.quantity > available:
                 e.quantity = max(int(round(available)), 0)
                 if e.quantity <= 0:
-                    continue  # nothing physically left to take/move -- drop the event
+                    continue  # nothing physically left to take/move; drop the event
                 if e.expiration_allocations:
                     e.expiration_allocations = [(None, e.quantity)]
             balances[key] -= e.quantity

@@ -11,9 +11,9 @@ The Admin Panel header shows a "Pending Tasks" button with a number badge whenev
 
 ## What Can Appear There
 
-- **Fix Missing Expiration Dates** — tracked items have on-hand quantity with no expiration date recorded. See [Tracking Expiration Dates](tracking-expiration-dates).
-- **Recount Stale Inventory Quantities** — a location has items that have not been counted recently enough to trust the current number. Opening "Open Recount" takes you straight to Bulk Action for that location with the stale items pre-selected.
-- **Review New Barcodes Requested** — a scanned UPC did not match any active item. See [Handling Unknown Barcodes](handling-unknown-barcodes).
+- **Fix Missing Expiration Dates**: tracked items have on-hand quantity with no expiration date recorded. See [Tracking Expiration Dates](tracking-expiration-dates).
+- **Recount Stale Inventory Quantities**: a location has items that have not been counted recently enough to trust the current number. Opening "Open Recount" takes you straight to Bulk Action for that location with the stale items pre-selected.
+- **Review New Barcodes Requested**: a scanned UPC did not match any active item. See [Handling Unknown Barcodes](handling-unknown-barcodes).
 
 Only task types with at least one item show a row; an empty Pending Tasks page means there is nothing left to review.
 

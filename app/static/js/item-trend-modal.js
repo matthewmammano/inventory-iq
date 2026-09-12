@@ -226,8 +226,7 @@
     const hasDiscrepancy = (point) =>
         point.discrepancy !== null && point.discrepancy !== undefined && Math.abs(point.discrepancy) > DISCREPANCY_EPSILON;
 
-    // A quantity below zero is impossible for real inventory (a logging error, not a real
-    // reading) — s.y() already clamps its plotted position to the 0 line, this just flags it.
+    // A quantity below zero is impossible for real inventory; s.y() already clamps the plotted position, this just flags it.
     const isNegative = (point) => point.quantity < 0;
 
     const stepSegments = (points, s) => points.slice(1).map((to, i) => {

@@ -1,6 +1,6 @@
 """Generate a live item-image review page from whatever DB you point it at.
 
-Re-run any time -- it always reflects the current DB, not a frozen snapshot.
+Re-run any time: it always reflects the current DB, not a frozen snapshot.
 No app import needed (plain sqlite3), so any python3 works.
 
 Usage (from repo root):

@@ -15,7 +15,7 @@ Each scan action tells a different story, and Inventory IQ uses that story for c
 2. Count only what is already present, before new stock arrives.
 3. Use **Restock** after Count to add newly received stock.
 
-Example: if 3 are on the shelf and 10 arrive, Count 3 first, then Restock 10. Do not Count 13 — that hides the delivery from restock history and makes predictions less useful. See [How Predictions Work](how-predictions-work).
+Example: if 3 are on the shelf and 10 arrive, Count 3 first, then Restock 10. Do not Count 13; that hides the delivery from restock history and makes predictions less useful. See [How Predictions Work](how-predictions-work).
 
 ## Choose The Right Action
 
@@ -26,4 +26,4 @@ Example: if 3 are on the shelf and 10 arrive, Count 3 first, then Restock 10. Do
 
 ## Transfer Example
 
-Use Transfer when stock moves from a back storage area to a front shelf. The total inventory does not change, but where it sits does — useful for spotting a shelf that looks empty while the back room still has stock.
+Use Transfer when stock moves from a back storage area to a front shelf. The total inventory does not change, but where it sits does; useful for spotting a shelf that looks empty while the back room still has stock.

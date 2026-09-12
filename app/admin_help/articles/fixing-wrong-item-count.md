@@ -18,7 +18,7 @@ tags: Counts, Scanning
 
 ## Example
 
-If Inventory IQ says 8 but the shelf has 5, Count 5. Do not Takeout 3 unless 3 actually left inventory as a tracked use — that would make future Restock estimates think usage was higher than it really was. Count is for correcting the truth; Takeout is for recording stock leaving inventory.
+If Inventory IQ says 8 but the shelf has 5, Count 5. Do not Takeout 3 unless 3 actually left inventory as a tracked use; that would make future Restock estimates think usage was higher than it really was. Count is for correcting the truth; Takeout is for recording stock leaving inventory.
 
 ## After The Fix
 

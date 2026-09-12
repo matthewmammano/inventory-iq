@@ -2,7 +2,7 @@
 
 One reconcile rule drives every condition-based alert (stock, stale, rare,
 expiration): the set that *should* be open is computed from current state, then
-compared to what *is* open -- a new key opens a row, a changed alert type closes
+compared to what *is* open: a new key opens a row, a changed alert type closes
 the old row (SUPERSEDED) and opens a new one, and a vanished key resolves its row.
 Occurrence alerts (scan activity, unknown UPC) are opened directly and closed on
 resolution or by an age sweep. Any new alert row starts with a clean notification
@@ -22,7 +22,7 @@ from app.auth.models import Agency, Location, Storage
 from app.inventory.item_queries import get_agency_item
 from app.inventory.location_state_policy import evaluate_stock_state
 from app.inventory.location_state_service import ItemLocationKey, affected_item_location_keys_for_actions, rebuild_item_location_states
-from app.inventory.models import ActionLog, InventoryItemLocationState, Item
+from app.inventory.models import ActionLog, InventoryItemLocationState, Item, UnknownUpcScan
 from app.shared.clock import utc_now_naive
 
 from .audit_queries import (
@@ -166,18 +166,10 @@ def sync_expiration_alerts(session: Session, *, agency_id: int | None = None, no
     return len(desired)
 
 
-def open_unknown_upc_alert(
-    session: Session,
-    agency_id: int,
-    *,
-    unknown_upc_id: int,
-    upc: str,
-    lookup_title: str | None,
-    created_at: datetime,
-) -> Alert:
+def open_unknown_upc_alert(session: Session, agency_id: int, scan: UnknownUpcScan) -> Alert:
     """Open (or refresh) the alert for one unresolved unknown UPC."""
-    detail = UnknownUpcPayload(unknown_upc_id=unknown_upc_id, upc=upc, lookup_title=lookup_title, created_at=created_at).as_json()
-    spec = AlertSpec(agency_id, f"UPC:{unknown_upc_id}", AlertType.UNKNOWN_UPC, None, None, detail)
+    detail = UnknownUpcPayload(unknown_upc_id=scan.id, upc=scan.upc, lookup_title=scan.lookup_title, created_at=scan.created_at).as_json()
+    spec = AlertSpec(agency_id, f"UPC:{scan.id}", AlertType.UNKNOWN_UPC, None, None, detail)
     return _open_or_refresh(session, spec, _now())
 
 
@@ -419,8 +411,8 @@ def _open_scan_activity_alert(session: Session, action_log: ActionLog, now: date
 def _open_rare_takeout_alert(session: Session, action_log: ActionLog, now: datetime) -> None:
     """Open a rare-takeout alert if this scan just broke a long silence for this item/location.
 
-    Fires when either the gap since the item/location's previous takeout, or -- if it has
-    never been taken out before -- the agency's account age, clears the configured threshold.
+    Fires when either the gap since the item/location's previous takeout, or (if it has
+    never been taken out before) the agency's account age, clears the configured threshold.
     """
     if not action_log.is_takeout or action_log.item_id is None or action_log.from_storage_id is None:
         return

@@ -21,7 +21,7 @@ Open Data and go to the Notifications tab. Every row is one notification recipie
 
 Stockout, Low Stock, and their predicted versions are the highest-value alerts for most recipients, since they point at real ordering decisions. Count, Restock, Takeout, and Transfer are activity notices, useful for an owner who wants a live feed of scanning but noisy for a recipient who only cares about problems. Rare Takeout and Stale Count call out unusual patterns worth a second look rather than urgent action.
 
-> A recipient's Alert Frequency and Quiet Hours apply to every alert type they have checked. There is no way to make one alert type instant and another daily for the same recipient — use a second recipient row with the same email's alternate address, or split by which alert types matter to each person, if you need different timing.
+> A recipient's Alert Frequency and Quiet Hours apply to every alert type they have checked. There is no way to make one alert type instant and another daily for the same recipient. Use a second recipient row with the same email's alternate address, or split by which alert types matter to each person, if you need different timing.
 
 ## Related
 

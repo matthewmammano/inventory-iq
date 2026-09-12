@@ -12,13 +12,13 @@ Open **Inventory Levels** from the Admin Panel. It shows what Inventory IQ belie
 ## What To Look For
 
 - Items at zero may need immediate review.
-- Items below minimum may need restock planning — see [Understanding The Restock Page](understanding-restock-page).
+- Items below minimum may need restock planning. See [Understanding The Restock Page](understanding-restock-page).
 - Storage-level counts can show whether stock is in the wrong place rather than actually low.
 - Totals help compare real stock against expected need.
 
 ## Reading The Trend Chart
 
-Clicking an item's trend icon opens a chart with recent Counts, recent activity, and the ML trend line Restock uses for its estimate. Use it to sanity-check a Restock number before ordering — a trend line that does not match what you know happened usually means a scan was entered as the wrong action type.
+Clicking an item's trend icon opens a chart with recent Counts, recent activity, and the ML trend line Restock uses for its estimate. Use it to sanity-check a Restock number before ordering; a trend line that does not match what you know happened usually means a scan was entered as the wrong action type.
 
 ## Report Options
 

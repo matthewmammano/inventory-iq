@@ -20,4 +20,4 @@ The same inventory item may arrive with a different package, supplier, size labe
 3. Link only when you are sure the barcode represents that item.
 4. Scan it again afterward to confirm it opens the right item.
 
-> Online lookup suggestions shown on this page can help identify a product, but they are not proof of what it should count as in your inventory. The admin decides what a barcode means here — see [Handling Unknown Barcodes](handling-unknown-barcodes) for the full review flow.
+> Online lookup suggestions shown on this page can help identify a product, but they are not proof of what it should count as in your inventory. The admin decides what a barcode means here. See [Handling Unknown Barcodes](handling-unknown-barcodes) for the full review flow.

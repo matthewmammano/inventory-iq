@@ -13,7 +13,7 @@ tags: History, Reports
 
 1. Start with the location where the count looks wrong.
 2. Look for recent Count, Restock, Takeout, or Transfer actions on that item.
-3. Check whether the action type matches what really happened — see [How To Scan: Best Patterns](how-to-scan-best-patterns).
+3. Check whether the action type matches what really happened. See [How To Scan: Best Patterns](how-to-scan-best-patterns).
 4. Use a date range when you only care about a specific period.
 
 ## Print And Email
@@ -22,4 +22,4 @@ tags: History, Reports
 
 ## Good Use
 
-Use History when you need to understand why a number changed, not just what the number is right now — for that, use [Inventory Levels And Reports](inventory-levels-and-reports) instead.
+Use History when you need to understand why a number changed, not just what the number is right now; for that, use [Inventory Levels And Reports](inventory-levels-and-reports) instead.

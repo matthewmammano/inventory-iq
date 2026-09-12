@@ -18,7 +18,7 @@ Labels give people a scannable shelf card for an item. A good label reduces sear
 
 ## When To Reprint
 
-Reprint labels whenever an item's name, primary UPC, or shelf placement changes. An outdated barcode on the shelf leads users to scan the wrong code, which can turn into an unknown-barcode review — see [Handling Unknown Barcodes](handling-unknown-barcodes).
+Reprint labels whenever an item's name, primary UPC, or shelf placement changes. An outdated barcode on the shelf leads users to scan the wrong code, which can turn into an unknown-barcode review. See [Handling Unknown Barcodes](handling-unknown-barcodes).
 
 ## Tip
 

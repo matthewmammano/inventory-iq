@@ -19,4 +19,4 @@ Admins can manage items, barcodes, labels, reports, settings, and use Stock Acti
 
 ## Practical Rule
 
-Use guest scanning for routine, repeated work. Switch to admin — see [Account Security](account-security-and-access) for how the PIN and its 2-hour session work — whenever setup, a count correction, a barcode question, a report, or a permission needs review.
+Use guest scanning for routine, repeated work. Switch to admin (see [Account Security](account-security-and-access) for how the PIN and its 2-hour session work) whenever setup, a count correction, a barcode question, a report, or a permission needs review.

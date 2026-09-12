@@ -17,8 +17,8 @@ Runtime, environment, and operational commands for Inventory IQ. Architecture li
 
 ## Security
 
-- Every state-changing form carries a CSRF token; validated globally via `Flask-WTF`'s `CSRFProtect` (`app/__init__.py`). The `/api/debug/report` diagnostics endpoint is the one intentional `@csrf.exempt` -- it is fired by background `fetch()` from unauthenticated pages and only logs client telemetry.
-- Rate limiting (`app/shared/rate_limit.py`) applies a global default (`200/minute`, `2000/hour` per IP) plus a stricter `10/minute`, `50/hour` limit on login, forgot-password, reset-password, and admin-PIN-login POSTs. Storage is in-memory, which is correct only because the app runs a single gunicorn worker -- add a shared backend (e.g. Redis) before scaling to multiple workers or instances.
+- Every state-changing form carries a CSRF token; validated globally via `Flask-WTF`'s `CSRFProtect` (`app/__init__.py`). The `/api/debug/report` diagnostics endpoint is the one intentional `@csrf.exempt`: it is fired by background `fetch()` from unauthenticated pages and only logs client telemetry.
+- Rate limiting (`app/shared/rate_limit.py`) applies a global default (`200/minute`, `2000/hour` per IP) plus a stricter `10/minute`, `50/hour` limit on login, forgot-password, reset-password, and admin-PIN-login POSTs. Storage is in-memory, which is correct only because the app runs a single gunicorn worker; add a shared backend (e.g. Redis) before scaling to multiple workers or instances.
 - Response headers (`app/shared/security_headers.py`) set a Content-Security-Policy with no `unsafe-inline`, `X-Frame-Options: DENY`, `Referrer-Policy`, `Permissions-Policy`, and (in prod) `Strict-Transport-Security`. All JS/CSS/images are served from `app/static/`; no inline `<script>`/`<style>`/`onclick` and no third-party CDN scripts remain.
 - Session cookies are `HttpOnly`, `SameSite=Lax`, and `Secure` in prod.
 
@@ -89,9 +89,9 @@ Railway cron split, optimized for an EST agency operations day:
 
 Timing rules:
 
-- `process_email_alerts` decides fresh every run: for each active recipient, it checks current alert eligibility (`alerts` + `alert_notifications`), their cadence, and quiet hours, then renders and sends immediately -- nothing is queued or claimed ahead of time.
+- `process_email_alerts` decides fresh every run: for each active recipient, it checks current alert eligibility (`alerts` + `alert_notifications`), their cadence, and quiet hours, then renders and sends immediately; nothing is queued or claimed ahead of time.
 - Instant-frequency recipients are checked every 10-minute tick. Hourly-frequency recipients are gated by "at least an hour since their last sent alert" (read from the `email_deliveries` audit log, not a stored timer). Daily-frequency alert emails and report emails both gate on the 9:00am agency-local window plus "not already sent today," using the same audit-log check.
-- Per-recipient quiet hours are local clock preferences on `notification_recipients`; a recipient in quiet hours is skipped entirely for that run and re-checked on the next tick -- nothing is postponed or rescheduled.
+- Per-recipient quiet hours are local clock preferences on `notification_recipients`; a recipient in quiet hours is skipped entirely for that run and re-checked on the next tick; nothing is postponed or rescheduled.
 - Alerts and reports always stay as separate outbound emails.
 - Run retraining before balance reconciliation so forecast fields are fresh before the morning safety alert audit.
 - Run the safety alert audit before the `9:00am` Eastern email window and off the 10-minute email grid so generated stale/rare events are ready for the next sender run.

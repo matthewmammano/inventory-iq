@@ -12,7 +12,7 @@ Inventory IQ does not automatically send alert, summary, or report email to the 
 ## Check In This Order
 
 1. Open **Data** > **Notifications** and confirm the recipient's email is listed and active.
-2. Confirm that recipient has the specific alert, summary, or report checkbox enabled — see [Choosing Your Alert And Summary Preferences](choosing-alert-preferences).
+2. Confirm that recipient has the specific alert, summary, or report checkbox enabled. See [Choosing Your Alert And Summary Preferences](choosing-alert-preferences).
 3. Check whether Quiet Hours is delaying delivery until later rather than blocking it entirely.
 4. Check spam, junk, or quarantine folders. If you find one there, see [Marking Inventory IQ Emails As Important, Not Spam](marking-emails-as-not-spam) so it stops happening.
 

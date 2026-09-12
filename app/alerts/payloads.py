@@ -55,7 +55,7 @@ class RareTakeoutPayload(AlertPayload):
     """A takeout was just scanned after a long silence for this item/location.
 
     `last_takeout_at` is the *previous* takeout (before the one that triggered this
-    alert) -- the gap between it and the triggering scan is what made this rare.
+    alert); the gap between it and the triggering scan is what made this rare.
     Both `last_takeout_at` and `days_since_last_takeout` are None when this item/location
     had no prior takeout at all (the alert fired from account age instead).
     """

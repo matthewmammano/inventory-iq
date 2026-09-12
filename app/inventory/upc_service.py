@@ -212,14 +212,7 @@ def _queue_unknown_upc_alerts(session: Session, agency_id: int, scan: UnknownUpc
 
 
 def _queue_unknown_upc_alert(session: Session, agency_id: int, scan: UnknownUpcScan) -> None:
-    open_unknown_upc_alert(
-        session,
-        agency_id,
-        unknown_upc_id=scan.id,
-        upc=scan.upc,
-        lookup_title=scan.lookup_title,
-        created_at=scan.created_at,
-    )
+    open_unknown_upc_alert(session, agency_id, scan)
 
 
 def _closest_item(session: Session, agency_id: int, lookup_title: str | None) -> ItemMatchSuggestion | None:

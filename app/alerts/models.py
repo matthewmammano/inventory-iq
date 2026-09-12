@@ -14,7 +14,7 @@ from .constants import AlertStatus, AlertType, ClosedReason, DeliveryStatus, Not
 
 
 class Alert(Base):
-    """One notifiable problem -- a stock condition or a discrete event.
+    """One notifiable problem: a stock condition or a discrete event.
 
     Created the moment a scan or audit detects it. Any real change (worsening,
     resolving, or recurring after resolution) closes the current row and opens a
@@ -80,7 +80,7 @@ class AlertNotification(Base):
 class EmailDelivery(Base):
     """Write-once audit of one notification email send attempt.
 
-    Records what went out (subject/preview) or why it failed -- never the body,
+    Records what went out (subject/preview) or why it failed, never the body,
     never a queue. Eligibility is decided fresh each run from alerts + the ledger.
     """
 

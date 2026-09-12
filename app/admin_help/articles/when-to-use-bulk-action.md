@@ -13,7 +13,7 @@ tags: Bulk Actions, Scanning
 
 1. Counting many shelf quantities during a full review.
 2. Recording a delivery that includes several items at once.
-3. Working through a "Recount Stale Inventory Quantities" task from Pending Tasks — see [Understanding Pending Tasks](pending-tasks-overview).
+3. Working through a "Recount Stale Inventory Quantities" task from Pending Tasks. See [Understanding Pending Tasks](pending-tasks-overview).
 
 ## How To Keep History Clean
 
@@ -21,4 +21,4 @@ Enter only the rows that actually changed. Leave the rest blank. This keeps [His
 
 ## When Not To Use It
 
-Do not use Bulk Action when only one item changed — a single scan through Stock Actions creates clearer, simpler history for one-off work. See [Admin Stock Actions Vs Guest Scans](admin-vs-guest-stock-actions).
+Do not use Bulk Action when only one item changed; a single scan through Stock Actions creates clearer, simpler history for one-off work. See [Admin Stock Actions Vs Guest Scans](admin-vs-guest-stock-actions).

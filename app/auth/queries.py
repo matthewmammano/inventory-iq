@@ -1,4 +1,4 @@
-"""Auth domain queries — agencies, locations, and tags."""
+"""Auth domain queries: agencies, locations, and tags."""
 
 from dataclasses import dataclass
 

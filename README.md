@@ -14,4 +14,4 @@ Inventory IQ is a field-friendly inventory system for EMS-style agencies that ne
 - [Agent guidance](AGENTS.md)
 - [Code quality tooling](docs/CODE_QUALITY.md)
 
-Using [Claude Code](https://claude.com/claude-code) locally? It auto-loads `CLAUDE.md`, which isn't committed (see `.gitignore`) -- one-time fix: `ln -s AGENTS.md CLAUDE.md`.
+Using [Claude Code](https://claude.com/claude-code) locally? It auto-loads `CLAUDE.md`, which isn't committed (see `.gitignore`); one-time fix: `ln -s AGENTS.md CLAUDE.md`.
