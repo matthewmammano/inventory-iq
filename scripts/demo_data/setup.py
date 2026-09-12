@@ -1,6 +1,6 @@
 """Structural setup: Agency, Locations, Storages, Items, NotificationRecipients.
 
-Plain ORM construction -- SQLAlchemy @validates fires regardless of insert path,
+Plain ORM construction: SQLAlchemy @validates fires regardless of insert path,
 so this still enforces real field-level validation. Operational history (scans,
 counts, restocks, UPC lifecycle) goes through the real service layer instead;
 see replay.py.
@@ -55,10 +55,10 @@ def setup_agency(
         display_name=reset_display_name or cfg.DEFAULT_AGENCY_NAME,
         email=cfg.DEFAULT_AGENCY_EMAIL,
         image=cfg.DEFAULT_AGENCY_IMAGE,
-        user_count_allow=True,
+        user_count_allow=False,
         user_restock_allow=False,
     )
-    agency.password = generate_password_hash(cfg.DEFAULT_AGENCY_PASSWORD)  # bypasses set_password()'s strength check -- see config.py
+    agency.password = generate_password_hash(cfg.DEFAULT_AGENCY_PASSWORD)  # bypasses set_password()'s strength check; see config.py
     agency.set_pin(cfg.DEFAULT_AGENCY_PIN)
     session.add(agency)
     session.flush()
@@ -78,7 +78,14 @@ def _setup_location(session: Session, agency: Agency, spec: cfg.LocationSpec) ->
 
     storages = {}
     for name in cfg.STORAGE_NAMES:
-        storage = Storage(agency_id=agency.id, location_id=location.id, name=name)
+        # Guests: Takeout from Shelf only; user_access_to=False blocks Transfer everywhere.
+        storage = Storage(
+            agency_id=agency.id,
+            location_id=location.id,
+            name=name,
+            user_access_from=name == "Shelf",
+            user_access_to=False,
+        )
         session.add(storage)
         storages[name] = storage
     session.flush()
@@ -135,7 +142,7 @@ def _setup_recipients(session: Session, agency: Agency) -> None:
     session.flush()  # need chief.id before attaching preference rows
 
     # Every preference type defaults per-key (see app/auth/notification_preferences.py
-    # DEFAULT_ENABLED_BY_KEY) -- some default OFF (rare takeout, takeout/transfer action,
+    # DEFAULT_ENABLED_BY_KEY): some default OFF (rare takeout, takeout/transfer action,
     # daily summary). Give one recipient an explicit row for every key, all enabled, so
     # there's always one account you can check to see every alert/summary type fire.
     for key in NotificationPreferenceKey:
