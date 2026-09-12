@@ -3,7 +3,12 @@
 {% block title %}Data{% endblock %}
 {% block header_title %}Data{% endblock %}
 {% block sub_title %}View, add, edit, or remove items, locations, tags, and notifications{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>{% endblock %}
+{% block header_right %}
+<button class="success-button{% if active_tab != 'items' %} hidden{% endif %}" type="button" data-modal-open="item-modal-add" data-tab-action="items">Add Item</button>
+<button class="success-button{% if active_tab != 'tags' %} hidden{% endif %}" type="button" data-modal-open="tag-modal-add" data-tab-action="tags">Add Tag</button>
+<button class="success-button{% if active_tab != 'notifications' %} hidden{% endif %}" type="button" data-modal-open="notif-modal-add" data-tab-action="notifications">Add Notification</button>
+<a class="header-action" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>
+{% endblock %}
 
 {% macro edit_icon() -%}
 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -60,7 +65,7 @@
 {%- endmacro %}
 
 {% macro modal_open_button(modal_id, label) -%}
-<button type="button" class="row-action-button" data-modal-open="{{ modal_id }}" aria-label="{{ label }}" title="{{ label }}">{{ edit_icon() }}</button>
+<button type="button" class="icon-button-sm row-action-button" data-modal-open="{{ modal_id }}" aria-label="{{ label }}" title="{{ label }}">{{ edit_icon() }}</button>
 {%- endmacro %}
 
 {% macro delete_trigger(modal_id, entity_label) -%}
@@ -158,7 +163,6 @@
             </table>
         </div>
         {% endif %}
-        <div class="add-row"><button class="success-button" type="button" data-modal-open="item-modal-add">Add Item</button></div>
 
         {% for item in items %}
         <div class="modal-backdrop hidden" id="item-modal-{{ item.id }}">
@@ -241,7 +245,6 @@
             </table>
         </div>
         {% endif %}
-        <div class="add-row"><button class="success-button" type="button" data-modal-open="tag-modal-add">Add Tag</button></div>
 
         {% for tag in tags %}
         <div class="modal-backdrop hidden" id="tag-modal-{{ tag.id }}">
@@ -301,7 +304,6 @@
             </table>
         </div>
         {% endif %}
-        <div class="add-row"><button class="success-button" type="button" data-modal-open="notif-modal-add">Add Notification</button></div>
 
         {% for recipient in notifications %}
         <div class="modal-backdrop hidden" id="notif-modal-{{ recipient.id }}">

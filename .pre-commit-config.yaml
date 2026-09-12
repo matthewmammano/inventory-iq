@@ -27,8 +27,7 @@ repos:
       - id: mixed-line-ending
         args: [--fix=lf]
       - id: check-added-large-files
-        # scripts/demo_data/reference/log.csv (~690KB) is real calibration data the
-        # generator's model is built from, not accidental bloat -- default 500KB is too low.
+        # scripts/demo_data/reference/log.csv (~690KB) is real calibration data, not accidental bloat.
         args: [--maxkb=1024]
 
   # Secret scanning
@@ -79,7 +78,7 @@ repos:
     hooks:
       - id: flask-app-import
         name: Flask app import
-        entry: python -c "from app import create_app; create_app()"
+        entry: .venv/bin/python -c "from app import create_app; create_app()"
         language: system
         pass_filenames: false
         types: [python]

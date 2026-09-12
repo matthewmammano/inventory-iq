@@ -1,24 +1,10 @@
+/* Base square/hover styling lives in .icon-button-sm (main.css); this file only adds the
+   delta this specific button needs: shrink-proofing in a flex row, and inset padding around
+   the SVG (which fills 100% of its own box, unlike .item-trend-button's fixed-size icon). */
 .row-action-button {
   flex-shrink: 0;
-  width: 28px;
-  height: 28px;
   box-sizing: border-box;
-  display: inline-grid;
-  place-items: center;
   padding: 6px;
-  border: 1px solid var(--color-soft-line);
-  border-radius: var(--radius-sm);
-  background: var(--color-white);
-  color: var(--color-muted);
-  cursor: pointer;
-  vertical-align: middle;
-}
-
-.row-action-button:hover,
-.row-action-button:focus-visible {
-  border-color: var(--color-primary-dark);
-  color: var(--color-primary-dark);
-  outline: none;
 }
 
 .row-action-button svg {
@@ -33,23 +19,31 @@
   gap: 8px;
 }
 
-.add-row {
-  display: flex;
-  justify-content: center;
-  margin: 28px 0;
-}
-
 .admin-data-modal {
   width: min(820px, 96vw);
   max-height: min(88vh, 820px);
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.admin-data-modal > [data-modal-view="edit"] {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .admin-data-modal h2 {
+  flex: 0 0 auto;
   margin-bottom: 16px;
 }
 
 .admin-data-modal form {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
   align-items: start;
@@ -115,7 +109,13 @@
 }
 
 .admin-data-modal .button-row {
+  position: sticky;
+  bottom: -1px;
+  z-index: 1;
   margin-top: 8px;
+  padding-top: 8px;
+  background: var(--color-panel);
+  border-top: 1px solid var(--color-soft-line);
 }
 
 .modal-delete-confirm {
@@ -134,5 +134,13 @@
 @media (max-width: 640px) {
   .admin-data-modal form {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (hover: none) and (pointer: coarse) {
+  .row-action-button {
+    width: 44px;
+    height: 44px;
+    padding: 10px;
   }
 }
