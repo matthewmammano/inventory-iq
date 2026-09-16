@@ -268,7 +268,10 @@ class DeviceCapture:
             self.page.wait_for_load_state("networkidle")
             self.snapshot("guest_scan_storages")
 
-            choose_route_and_continue(self.page)
+            if self.page.locator('#scan-form input[name="from_storage_id"]').count() > 0:
+                choose_route_and_continue(self.page)
+            else:
+                print(f"  [{self.device_key}] guest scan flow: single-route agency, storage selection auto-skipped")
             self.snapshot("guest_scan_item")
         except Exception as exc:
             print(f"  [{self.device_key}] guest scan flow: error ({exc})")

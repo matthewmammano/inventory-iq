@@ -12,10 +12,11 @@ from sqlalchemy import select
 from app.auth.models import Agency, Location
 from app.auth.queries import list_active_emails, list_top_locations
 from app.inventory import admin_bp as bp
+from app.inventory.constants import INVALID_FORM_DATA_MESSAGE
 from app.inventory.count_page_service import InventoryCountPage, build_inventory_count_page
-from app.inventory.history_service import HISTORY_REPORT_LIMIT, list_history_logs
+from app.inventory.history_service import HISTORY_REPORT_LIMIT, HistoryLogQuery, list_history_logs
 from app.inventory.models import Item
-from app.inventory.report_email_service import send_history_report, send_inventory_count_report, send_restock_report
+from app.inventory.report_email_service import HistoryReportRange, send_history_report, send_inventory_count_report, send_restock_report
 from app.inventory.restock_page_service import RestockPageRow, build_restock_page_rows
 from app.inventory.schema import HistoryDateRange, HistoryPageQuery
 from app.prediction.history_service import build_item_trend_chart
@@ -33,6 +34,10 @@ def item_trend_chart(agency_id: int, item_id: int, agency_location_id: int) -> A
         item = s.scalar(select(Item).where(Item.agency_id == current_user.id, Item.id == item_id))
         location = s.scalar(select(Location).where(Location.agency_id == current_user.id, Location.id == agency_location_id))
         if item is None or location is None:
+            logger.info(
+                "Item trend chart rejected: item or location not found",
+                extra={"agency_id": agency_id, "item_id": item_id, "agency_location_id": agency_location_id},
+            )
             return {"error": "Item or location not found."}, 404
         return build_item_trend_chart(s, current_user.id, item, location).model_dump(mode="json")
 
@@ -201,7 +206,7 @@ def _history_date_range(
                 "error": str(exc),
             },
         )
-        return None, first_validation_error_message(exc, "Invalid form data. Please try again.")
+        return None, first_validation_error_message(exc, INVALID_FORM_DATA_MESSAGE)
 
 
 @bp.route("/<int:agency_id>/admin-panel/history")
@@ -212,7 +217,7 @@ def admin_history(agency_id: int, agency_location_id: int | None = None) -> Any:
         locations = list_top_locations(current_user.id, s)
         notification_recipients = list_active_emails(current_user.id, s)
         active_location = _active_location(locations, agency_location_id) if agency_location_id else None
-        action_logs, has_next_page = list_history_logs(s, current_user.id, agency_location_id, query.page_number, HISTORY_PAGE_SIZE)
+        action_logs, has_next_page = list_history_logs(s, current_user.id, agency_location_id, HistoryLogQuery(query.page_number, HISTORY_PAGE_SIZE))
     return render_template(
         "admin_history.html",
         agency_id=agency_id,
@@ -248,10 +253,7 @@ def admin_history_email(agency_id: int) -> Any:
             current_user.id,
             selected_ids,
             agency_location_id,
-            date_range.start_utc,
-            date_range.end_utc,
-            date_range.start_label,
-            date_range.end_label,
+            HistoryReportRange(date_range.start_utc, date_range.end_utc, date_range.start_label, date_range.end_label),
         )
     _flash_email_delivery_result("History report", sent, total, selected_count=len(selected_ids), log_name="History report email")
     return redirect(_history_url(agency_id, agency_location_id))
@@ -279,10 +281,7 @@ def admin_history_print(agency_id: int, agency_location_id: int | None = None) -
             s,
             current_user.id,
             agency_location_id,
-            1,
-            HISTORY_REPORT_LIMIT,
-            date_range.start_utc,
-            date_range.end_utc,
+            HistoryLogQuery(1, HISTORY_REPORT_LIMIT, date_range.start_utc, date_range.end_utc),
         )
     return render_template(
         "admin_history_print_partial.html",

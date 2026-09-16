@@ -28,6 +28,13 @@ from .constants import BLACK_HEX, WHITE_HEX
 from .location_filters import normalize_location_filter_ids
 from .notification_preferences import DEFAULT_ENABLED_BY_KEY, PREFERENCE_BY_FIELD, AlertEmailFrequency, NotificationPreferenceKey, ScanAlertScope
 
+NAME_MAX_LENGTH = 50
+
+
+def _validate_required_name(value: str, field_name: str) -> str | None:
+    """Validate a required, non-empty display name shared by agencies, locations, storages, and tags."""
+    return validate_string_length(value, field_name, NAME_MAX_LENGTH, allow_none=False, allow_empty=False)
+
 
 class Agency(Base, UserMixin):
     """Primary agency model (referenced as 'agency' in code)."""
@@ -93,7 +100,7 @@ class Agency(Base, UserMixin):
 
     @validates("display_name")
     def validate_display_name(self, _key: str, value: str) -> str | None:
-        return validate_string_length(value, "display_name", 50, allow_none=False, allow_empty=False)
+        return _validate_required_name(value, "display_name")
 
     @validates("email")
     def validate_email(self, _key: str, value: str | None) -> str | None:
@@ -245,7 +252,7 @@ class Location(Base):
 
     @validates("name")
     def validate_name(self, _key: str, value: str) -> str | None:
-        return validate_string_length(value, "name", 50, allow_none=False, allow_empty=False)
+        return _validate_required_name(value, "name")
 
 
 class AgencyDevice(Base):
@@ -284,7 +291,7 @@ class Storage(Base):
 
     @validates("name")
     def validate_name(self, _key: str, value: str) -> str | None:
-        return validate_string_length(value, "name", 50, allow_none=False, allow_empty=False)
+        return _validate_required_name(value, "name")
 
     @property
     def full_name(self) -> str:
@@ -324,7 +331,7 @@ class ItemTag(Base):
 
     @validates("tag_name")
     def validate_tag_name(self, _key: str, value: str) -> str | None:
-        return validate_string_length(value, "tag_name", 50, allow_none=False, allow_empty=False)
+        return _validate_required_name(value, "tag_name")
 
     @validates("color")
     def validate_color(self, _key: str, value: str | None) -> str:

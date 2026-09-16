@@ -23,6 +23,7 @@ from app.shared.config import settings
 from app.shared.database import get_session
 from app.shared.models import SchedulerRun
 from app.shared.task_logging import logged_task
+from app.shared.timezone_utils import resolve_timezone
 
 GLOBAL_SCHEDULER_AGENCY_ID = 0
 
@@ -169,7 +170,7 @@ def _run_daily_balance_job(now: datetime) -> None:
 def _active_agency_schedules() -> list[tuple[int, str]]:
     with get_session() as session:
         rows = session.execute(select(Agency.id, Agency.timezone).where(Agency.active.is_(True))).all()
-        return [(agency_id, timezone or "UTC") for agency_id, timezone in rows]
+        return [(agency_id, resolve_timezone(timezone)) for agency_id, timezone in rows]
 
 
 def _bucket_period_key(now: datetime, minutes: int) -> str:

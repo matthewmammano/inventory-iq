@@ -10,15 +10,7 @@ from sqlalchemy.orm import Session
 from app.shared.clock import utc_now
 
 from .constants import OperationType
-from .models import ActionLog, ActionLogExpirationLine, InventoryExpirationBalance, InventoryStorageBalance, Item
-
-
-@dataclass(frozen=True, order=True, slots=True)
-class ExpirationBalanceKey:
-    agency_id: int
-    item_id: int
-    storage_id: int
-    expires_on: date
+from .models import ActionLog, ActionLogExpirationLine, InventoryExpirationBalance, InventoryStorageBalance, Item, StorageBalanceKey
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,9 +115,7 @@ def save_expiration_count_correction(
     corrected_at = utc_now()
     _replace_storage_expiration_balances(
         session,
-        agency_id,
-        item_id,
-        storage_id,
+        StorageBalanceKey(agency_id, item_id, storage_id),
         [allocation for allocation in allocations if allocation.expires_on is not None],
         counted_at=corrected_at,
     )
@@ -169,9 +159,7 @@ def _replace_counted_balances(
         raise ValueError("COUNT expiration allocations require an item and destination storage.")
     _replace_storage_expiration_balances(
         session,
-        action.agency_id,
-        action.item_id,
-        action.to_storage_id,
+        StorageBalanceKey(action.agency_id, action.item_id, action.to_storage_id),
         allocations,
         counted_at=action.time_scanned or utc_now(),
     )
@@ -179,18 +167,16 @@ def _replace_counted_balances(
 
 def _replace_storage_expiration_balances(
     session: Session,
-    agency_id: int,
-    item_id: int,
-    storage_id: int,
+    key: StorageBalanceKey,
     allocations: Sequence[ExpirationAllocation],
     *,
     counted_at: datetime,
 ) -> None:
     session.execute(
         delete(InventoryExpirationBalance).where(
-            InventoryExpirationBalance.agency_id == agency_id,
-            InventoryExpirationBalance.item_id == item_id,
-            InventoryExpirationBalance.storage_id == storage_id,
+            InventoryExpirationBalance.agency_id == key.agency_id,
+            InventoryExpirationBalance.item_id == key.item_id,
+            InventoryExpirationBalance.storage_id == key.storage_id,
         )
     )
     now = utc_now()
@@ -202,9 +188,9 @@ def _replace_storage_expiration_balances(
     for expires_on, quantity in quantity_by_date.items():
         session.add(
             InventoryExpirationBalance(
-                agency_id=agency_id,
-                item_id=item_id,
-                storage_id=storage_id,
+                agency_id=key.agency_id,
+                item_id=key.item_id,
+                storage_id=key.storage_id,
                 expires_on=expires_on,
                 quantity=quantity,
                 last_counted_at=counted_at,

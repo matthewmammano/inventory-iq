@@ -2,9 +2,8 @@
 
 from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 from sqlalchemy import false, func, or_, select
 from sqlalchemy.orm import Session
@@ -15,7 +14,7 @@ from app.auth.notification_preferences import due_summary_preferences
 from app.inventory.location_operations import get_storages_for_locations
 from app.inventory.models import ActionLog, InventoryItemLocationState, Item
 from app.prediction.formatting import rounded_confidence_percent
-from app.shared.timezone_utils import convert_utc_to_local
+from app.shared.timezone_utils import DEFAULT_TIMEZONE, convert_utc_to_local, local_now
 
 from .constants import ACTION_ALERT_TYPES, AlertSeverity, AlertType
 from .models import Alert
@@ -226,7 +225,7 @@ def build_alert_sections(
         section
         for section in (
             *[
-                _stock_section(stock_rows, item_names, location_names, spec, timezone=timezone if spec.use_timezone else "UTC")
+                _stock_section(stock_rows, item_names, location_names, spec, timezone=timezone if spec.use_timezone else DEFAULT_TIMEZONE)
                 for spec in STOCK_SECTION_SPECS
             ],
             *[_event_section(discrete_alerts, spec, timezone) for spec in EVENT_SECTION_SPECS],
@@ -241,14 +240,14 @@ def build_summary_sections(
     recipient: NotificationRecipient,
     now: datetime,
 ) -> list[AlertTableSection]:
-    local_now = _local_now(agency.timezone, now)
+    local_moment = local_now(agency.timezone, now)
     storage_ids = _recipient_storage_ids(session, agency.id, recipient.location_filter_ids)
     return [
         section
-        for preference in due_summary_preferences(local_now)
+        for preference in due_summary_preferences(local_moment)
         if recipient.preference_enabled(preference.key)
         and preference.bounds is not None
-        and (section := _summary_section(session, agency.id, preference.label, preference.bounds(local_now), storage_ids))
+        and (section := _summary_section(session, agency.id, preference.label, preference.bounds(local_moment), storage_ids))
     ]
 
 
@@ -266,7 +265,7 @@ def _stock_section(
     location_names: dict[int, str],
     spec: StockSectionSpec,
     *,
-    timezone: str = "UTC",
+    timezone: str = DEFAULT_TIMEZONE,
 ) -> AlertTableSection | None:
     rows = [
         _stock_row(state, spec.alert_type, item_names, location_names, timezone)
@@ -525,11 +524,6 @@ def _format_scan_type(payload: ScanActivityPayload) -> str:
     if to_name:
         return f"{operation} to {to_name}"
     return operation
-
-
-def _local_now(timezone: str, now: datetime) -> datetime:
-    aware = now.replace(tzinfo=UTC) if now.tzinfo is None else now
-    return aware.astimezone(ZoneInfo(timezone or "UTC"))
 
 
 def _iso(value: datetime | None) -> str | None:

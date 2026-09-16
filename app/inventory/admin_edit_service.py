@@ -136,7 +136,7 @@ def save_admin_settings(session: Session, agency: Agency, values: dict[str, Any]
     return changed
 
 
-def send_temporary_admin_pin(session: Session, agency: Agency) -> bool:
+def send_temporary_admin_pin(agency: Agency) -> bool:
     code = generate_numeric_pin(ADMIN_PIN_DIGITS)
     body = f"Inventory IQ temporary admin PIN\n\nYour temporary admin PIN is: {code}\n\nUse this PIN to sign in, then set a new one in Settings."
     sent = send_email(

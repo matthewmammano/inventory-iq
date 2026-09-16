@@ -11,8 +11,7 @@ fresh at send time; only a lightweight audit row and ledger entries are stored.
 
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import UTC, datetime, time, timedelta
-from zoneinfo import ZoneInfo
+from datetime import datetime, time, timedelta
 
 from loguru import logger
 from sqlalchemy import func, select
@@ -27,6 +26,7 @@ from app.shared.clock import utc_now_naive
 from app.shared.database import get_session
 from app.shared.email_subjects import INVENTORY_SUMMARIES_TITLE, inventory_summary_title, report_subject
 from app.shared.text_formatting import pluralize
+from app.shared.timezone_utils import local_now
 
 from .constants import (
     ACTION_ALERT_TYPES,
@@ -115,11 +115,6 @@ def _process_report(session: Session, agency: Agency, recipient: NotificationRec
     return [NotificationOutcome.FAILED]
 
 
-# --------------------------------------------------------------------------- #
-# Eligibility
-# --------------------------------------------------------------------------- #
-
-
 def _due_alerts(session: Session, agency_id: int, recipient: NotificationRecipient, now: datetime) -> list[Alert]:
     allowed = [alert for alert in _open_alerts(session, agency_id) if _recipient_allows_alert(session, recipient, alert)]
     if not allowed:
@@ -182,14 +177,8 @@ def _recipient_allows_alert(session: Session, recipient: NotificationRecipient, 
 
 
 def _location_details(alert: Alert) -> dict[str, object]:
-    # Discrete alerts carry location keys in `detail`; stock alerts keep detail
-    # empty and render live, so their location comes from the column.
+    """Discrete alerts carry location keys in `detail`; stock alerts render live, so theirs comes from the column."""
     return alert.detail or {"agency_location_id": alert.agency_location_id}
-
-
-# --------------------------------------------------------------------------- #
-# Composition
-# --------------------------------------------------------------------------- #
 
 
 def _build_alert_email(
@@ -299,11 +288,6 @@ def _preview_text(batch: EmailBatch) -> str:
     return ", ".join(f"{item.count} {item.label}" for item in batch.summary[:3])[:255]
 
 
-# --------------------------------------------------------------------------- #
-# Persistence (write-once audit + ledger)
-# --------------------------------------------------------------------------- #
-
-
 @dataclass(frozen=True, slots=True)
 class DeliveryOutcome:
     """What kind of delivery this was, how it ended, and when (SENT deliveries only)."""
@@ -359,11 +343,6 @@ def _new_delivery(agency: Agency, recipient: NotificationRecipient, batch: Email
     )
 
 
-# --------------------------------------------------------------------------- #
-# Cadence, quiet hours, reports
-# --------------------------------------------------------------------------- #
-
-
 def _alert_cadence_ready(session: Session, recipient: NotificationRecipient, timezone: str, now: datetime) -> bool:
     frequency = recipient.alert_frequency
     if frequency == AlertEmailFrequency.INSTANT:
@@ -371,17 +350,17 @@ def _alert_cadence_ready(session: Session, recipient: NotificationRecipient, tim
     last_sent = _last_sent_delivery_at(session, recipient.id, NotificationDeliveryKind.ALERT)
     if frequency == AlertEmailFrequency.HOURLY:
         return last_sent is None or now - last_sent >= HOURLY_ALERT_INTERVAL
-    local_now = _local_now(timezone, now)
-    if local_now.hour < MORNING_EMAIL_LOCAL_HOUR:
+    local_moment = local_now(timezone, now)
+    if local_moment.hour < MORNING_EMAIL_LOCAL_HOUR:
         return False
-    return last_sent is None or _local_now(timezone, last_sent).date() < local_now.date()
+    return last_sent is None or local_now(timezone, last_sent).date() < local_moment.date()
 
 
 def _already_reported_today(session: Session, recipient: NotificationRecipient, timezone: str, now: datetime) -> bool:
     last_sent = _last_sent_delivery_at(session, recipient.id, NotificationDeliveryKind.REPORT)
     if last_sent is None:
         return False
-    return _local_now(timezone, last_sent).date() >= _local_now(timezone, now).date()
+    return local_now(timezone, last_sent).date() >= local_now(timezone, now).date()
 
 
 def _last_sent_delivery_at(session: Session, recipient_id: int, kind: NotificationDeliveryKind) -> datetime | None:
@@ -395,10 +374,10 @@ def _last_sent_delivery_at(session: Session, recipient_id: int, kind: Notificati
 
 
 def _due_report_preferences(recipient: NotificationRecipient, timezone: str, now: datetime, *, force: bool) -> tuple[NotificationPreference, ...]:
-    local_now = _local_now(timezone, now)
-    if not force and local_now.hour < MORNING_EMAIL_LOCAL_HOUR:
+    local_moment = local_now(timezone, now)
+    if not force and local_moment.hour < MORNING_EMAIL_LOCAL_HOUR:
         return ()
-    return tuple(preference for preference in due_summary_preferences(local_now) if recipient.preference_enabled(preference.key))
+    return tuple(preference for preference in due_summary_preferences(local_moment) if recipient.preference_enabled(preference.key))
 
 
 def _report_title(preferences: tuple[NotificationPreference, ...]) -> str:
@@ -419,7 +398,7 @@ def _in_quiet_hours(recipient: NotificationRecipient, timezone: str, now: dateti
         return False
     if quiet_start is None or quiet_end is None or quiet_start == quiet_end:
         return False
-    return _time_is_quiet(_local_now(timezone, now).time(), quiet_start, quiet_end)
+    return _time_is_quiet(local_now(timezone, now).time(), quiet_start, quiet_end)
 
 
 def _parse_quiet_time(value: str | None) -> time | None:
@@ -443,12 +422,7 @@ def _active_agencies(session: Session, agency_id: int | None = None) -> list[Age
 
 
 def _display_now(timezone: str, now: datetime) -> str:
-    return _local_now(timezone, now).strftime("%B %d, %Y %H:%M")
-
-
-def _local_now(timezone: str, now: datetime) -> datetime:
-    aware = now.replace(tzinfo=UTC) if now.tzinfo is None else now
-    return aware.astimezone(ZoneInfo(timezone or "UTC"))
+    return local_now(timezone, now).strftime("%B %d, %Y %H:%M")
 
 
 def _now() -> datetime:

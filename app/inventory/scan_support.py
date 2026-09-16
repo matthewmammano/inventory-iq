@@ -16,7 +16,7 @@ from app.auth.queries import get_agency_permissions, get_storage, list_locations
 from app.shared.html_formatting import bold_item_name
 from app.shared.validators import parse_optional_int
 
-from .constants import OperationType, VirtualLocation
+from .constants import INVALID_STORAGE_COMBINATION_MESSAGE, OperationType, VirtualLocation
 
 
 class ScanSurface(StrEnum):
@@ -73,6 +73,34 @@ class ScanStorageChoices:
     from_storages: list[Storage]
     to_storages: list[Storage]
     default_location_id: int | None
+
+
+@dataclass(frozen=True, slots=True)
+class ScanActor:
+    """Who is performing a scan action, and in what DB session."""
+
+    agency_id: int
+    is_admin: bool
+    session: Session
+
+
+@dataclass(frozen=True, slots=True)
+class ScanRouteOptions:
+    """The FROM/TO storages one actor may pick between, and what they're allowed to do."""
+
+    from_storages: list[Storage]
+    to_storages: list[Storage]
+    permissions: ScanPermissions
+
+
+@dataclass(frozen=True, slots=True)
+class ScanRouteResult:
+    """The resolved FROM/TO of one completed scan: raw ids, plus resolved rows when real storages."""
+
+    from_storage_id: int | None
+    to_storage_id: int | None
+    from_storage: Storage | None = None
+    to_storage: Storage | None = None
 
 
 def get_scan_permissions(agency_id: int, *, is_admin: bool = False) -> ScanPermissions:
@@ -140,23 +168,20 @@ def resolve_scan_location(
 
 
 def validate_scan_route(
-    agency_id: int,
+    actor: ScanActor,
     from_storage_id: int | None,
     to_storage_id: int | None,
     permissions: ScanPermissions,
-    *,
-    is_admin: bool,
-    session: Session,
 ) -> str | None:
     if from_storage_id is None or to_storage_id is None:
-        return "Invalid storage combination."
+        return INVALID_STORAGE_COMBINATION_MESSAGE
 
     if from_storage_id == VirtualLocation.RESTOCK and not permissions.restock:
         return "RESTOCK is not allowed for this scan."
     if from_storage_id == VirtualLocation.COUNT and not permissions.count:
         return "COUNT is not allowed for this scan."
 
-    choices = load_scan_storage_choices(agency_id, is_admin, session)
+    choices = load_scan_storage_choices(actor.agency_id, actor.is_admin, actor.session)
     from_storages = choices.from_storages
     to_storages = choices.to_storages
     valid_from_ids = set(_valid_from_ids(from_storages, to_storages, permissions))
@@ -170,25 +195,12 @@ def validate_scan_route(
 
 
 def is_scan_route_allowed(
-    agency_id: int,
+    actor: ScanActor,
     from_storage_id: int | None,
     to_storage_id: int | None,
     permissions: ScanPermissions,
-    *,
-    is_admin: bool,
-    session: Session,
 ) -> bool:
-    return (
-        validate_scan_route(
-            agency_id,
-            from_storage_id,
-            to_storage_id,
-            permissions,
-            is_admin=is_admin,
-            session=session,
-        )
-        is None
-    )
+    return validate_scan_route(actor, from_storage_id, to_storage_id, permissions) is None
 
 
 def format_scan_route_label(from_storage, to_storage, *, is_admin: bool) -> str:
@@ -217,17 +229,16 @@ def scan_success_message(
     operation_type: OperationType,
     item_name: str,
     quantity: int,
-    from_storage_id: int | None,
-    to_storage_id: int | None,
+    route: ScanRouteResult,
     *,
     is_admin: bool = False,
-    from_storage: Storage | None = None,
-    to_storage: Storage | None = None,
 ) -> Markup:
-    if from_storage is None and from_storage_id:
-        from_storage = get_storage(from_storage_id, current_user.id)
-    if to_storage is None and to_storage_id:
-        to_storage = get_storage(to_storage_id, current_user.id)
+    from_storage = route.from_storage
+    to_storage = route.to_storage
+    if from_storage is None and route.from_storage_id:
+        from_storage = get_storage(route.from_storage_id, current_user.id)
+    if to_storage is None and route.to_storage_id:
+        to_storage = get_storage(route.to_storage_id, current_user.id)
     from_name = _scan_storage_name(from_storage, is_admin)
     to_name = _scan_storage_name(to_storage, is_admin)
 
@@ -275,23 +286,12 @@ def _scan_route_storage_name(storage: Storage, is_admin: bool) -> str:
     return f"{location_name}: {storage.name}"
 
 
-def can_skip_storage_selection(
-    from_storages: list[Storage],
-    to_storages: list[Storage],
-    permissions: ScanPermissions,
-) -> bool:
-    return _single_scan_pair(from_storages, to_storages, permissions) is not None
+def can_skip_storage_selection(route_options: ScanRouteOptions) -> bool:
+    return _single_scan_pair(route_options.from_storages, route_options.to_storages, route_options.permissions) is not None
 
 
-def redirect_to_scan_item(
-    surface: ScanSurface,
-    agency_id: int,
-    item_id: int,
-    from_storages: list[Storage],
-    to_storages: list[Storage],
-    permissions: ScanPermissions,
-):
-    from_id, to_id = _single_scan_pair(from_storages, to_storages, permissions) or (None, None)
+def redirect_to_scan_item(surface: ScanSurface, agency_id: int, item_id: int, route_options: ScanRouteOptions):
+    from_id, to_id = _single_scan_pair(route_options.from_storages, route_options.to_storages, route_options.permissions) or (None, None)
     return redirect(
         url_for(
             surface.endpoint("scan_item"),
@@ -299,8 +299,8 @@ def redirect_to_scan_item(
             item_id=item_id,
             from_storage_id=from_id,
             to_storage_id=to_id,
-            user_count_allow=permissions.count,
-            user_restock_allow=permissions.restock,
+            user_count_allow=route_options.permissions.count,
+            user_restock_allow=route_options.permissions.restock,
         )
     )
 

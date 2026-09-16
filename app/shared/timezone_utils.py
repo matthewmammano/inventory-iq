@@ -5,6 +5,13 @@ from zoneinfo import ZoneInfo
 
 from loguru import logger
 
+DEFAULT_TIMEZONE = "UTC"
+
+
+def resolve_timezone(timezone: str | None) -> str:
+    """Fall back to UTC when no per-agency timezone is set."""
+    return timezone or DEFAULT_TIMEZONE
+
 
 def convert_utc_to_local(utc_dt: datetime | None, timezone: str) -> datetime | None:
     if utc_dt is None:
@@ -17,10 +24,7 @@ def convert_utc_to_local(utc_dt: datetime | None, timezone: str) -> datetime | N
         return utc_dt
 
 
-def get_timezone_hint(timezone: str) -> str:
-    if not timezone:
-        return "UTC"
-    try:
-        return datetime.now(ZoneInfo(timezone)).strftime("%Z")
-    except Exception:
-        return timezone.split("/")[-1]
+def local_now(timezone: str | None, now: datetime) -> datetime:
+    """Convert a UTC `now` (naive or aware) into local time for this timezone, defaulting to UTC."""
+    aware = now.replace(tzinfo=UTC) if now.tzinfo is None else now
+    return aware.astimezone(ZoneInfo(resolve_timezone(timezone)))

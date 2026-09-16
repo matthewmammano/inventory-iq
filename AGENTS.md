@@ -25,7 +25,7 @@ Read local project docs when they exist. For this repository:
    - **Rule of Three:** wait for a third real occurrence before extracting a shared abstraction, not the second. A single early duplication is often coincidence.
 3. **LOW COMPLEXITY:** prefer straightforward control flow, early returns, and shallow nesting.
 4. **SHORT FUNCTIONS AND FILES:** keep modules cohesive and split by responsibility before they get crowded.
-5. **PRODUCTION-GRADE PYTHON:** favor correctness, explicitness, typing, maintainability, and operability.
+5. **PRODUCTION-GRADE PYTHON:** favor correctness, explicitness, typing, maintainability, and operability. Use modern Python (this repo targets 3.13+) idioms where they read more clearly than the older alternative: `match` for multi-branch dispatch on a type/shape, `StrEnum`, `dataclass(slots=True)`, the `type` statement and PEP 695 generics, `Self`, structural pattern matching in exception handling. Never reach for a new feature just to look current; use it only where it is the clearest way to say the thing.
 6. **EXCELLENT TRACEABILITY:** make failures diagnosable without exposing secrets or PII.
 7. **EASE OF UNDERSTANDING:** code should read naturally in one pass.
 
@@ -41,6 +41,7 @@ Read local project docs when they exist. For this repository:
 - **DESIGN DEEP MODULES:** a simple interface hiding real complexity, not a simple implementation exposing a complex one. A new parameter or public method is a red flag if it leaks an internal decision the caller shouldn't need to know.
 - A design decision should live in exactly one module's implementation and never appear in its interface. If changing an internal detail forces a signature change elsewhere, it wasn't actually hidden.
 - Ports (interfaces the domain/service layer depends on) belong to that layer; adapters (concrete implementations, e.g. a specific email provider or DB driver) belong to infrastructure. The dependency direction always points from infrastructure toward the domain, never the reverse.
+- **SCHEMA/CONFIG-DRIVEN LAYOUTS:** when the same shape of thing (a form, a report, a device layout, a notification) recurs with only its data varying, define that shape once as a schema, constant table, or config object, then write one focused class/module that operates on any instance of it. The reusable part is the shape; the varying part is data passed into it, never a copy-pasted near-duplicate function per variant.
 
 ## Pydantic & Schema Design
 
@@ -113,9 +114,11 @@ Before writing code, verify:
 - Return stable API shapes and consistent user-caused errors.
 - Centralize settings in typed config models. Avoid scattered environment reads.
 - Backing services (database, email provider, external APIs) are reachable purely through config; swapping one for another is a config change, never a code change.
+- **RETRY TRANSIENT FAILURES ON EXTERNAL CALLS** (HTTP, email, third-party APIs): bounded attempts, exponential backoff with jitter, and only for errors known to be transient (timeouts, 429/5xx), never for validation or 4xx-that-isn't-429 failures. Reuse the existing retry helper for a backing service before writing a new one.
 - Keep defaults explicit and safe.
 - **NEVER LOG OR EXPOSE SECRETS, TOKENS, PASSWORDS, RESET CODES, RAW PII, OR SENSITIVE PAYLOADS.**
 - The app logs to stdout; local rotating log files (`app/shared/logging.py`) are a deliberate dev-only convenience, not a pattern to extend.
+- **CHECK LOGGING COVERAGE, NOT JUST FORMAT.** When touching a service/route, confirm each of `docs/OBSERVABILITY.md`'s "Boundaries To Log" it crosses (entry/exit, admin saves, inventory writes, external calls, scheduler/task events, unexpected exceptions) actually has a log line, at the right level, with `extra` context keys, not `{}`/`.format()`. Add a missing one; do not add logging beyond what that doc calls a boundary.
 - Keep database queries explicit and transaction handling predictable.
 - If raw SQL is ever written outside the SQLAlchemy query layer, keep it dialect-agnostic; dev runs SQLite, production runs Postgres.
 - **ADD MIGRATIONS FOR SCHEMA CHANGES; DO NOT RELY ON IMPLICIT TABLE CREATION IN PRODUCTION.**
@@ -131,6 +134,8 @@ Before writing code, verify:
 - **DO NOT BUNDLE UNRELATED REFACTORS.**
 - **DO NOT REWRITE WORKING CODE WITHOUT CONCRETE BENEFIT.**
 - Prefer clean replacement over compatibility layers when old behavior is not a live contract.
+- **A REFACTOR MUST REDUCE, NOT JUST MOVE, LOC AND COMMENT VOLUME.** If a "simplification" leaves the file longer or adds narration comments to explain the new structure, it isn't done. Fewer, better-named, self-explaining lines beat the same logic spread wider.
+- **JUSTIFY A NON-TRIVIAL REFACTOR WITH AN INDEPENDENT PASS** (a subagent, or a fresh review read) before applying it broadly: confirm it actually shrinks complexity/LOC and preserves behavior, not just that it looks cleaner to the agent that wrote it. Scale the independence to the risk: a single-function cleanup doesn't need it; a multi-file or demo-critical-path refactor does.
 
 Good refactors remove duplication, shorten a function, isolate side effects, improve type safety, replace magic literals with constants/enums, extract validation into models, or split overcrowded files.
 
@@ -159,7 +164,7 @@ When reviewing or editing, look for:
 - weak typing or unvalidated input
 - route handlers doing too much
 - hidden side effects or implicit DB work
-- poor logging context or unsafe logs
+- poor logging context, unsafe logs, or a crossed boundary (`docs/OBSERVABILITY.md`) with no log line
 - vague naming
 - unnecessary abstraction
 - missing tests or verification for risky behavior
@@ -194,6 +199,7 @@ Every change should be:
 - easier to trace in production
 - easier to understand later
 - minimal in surface area
+- fewer total lines and comments than before, not just rearranged
 - unsurprising
 
 ## Keeping This File Useful

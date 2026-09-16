@@ -22,22 +22,22 @@ def register_error_handlers(app: Flask) -> None:
         logger.warning(message, extra={"status_code": status_code, "method": request.method, "path": request.path, "endpoint": request.endpoint})
 
     @app.errorhandler(404)
-    def not_found(error):
+    def not_found(_error):
         log_missing_route(request.path, request.method)
         return _err("Error", "Page Not Found", "The page you're looking for doesn't exist.", 404)
 
     @app.errorhandler(CSRFError)
-    def csrf_error(error):
+    def csrf_error(_error):
         _log_denial("Request denied with CSRF error", 400)
         return _err("Error", "Page Expired", "This page was left open too long. Refresh the page and try again.", 400)
 
     @app.errorhandler(403)
-    def forbidden(error):
+    def forbidden(_error):
         _log_denial("Request denied with 403 access error", 403)
         return _err("Error", "Access Denied", "You don't have permission to access this page.", 403)
 
     @app.errorhandler(429)
-    def rate_limited(error):
+    def rate_limited(_error):
         _log_denial("Request denied with 429 rate limit error", 429)
         return _err("Error", "Too Many Attempts", "Please wait a moment and try again.", 429)
 

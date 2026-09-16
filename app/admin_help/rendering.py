@@ -22,32 +22,33 @@ def render_help_markdown(markdown: str) -> str:
         line = raw_line.strip()
         if not line:
             _close_paragraph(html, paragraph)
-            list_tag = _close_list(html, list_tag)
+            _close_list(html, list_tag)
+            list_tag = None
             continue
-        heading_level = _heading_level(line)
-        if heading_level:
+        if heading_level := _heading_level(line):
             _close_paragraph(html, paragraph)
-            list_tag = _close_list(html, list_tag)
+            _close_list(html, list_tag)
+            list_tag = None
             heading_text = line.removeprefix(f"{'#' * heading_level} ").strip()
             html.append(f"<h{heading_level}>{_render_inline(heading_text)}</h{heading_level}>")
             continue
-        callout_text = _callout_text(line)
-        if callout_text is not None:
+        if (callout_text := _callout_text(line)) is not None:
             _close_paragraph(html, paragraph)
-            list_tag = _close_list(html, list_tag)
+            _close_list(html, list_tag)
+            list_tag = None
             html.append(f'<div class="alert info">{_render_inline(callout_text)}</div>')
             continue
-        list_item = _list_item(line)
-        if list_item:
+        if list_item := _list_item(line):
             next_list_tag, item_text = list_item
             _close_paragraph(html, paragraph)
             if list_tag != next_list_tag:
-                list_tag = _close_list(html, list_tag)
+                _close_list(html, list_tag)
                 html.append(f"<{next_list_tag}>")
                 list_tag = next_list_tag
             html.append(f"<li>{_render_inline(item_text)}</li>")
             continue
-        list_tag = _close_list(html, list_tag)
+        _close_list(html, list_tag)
+        list_tag = None
         paragraph.append(line)
 
     _close_paragraph(html, paragraph)
@@ -61,10 +62,9 @@ def _close_paragraph(html: list[str], paragraph: list[str]) -> None:
         paragraph.clear()
 
 
-def _close_list(html: list[str], list_tag: str | None) -> str | None:
+def _close_list(html: list[str], list_tag: str | None) -> None:
     if list_tag:
         html.append(f"</{list_tag}>")
-    return None
 
 
 def _heading_level(line: str) -> int | None:

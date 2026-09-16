@@ -31,7 +31,7 @@ from app.inventory.schema import ScanItemQuery, ScanStartQuery
 from app.inventory.search_payload import load_item_search_payload
 from app.inventory.upc_service import record_unknown_upc
 from app.shared.database import get_session
-from app.shared.rate_limit import AUTH_ATTEMPT_LIMITS, limiter
+from app.shared.rate_limit import AUTH_RATE_LIMIT, limiter
 from app.shared.utils import (
     get_agency_id_from_request,
     is_static_request,
@@ -109,7 +109,7 @@ def _record_unknown_upc_from_request() -> str | None:
 
 
 @bp.route("/<int:agency_id>/admin", methods=["GET", "POST"])
-@limiter.limit("; ".join(AUTH_ATTEMPT_LIMITS), methods=["POST"])
+@limiter.limit(AUTH_RATE_LIMIT, methods=["POST"])
 def admin_login(agency_id: int) -> Any:
     token = current_device_token()
     if request.method == "POST":
@@ -122,7 +122,7 @@ def admin_login(agency_id: int) -> Any:
         if request.form.get("action") == "send_temp_pin":
             with get_session() as s:
                 agency = get_agency(agency_id, s)
-                if agency is None or not send_temporary_admin_pin(s, agency):
+                if agency is None or not send_temporary_admin_pin(agency):
                     flash("Temporary PIN could not be sent. Try again.", "error")
                     return _admin_login_response(agency_id, token)
                 s.commit()
@@ -235,10 +235,4 @@ def scan_item(agency_id: int) -> Any:
     if request.method == "POST":
         return handle_scan_item_post(agency_id, request.form, is_admin=False)
     query = ScanItemQuery.from_query(request.args.to_dict(), is_admin=False)
-    return handle_scan_item_get(
-        agency_id,
-        query.item_id,
-        query.from_storage_id,
-        query.to_storage_id,
-        show_scan_route=query.show_scan_route,
-    )
+    return handle_scan_item_get(agency_id, query)

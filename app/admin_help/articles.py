@@ -19,15 +19,11 @@ def get_help_article(article_id: str) -> HelpArticle | None:
 
 
 def list_help_tags(articles: tuple[HelpArticle, ...]) -> tuple[str, ...]:
-    tags: list[str] = []
-    seen: set[str] = set()
+    unique_by_key: dict[str, str] = {}
     for article in articles:
         for tag in article.tags:
-            key = tag.casefold()
-            if key not in seen:
-                seen.add(key)
-                tags.append(tag)
-    return tuple(tags)
+            unique_by_key.setdefault(tag.casefold(), tag)
+    return tuple(unique_by_key.values())
 
 
 def _load_article(path: Path) -> HelpArticle:

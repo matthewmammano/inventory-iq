@@ -1,5 +1,7 @@
 """Validated inventory mutations."""
 
+from dataclasses import dataclass
+
 from loguru import logger
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -17,13 +19,20 @@ from .expiration_service import ExpirationAllocation, sync_expiration_alerts_aft
 from .models import ActionLog, Item
 
 
+@dataclass(frozen=True, slots=True)
+class MutationTarget:
+    """Which item, how much, what kind of operation, and its storage route."""
+
+    agency_id: int
+    item_id: int
+    quantity: int
+    operation_type: OperationType
+    from_storage: int | None
+    to_storage: int | None
+
+
 def inventory_operation(
-    agency_id: int,
-    item_id: int,
-    quantity: int,
-    operation_type: OperationType,
-    from_storage: int | None = None,
-    to_storage: int | None = None,
+    target: MutationTarget,
     admin_action: bool = False,
     expiration_allocations: list[ExpirationAllocation] | None = None,
     session: Session | None = None,
@@ -32,96 +41,69 @@ def inventory_operation(
     from app.alerts.alert_service import record_action_log_alerts
 
     with managed_session(session) as db:
-        item = _validate_operation(db, agency_id, item_id, quantity, operation_type, from_storage, to_storage)
+        item = _validate_operation(db, target)
         _touch_item_last_accessed(item)
-        action = _add_action_log(
-            db,
-            agency_id,
-            item_id,
-            quantity,
-            operation_type,
-            from_storage,
-            to_storage,
-            admin_action,
-        )
+        action = _add_action_log(db, target, admin_action)
         sync_balances_for_actions(db, [action])
         sync_expiration_lines_for_action(db, action, expiration_allocations or [])
         sync_location_states_for_actions(db, [action])
         record_action_log_alerts(db, [action])
-        sync_expiration_alerts_after_save(db, agency_id, bool(expiration_allocations))
+        sync_expiration_alerts_after_save(db, target.agency_id, bool(expiration_allocations))
         logger.debug(
             "Inventory mutation applied",
             extra={
-                "agency_id": agency_id,
+                "agency_id": target.agency_id,
                 "action_log_id": action.id,
-                "item_id": item_id,
-                "operation_type": operation_type.value,
-                "quantity": quantity,
-                "from_storage_id": from_storage,
-                "to_storage_id": to_storage,
+                "item_id": target.item_id,
+                "operation_type": target.operation_type.value,
+                "quantity": target.quantity,
+                "from_storage_id": target.from_storage,
+                "to_storage_id": target.to_storage,
                 "admin_action": admin_action,
             },
         )
         return action
 
 
-def _validate_operation(
-    session: Session,
-    agency_id: int,
-    item_id: int,
-    quantity: int,
-    operation_type: OperationType,
-    from_storage: int | None,
-    to_storage: int | None,
-) -> Item:
-    if not isinstance(quantity, int) or quantity < 0:
+def _validate_operation(session: Session, target: MutationTarget) -> Item:
+    if not isinstance(target.quantity, int) or target.quantity < 0:
         raise InventoryError("Quantity must be a non-negative number")
-    if not operation_type.is_count and quantity == 0:
+    if not target.operation_type.is_count and target.quantity == 0:
         raise InventoryError("Quantity must be at least 1 for non-count scans")
 
-    item = _validate_item(session, agency_id, item_id)
-    storages_by_id = _storage_rows(session, agency_id, from_storage, to_storage)
-    _validate_operation_locations(session, agency_id, item_id, operation_type, from_storage, to_storage, storages_by_id)
+    item = _validate_item(session, target.agency_id, target.item_id)
+    storages_by_id = _storage_rows(session, target.agency_id, target.from_storage, target.to_storage)
+    _validate_operation_locations(session, target, storages_by_id)
     return item
 
 
-def _validate_operation_locations(
-    session: Session,
-    agency_id: int,
-    item_id: int,
-    operation_type: OperationType,
-    from_storage: int | None,
-    to_storage: int | None,
-    storages_by_id: dict[int, Storage],
-) -> None:
-    if operation_type.is_count and (from_storage is not None or to_storage is None):
+def _ensure_known_storage(storages_by_id: dict[int, Storage], storage_id: int | None, label: str) -> None:
+    """Raise if a resolved storage id isn't a real storage row for this agency."""
+    if storage_id is not None and storage_id not in storages_by_id:
+        raise InventoryError(f"{label} storage not found")
+
+
+def _validate_operation_locations(session: Session, target: MutationTarget, storages_by_id: dict[int, Storage]) -> None:
+    from_storage, to_storage = target.from_storage, target.to_storage
+    if target.operation_type.is_count and (from_storage is not None or to_storage is None):
         raise InventoryError("COUNT requires one destination storage")
-    if operation_type.is_restock:
-        _validate_restock_location(session, agency_id, item_id, from_storage, to_storage, storages_by_id)
-    if operation_type.is_transfer:
+    if target.operation_type.is_restock:
+        _validate_restock_location(session, target, storages_by_id)
+    if target.operation_type.is_transfer:
         _validate_transfer_locations(from_storage, to_storage, storages_by_id)
-    if operation_type.is_takeout and (from_storage is None or to_storage is not None):
+    if target.operation_type.is_takeout and (from_storage is None or to_storage is not None):
         raise InventoryError("TAKEOUT requires one source storage")
-    if from_storage is not None and from_storage not in storages_by_id:
-        raise InventoryError("Source storage not found")
-    if to_storage is not None and to_storage not in storages_by_id:
-        raise InventoryError("Destination storage not found")
+    _ensure_known_storage(storages_by_id, from_storage, "Source")
+    _ensure_known_storage(storages_by_id, to_storage, "Destination")
 
 
-def _validate_restock_location(
-    session: Session,
-    agency_id: int,
-    item_id: int,
-    from_storage: int | None,
-    to_storage: int | None,
-    storages_by_id: dict[int, Storage],
-) -> None:
-    if from_storage is not None or to_storage is None:
+def _validate_restock_location(session: Session, target: MutationTarget, storages_by_id: dict[int, Storage]) -> None:
+    if target.from_storage is not None or target.to_storage is None:
         raise InventoryError("RESTOCK requires one destination storage")
-    to_storage_row = storages_by_id.get(to_storage)
+    to_storage_row = storages_by_id.get(target.to_storage)
     if to_storage_row is None:
         raise InventoryError("Destination storage not found")
-    is_valid, message = validate_location_restock(agency_id, item_id, to_storage_row.location_id, session)
+    is_valid, message = validate_location_restock(target.agency_id, target.item_id, to_storage_row.location_id, session)
     if not is_valid:
         raise InventoryError(message)
 
@@ -135,12 +117,8 @@ def _validate_transfer_locations(
         raise InventoryError("TRANSFER requires source and destination storages")
     if from_storage == to_storage:
         raise InventoryError("Cannot transfer to the same storage")
-    from_storage_row = storages_by_id.get(from_storage)
-    to_storage_row = storages_by_id.get(to_storage)
-    if from_storage_row is None:
-        raise InventoryError("Source storage not found")
-    if to_storage_row is None:
-        raise InventoryError("Destination storage not found")
+    _ensure_known_storage(storages_by_id, from_storage, "Source")
+    _ensure_known_storage(storages_by_id, to_storage, "Destination")
 
 
 def _validate_item(session: Session, agency_id: int, item_id: int) -> Item:
@@ -172,23 +150,14 @@ def _touch_item_last_accessed(item: Item) -> None:
     item.last_accessed = utc_now_naive()
 
 
-def _add_action_log(
-    session: Session,
-    agency_id: int,
-    item_id: int,
-    quantity: int,
-    operation_type: OperationType,
-    from_storage: int | None,
-    to_storage: int | None,
-    admin_action: bool,
-) -> ActionLog:
+def _add_action_log(session: Session, target: MutationTarget, admin_action: bool) -> ActionLog:
     action = ActionLog(
-        agency_id=agency_id,
-        item_id=item_id,
-        operation_type=operation_type,
-        from_storage_id=from_storage,
-        to_storage_id=to_storage,
-        quantity=quantity,
+        agency_id=target.agency_id,
+        item_id=target.item_id,
+        operation_type=target.operation_type,
+        from_storage_id=target.from_storage,
+        to_storage_id=target.to_storage,
+        quantity=target.quantity,
         admin_action=admin_action,
         time_scanned=utc_now_naive(),
     )

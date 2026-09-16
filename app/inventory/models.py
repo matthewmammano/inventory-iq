@@ -1,5 +1,6 @@
 """SQLAlchemy ORM models for inventory domain."""
 
+from dataclasses import dataclass
 from datetime import date, datetime
 from random import SystemRandom
 from typing import Any
@@ -41,6 +42,11 @@ from .constants import (
 )
 
 _rng = SystemRandom()
+
+
+def _require_int_tag_id(tag_id: Any) -> None:
+    if not isinstance(tag_id, int):
+        raise ValueError("Tag ID must be an integer")
 
 
 class Item(Base):
@@ -89,16 +95,14 @@ class Item(Base):
         return convert_utc_to_local(self.last_accessed, user_timezone)
 
     def add_tag(self, tag_id: int) -> None:
-        if not isinstance(tag_id, int):
-            raise ValueError("Tag ID must be an integer")
+        _require_int_tag_id(tag_id)
         if self.tag_ids is None:
             self.tag_ids = []
         if tag_id not in self.tag_ids:
             self.tag_ids.append(tag_id)
 
     def remove_tag(self, tag_id: int) -> None:
-        if not isinstance(tag_id, int):
-            raise ValueError("Tag ID must be an integer")
+        _require_int_tag_id(tag_id)
         if self.tag_ids and tag_id in self.tag_ids:
             self.tag_ids.remove(tag_id)
 
@@ -109,8 +113,7 @@ class Item(Base):
         if not isinstance(value, list):
             raise ValueError("tag_ids must be a list")
         for tag_id in value:
-            if not isinstance(tag_id, int):
-                raise ValueError("Tag ID must be an integer")
+            _require_int_tag_id(tag_id)
         return value
 
     @validates("name")
@@ -369,6 +372,15 @@ class InventoryExpirationBalance(Base):
         if value is None:
             raise ValueError("quantity cannot be None")
         return int(value)
+
+
+@dataclass(frozen=True, order=True, slots=True)
+class StorageBalanceKey:
+    """Agency/item/storage identity shared by InventoryStorageBalance and InventoryExpirationBalance rows."""
+
+    agency_id: int
+    item_id: int
+    storage_id: int
 
 
 class ActionLogExpirationLine(Base):

@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 from dataclasses import dataclass, field, replace
 from datetime import date, datetime, time, timedelta
+from typing import Literal
 
 import numpy as np
 
@@ -29,29 +30,48 @@ import config as cfg
 from profiles import CatalogProfiles, ExpirationBehavior, ItemGenerationProfile
 
 
-@dataclass(slots=True)
-class PlannedEvent:
+@dataclass(frozen=True, slots=True)
+class ScanEvent:
     ts: datetime
-    kind: str  # "scan" | "bulk_session" | "unknown_upc_scan" | "unknown_upc_resolve"
-
-    # kind == "scan"
-    item_name: str | None = None
-    operation_type: str | None = None
-    quantity: int | None = None
-    from_storage: str | None = None
-    to_storage: str | None = None
+    item_name: str
+    operation_type: str
+    quantity: int
+    from_storage: str | None
+    to_storage: str | None
     admin_action: bool = False
     expiration_allocations: list[tuple[date | None, int]] | None = None
+    kind: Literal["scan"] = "scan"
 
-    # kind == "bulk_session" (always single-item, each item gets its own bulk_session events)
+
+@dataclass(frozen=True, slots=True)
+class BulkSessionEvent:
+    """Always single-item: each item gets its own bulk_session events."""
+
+    ts: datetime
     counts: dict[tuple[str, str], int] = field(default_factory=dict)  # (item_name, storage_name) -> qty
     restocks: dict[tuple[str, str], int] = field(default_factory=dict)
     restock_expirations: dict[str, list[tuple[date | None, int]]] = field(default_factory=dict)  # storage_name -> allocations
     count_expirations: dict[str, list[tuple[date | None, int]]] = field(default_factory=dict)  # storage_name -> allocations
+    kind: Literal["bulk_session"] = "bulk_session"
 
-    # kind == "unknown_upc_scan" / "unknown_upc_resolve"
-    upc: str | None = None
-    resolve_to_item_name: str | None = None
+
+@dataclass(frozen=True, slots=True)
+class UnknownUpcScanEvent:
+    ts: datetime
+    upc: str
+    resolve_to_item_name: str
+    kind: Literal["unknown_upc_scan"] = "unknown_upc_scan"
+
+
+@dataclass(frozen=True, slots=True)
+class UnknownUpcResolveEvent:
+    ts: datetime
+    upc: str
+    resolve_to_item_name: str
+    kind: Literal["unknown_upc_resolve"] = "unknown_upc_resolve"
+
+
+type PlannedEvent = ScanEvent | BulkSessionEvent | UnknownUpcScanEvent | UnknownUpcResolveEvent
 
 
 @dataclass(slots=True)
@@ -250,7 +270,7 @@ def build_item_events(
         # where real time has actually passed).
         elapsed_days = 0 if idx == 0 else max((t - prev_t).days, 1)
         year_mult = ref.catalog.year_multiplier(t.year)
-        sev = PlannedEvent(ts=t, kind="bulk_session")
+        sev = BulkSessionEvent(ts=t)
         for s in storages:
             expected_scans = profile.takeout.scans_per_day * location_multiplier * year_mult * elapsed_days / n_storages
             n_scans = int(rng.poisson(max(expected_scans, 0.0)))
@@ -286,8 +306,8 @@ def build_item_events(
                 if logged_qty is None:
                     continue
                 ts = _sample_timestamp_for_day(rng, scan_day, ref)
-                events.append(PlannedEvent(
-                    ts=ts, kind="scan", item_name=item_name, operation_type="TAKEOUT",
+                events.append(ScanEvent(
+                    ts=ts, item_name=item_name, operation_type="TAKEOUT",
                     quantity=logged_qty, from_storage=s, to_storage=None, admin_action=is_admin_actor,
                     expiration_allocations=allocations or None,
                 ))
@@ -314,9 +334,9 @@ def build_item_events(
                     expires_on, discard_qty = lot
                     lots[s].lots.remove(lot)
                     balances[s] = max(0.0, balances[s] - discard_qty)
-                    events.append(PlannedEvent(
+                    events.append(ScanEvent(
                         ts=t + timedelta(minutes=int(rng.integers(5, 120))),
-                        kind="scan", item_name=item_name, operation_type="TAKEOUT",
+                        item_name=item_name, operation_type="TAKEOUT",
                         quantity=discard_qty, from_storage=s, to_storage=None, admin_action=True,
                         expiration_allocations=[(expires_on, discard_qty)],
                     ))
@@ -398,9 +418,9 @@ def _plan_transfer_stream(
         # Real validation requires an allocation covering the full quantity whenever
         # the item is expiration-tracked, for every op type including TRANSFER --
         # no per-lot tracking on this stream, so log it as unspecified-date.
-        allocations = [(None, qty)] if expiration_tracked else None
-        events.append(PlannedEvent(
-            ts=ts, kind="scan", item_name=item_name, operation_type="TRANSFER",
+        allocations: list[tuple[date | None, int]] | None = [(None, qty)] if expiration_tracked else None
+        events.append(ScanEvent(
+            ts=ts, item_name=item_name, operation_type="TRANSFER",
             quantity=qty, from_storage=str(src), to_storage=str(dst), admin_action=is_admin_actor,
             expiration_allocations=allocations,
         ))
@@ -415,13 +435,11 @@ def plan_unknown_upc_stream(window_start: date, window_end: date, ref: RefData, 
         offset = int(rng.integers(0, max(span_days, 1)))
         scan_day = window_start + timedelta(days=offset)
         scan_ts = _sample_timestamp_for_day(rng, scan_day, ref)
-        events.append(PlannedEvent(ts=scan_ts, kind="unknown_upc_scan", upc=seed["upc"], resolve_to_item_name=seed["resolve_to_item_name"]))
+        events.append(UnknownUpcScanEvent(ts=scan_ts, upc=seed["upc"], resolve_to_item_name=seed["resolve_to_item_name"]))
         if rng.random() < cfg.UNKNOWN_UPC_RESOLVE_RATE:
             resolve_ts = scan_ts + timedelta(days=int(rng.integers(1, 30)))
             if resolve_ts.date() <= window_end:
-                events.append(
-                    PlannedEvent(ts=resolve_ts, kind="unknown_upc_resolve", upc=seed["upc"], resolve_to_item_name=seed["resolve_to_item_name"])
-                )
+                events.append(UnknownUpcResolveEvent(ts=resolve_ts, upc=seed["upc"], resolve_to_item_name=seed["resolve_to_item_name"]))
     return events
 
 
@@ -433,21 +451,18 @@ def inject_errors(events: list[PlannedEvent], rng: np.random.Generator, disabled
         if ev.kind != "scan":
             continue
         if rng.random() < cfg.RAPID_DOUBLE_SCAN_RATE:
-            dup = replace(ev, ts=ev.ts + timedelta(seconds=int(rng.integers(1, 6))))
-            extra.append(dup)
+            extra.append(replace(ev, ts=ev.ts + timedelta(seconds=int(rng.integers(1, 6)))))
         if ev.operation_type == "TAKEOUT" and rng.random() < cfg.WRONG_OP_THEN_FIXED_RATE:
-            fixup_ts = ev.ts + timedelta(seconds=int(rng.integers(10, 600)))
             # Real validation requires a full-quantity allocation whenever the item
             # is expiration-tracked, for every op type; no lot ledger reachable
             # here, so log it as unspecified-date.
-            allocations = [(None, ev.quantity)] if ev.item_name in tracked_names else None
-            fixup = PlannedEvent(
-                ts=fixup_ts,
-                kind="scan", item_name=ev.item_name, operation_type="RESTOCK",
+            allocations: list[tuple[date | None, int]] | None = [(None, ev.quantity)] if ev.item_name in tracked_names else None
+            extra.append(ScanEvent(
+                ts=ev.ts + timedelta(seconds=int(rng.integers(10, 600))),
+                item_name=ev.item_name, operation_type="RESTOCK",
                 quantity=ev.quantity, from_storage=None, to_storage=ev.from_storage, admin_action=True,
                 expiration_allocations=allocations,
-            )
-            extra.append(fixup)
+            ))
     return events + extra
 
 
@@ -460,7 +475,7 @@ def _clamp_negative_dips(events: list[PlannedEvent]) -> list[PlannedEvent]:
     balance is already too low. Walk the real timeline and clamp any such event
     to what's actually left: guarantees "never draws past zero" unconditionally,
     regardless of which mechanism produced the event."""
-    balances: dict[tuple[str, str], float] = {}
+    balances: dict[tuple[str, str | None], float] = {}
     kept: list[PlannedEvent] = []
     for e in events:
         if e.kind == "bulk_session":
@@ -474,11 +489,11 @@ def _clamp_negative_dips(events: list[PlannedEvent]) -> list[PlannedEvent]:
             key = (e.item_name, e.from_storage)
             available = balances.setdefault(key, float(e.quantity))
             if e.quantity > available:
-                e.quantity = max(int(round(available)), 0)
-                if e.quantity <= 0:
+                clamped_qty = max(int(round(available)), 0)
+                if clamped_qty <= 0:
                     continue  # nothing physically left to take/move; drop the event
-                if e.expiration_allocations:
-                    e.expiration_allocations = [(None, e.quantity)]
+                allocations = [(None, clamped_qty)] if e.expiration_allocations else e.expiration_allocations
+                e = replace(e, quantity=clamped_qty, expiration_allocations=allocations)
             balances[key] -= e.quantity
             if e.operation_type == "TRANSFER":
                 dst = (e.item_name, e.to_storage)

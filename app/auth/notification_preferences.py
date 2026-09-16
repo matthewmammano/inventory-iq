@@ -153,7 +153,7 @@ NOTIFICATION_PREFERENCES = (
         "Daily",
         NotificationPreferenceGroup.SUMMARY,
         False,
-        due_when=lambda now: True,
+        due_when=lambda _: True,
         bounds=lambda now: _period_bounds(now, days=1),
     ),
     NotificationPreference(

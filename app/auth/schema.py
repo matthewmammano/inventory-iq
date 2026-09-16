@@ -16,8 +16,7 @@ from app.shared.validation_types import (
     TagColor,
     TagName,
 )
-
-from .models import validate_timezone
+from app.shared.validators import validate_timezone
 
 
 class LoginRequest(BaseModel):

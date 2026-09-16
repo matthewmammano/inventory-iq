@@ -25,18 +25,18 @@ from tqdm import tqdm
 from app.alerts.alert_service import generate_scheduled_alerts
 from app.inventory.balance_service import rebuild_inventory_balances
 from app.prediction.retraining_service import retrain_agency_trends
-from app.inventory.bulk_edit_service import save_bulk_edit
+from app.inventory.bulk_edit_service import BulkEditData, save_bulk_edit
 from app.inventory.constants import OperationType
 from app.inventory.expiration_service import ExpirationAllocation
 from app.inventory.models import Item, UnknownUpcScan
-from app.inventory.mutation_service import inventory_operation
+from app.inventory.mutation_service import MutationTarget, inventory_operation
 from app.inventory.upc_service import record_unknown_upc, resolve_unknown_upc
 
 import config as cfg
 from app.shared.clock import CLOCK_FILE
 from app.shared.config import settings
 
-from planner import PlannedEvent
+from planner import BulkSessionEvent, PlannedEvent, ScanEvent
 from setup import LocationRig, SetupResult
 
 
@@ -123,7 +123,7 @@ def replay_unknown_upcs(db: Session, agency_id: int, items_by_name: dict[str, It
 def _replay_scan(
     db: Session,
     agency_id: int,
-    ev: PlannedEvent,
+    ev: ScanEvent,
     item_id_by_name: dict[str, int],
     storage_id_by_name: dict[str, int],
 ) -> None:
@@ -133,24 +133,22 @@ def _replay_scan(
         if ev.expiration_allocations
         else None
     )
-    inventory_operation(
+    target = MutationTarget(
         agency_id=agency_id,
         item_id=item_id_by_name[ev.item_name],
         quantity=ev.quantity,
         operation_type=op,
         from_storage=storage_id_by_name.get(ev.from_storage) if ev.from_storage else None,
         to_storage=storage_id_by_name.get(ev.to_storage) if ev.to_storage else None,
-        admin_action=ev.admin_action,
-        expiration_allocations=allocations,
-        session=db,
     )
+    inventory_operation(target, admin_action=ev.admin_action, expiration_allocations=allocations, session=db)
 
 
 def _replay_bulk_session(
     db: Session,
     agency_id: int,
     location_id: int,
-    ev: PlannedEvent,
+    ev: BulkSessionEvent,
     item_id_by_name: dict[str, int],
     storage_id_by_name: dict[str, int],
 ) -> None:
@@ -179,11 +177,12 @@ def _replay_bulk_session(
     # call: a real recount-then-restock visit takes time between the two, and giving them the
     # exact same timestamp makes their real order unrecoverable later.
     if counts:
-        save_bulk_edit(db, agency_id=agency_id, agency_location_id=location_id, counts=counts, restocks={}, expiration_allocations_by_key=exp_by_key)
+        save_bulk_edit(db, agency_id=agency_id, agency_location_id=location_id,
+                       data=BulkEditData(counts=counts, restocks={}, expiration_allocations_by_key=exp_by_key))
     if restocks:
         if counts:
             set_fake_now(ev.ts + timedelta(seconds=cfg.BULK_SESSION_RESTOCK_STAGGER_SECONDS))
-        save_bulk_edit(db, agency_id=agency_id, agency_location_id=location_id, counts={}, restocks=restocks, expiration_allocations_by_key=exp_by_key)
+        save_bulk_edit(db, agency_id=agency_id, agency_location_id=location_id, data=BulkEditData(counts={}, restocks=restocks, expiration_allocations_by_key=exp_by_key))
 
 
 def final_rebuild(db: Session, agency_id: int) -> None:

@@ -170,9 +170,11 @@ def _year_trend(log: pd.DataFrame, window_start: date, window_end: date) -> tupl
     for year in range(window_start.year, window_end.year + 1):
         if year in ratios:
             trend.append(YearTrend(year=year, multiplier=ratios[year]))
+        elif ratios:
+            nearest = min(ratios, key=lambda y: abs(y - year))
+            trend.append(YearTrend(year=year, multiplier=ratios[nearest]))
         else:
-            nearest = min(ratios, key=lambda y: abs(y - year)) if ratios else None
-            trend.append(YearTrend(year=year, multiplier=ratios.get(nearest, 1.0)))
+            trend.append(YearTrend(year=year, multiplier=1.0))
     return tuple(trend)
 
 
@@ -188,17 +190,18 @@ def main() -> None:
 
     rng = np.random.default_rng(42)  # fixed seed: rerunning this builder should be reproducible
     profiles: dict[str, ItemGenerationProfile] = {}
-    for row in items.itertuples(index=False):
-        takeout = _confidence_and_takeout(row.name, row.category, per_item.get(row.name))
-        restock_pool = log[(log["name"] == row.name) & (log["operation_type"] == "RESTOCK")]["number"].tolist()
-        count_pool = log[(log["name"] == row.name) & (log["operation_type"] == "COUNT")]["number"].tolist()
-        min_q, max_q, batch = _corrected_levels(takeout, max(int(row.reorder_amount), 1), restock_pool, count_pool)
+    for row in items.to_dict("records"):
+        name, category = row["name"], row["category"]
+        takeout = _confidence_and_takeout(name, category, per_item.get(name))
+        restock_pool = log[(log["name"] == name) & (log["operation_type"] == "RESTOCK")]["number"].tolist()
+        count_pool = log[(log["name"] == name) & (log["operation_type"] == "COUNT")]["number"].tolist()
+        min_q, max_q, batch = _corrected_levels(takeout, max(int(row["reorder_amount"]), 1), restock_pool, count_pool)
 
-        profiles[row.name] = ItemGenerationProfile(
-            name=row.name,
-            category=row.category,
+        profiles[name] = ItemGenerationProfile(
+            name=name,
+            category=category,
             takeout=takeout,
-            expiration=ExpirationBehavior(tracked=row.name in cfg.EXPIRATION_TRACKED_ITEM_NAMES),
+            expiration=ExpirationBehavior(tracked=name in cfg.EXPIRATION_TRACKED_ITEM_NAMES),
             reorder_trigger=ReorderTriggerProfile(),
             min_quantity=min_q,
             max_quantity=max_q,

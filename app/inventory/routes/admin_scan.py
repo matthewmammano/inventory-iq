@@ -9,7 +9,12 @@ from loguru import logger
 from pydantic import ValidationError
 
 from app.inventory import admin_bp as bp
-from app.inventory.constants import UNKNOWN_UPC_INVALID_MESSAGE, UnknownUpcStatus
+from app.inventory.constants import (
+    INVALID_FORM_DATA_MESSAGE,
+    INVALID_STORAGE_COMBINATION_MESSAGE,
+    UNKNOWN_UPC_INVALID_MESSAGE,
+    UnknownUpcStatus,
+)
 from app.inventory.scan_flow import (
     handle_scan_item_get,
     handle_scan_item_post,
@@ -18,6 +23,7 @@ from app.inventory.scan_flow import (
     handle_scan_storages_post,
 )
 from app.inventory.scan_support import (
+    ScanActor,
     ScanPermissions,
     format_scan_location_label,
     format_scan_route_label,
@@ -138,13 +144,7 @@ def scan_item(agency_id: int) -> Any:
     if request.method == "POST":
         return handle_scan_item_post(agency_id, request.form, is_admin=True)
     query = ScanItemQuery.from_query(request.args.to_dict(), is_admin=True)
-    return handle_scan_item_get(
-        agency_id,
-        query.item_id,
-        query.from_storage_id,
-        query.to_storage_id,
-        is_admin=True,
-    )
+    return handle_scan_item_get(agency_id, query, is_admin=True)
 
 
 def _render_admin_scan_setup(agency_id: int) -> Any:
@@ -176,7 +176,7 @@ def _save_admin_scan_route(agency_id: int) -> Any:
         route_request = AdminScanRouteRequest.model_validate(request.form.to_dict())
     except ValidationError as exc:
         logger.info("Admin scan setup rejected: submitted route form data was invalid", extra={"error": str(exc)})
-        flash("Invalid form data. Please try again.", "error")
+        flash(INVALID_FORM_DATA_MESSAGE, "error")
         return redirect(url_for("admin.admin_panel", agency_id=agency_id))
 
     if route_request.same_location_error == "1":
@@ -184,7 +184,7 @@ def _save_admin_scan_route(agency_id: int) -> Any:
             "Admin scan setup rejected: source and destination combination is not allowed",
             extra={"from_storage_id": route_request.from_storage_id, "to_storage_id": route_request.to_storage_id},
         )
-        flash("Invalid storage combination.", "error")
+        flash(INVALID_STORAGE_COMBINATION_MESSAGE, "error")
         return redirect(
             url_for(
                 "admin.admin_scan_items",
@@ -241,11 +241,5 @@ def _is_valid_admin_scan_route(
 ) -> bool:
     permissions = ScanPermissions(count=True, restock=True)
     with get_session() as s:
-        return is_scan_route_allowed(
-            current_user.id,
-            from_storage_id,
-            to_storage_id,
-            permissions,
-            is_admin=True,
-            session=s,
-        )
+        actor = ScanActor(current_user.id, True, s)
+        return is_scan_route_allowed(actor, from_storage_id, to_storage_id, permissions)

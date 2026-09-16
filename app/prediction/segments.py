@@ -18,6 +18,7 @@ from app.prediction.constants import (
     RECENCY_WEIGHT_90_DAYS,
     RECENCY_WEIGHT_365_DAYS,
     RECENCY_WEIGHT_OLD,
+    SECONDS_PER_DAY,
 )
 from app.shared.clock import utc_now
 
@@ -193,7 +194,7 @@ def _build_segment(
     start: CountAnchor,
     end: CountAnchor,
 ) -> TrendSegment | None:
-    elapsed_days = (end.counted_at - start.counted_at).total_seconds() / 86_400
+    elapsed_days = (end.counted_at - start.counted_at).total_seconds() / SECONDS_PER_DAY
     if elapsed_days < 1:
         return None
     trusted_delta = _trusted_quantity_delta(trusted_movements, storage_id_set, start.counted_at, end.counted_at)

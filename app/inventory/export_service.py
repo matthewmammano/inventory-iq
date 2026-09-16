@@ -20,7 +20,7 @@ from app.shared.clock import utc_now
 from app.shared.email_client import EmailAttachment
 from app.shared.timezone_utils import convert_utc_to_local
 
-from .history_service import HISTORY_REPORT_LIMIT, list_history_logs
+from .history_service import HISTORY_REPORT_LIMIT, HistoryLogQuery, list_history_logs
 
 CSV_BOM = "\ufeff"
 
@@ -50,7 +50,7 @@ def build_history_csv_attachment(
     end_utc: datetime | None,
 ) -> HistoryExportSummary:
     """Return one history CSV attachment and summary metrics for the selected scope."""
-    logs, _ = list_history_logs(session, agency.id, agency_location_id, 1, HISTORY_REPORT_LIMIT, start_utc, end_utc)
+    logs, _ = list_history_logs(session, agency.id, agency_location_id, HistoryLogQuery(1, HISTORY_REPORT_LIMIT, start_utc, end_utc))
     history_fieldnames = [
         "Scanned At",
         "Item Name",

@@ -70,11 +70,6 @@ class AlertSpec:
         return (self.agency_id, self.dedupe_key)
 
 
-# --------------------------------------------------------------------------- #
-# Public entry points
-# --------------------------------------------------------------------------- #
-
-
 def record_action_log_alerts(session: Session, action_logs: list[ActionLog]) -> None:
     """Open scan-activity and rare-takeout alerts, and refresh stock/stale alerts for affected items."""
     if not action_logs:
@@ -181,11 +176,6 @@ def resolve_unknown_upc_alert(session: Session, agency_id: int, upc: str) -> Non
             _close_alert(alert, now, ClosedReason.RESOLVED)
 
 
-# --------------------------------------------------------------------------- #
-# Reconcile core
-# --------------------------------------------------------------------------- #
-
-
 def _reconcile(session: Session, desired: dict[AlertKey, AlertSpec], open_now: dict[AlertKey, Alert], now: datetime) -> None:
     for cache_key, spec in desired.items():
         existing = open_now.get(cache_key)
@@ -272,11 +262,6 @@ def _alert_item_location_key(alert: Alert) -> ItemLocationKey | None:
     if alert.item_id is None or alert.agency_location_id is None:
         return None
     return ItemLocationKey(alert.agency_id, alert.item_id, alert.agency_location_id)
-
-
-# --------------------------------------------------------------------------- #
-# Desired-alert builders
-# --------------------------------------------------------------------------- #
 
 
 def _desired_stock_alerts(
@@ -448,11 +433,6 @@ def _open_rare_takeout_alert(session: Session, action_log: ActionLog, now: datet
     ).as_json()
     spec = AlertSpec(action_log.agency_id, f"RARE:{action_log.id}", AlertType.RARE_TAKEOUT, item.id, location_id, detail)
     _open_or_refresh(session, spec, now)
-
-
-# --------------------------------------------------------------------------- #
-# Small helpers
-# --------------------------------------------------------------------------- #
 
 
 def _load_action_item(session: Session, action_log: ActionLog) -> Item | None:

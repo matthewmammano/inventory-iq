@@ -1,10 +1,12 @@
 """Pydantic schema for client-collected diagnostics reports."""
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ClientDiagnosticsReport(BaseModel):
     """Validated browser/device payload reported by the client for debugging."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     correlated_request_id: str | None = Field(default=None, max_length=64)
     user_agent: str = Field(max_length=512)

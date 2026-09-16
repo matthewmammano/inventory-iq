@@ -10,14 +10,7 @@ from sqlalchemy.orm import Session, selectinload
 from app.auth.models import Storage
 from app.shared.clock import utc_now
 
-from .models import ActionLog, InventoryStorageBalance, Item
-
-
-@dataclass(frozen=True, order=True, slots=True)
-class StorageBalanceKey:
-    agency_id: int
-    item_id: int
-    storage_id: int
+from .models import ActionLog, InventoryStorageBalance, Item, StorageBalanceKey
 
 
 @dataclass

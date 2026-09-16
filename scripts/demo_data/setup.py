@@ -63,12 +63,12 @@ def setup_agency(
     session.add(agency)
     session.flush()
 
-    locations = [_setup_location(session, agency, spec) for spec in (locations or cfg.DEFAULT_LOCATIONS)]
+    location_rigs = [_setup_location(session, agency, spec) for spec in (locations or cfg.DEFAULT_LOCATIONS)]
     items, items_by_name = _setup_items(session, agency, rng, catalog, disabled_features)
     _setup_recipients(session, agency)
     session.flush()
 
-    return SetupResult(agency=agency, locations=locations, items=items, items_by_name=items_by_name)
+    return SetupResult(agency=agency, locations=location_rigs, items=items, items_by_name=items_by_name)
 
 
 def _setup_location(session: Session, agency: Agency, spec: cfg.LocationSpec) -> LocationRig:
@@ -101,14 +101,15 @@ def _setup_items(
 
     items: list[Item] = []
     items_by_name: dict[str, Item] = {}
-    for row in item_catalog.itertuples(index=False):
-        profile = catalog.items[row.name]
+    for row in item_catalog.to_dict("records"):
+        name = row["name"]
+        profile = catalog.items[name]
         item = Item(
             agency_id=agency.id,
-            name=row.name,
+            name=name,
             active=True,
-            image=row.image,
-            increments=row.unit_label,
+            image=row["image"],
+            increments=row["unit_label"],
             min_quantity=profile.min_quantity,
             max_quantity=profile.max_quantity,
             batch_size=profile.batch_size,
@@ -117,10 +118,10 @@ def _setup_items(
             guest_quick_adjust=rng.random() < 0.3,
             prior_daily_usage=profile.takeout.scans_per_day * profile.takeout.qty_mean,
         )
-        item.tag_ids = [tag_by_category[row.category].id]
+        item.tag_ids = [tag_by_category[row["category"]].id]
         session.add(item)
         items.append(item)
-        items_by_name[row.name] = item
+        items_by_name[name] = item
     session.flush()  # triggers the primary-UPC auto-generation listener
     return items, items_by_name
 

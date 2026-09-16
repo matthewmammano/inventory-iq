@@ -10,10 +10,15 @@ from pydantic import ValidationError
 from app.auth.models import Storage
 from app.prediction.bulk_service import BulkService
 from app.shared.database import get_session
-from app.shared.validators import parse_optional_int
 
 from .bulk_location_service import required_count_storage_ids
-from .constants import UNKNOWN_UPC_INVALID_MESSAGE, OperationType
+from .constants import (
+    INVALID_FORM_DATA_MESSAGE,
+    INVALID_STORAGE_COMBINATION_MESSAGE,
+    SCAN_ITEM_NOT_FOUND_MESSAGE,
+    UNKNOWN_UPC_INVALID_MESSAGE,
+    OperationType,
+)
 from .errors import InventoryError
 from .expiration_ui_service import (
     build_expiration_entry_groups,
@@ -23,8 +28,12 @@ from .expiration_ui_service import (
     scan_expiration_spec,
 )
 from .item_queries import get_agency_item, get_item_by_upc
-from .scan_submit_service import ScanSubmitItemNotFoundError, ScanSubmitRouteError, save_scan_submission
+from .scan_submit_service import ScanSubmitItemNotFoundError, ScanSubmitResult, ScanSubmitRouteError, save_scan_submission
 from .scan_support import (
+    ScanActor,
+    ScanPermissions,
+    ScanRouteOptions,
+    ScanRouteResult,
     ScanSurface,
     can_skip_storage_selection,
     format_scan_location_label,
@@ -40,7 +49,7 @@ from .scan_support import (
     storage_selection_subtitle,
     validate_scan_route,
 )
-from .schema import ScanItemRequest, ScanStoragesRequest
+from .schema import ScanItemQuery, ScanItemRequest, ScanStoragesRequest
 from .upc_service import record_unknown_upc
 
 
@@ -55,9 +64,9 @@ def handle_scan_start(
     surface = ScanSurface.from_admin_flag(is_admin)
 
     with get_session() as db:
-        item = _get_scan_item(db, item_id, upc, is_admin=is_admin)
+        item = _get_scan_item(db, item_id, upc)
         if not item:
-            message = "Item not found for this agency."
+            message = SCAN_ITEM_NOT_FOUND_MESSAGE
             if upc:
                 try:
                     message = record_unknown_upc(db, current_user.id, upc).message
@@ -87,8 +96,9 @@ def handle_scan_start(
         )
         flash("No valid storages found. Please check this device location.", "error")
         return redirect(surface.fallback_url(agency_id))
-    if can_skip_storage_selection(from_storages, to_storages, permissions):
-        return redirect_to_scan_item(surface, agency_id, item.id, from_storages, to_storages, permissions)
+    route_options = ScanRouteOptions(from_storages, to_storages, permissions)
+    if can_skip_storage_selection(route_options):
+        return redirect_to_scan_item(surface, agency_id, item.id, route_options)
     return redirect(
         url_for(
             surface.endpoint("scan_storages"),
@@ -109,7 +119,7 @@ def handle_scan_storages_get(
     permissions = get_scan_permissions(agency_id, is_admin=is_admin)
 
     with get_session() as db:
-        item = _get_scan_item(db, item_id, None, is_admin=is_admin)
+        item = _get_scan_item(db, item_id, None)
         if not item:
             logger.info(
                 "Storage selection rejected: item was not found",
@@ -117,7 +127,7 @@ def handle_scan_storages_get(
                     "item_id": item_id,
                 },
             )
-            flash("Item not found for this agency.", "warning")
+            flash(SCAN_ITEM_NOT_FOUND_MESSAGE, "warning")
             return redirect(surface.fallback_url(agency_id))
 
         storage_choices = load_scan_storage_choices(current_user.id, is_admin, db)
@@ -125,8 +135,9 @@ def handle_scan_storages_get(
         to_storages = storage_choices.to_storages
         default_location_id = storage_choices.default_location_id
 
-    if can_skip_storage_selection(from_storages, to_storages, permissions):
-        return redirect_to_scan_item(surface, agency_id, item.id, from_storages, to_storages, permissions)
+    route_options = ScanRouteOptions(from_storages, to_storages, permissions)
+    if can_skip_storage_selection(route_options):
+        return redirect_to_scan_item(surface, agency_id, item.id, route_options)
 
     auto_from_id = single_scan_from_id(from_storages, permissions)
     return render_template(
@@ -159,18 +170,12 @@ def handle_scan_storages_post(agency_id: int, form_data: dict, is_admin: bool = 
                 "error": str(exc),
             },
         )
-        flash("Invalid form data. Please try again.", "error")
+        flash(INVALID_FORM_DATA_MESSAGE, "error")
         return redirect(surface.fallback_url(agency_id))
 
     with get_session() as db:
-        route_error = validate_scan_route(
-            current_user.id,
-            request_data.from_storage_id,
-            request_data.to_storage_id,
-            permissions,
-            is_admin=is_admin,
-            session=db,
-        )
+        actor = ScanActor(current_user.id, is_admin, db)
+        route_error = validate_scan_route(actor, request_data.from_storage_id, request_data.to_storage_id, permissions)
 
     if request_data.same_location_error == "1" or route_error:
         logger.info(
@@ -182,7 +187,7 @@ def handle_scan_storages_post(agency_id: int, form_data: dict, is_admin: bool = 
                 "error": route_error,
             },
         )
-        flash(route_error or "Invalid storage combination.", "error")
+        flash(route_error or INVALID_STORAGE_COMBINATION_MESSAGE, "error")
         return redirect(url_for(surface.endpoint("scan_storages"), agency_id=agency_id, item_id=request_data.item_id))
 
     scan_item_args: dict[str, Any] = {
@@ -202,29 +207,15 @@ def handle_scan_storages_post(agency_id: int, form_data: dict, is_admin: bool = 
     )
 
 
-def handle_scan_item_get(
-    agency_id: int,
-    item_id: int | None,
-    from_storage_id,
-    to_storage_id,
-    is_admin: bool = False,
-    show_scan_route: bool = False,
-):
+def handle_scan_item_get(agency_id: int, query: ScanItemQuery, is_admin: bool = False):
+    item_id, from_storage_id, to_storage_id, show_scan_route = query.item_id, query.from_storage_id, query.to_storage_id, query.show_scan_route
     surface = ScanSurface.from_admin_flag(is_admin)
     permissions = get_scan_permissions(agency_id, is_admin=is_admin)
-    from_storage_id = parse_optional_int(from_storage_id)
-    to_storage_id = parse_optional_int(to_storage_id)
 
     with get_session() as db:
-        route_error = validate_scan_route(
-            current_user.id,
-            from_storage_id,
-            to_storage_id,
-            permissions,
-            is_admin=is_admin,
-            session=db,
-        )
-        item = _get_scan_item(db, item_id, None, is_admin=is_admin)
+        actor = ScanActor(current_user.id, is_admin, db)
+        route_error = validate_scan_route(actor, from_storage_id, to_storage_id, permissions)
+        item = _get_scan_item(db, item_id, None)
         from_storage = resolve_scan_location(from_storage_id, current_user.id, session=db)
         to_storage = resolve_scan_location(to_storage_id, current_user.id, takeout_allowed=True, session=db)
     if route_error:
@@ -321,28 +312,23 @@ def _fillout_hints(operation_type, item, to_storage: Storage | int | None) -> tu
     return False, None
 
 
-def handle_scan_item_post(agency_id: int, form_data: dict, is_admin: bool = False):
-    surface = ScanSurface.from_admin_flag(is_admin)
-    permissions = get_scan_permissions(agency_id, is_admin=is_admin)
-
-    request_data = _parse_scan_item_request(form_data)
-    if request_data is None:
-        return redirect(surface.scan_item_error_url(agency_id))
-
+def _save_scan_or_error(
+    agency_id: int,
+    actor: ScanActor,
+    request_data: ScanItemRequest,
+    permissions: ScanPermissions,
+    expiration_allocations,
+) -> tuple[ScanSubmitResult, None] | tuple[None, Any]:
+    """Save a scan submission, translating known failures into a redirect response."""
+    surface = ScanSurface.from_admin_flag(actor.is_admin)
     try:
-        with get_session() as db:
-            groups = _scan_expiration_groups(db, request_data)
-            if groups and form_data.get("expiration_confirmed") != "1":
-                return _render_scan_expiration_entry(agency_id, groups, form_data, is_admin)
-            expiration_allocations = parse_expiration_allocations(form_data, groups).get(groups[0].spec.key, []) if groups else None
-            result = save_scan_submission(
-                db,
-                agency_id=current_user.id,
-                request_data=request_data,
-                permissions=permissions,
-                is_admin=is_admin,
-                expiration_allocations=expiration_allocations,
-            )
+        result = save_scan_submission(
+            actor,
+            request_data=request_data,
+            permissions=permissions,
+            expiration_allocations=expiration_allocations,
+        )
+        return result, None
     except ScanSubmitRouteError as exc:
         logger.info(
             "Scan submit rejected: selected route is not allowed",
@@ -354,9 +340,9 @@ def handle_scan_item_post(agency_id: int, form_data: dict, is_admin: bool = Fals
             },
         )
         flash(str(exc), "error")
-        return redirect(surface.scan_item_error_url(agency_id))
+        return None, redirect(surface.scan_item_error_url(agency_id))
     except ScanSubmitItemNotFoundError:
-        return _scan_item_not_found_response(agency_id, surface, request_data)
+        return None, _scan_item_not_found_response(agency_id, surface, request_data)
     except (InventoryError, ValueError) as exc:
         logger.info(
             "Inventory update rejected by validation rules",
@@ -369,7 +355,7 @@ def handle_scan_item_post(agency_id: int, form_data: dict, is_admin: bool = Fals
             },
         )
         flash(str(exc), "warning")
-        return redirect(surface.scan_item_error_url(agency_id))
+        return None, redirect(surface.scan_item_error_url(agency_id))
     except Exception:
         logger.exception(
             "Inventory update crashed unexpectedly",
@@ -381,18 +367,37 @@ def handle_scan_item_post(agency_id: int, form_data: dict, is_admin: bool = Fals
             },
         )
         flash("Inventory could not be saved. Try again.", "error")
+        return None, redirect(surface.scan_item_error_url(agency_id))
+
+
+def handle_scan_item_post(agency_id: int, form_data: dict, is_admin: bool = False):
+    surface = ScanSurface.from_admin_flag(is_admin)
+    permissions = get_scan_permissions(agency_id, is_admin=is_admin)
+
+    request_data = _parse_scan_item_request(form_data)
+    if request_data is None:
         return redirect(surface.scan_item_error_url(agency_id))
 
-    message = scan_success_message(
-        result.operation_type,
-        result.item.name,
-        result.quantity,
-        result.from_storage_id,
-        result.to_storage_id,
-        is_admin=is_admin,
+    with get_session() as db:
+        groups = _scan_expiration_groups(db, request_data)
+        if groups and form_data.get("expiration_confirmed") != "1":
+            return _render_scan_expiration_entry(agency_id, groups, form_data, is_admin)
+        expiration_allocations = parse_expiration_allocations(form_data, groups).get(groups[0].spec.key, []) if groups else None
+        actor = ScanActor(current_user.id, is_admin, db)
+        result, error_response = _save_scan_or_error(agency_id, actor, request_data, permissions, expiration_allocations)
+
+    if error_response is not None:
+        return error_response
+    if result is None:
+        raise RuntimeError("scan submission returned neither a result nor an error response")
+
+    route = ScanRouteResult(
+        from_storage_id=result.from_storage_id,
+        to_storage_id=result.to_storage_id,
         from_storage=result.from_storage if isinstance(result.from_storage, Storage) else None,
         to_storage=result.to_storage if isinstance(result.to_storage, Storage) else None,
     )
+    message = scan_success_message(result.operation_type, result.item.name, result.quantity, route, is_admin=is_admin)
     logger.info(
         "Inventory scan completed",
         extra={
@@ -470,7 +475,7 @@ def _parse_scan_item_request(form_data: dict) -> ScanItemRequest | None:
                 "error": str(exc),
             },
         )
-        flash("Invalid form data. Please try again.", "error")
+        flash(INVALID_FORM_DATA_MESSAGE, "error")
         return None
 
 
@@ -500,11 +505,11 @@ def _scan_item_not_found_response(
         "Scan submit rejected: item was not found",
         extra={"item_id": request_data.item_id},
     )
-    flash("Item not found for this agency.", "warning")
+    flash(SCAN_ITEM_NOT_FOUND_MESSAGE, "warning")
     return redirect(surface.fallback_url(agency_id))
 
 
-def _get_scan_item(db, item_id: int | None, upc: str | None, *, is_admin: bool):
+def _get_scan_item(db, item_id: int | None, upc: str | None):
     if upc:
         return get_item_by_upc(current_user.id, upc.strip(), session=db)
     if item_id is None:

@@ -2,17 +2,16 @@
 
 from dataclasses import dataclass
 
-from sqlalchemy.orm import Session
-
 from app.auth.models import Storage
 
 from .constants import OperationType
 from .expiration_service import ExpirationAllocation
 from .item_queries import get_agency_item
 from .models import ActionLog, Item
-from .mutation_service import inventory_operation
+from .mutation_service import MutationTarget, inventory_operation
 from .quantity_service import has_item_count
 from .scan_support import (
+    ScanActor,
     ScanPermissions,
     operation_from_storage_ids,
     resolve_scan_location,
@@ -43,23 +42,15 @@ class ScanSubmitResult:
 
 
 def save_scan_submission(
-    session: Session,
+    actor: ScanActor,
     *,
-    agency_id: int,
     request_data: ScanItemRequest,
     permissions: ScanPermissions,
-    is_admin: bool,
     expiration_allocations: list[ExpirationAllocation] | None = None,
 ) -> ScanSubmitResult:
     """Validate and persist one scan submission."""
-    route_error = validate_scan_route(
-        agency_id,
-        request_data.from_storage_id,
-        request_data.to_storage_id,
-        permissions,
-        is_admin=is_admin,
-        session=session,
-    )
+    session, agency_id, is_admin = actor.session, actor.agency_id, actor.is_admin
+    route_error = validate_scan_route(actor, request_data.from_storage_id, request_data.to_storage_id, permissions)
     if route_error:
         raise ScanSubmitRouteError(route_error)
 
@@ -73,17 +64,15 @@ def save_scan_submission(
         request_data.from_storage_id,
         request_data.to_storage_id,
     )
-    action = inventory_operation(
+    target = MutationTarget(
         agency_id=agency_id,
         item_id=item.id,
         quantity=request_data.counter_value,
         operation_type=operation_type,
         from_storage=from_storage_id,
         to_storage=to_storage_id,
-        admin_action=is_admin,
-        session=session,
-        expiration_allocations=expiration_allocations,
     )
+    action = inventory_operation(target, admin_action=is_admin, expiration_allocations=expiration_allocations, session=session)
     initial_count_required = not operation_type.is_count and not has_item_count(session, agency_id, item.id)
     session.commit()
     return ScanSubmitResult(

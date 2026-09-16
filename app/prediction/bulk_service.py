@@ -16,7 +16,19 @@ from app.inventory.location_state_service import recompute_item_location_state
 from app.inventory.models import InventoryItemLocationState, Item
 from app.prediction.estimator import reorder_date
 from app.prediction.formatting import format_usage_rate, rounded_confidence_percent
-from app.shared.timezone_utils import convert_utc_to_local
+from app.shared.timezone_utils import convert_utc_to_local, resolve_timezone
+
+
+@dataclass(frozen=True, slots=True)
+class OrderAmountInputs:
+    """Inputs to the reorder-amount calculation for one item at one location."""
+
+    current_total: int
+    max_qty: int
+    daily_usage: float
+    delivery_days: int
+    batch_size: int
+    days_until_low: float | None
 
 
 @dataclass(frozen=True, slots=True)
@@ -69,7 +81,7 @@ class BulkService:
                 agency_id,
                 agency_location_id,
                 item_ids,
-                agency_settings.timezone if agency_settings else "UTC",
+                resolve_timezone(agency_settings.timezone if agency_settings else None),
             )
             expired_quantity_by_item_id = expired_quantity_by_item(session, agency_id, agency_location_id, item_ids)
             rows = [
@@ -113,7 +125,7 @@ class BulkService:
             agency_id,
             agency_location_id,
             [item.id],
-            agency_settings.timezone if agency_settings else "UTC",
+            resolve_timezone(agency_settings.timezone if agency_settings else None),
         ).get(item.id)
         expired_quantity = expired_quantity_by_item(session, agency_id, agency_location_id, [item.id]).get(item.id, 0)
         return BulkService._analyze_item(item, agency_settings, state, last_counted_at, expired_quantity).order_amount
@@ -157,12 +169,14 @@ class BulkService:
         days_out = days_to_threshold(current_quantity, -daily_usage, 0) if daily_usage is not None else None
         order_amount = (
             BulkService._calculate_order_amount(
-                current_total=usable_quantity,
-                max_qty=max_qty,
-                daily_usage=daily_usage,
-                delivery_days=lead_time_days,
-                batch_size=batch_size,
-                days_until_low=days_low,
+                OrderAmountInputs(
+                    current_total=usable_quantity,
+                    max_qty=max_qty,
+                    daily_usage=daily_usage,
+                    delivery_days=lead_time_days,
+                    batch_size=batch_size,
+                    days_until_low=days_low,
+                )
             )
             if daily_usage is not None
             else None
@@ -244,24 +258,17 @@ class BulkService:
         return latest
 
     @staticmethod
-    def _calculate_order_amount(
-        current_total: int,
-        max_qty: int,
-        daily_usage: float,
-        delivery_days: int,
-        batch_size: int,
-        days_until_low: float | None,
-    ) -> int | None:
-        if max_qty <= 0:
+    def _calculate_order_amount(inputs: OrderAmountInputs) -> int | None:
+        if inputs.max_qty <= 0:
             return 0
-        if days_until_low is None:
+        if inputs.days_until_low is None:
             return None
 
-        needed = max_qty - current_total + daily_usage * max(delivery_days, 0)
+        needed = inputs.max_qty - inputs.current_total + inputs.daily_usage * max(inputs.delivery_days, 0)
         if needed <= 0:
             return 0
-        if batch_size > 0:
-            return int(((needed + batch_size - 1) // batch_size) * batch_size)
+        if inputs.batch_size > 0:
+            return int(((needed + inputs.batch_size - 1) // inputs.batch_size) * inputs.batch_size)
         return int(needed)
 
     @staticmethod

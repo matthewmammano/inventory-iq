@@ -75,22 +75,29 @@ def send_inventory_count_report(
     )
 
 
+@dataclass(frozen=True, slots=True)
+class HistoryReportRange:
+    """Date bounds for a history report: UTC bounds for the query, display labels for the email."""
+
+    start_utc: datetime | None
+    end_utc: datetime | None
+    start_label: str
+    end_label: str
+
+
 def send_history_report(
     session: Session,
     agency_id: int,
     notification_recipient_ids: list[int],
     agency_location_id: int | None,
-    start_utc: datetime | None,
-    end_utc: datetime | None,
-    start_date: str,
-    end_date: str,
+    date_range: HistoryReportRange,
 ) -> EmailDeliveryResult:
     agency, recipients = _agency_recipients(session, agency_id, notification_recipient_ids)
     if agency is None or not recipients:
         return EmailDeliveryResult(0, 0)
-    export = build_history_csv_attachment(session, agency, agency_location_id, start_utc, end_utc)
+    export = build_history_csv_attachment(session, agency, agency_location_id, date_range.start_utc, date_range.end_utc)
     return _deliver_batch_to_recipients(
-        _build_history_batch(agency, export, start_date, end_date),
+        _build_history_batch(agency, export, date_range.start_label, date_range.end_label),
         recipients,
         (export.attachment,),
     )

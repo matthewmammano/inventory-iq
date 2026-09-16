@@ -2,13 +2,12 @@
 
 from dataclasses import dataclass
 
-from sqlalchemy import select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import Session
 
-from app.inventory.location_state_service import update_state_trend
+from app.inventory.location_state_service import TrendUpdate, get_item_location_state, update_state_trend
 from app.inventory.models import InventoryItemLocationState
-from app.prediction.constants import CONFIDENCE_FULL_SEGMENTS, MIN_TREND_SEGMENTS
+from app.prediction.constants import CONFIDENCE_FULL_SEGMENTS, MIN_TREND_SEGMENTS, SECONDS_PER_DAY
 from app.prediction.segments import TrendSegment, build_training_signature, extract_segments
 from app.shared.clock import utc_now_naive
 
@@ -42,11 +41,7 @@ def train_location_trend(
             agency_id,
             item_id,
             agency_location_id,
-            trend_per_day=None,
-            confidence_percent=None,
-            segment_count=0,
-            data_signature=signature,
-            trained_at=utc_now_naive(),
+            TrendUpdate(trend_per_day=None, confidence_percent=None, segment_count=0, data_signature=signature, trained_at=utc_now_naive()),
         )
 
     return update_state_trend(
@@ -54,11 +49,13 @@ def train_location_trend(
         agency_id,
         item_id,
         agency_location_id,
-        trend_per_day=fit.trend_per_day,
-        confidence_percent=fit.confidence_percent,
-        segment_count=fit.segment_count,
-        data_signature=signature,
-        trained_at=utc_now_naive(),
+        TrendUpdate(
+            trend_per_day=fit.trend_per_day,
+            confidence_percent=fit.confidence_percent,
+            segment_count=fit.segment_count,
+            data_signature=signature,
+            trained_at=utc_now_naive(),
+        ),
     )
 
 
@@ -70,17 +67,7 @@ def get_inventory_trend(
 ) -> InventoryItemLocationState | None:
     """Return the current state row that owns persisted trend fields."""
     try:
-        return (
-            session.execute(
-                select(InventoryItemLocationState).where(
-                    InventoryItemLocationState.agency_id == agency_id,
-                    InventoryItemLocationState.item_id == item_id,
-                    InventoryItemLocationState.agency_location_id == agency_location_id,
-                )
-            )
-            .scalars()
-            .first()
-        )
+        return get_item_location_state(session, agency_id, item_id, agency_location_id)
     except SQLAlchemyError:
         return None
 
@@ -93,7 +80,7 @@ def fit_trend(segments: list[TrendSegment]) -> TrendFit | None:
     now = utc_now_naive()
     if segments[0].end_at.tzinfo is None:
         now = now.replace(tzinfo=None)
-    x_values = [(segment.end_at - now).total_seconds() / 86_400 for segment in segments]
+    x_values = [(segment.end_at - now).total_seconds() / SECONDS_PER_DAY for segment in segments]
     y_values = [segment.trend_per_day for segment in segments]
     weights = [segment.weight for segment in segments]
     trend = min(_weighted_linear_intercept(x_values, y_values, weights), 0.0)
@@ -113,8 +100,8 @@ def _weighted_linear_intercept(
     if weight_total <= 0:
         return 0.0
 
-    x_bar = sum(w * x for x, w in zip(x_values, weights, strict=True)) / weight_total
-    y_bar = sum(w * y for y, w in zip(y_values, weights, strict=True)) / weight_total
+    x_bar = _weighted_mean(x_values, weights, weight_total)
+    y_bar = _weighted_mean(y_values, weights, weight_total)
     variance_x = sum(w * (x - x_bar) ** 2 for x, w in zip(x_values, weights, strict=True))
     if variance_x == 0:
         return y_bar
@@ -122,6 +109,10 @@ def _weighted_linear_intercept(
     covariance = sum(w * (x - x_bar) * (y - y_bar) for x, y, w in zip(x_values, y_values, weights, strict=True))
     slope = covariance / variance_x
     return y_bar - slope * x_bar
+
+
+def _weighted_mean(values: list[float], weights: list[float], weight_total: float) -> float:
+    return sum(w * value for value, w in zip(values, weights, strict=True)) / weight_total
 
 
 def _confidence_percent(
@@ -134,7 +125,7 @@ def _confidence_percent(
     if weight_total <= 0:
         return 0.0
 
-    mean = sum(w * trend for trend, w in zip(trends, weights, strict=True)) / weight_total
+    mean = _weighted_mean(trends, weights, weight_total)
     variance = sum(w * (trend - mean) ** 2 for trend, w in zip(trends, weights, strict=True)) / weight_total
     spread = variance**0.5
     agreement = 1.0 if spread == 0 else abs(fitted_trend) / (abs(fitted_trend) + spread)

@@ -39,8 +39,7 @@ def send_developer_delivery_failure_alert(delivery: EmailDelivery) -> None:
 
 
 def _claim_developer_alert_window() -> bool:
-    # Lazy import: scheduler imports the alert services at module load, so a
-    # top-level import here would create a cycle.
+    """Import the scheduler lazily; it imports alert services at module load, which would cycle here."""
     from app.shared.scheduler import SchedulerJobName, claim_scheduler_run, scheduler_developer_alert_period_key
 
     return claim_scheduler_run(SchedulerJobName.DEVELOPER_DELIVERY_ALERT, scheduler_developer_alert_period_key()) is not None

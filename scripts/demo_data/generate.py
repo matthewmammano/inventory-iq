@@ -167,7 +167,7 @@ def main(argv: list[str] | None = None) -> None:
                 f"  {rig.location.name} (x{rig.multiplier}): {len(plan)} planned, "
                 f"{stats.applied} applied, {stats.skipped} skipped in {elapsed:.1f}s"
             )
-            if stats.skip_counts:
+            if stats.skip_counts and stats.skip_examples:
                 for key, count in sorted(stats.skip_counts.items(), key=lambda kv: -kv[1]):
                     print(f"    skip[{key}] x{count}: {stats.skip_examples[key]}")
 

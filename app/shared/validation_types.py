@@ -3,7 +3,7 @@
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from enum import StrEnum
-from typing import Annotated, Any
+from typing import Annotated, Any, Final
 
 from pydantic import AfterValidator, BeforeValidator
 
@@ -73,6 +73,8 @@ def _blank_to_none(value: Any) -> Any:
     return None if isinstance(value, str) and not value.strip() else value
 
 
+RESET_PIN_LENGTH: Final[int] = 6
+
 DisplayName = Annotated[str, _required_string("display_name", 50)]
 EmailAddress128 = Annotated[str, _validated_email(128)]
 ImageSource = Annotated[str | None, AfterValidator(validate_image_url)]
@@ -83,7 +85,7 @@ OptionalPositiveInt = Annotated[int | None, _optional_positive_int("value")]
 PositiveInt = Annotated[int, _required_positive_int("value")]
 QuietTime = Annotated[str | None, _validated_time("quiet time")]
 Quantity = Annotated[int, _required_non_negative_int("quantity")]
-ResetPin = Annotated[str, AfterValidator(lambda value: validate_pin_length(value, 6))]
+ResetPin = Annotated[str, AfterValidator(lambda value: validate_pin_length(value, RESET_PIN_LENGTH))]
 Password = Annotated[str, AfterValidator(validate_password_strength)]
 StorageName = Annotated[str, _required_string("name", 50)]
 TagName = Annotated[str, _required_string("tag_name", 50)]
@@ -156,7 +158,14 @@ FIELD_SPECS: Mapping[FieldRuleName, FieldSpec] = {
         "Admin PIN", "PIN must be exactly 4 digits.", AdminPin, ("pin4",), inputmode="numeric", pattern="[0-9]{4}", maxlength=4, required=True
     ),
     FieldRuleName.PIN6: FieldSpec(
-        "Reset PIN", "PIN must be exactly 6 digits.", ResetPin, ("pin6",), inputmode="numeric", pattern="[0-9]{6}", maxlength=6, required=True
+        "Reset PIN",
+        f"PIN must be exactly {RESET_PIN_LENGTH} digits.",
+        ResetPin,
+        ("pin6",),
+        inputmode="numeric",
+        pattern=f"[0-9]{{{RESET_PIN_LENGTH}}}",
+        maxlength=RESET_PIN_LENGTH,
+        required=True,
     ),
     FieldRuleName.POSITIVE_INT: FieldSpec(
         "Number", "Enter a positive whole number.", PositiveInt, ("positive_int",), input_type="number", min_value=1, required=True

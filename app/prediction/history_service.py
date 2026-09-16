@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.auth.models import Location
 from app.inventory.constants import OperationType
 from app.inventory.models import ActionLog, Item
+from app.prediction.constants import SECONDS_PER_DAY
 from app.prediction.formatting import format_usage_rate
 from app.prediction.schema import ItemTrendChartResponse, TrendChartPoint
 from app.prediction.segments import CountAnchor, extract_count_anchors, get_location_storage_ids
@@ -171,7 +172,7 @@ def _trendline_points(
 
 
 def _trend_point(at: datetime, start_at: datetime, start_quantity: float, trend_per_day: float) -> TrendChartPoint:
-    days = (at - start_at).total_seconds() / 86_400
+    days = (at - start_at).total_seconds() / SECONDS_PER_DAY
     return _point(at, max(start_quantity + trend_per_day * days, 0.0), "TREND")
 
 

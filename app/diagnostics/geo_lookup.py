@@ -10,11 +10,11 @@ from loguru import logger
 from app.shared.cache import ttl_cache
 
 GEO_LOOKUP_TIMEOUT_SECONDS = 2
-GEO_LOOKUP_URL = "http://ip-api.com/json/{ip}?fields=status,country,city"
+GEO_LOOKUP_URL = "http://ip-api.com/json"
 GEO_CACHE_TTL_SECONDS = 900
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class GeoLocation:
     country: str | None = None
     city: str | None = None
@@ -26,7 +26,8 @@ def lookup_geo(ip: str) -> GeoLocation:
     if not _is_public_ip(ip):
         return GeoLocation()
     try:
-        with urlopen(GEO_LOOKUP_URL.format(ip=ip), timeout=GEO_LOOKUP_TIMEOUT_SECONDS) as response:  # nosec B310 - fixed http scheme, no user-controlled URL
+        url = f"{GEO_LOOKUP_URL}/{ip}?fields=status,country,city"
+        with urlopen(url, timeout=GEO_LOOKUP_TIMEOUT_SECONDS) as response:  # nosec B310 - fixed http scheme, no user-controlled URL
             payload = json.loads(response.read())
     except (OSError, ValueError) as exc:
         logger.debug("Geo lookup failed", extra={"error": type(exc).__name__})

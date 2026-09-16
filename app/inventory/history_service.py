@@ -1,5 +1,6 @@
 """Shared action history queries for admin views and exports."""
 
+from dataclasses import dataclass
 from datetime import datetime
 
 from sqlalchemy import or_, select
@@ -12,14 +13,21 @@ from app.inventory.models import ActionLog
 HISTORY_REPORT_LIMIT = 5000
 
 
+@dataclass(frozen=True, slots=True)
+class HistoryLogQuery:
+    """Page window and optional UTC date bounds for filtering action history."""
+
+    page: int
+    page_size: int
+    start_utc: datetime | None = None
+    end_utc: datetime | None = None
+
+
 def list_history_logs(
     session: Session,
     agency_id: int,
     agency_location_id: int | None,
-    page: int,
-    page_size: int,
-    start_utc: datetime | None = None,
-    end_utc: datetime | None = None,
+    query: HistoryLogQuery,
 ) -> tuple[list[ActionLog], bool]:
     """Return one page of action history for an agency and optional location scope."""
     stmt = (
@@ -42,9 +50,14 @@ def list_history_logs(
             if storage_ids
             else ActionLog.id == -1
         )
-    if start_utc is not None:
-        stmt = stmt.where(ActionLog.time_scanned >= start_utc)
-    if end_utc is not None:
-        stmt = stmt.where(ActionLog.time_scanned < end_utc)
-    rows = list(session.execute(stmt.order_by(ActionLog.id.desc()).offset((page - 1) * page_size).limit(page_size + 1)).unique().scalars().all())
-    return rows[:page_size], len(rows) > page_size
+    if query.start_utc is not None:
+        stmt = stmt.where(ActionLog.time_scanned >= query.start_utc)
+    if query.end_utc is not None:
+        stmt = stmt.where(ActionLog.time_scanned < query.end_utc)
+    rows = list(
+        session.execute(stmt.order_by(ActionLog.id.desc()).offset((query.page - 1) * query.page_size).limit(query.page_size + 1))
+        .unique()
+        .scalars()
+        .all()
+    )
+    return rows[: query.page_size], len(rows) > query.page_size

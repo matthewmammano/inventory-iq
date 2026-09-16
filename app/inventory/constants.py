@@ -50,6 +50,9 @@ UNKNOWN_UPC_REVIEW_MESSAGE: Final[str] = (
 UNKNOWN_UPC_IGNORED_MESSAGE: Final[str] = "UPC is invalid. Try a different barcode or search by item name."
 UNKNOWN_UPC_INVALID_MESSAGE: Final[str] = "Not a valid 12-digit UPC. Try another barcode or search by item name."
 UNKNOWN_UPC_LINKED_MESSAGE: Final[str] = "UPC is already linked to an item. Refresh and try scanning again."
+SCAN_ITEM_NOT_FOUND_MESSAGE: Final[str] = "Item not found for this agency."
+INVALID_FORM_DATA_MESSAGE: Final[str] = "Invalid form data. Please try again."
+INVALID_STORAGE_COMBINATION_MESSAGE: Final[str] = "Invalid storage combination."
 UNKNOWN_UPC_STATUS_MESSAGES: Final[dict[UnknownUpcStatus, str]] = {
     UnknownUpcStatus.PENDING: UNKNOWN_UPC_REVIEW_MESSAGE,
     UnknownUpcStatus.RESOLVED: UNKNOWN_UPC_LINKED_MESSAGE,

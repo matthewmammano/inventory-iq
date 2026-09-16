@@ -46,6 +46,16 @@ class EmailAttachment:
     content_bytes: bytes
 
 
+@dataclass(frozen=True, slots=True)
+class SendAttempt:
+    """Position of one delivery attempt in the retry sequence, and its target/delay schedule."""
+
+    number: int
+    max_attempts: int
+    recipient_domain: str
+    retry_delays_seconds: tuple[int, ...]
+
+
 def email_configured() -> bool:
     """Return whether real email delivery is configured."""
     return bool(_config("EMAIL_API_URL") and _config("EMAIL_API_KEY") and _config("EMAIL_SENDER_EMAIL"))
@@ -114,85 +124,45 @@ def send_email(
     )
     max_attempts = len(retry_delays_seconds) + 1
     recipient_domain = email_domain(email.to_email)
-    for attempt in range(1, max_attempts + 1):
-        result = _send_request(request, attempt, max_attempts, recipient_domain, retry_delays_seconds)
+    for attempt_number in range(1, max_attempts + 1):
+        attempt = SendAttempt(attempt_number, max_attempts, recipient_domain, retry_delays_seconds)
+        result = _send_request(request, attempt)
         if result == EmailAttemptResult.SENT:
             return True
         if result == EmailAttemptResult.FAILED:
             return False
-        time.sleep(retry_delays_seconds[attempt - 1])
+        time.sleep(retry_delays_seconds[attempt_number - 1])
     return False
 
 
-def _send_request(
-    request: Request,
-    attempt: int,
-    max_attempts: int,
-    recipient_domain: str,
-    retry_delays_seconds: tuple[int, ...],
-) -> EmailAttemptResult:
+def _send_request(request: Request, attempt: SendAttempt) -> EmailAttemptResult:
     try:
         with build_opener(HTTPSHandler()).open(request, timeout=_timeout_seconds()) as response:
             if 200 <= response.status < 300:
-                logger.debug("Email provider accepted message", extra={"recipient_domain": recipient_domain, "attempt": attempt})
+                logger.debug("Email provider accepted message", extra={"recipient_domain": attempt.recipient_domain, "attempt": attempt.number})
                 return EmailAttemptResult.SENT
-            if attempt < max_attempts:
-                _log_retry(
-                    recipient_domain,
-                    attempt,
-                    max_attempts,
-                    retry_delays_seconds[attempt - 1],
-                    {"status": response.status},
-                )
-                return EmailAttemptResult.RETRY
-            logger.error(
-                "Email delivery failed after final provider response",
-                extra={"recipient_domain": recipient_domain, "status": response.status, "attempt": attempt, "max_attempts": max_attempts},
-            )
-            return EmailAttemptResult.FAILED
+            return _retry_or_fail(attempt, {"status": response.status}, "Email delivery failed after final provider response")
     except HTTPError as exc:
         message = _http_error_message(exc)
         if exc.code != 429 and 400 <= exc.code < 500:
             logger.error(
                 "Email provider rejected message",
-                extra={"recipient_domain": recipient_domain, "status": exc.code, "attempt": attempt, "provider_message": message},
+                extra={"recipient_domain": attempt.recipient_domain, "status": exc.code, "attempt": attempt.number, "provider_message": message},
             )
             return EmailAttemptResult.FAILED
-        if attempt < max_attempts:
-            _log_retry(
-                recipient_domain,
-                attempt,
-                max_attempts,
-                retry_delays_seconds[attempt - 1],
-                {"status": exc.code, "provider_message": message},
-            )
-            return EmailAttemptResult.RETRY
-        logger.error(
-            "Email delivery failed after retries",
-            extra={
-                "recipient_domain": recipient_domain,
-                "status": exc.code,
-                "attempt": attempt,
-                "max_attempts": max_attempts,
-                "provider_message": message,
-            },
-        )
-        return EmailAttemptResult.FAILED
+        return _retry_or_fail(attempt, {"status": exc.code, "provider_message": message}, "Email delivery failed after retries")
     except (TimeoutError, URLError, OSError) as exc:
-        if attempt < max_attempts:
-            _log_retry(
-                recipient_domain,
-                attempt,
-                max_attempts,
-                retry_delays_seconds[attempt - 1],
-                {"error": type(exc).__name__},
-            )
-            return EmailAttemptResult.RETRY
-        logger.error(
-            "Email request failed after retries",
-            extra={"recipient_domain": recipient_domain, "error": type(exc).__name__, "attempt": attempt, "max_attempts": max_attempts},
-        )
-        return EmailAttemptResult.FAILED
+        return _retry_or_fail(attempt, {"error": type(exc).__name__}, "Email request failed after retries")
+
+
+def _retry_or_fail(attempt: SendAttempt, reason: dict[str, object], fail_message: str) -> EmailAttemptResult:
+    """Log and decide whether a failed send attempt should retry or give up for good."""
+    if attempt.number < attempt.max_attempts:
+        _log_retry(attempt.recipient_domain, attempt.number, attempt.max_attempts, attempt.retry_delays_seconds[attempt.number - 1], reason)
+        return EmailAttemptResult.RETRY
+    extra = reason | {"recipient_domain": attempt.recipient_domain, "attempt": attempt.number, "max_attempts": attempt.max_attempts}
+    logger.error(fail_message, extra=extra)
+    return EmailAttemptResult.FAILED
 
 
 def _log_retry(

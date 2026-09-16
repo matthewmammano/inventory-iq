@@ -2,13 +2,15 @@
 
 import re
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 HELP_ARTICLE_ID_PATTERN = r"^[a-z0-9]+(?:-[a-z0-9]+)*$"
 
 
 class HelpArticleMetadata(BaseModel):
     """Validated metadata loaded from a help article file."""
+
+    model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     id: str = Field(pattern=HELP_ARTICLE_ID_PATTERN)
     title: str = Field(min_length=1, max_length=90)

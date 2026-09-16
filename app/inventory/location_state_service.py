@@ -51,6 +51,17 @@ class LocationStateRebuildInput:
     settings: LocationStateSettings
 
 
+@dataclass(frozen=True, slots=True)
+class TrendUpdate:
+    """Trained usage-trend fields to write onto an item/location state row."""
+
+    trend_per_day: float | None
+    confidence_percent: float | None
+    segment_count: int
+    data_signature: str | None
+    trained_at: datetime | None
+
+
 def sync_location_states_for_actions(session: Session, actions: list[ActionLog]) -> None:
     """Refresh item/location state rows affected by committed inventory actions."""
     keys = affected_item_location_keys_for_actions(session, actions)
@@ -97,7 +108,7 @@ def recompute_item_location_state(
 ) -> InventoryItemLocationState | None:
     """Refresh one state row from current balances, item settings, and trend fields."""
     settings = _location_state_settings(session, agency_id, item_id, agency_location_id)
-    existing = _existing_location_state(session, agency_id, item_id, agency_location_id)
+    existing = get_item_location_state(session, agency_id, item_id, agency_location_id)
     if settings is None:
         if existing is not None:
             session.delete(existing)
@@ -120,22 +131,17 @@ def update_state_trend(
     agency_id: int,
     item_id: int,
     agency_location_id: int,
-    *,
-    trend_per_day: float | None,
-    confidence_percent: float | None,
-    segment_count: int,
-    data_signature: str | None,
-    trained_at: datetime | None,
+    trend: TrendUpdate,
 ) -> InventoryItemLocationState | None:
     """Write trend fields to the current item/location state and refresh forecast math."""
     state = recompute_item_location_state(session, agency_id, item_id, agency_location_id)
     if state is None:
         return None
-    state.trend_per_day = trend_per_day
-    state.confidence_percent = confidence_percent
-    state.segment_count = segment_count
-    state.data_signature = data_signature
-    state.trained_at = trained_at
+    state.trend_per_day = trend.trend_per_day
+    state.confidence_percent = trend.confidence_percent
+    state.segment_count = trend.segment_count
+    state.data_signature = trend.data_signature
+    state.trained_at = trend.trained_at
     prior_daily_usage = session.scalar(
         select(Item.prior_daily_usage).where(
             Item.agency_id == agency_id,
@@ -362,12 +368,13 @@ def affected_item_location_keys_for_actions(
     return keys
 
 
-def _existing_location_state(
+def get_item_location_state(
     session: Session,
     agency_id: int,
     item_id: int,
     agency_location_id: int,
 ) -> InventoryItemLocationState | None:
+    """Look up one item/location state row by its agency/item/location key."""
     return session.scalar(
         select(InventoryItemLocationState).where(
             InventoryItemLocationState.agency_id == agency_id,
