@@ -90,7 +90,12 @@ def highest_priority_stock_alert(*alert_types: AlertType | None) -> AlertType | 
 def effective_daily_usage(trend_per_day: float | None, prior_daily_usage: float) -> float:
     """Return bounded daily usage from a trained trend or fallback prior usage."""
     trend = trend_per_day if trend_per_day is not None else -float(prior_daily_usage or 0)
-    return bound_daily_usage(max(0.0, -float(trend)))
+    return daily_usage_from_trend(trend)
+
+
+def daily_usage_from_trend(trend_per_day: float) -> float:
+    """Convert a declining-stock trend (<=0) into a bounded positive usage rate."""
+    return bound_daily_usage(max(0.0, -float(trend_per_day)))
 
 
 def bound_daily_usage(usage: float) -> float:
