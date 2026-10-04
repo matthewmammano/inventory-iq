@@ -46,9 +46,19 @@ document.addEventListener("DOMContentLoaded", () => {
         return true;
     }
 
+    function disableSubmitButtons(form) {
+        form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach((button) => {
+            button.disabled = true;
+        });
+    }
+
     function showWhenEventCompletes(event) {
         window.setTimeout(() => {
-            if (!event.defaultPrevented) show();
+            if (event.defaultPrevented) return;
+            if (event.type === "submit" && event.target instanceof HTMLFormElement) {
+                disableSubmitButtons(event.target);
+            }
+            show();
         }, 0);
     }
 

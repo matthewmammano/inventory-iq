@@ -48,7 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
         results.slice(0, MAX_VISIBLE_RESULTS).forEach(({ item }) => list.appendChild(resultRow(item, itemUrl)));
     }
 
-    search.focus();
+    if (!window.matchMedia("(pointer: coarse)").matches) search.focus();
     search.addEventListener("input", (event) => {
         const value = event.target.value.trim();
         if (/^\d{12}$/.test(value)) {
