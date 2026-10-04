@@ -62,3 +62,23 @@
 - USER ID CARD SCANS for guest operations (for later accountability features).
 
 - Per-location item min/max/fallback usage overrides (bc BEACH has more calls then BORO for example). different reorder, nums needed, etc for ALL locations. WE NEVER rec transfers between locations, that is USER DISCREPENCY!
+
+## MADE BY AI (unreviewed - judge each one yourself before acting)
+
+These came out of a 3-agent codebase audit (backend, frontend/UX, security/data) plus a Vercel/Next.js question, not from me directly. Keeping them separate so I know which items I haven't personally vetted yet.
+
+- [FIXED] Pending/Ignored barcode tables (`admin_pending_upcs.html`) didn't get a sticky table header on scroll like other admin tables. Fixed by broadening the sticky-thead CSS rule from `.tabbed-panel .panel thead th` to `.panel thead th` in `main.css` (also now applies to `admin_bulk_actions.html`'s bulk-combined-table, which is a bonus not a regression - confirm it still looks right there).
+- Search field (`index.html`) auto-focuses and pops the on-screen keyboard on kiosk load, covering results underneath it. Should skip autofocus on touch/coarse-pointer devices.
+- Confirm `bindUpcScanner` (global barcode-scan capture in `upc-scanner.js`) is actually wired on every page where staff would scan, not just the home search page.
+- Home search (`inventory-search.js`) caps visible results at 7 items with no browse/category fallback, so anything past that is only reachable by typing - this is the "keyboard-only trap" issue, now located concretely.
+- Double-submit risk: the loading-overlay click-guard has a ~180ms gap before it disables input, so a fast double-tap on Save/Delete/Submit can double-fire. Button should disable synchronously on first click instead.
+- "Cancel" on a pending UPC scan deletes it with a single tap, no confirm modal, unlike every other delete in the app. Should route through the existing delete-confirm pattern.
+- Three separate reimplementations of "fuzzy search w/ substring fallback" exist (`inventory-search.js`, `admin-help.js`, `bulk-item-select.js`) - candidate to extract into one shared helper.
+- Two separate reimplementations of the +/- quantity stepper exist (`counter.js`, `expiration-allocation.js`) - same idea, candidate for one shared `stepper.js`.
+- ~25 files use plain `@dataclass` where repo convention is `slots=True` (one, `balance_service.py`'s `BalanceState`, isn't even frozen) - mechanical cleanup pass, low risk.
+- Alert-record and action-log retention cleanup confirmed still unbuilt (matches what's already above in this file - not a new finding, just re-confirmed true).
+- Icon-only edit buttons (`.icon-button-sm`, 28px) are missing from the touch-target media query that already bumps other small controls to 44px+ on coarse pointers.
+- UPC-add input field (`admin_pending_upcs.html`) lacks `inputmode="numeric"` for a digit-only on-screen keyboard when typed manually.
+- 10 files exceed the ~200-line soft cap (`scan_flow.py`, `alert_service.py`, `models.py`, `expiration_ui_service.py`, etc.) - not broken, just split-candidates next time each is touched.
+- `main.css` is still ~2900 lines as one file; component-file extraction pattern exists (`admin-data.css`) but hasn't been applied yet to expiration/scan/bulk-action CSS blocks.
+- **Vercel/Next.js migration - how hard would it be, and is it worth it?** Asked an AI about "best practices for a non-AI-SaaS, tablet/USB-scanner inventory app" and got generic Next.js + Vercel + Tailwind + Radix + TanStack Table advice. Current read: the actual valuable part of that answer (high-contrast borders, 48px+ touch targets, text labels over icons, big persistent status feedback, global USB-scanner keystroke capture, offline-tolerant optimistic UI) is framework-agnostic and mostly already built here in Flask/Jinja/vanilla JS (`upc-scanner.js` already does the global-scanner-capture pattern). A full Next.js rewrite would mean: re-platforming off Railway (stateful Postgres + cron jobs don't map cleanly to Vercel's serverless model), rebuilding every template/route/service in React, and re-doing all the demo-ready CSS work from scratch - all for a UI philosophy that doesn't actually require a new stack. Revisit this seriously only if a concrete need shows up (e.g. needing a native-app-like offline mode via IndexedDB sync, or a component ecosystem Flask genuinely can't match) - not as a default next move.
