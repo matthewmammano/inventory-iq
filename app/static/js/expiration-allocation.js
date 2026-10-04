@@ -8,13 +8,21 @@ document.addEventListener("DOMContentLoaded", () => {
     let formComplete = false;
     let submitAttempted = false;
 
-    function quantity(input) {
-        const value = Number(input?.value || 0);
+    function requiresExactTotal(group) {
+        return group.dataset.requiresExact === "1";
+    }
+
+    function qtyInput(qtyEl) {
+        return qtyEl?.closest(".expiration-stepper")?.querySelector("[data-exp-qty-input]") ?? qtyEl;
+    }
+
+    function quantity(qtyEl) {
+        const value = Number(qtyInput(qtyEl)?.value || 0);
         return Number.isFinite(value) && value > 0 ? Math.floor(value) : 0;
     }
 
     function groupTotal(group) {
-        return [...group.querySelectorAll("[data-exp-qty]")].reduce((sum, input) => sum + quantity(input), 0);
+        return [...group.querySelectorAll("[data-exp-qty]")].reduce((sum, qtyEl) => sum + quantity(qtyEl), 0);
     }
 
     function newRows(group) {
@@ -25,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
         return row.querySelector('input[type="date"]');
     }
 
-    function rowQuantityInput(row) {
+    function rowQuantityEl(row) {
         return row.querySelector("[data-exp-qty]");
     }
 
@@ -34,7 +42,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function newRowHasValue(row) {
-        return rowHasDate(row) || quantity(rowQuantityInput(row)) > 0;
+        return rowHasDate(row) || quantity(rowQuantityEl(row)) > 0;
     }
 
     function maxNewRows(group) {
@@ -45,10 +53,15 @@ document.addEventListener("DOMContentLoaded", () => {
         return newRows(group).length;
     }
 
+    function syncStepperVisibility(row) {
+        const stepper = row.querySelector(".expiration-stepper");
+        if (stepper) stepper.hidden = !rowHasDate(row);
+    }
+
     function renderDateWarning(row) {
         const dateInput = rowDateInput(row);
         const warning = row.querySelector("[data-exp-date-warning]");
-        const missingDate = quantity(rowQuantityInput(row)) > 0 && !dateInput?.value;
+        const missingDate = quantity(rowQuantityEl(row)) > 0 && !dateInput?.value;
         row.classList.toggle("expiration-row-invalid", missingDate);
         dateInput?.classList.toggle("invalid", missingDate);
         warning?.classList.toggle("hidden", !missingDate);
@@ -97,9 +110,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     function renderNewRows(group, total, target) {
         let valid = true;
-        if (total >= target) {
+        const requiresExact = requiresExactTotal(group);
+        if (requiresExact && total >= target) {
             removeBlankRowsWhenAllocated(group);
             newRows(group).forEach((row) => {
+                syncStepperVisibility(row);
                 valid = renderDateWarning(row) && valid;
             });
             return valid;
@@ -109,9 +124,11 @@ document.addEventListener("DOMContentLoaded", () => {
         pruneBlankRows(group);
         const rows = newRows(group);
         const last = rows[rows.length - 1];
-        if (last && rowHasDate(last) && total < target && rows.length < maxNewRows(group)) addNewRow(group);
+        const stillGrowing = !requiresExact || total < target;
+        if (last && rowHasDate(last) && stillGrowing && rows.length < maxNewRows(group)) addNewRow(group);
 
         newRows(group).forEach((row) => {
+            syncStepperVisibility(row);
             valid = renderDateWarning(row) && valid;
         });
         return valid;
@@ -122,7 +139,7 @@ document.addEventListener("DOMContentLoaded", () => {
         const otherQty = otherRow?.querySelector("[data-exp-qty]");
         if (!otherRow || !otherQty) return;
         const discouraged = otherRow.dataset.expOtherDiscouraged === "1";
-        otherRow.classList.toggle("expiration-other-discouraged", discouraged && quantity(otherQty) > 0);
+        otherRow.classList.toggle("expiration-other-used", discouraged && quantity(otherQty) > 0);
     }
 
     function renderMinusButtons(group) {
@@ -131,17 +148,31 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     }
 
-    function setQuantity(input, nextValue) {
-        const group = input.closest("[data-expiration-group]");
+    function updateProgress(group, total, target) {
+        const progress = group.querySelector("[data-expiration-total]");
+        if (!progress) return;
+        const label = progress.querySelector(".expiration-progress-label");
+        if (label) label.textContent = `${total} / ${target}`;
+        const fill = progress.querySelector(".expiration-progress-fill");
+        if (fill) fill.style.width = `${target > 0 ? Math.min(100, (total / target) * 100) : 0}%`;
+        progress.classList.toggle("expiration-is-complete", target > 0 && total === target);
+        progress.classList.toggle("expiration-is-over", total > target);
+    }
+
+    function setQuantity(qtyEl, nextValue) {
+        const group = qtyEl.closest("[data-expiration-group]");
         const target = Number(group.dataset.target || 0);
-        const rowMax = Number(input.dataset.rowMax || target);
-        const otherTotal = groupTotal(group) - quantity(input);
-        const value = Math.max(0, Math.min(rowMax, target - otherTotal, nextValue));
+        const rowMax = Number(qtyEl.dataset.rowMax || target);
+        const otherTotal = groupTotal(group) - quantity(qtyEl);
+        const cap = requiresExactTotal(group) ? Math.min(rowMax, target - otherTotal) : rowMax;
+        const value = Math.max(0, Math.min(cap, nextValue));
+        const input = qtyInput(qtyEl);
         input.value = value;
+        qtyEl.textContent = value;
         // A new-date row left with a date but zero quantity submits as an orphaned
         // date/quantity pair the server rejects; clear the date so the row goes fully blank.
         if (value === 0) {
-            const dateInput = input.closest("[data-exp-new-row]")?.querySelector('input[type="date"]');
+            const dateInput = qtyEl.closest("[data-exp-new-row]")?.querySelector('input[type="date"]');
             if (dateInput) dateInput.value = "";
         }
         render();
@@ -152,18 +183,17 @@ document.addEventListener("DOMContentLoaded", () => {
         groups.forEach((group) => {
             const target = Number(group.dataset.target || 0);
             const total = groupTotal(group);
-            const totalLabel = group.querySelector("[data-expiration-total]");
-            if (totalLabel) totalLabel.textContent = `${total} / ${target}`;
+            const requiresExact = requiresExactTotal(group);
+            updateProgress(group, total, target);
             const rowsValid = renderNewRows(group, total, target);
-            const totalMatches = total === target;
+            const totalMatches = requiresExact ? total === target : total > 0;
             const mismatch = submitAttempted && !totalMatches;
-            totalLabel?.classList.toggle("expiration-total-mismatch", mismatch);
             group.classList.toggle("expiration-group-incomplete", mismatch);
             complete = rowsValid && complete && totalMatches;
             renderOtherHighlight(group);
             renderMinusButtons(group);
             group.querySelectorAll("[data-exp-plus]").forEach((button) => {
-                button.disabled = total >= target;
+                button.disabled = requiresExact && total >= target;
             });
         });
         formComplete = complete;
@@ -172,19 +202,27 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     form.addEventListener("click", (event) => {
+        const otherToggle = event.target.closest("[data-exp-other-toggle]");
+        if (otherToggle) {
+            otherToggle.closest(".expiration-card-body")?.querySelector("[data-exp-other-row]")?.classList.remove("hidden");
+            otherToggle.remove();
+            return;
+        }
         const button = event.target.closest("[data-exp-minus], [data-exp-plus]");
         if (!button) return;
-        const input = button.closest(".expiration-stepper")?.querySelector("[data-exp-qty]");
-        if (!input) return;
-        setQuantity(input, quantity(input) + (button.matches("[data-exp-plus]") ? 1 : -1));
+        const qtyEl = button.closest(".expiration-stepper")?.querySelector("[data-exp-qty]");
+        if (!qtyEl) return;
+        setQuantity(qtyEl, quantity(qtyEl) + (button.matches("[data-exp-plus]") ? 1 : -1));
     });
 
     form.addEventListener("input", (event) => {
-        if (event.target.matches("[data-exp-qty]")) {
-            setQuantity(event.target, quantity(event.target));
+        if (!event.target.matches('input[type="date"]')) return;
+        if (!event.target.value) {
+            const qtyEl = event.target.closest("[data-exp-new-row]")?.querySelector("[data-exp-qty]");
+            if (qtyEl) setQuantity(qtyEl, 0);
             return;
         }
-        if (event.target.matches('input[type="date"]')) render();
+        render();
     });
 
     form.addEventListener("submit", (event) => {

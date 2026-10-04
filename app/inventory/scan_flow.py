@@ -22,10 +22,10 @@ from .constants import (
 from .errors import InventoryError
 from .expiration_ui_service import (
     build_expiration_entry_groups,
-    group_expiration_entries_by_item,
     hidden_form_fields,
     parse_expiration_allocations,
     scan_expiration_spec,
+    sort_expiration_groups,
 )
 from .item_queries import get_agency_item, get_item_by_upc
 from .scan_submit_service import ScanSubmitItemNotFoundError, ScanSubmitResult, ScanSubmitRouteError, save_scan_submission
@@ -451,8 +451,7 @@ def _render_scan_expiration_entry(agency_id: int, groups, form_data, is_admin: b
     return render_template(
         "expiration_entry.html",
         agency_id=agency_id,
-        groups=groups,
-        item_groups=group_expiration_entries_by_item(groups),
+        groups=sort_expiration_groups(groups),
         hidden_fields=hidden_form_fields(form_data),
         form_action=None,
         cancel_url=url_for("admin.admin_scan_items" if is_admin else "guest.index", agency_id=agency_id),

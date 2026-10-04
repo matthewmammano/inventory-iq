@@ -568,31 +568,10 @@ td.danger-text {
   box-shadow: none;
 }
 
-.expiration-item-group .panel-header {
-  align-items: center;
-}
-
-.expiration-item-group .panel-body {
-  gap: 8px;
-}
-
-.expiration-form-compact {
-  gap: 10px;
-}
-
-.expiration-form-compact .panel-header,
-.expiration-form-compact .panel-body {
-  padding: 12px 14px;
-}
-
-.expiration-form-compact .expiration-row {
-  padding: 9px 10px;
-}
-
 .expiration-group-actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 12px;
   align-items: center;
   justify-content: end;
 }
@@ -601,152 +580,238 @@ td.danger-text {
   min-height: 42px;
 }
 
-.expiration-storage-group {
-  display: grid;
-  gap: 8px;
-  padding: 10px;
-  border: 1px solid var(--color-soft-line);
-  border-radius: var(--radius-sm);
-  background: #fffefa;
+.expiration-card {
+  background: var(--color-panel);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-soft);
+  overflow: hidden;
+  border: 2px solid transparent;
 }
 
-.expiration-storage-header {
+.expiration-card.expiration-group-incomplete {
+  border-color: var(--color-danger-border);
+}
+
+.expiration-card-head {
   display: flex;
   flex-wrap: wrap;
   justify-content: space-between;
-  gap: 8px;
   align-items: center;
+  gap: 12px;
+  padding: 20px 24px;
+  border-bottom: 2px solid var(--color-soft-line);
 }
 
-.expiration-storage-header small {
-  display: block;
-  margin-top: 2px;
-  color: var(--color-muted);
-  font-weight: 700;
-}
-
-.expiration-total {
-  padding: 8px 10px;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-sm);
-  background: var(--color-white);
-}
-
-.expiration-total-mismatch {
-  border-color: var(--color-danger-border);
-  background: var(--color-danger-bg);
-  color: var(--color-danger-border);
-}
-
-.expiration-group-incomplete {
-  border-color: var(--color-danger-border);
-}
-
-.expiration-rows {
-  display: grid;
-  gap: 8px;
-}
-
-.expiration-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 6px 12px;
-  align-items: center;
-  padding: 12px;
-  border: 1px solid var(--color-soft-line);
-  border-radius: var(--radius-sm);
-  background: var(--color-white);
-}
-
-.expiration-date-row {
-  grid-template-areas:
-    "label empty"
-    "date stepper"
-    "warning warning";
-  align-items: end;
-}
-
-.expiration-static-row {
-  grid-template-areas: "detail stepper";
-}
-
-.expiration-static-row > :first-child {
-  grid-area: detail;
-}
-
-.expiration-date-label {
-  grid-area: label;
-  color: #46380f;
+.expiration-card-title {
+  font-family: var(--font-heading);
+  font-size: 1.25rem;
   font-weight: 800;
 }
 
-.expiration-date-input {
-  grid-area: date;
+.expiration-card-sub {
+  color: var(--color-muted);
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-top: 2px;
 }
 
-.expiration-row .expiration-stepper {
-  grid-area: stepper;
+.expiration-card-body {
+  padding: 6px 24px 20px;
+}
+
+.expiration-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.expiration-progress-track {
+  width: 130px;
+  height: 12px;
+  border-radius: 999px;
+  background: #ece1bc;
+  overflow: hidden;
+  flex: 0 0 auto;
+}
+
+.expiration-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: var(--color-primary-dark);
+  transition: width 0.15s ease, background-color 0.15s ease;
+}
+
+.expiration-progress-label {
+  font-weight: 800;
+  font-size: 1.1rem;
+  white-space: nowrap;
+}
+
+.expiration-progress.expiration-is-complete .expiration-progress-fill {
+  background: var(--color-success-border);
+}
+
+.expiration-progress.expiration-is-complete .expiration-progress-label {
+  color: var(--color-success-border);
+}
+
+.expiration-progress.expiration-is-over .expiration-progress-fill {
+  background: var(--color-danger-border);
+}
+
+.expiration-progress.expiration-is-over .expiration-progress-label {
+  color: var(--color-danger-border);
+}
+
+.expiration-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  padding: 16px 4px;
+}
+
+.expiration-row + .expiration-row {
+  border-top: 1px solid var(--color-soft-line);
+}
+
+.expiration-row-info {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.expiration-date {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #3c2f0c;
+}
+
+.expiration-meta {
+  color: var(--color-muted);
+  font-size: 0.92rem;
+  font-weight: 600;
 }
 
 .suggested-expiration {
-  border-color: var(--color-warning-border);
   background: #fff8db;
+  border-radius: var(--radius-md);
+  padding-inline: 14px;
+  margin-inline: -14px;
 }
 
-.expiration-other {
-  background: #f4f0df;
-}
-
-.expiration-other.expiration-other-discouraged {
-  border-color: var(--color-danger-border);
-  background: var(--color-danger-bg);
-}
-
-/* Matches .expiration-storage-header small: puts the caveat on its own line instead of running into the label. */
-.expiration-other small {
+.expiration-newdate-label {
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #3c2f0c;
   display: block;
-  margin-top: 2px;
-  color: var(--color-muted);
+  margin-bottom: 8px;
 }
 
-.expiration-row-invalid {
-  border-color: #b42318;
-  background: #fff1f0;
+.expiration-date-input {
+  min-height: 52px;
+  padding: 0 14px;
+  border: 2px solid var(--color-line);
+  border-radius: var(--radius-md);
+  font: inherit;
+  font-size: 1.05rem;
+  font-weight: 700;
+  background: var(--color-white);
 }
 
 .expiration-stepper {
-  display: inline-grid;
-  grid-template-columns: 40px 64px 40px;
-  gap: 6px;
+  display: flex;
   align-items: center;
+  gap: 16px;
+  flex: 0 0 auto;
 }
 
-.expiration-stepper button,
-.expiration-stepper input {
-  min-height: 40px;
-  border: 2px solid var(--color-line);
-  border-radius: var(--radius-sm);
-  background: var(--color-white);
+.expiration-stepper[hidden] {
+  display: none;
+}
+
+.expiration-stepper button {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: none;
+  background: var(--color-primary);
+  color: #3c2f0c;
+  font-size: 1.9rem;
+  font-weight: 800;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(45, 33, 8, 0.25);
+}
+
+.expiration-stepper button:active {
+  transform: scale(0.93);
+}
+
+.expiration-stepper button:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  box-shadow: none;
+}
+
+.expiration-qty {
+  width: 56px;
   text-align: center;
   font: inherit;
+  font-size: 1.7rem;
+  font-weight: 800;
+  color: var(--color-ink);
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.expiration-date-warning {
+  color: var(--color-danger-border);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.expiration-other-toggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  padding: 4px 4px;
+  color: var(--color-muted);
+  font: inherit;
+  font-size: 1rem;
   font-weight: 700;
+  text-decoration: underline;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.expiration-other {
+  background: var(--color-warning-bg);
+  border-radius: var(--radius-md);
+  padding-inline: 14px;
+  margin-inline: -14px;
+}
+
+.expiration-other[data-exp-other-discouraged="1"].expiration-other-used {
+  background: var(--color-danger-bg);
+}
+
+.expiration-other .expiration-meta {
+  color: #5d4d1e;
+}
+
+.expiration-other[data-exp-other-discouraged="1"].expiration-other-used .expiration-meta {
+  color: var(--color-danger-border);
 }
 
 .expiration-submit-blocked {
   opacity: 0.82;
-}
-
-.expiration-date-input {
-  min-height: 42px;
-  padding: 0 8px;
-  border: 2px solid var(--color-line);
-  border-radius: var(--radius-sm);
-  font: inherit;
-}
-
-.expiration-date-warning {
-  grid-area: warning;
-  margin-top: 4px;
 }
 
 .expiration-bulk-reminder {

@@ -23,9 +23,9 @@ from app.inventory.bulk_location_service import (
 from app.inventory.expiration_ui_service import (
     build_expiration_entry_groups,
     bulk_expiration_specs,
-    group_expiration_entries_by_item,
     hidden_form_fields,
     parse_expiration_allocations,
+    sort_expiration_groups,
 )
 from app.shared.database import get_session
 from app.shared.form_parsing import selected_int_ids
@@ -283,8 +283,7 @@ def _render_bulk_expiration_entry(agency_id: int, location, groups, item_ids: se
     return render_template(
         "expiration_entry.html",
         agency_id=agency_id,
-        groups=groups,
-        item_groups=group_expiration_entries_by_item(groups),
+        groups=sort_expiration_groups(groups),
         hidden_fields=hidden_form_fields(request.form),
         form_action=None,
         cancel_url=_bulk_edit_url(agency_id, location.id, item_ids),

@@ -3,7 +3,7 @@
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, timedelta
-from typing import Any
+from typing import Any, Final
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -18,6 +18,13 @@ from app.shared.validators import parse_non_negative_int, validate_plausible_dat
 MAX_NEW_EXPIRATION_ROWS = 10
 EXPIRATION_DATE_MIN = date(2000, 1, 1)
 EXPIRATION_DATE_MAX_YEARS_AHEAD = 15  # p99 EMS shelf life
+
+CARD_SUBTITLE_BY_OPERATION: Final[dict[OperationType, str]] = {
+    OperationType.TAKEOUT: "Taking out {quantity}",
+    OperationType.RESTOCK: "Restocking {quantity}",
+    OperationType.TRANSFER: "Transferring {quantity}",
+    OperationType.COUNT: "Counting {quantity}",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +50,21 @@ class ExpirationEntrySpec:
             return 0
         return max(1, min(self.quantity, MAX_NEW_EXPIRATION_ROWS))
 
+    @property
+    def requires_exact_total(self) -> bool:
+        """Takeout totals may miss target: tracked lots may not match what's physically being taken."""
+        return not self.operation_type.is_takeout
+
+    @property
+    def other_discouraged(self) -> bool:
+        return self.operation_type.is_count or self.operation_type.is_restock
+
+    @property
+    def card_subtitle(self) -> str:
+        if self.prefill_known:
+            return f"Needs {self.quantity} dated"
+        return CARD_SUBTITLE_BY_OPERATION[self.operation_type].format(quantity=self.quantity)
+
 
 @dataclass(frozen=True, slots=True)
 class ExpirationOption:
@@ -62,20 +84,6 @@ class ExpirationEntryGroup:
     @property
     def requires_entry(self) -> bool:
         return self.item.expiration_tracking_enabled and (self.spec.quantity > 0 or self.spec.prefill_known)
-
-
-@dataclass(frozen=True, slots=True)
-class ExpirationItemEntryGroup:
-    item: Item
-    groups: list[ExpirationEntryGroup]
-
-    @property
-    def storage_count(self) -> int:
-        return len(self.groups)
-
-    @property
-    def total_quantity(self) -> int:
-        return sum(group.spec.quantity for group in self.groups)
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,13 +207,8 @@ def build_expiration_entry_groups(
     ]
 
 
-def group_expiration_entries_by_item(groups: Sequence[ExpirationEntryGroup]) -> list[ExpirationItemEntryGroup]:
-    grouped: dict[int, list[ExpirationEntryGroup]] = {}
-    items: dict[int, Item] = {}
-    for group in sorted(groups, key=lambda entry: (entry.item.name.lower(), entry.item.id, entry.storage.history_name.lower())):
-        items[group.item.id] = group.item
-        grouped.setdefault(group.item.id, []).append(group)
-    return [ExpirationItemEntryGroup(items[item_id], item_groups) for item_id, item_groups in grouped.items()]
+def sort_expiration_groups(groups: Sequence[ExpirationEntryGroup]) -> list[ExpirationEntryGroup]:
+    return sorted(groups, key=lambda group: (group.item.name.lower(), group.item.id, group.storage.history_name.lower()))
 
 
 def parse_expiration_allocations(
@@ -216,8 +219,10 @@ def parse_expiration_allocations(
     for group in groups:
         allocations = _parse_group_allocations(form, group)
         total = sum(allocation.quantity for allocation in allocations)
-        if total != group.spec.quantity:
+        if group.spec.requires_exact_total and total != group.spec.quantity:
             raise ValueError(f"Enter expiration quantities for all {group.spec.quantity} {group.item.name}.")
+        if not group.spec.requires_exact_total and total == 0:
+            raise ValueError(f"Enter at least one expiration date for {group.item.name}.")
         allocations_by_key[group.spec.key] = allocations
     return allocations_by_key
 

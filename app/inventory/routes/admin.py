@@ -18,9 +18,9 @@ from app.inventory.expiration_service import save_expiration_count_correction
 from app.inventory.expiration_ui_service import (
     build_expiration_entry_groups,
     expiration_count_correction_specs,
-    group_expiration_entries_by_item,
     hidden_form_fields,
     parse_expiration_allocations,
+    sort_expiration_groups,
 )
 from app.inventory.item_queries import list_items
 from app.inventory.pending_tasks_service import pending_task_summary
@@ -133,8 +133,7 @@ def _render_pending_expiration_dates(agency_id: int, groups) -> Any:
     return render_template(
         "expiration_entry.html",
         agency_id=agency_id,
-        groups=groups,
-        item_groups=group_expiration_entries_by_item(groups),
+        groups=sort_expiration_groups(groups),
         hidden_fields=hidden_form_fields(request.form),
         form_action=None,
         cancel_url=url_for("admin.pending_tasks", agency_id=agency_id),

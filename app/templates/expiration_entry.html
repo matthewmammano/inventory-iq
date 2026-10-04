@@ -5,31 +5,28 @@
 {% block sub_title %}{{ page_subtitle }}{% endblock %}
 {% block header_right %}<a class="header-action" href="{{ cancel_url }}">{{ back_label|default("Back") }}</a>{% endblock %}
 
-{% macro expiration_stepper(name, value, row_max, label) -%}
-<div class="expiration-stepper">
-    <button type="button" data-exp-minus>-</button>
-    <input
-        name="{{ name }}"
-        value="{{ value }}"
-        inputmode="numeric"
-        data-exp-qty
-        data-row-max="{{ row_max }}"
-        aria-label="{{ label }}">
-    <button type="button" data-exp-plus>+</button>
+{% macro expiration_stepper(name, value, row_max, label, start_hidden=False) -%}
+<div class="expiration-stepper"{% if start_hidden %} hidden{% endif %}>
+    <button type="button" data-exp-minus aria-label="decrease">-</button>
+    <div class="expiration-qty" data-exp-qty data-row-max="{{ row_max }}" aria-label="{{ label }}">{{ value }}</div>
+    <input type="hidden" name="{{ name }}" value="{{ value }}" data-exp-qty-input>
+    <button type="button" data-exp-plus aria-label="increase">+</button>
 </div>
 {%- endmacro %}
 
 {% macro new_expiration_row(group, index) -%}
 <div class="expiration-row expiration-date-row" data-exp-new-row>
-    <span class="expiration-date-label">Expiration Date</span>
-    <input class="expiration-date-input" name="exp_new_date_{{ group.spec.key }}_{{ index }}" {{ validation_attrs("iso_date", min_date="2000-01-01") }}>
-    {{ expiration_stepper("exp_new_qty_" ~ group.spec.key ~ "_" ~ index, 0, group.spec.quantity, group.item.name ~ " new expiration quantity") }}
-    <small class="field-hint expiration-date-warning hidden" data-exp-date-warning>Enter an expiration date for this quantity.</small>
+    <div class="expiration-row-info">
+        <span class="expiration-newdate-label">Expiration Date</span>
+        <input class="expiration-date-input" name="exp_new_date_{{ group.spec.key }}_{{ index }}" {{ validation_attrs("iso_date", min_date="2000-01-01") }}>
+        <small class="field-hint expiration-date-warning hidden" data-exp-date-warning>Enter an expiration date for this quantity.</small>
+    </div>
+    {{ expiration_stepper("exp_new_qty_" ~ group.spec.key ~ "_" ~ index, 0, group.spec.quantity, group.item.name ~ " new expiration quantity", start_hidden=True) }}
 </div>
 {%- endmacro %}
 
 {% block content %}
-<form method="POST" action="{{ form_action or '' }}" class="stack{% if compact_entry %} expiration-form-compact{% endif %}" data-expiration-form>
+<form method="POST" action="{{ form_action or '' }}" class="stack" data-expiration-form>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% for name, value in hidden_fields %}
     <input type="hidden" name="{{ name }}" value="{{ value }}">
@@ -49,78 +46,75 @@
     </section>
     {% endif %}
 
-    {% for item_group in item_groups %}
-    <section class="panel expiration-item-group">
-        <div class="panel-header">
+    {% for group in groups %}
+    {% set target = group.spec.quantity %}
+    <section class="expiration-card" data-expiration-group data-target="{{ target }}" data-requires-exact="{{ 1 if group.spec.requires_exact_total else 0 }}" data-max-new-rows="{{ group.spec.new_date_row_count }}">
+        <div class="expiration-card-head">
             <div>
-                <h2>{{ item_group.item.name|bold_item_name }}</h2>
-                <p>{{ item_group.storage_count }} storage{% if item_group.storage_count != 1 %}s{% endif %} - {{ item_group.total_quantity }} total</p>
+                <div class="expiration-card-title">{{ group.item.name }} - {{ group.storage.name }}</div>
+                <div class="expiration-card-sub">{{ group.spec.card_subtitle }}</div>
+            </div>
+            <div class="expiration-group-actions">
+                {% if show_recount_links %}
+                <a
+                    class="quiet-button expiration-recount-link"
+                    href="{{ url_for('admin.bulk_edit', agency_id=agency_id, agency_location_id=group.storage.location_id, item_ids=group.item.id) }}">
+                    Count Wrong? Recount
+                </a>
+                {% endif %}
+                <div class="expiration-progress" data-expiration-total>
+                    <div class="expiration-progress-track"><div class="expiration-progress-fill"></div></div>
+                    <div class="expiration-progress-label">0 / {{ target }}</div>
+                </div>
             </div>
         </div>
-        <div class="panel-body stack">
-            {% for group in item_group.groups %}
-            {% set target = group.spec.quantity %}
-            <section class="expiration-storage-group" data-expiration-group data-target="{{ target }}" data-max-new-rows="{{ group.spec.new_date_row_count }}">
-                <div class="expiration-storage-header">
-                    <div>
-                        <strong>{{ group.storage.history_name }}</strong>
-                        <small>{{ group.spec.operation_type.value }} - Qty {{ target }}</small>
-                    </div>
-                    <div class="expiration-group-actions">
-                        {% if show_recount_links %}
-                        <a
-                            class="quiet-button expiration-recount-link"
-                            href="{{ url_for('admin.bulk_edit', agency_id=agency_id, agency_location_id=group.storage.location_id, item_ids=group.item.id) }}">
-                            Count Wrong? Recount
-                        </a>
-                        {% endif %}
-                        <strong class="expiration-total" data-expiration-total>0 / {{ target }}</strong>
-                    </div>
+        <div class="expiration-card-body">
+            {% if group.spec.operation_type.is_takeout and group.options %}
+            <div class="alert info compact-alert">Choose the earliest expiration date you can, so older stock gets used first.</div>
+            {% endif %}
+
+            {% for option in group.options %}
+            <div class="expiration-row{% if option.suggested %} suggested-expiration{% endif %}">
+                <div class="expiration-row-info">
+                    <strong class="expiration-date">{{ option.expires_on.isoformat() }}</strong>
+                    <small class="expiration-meta">{{ option.quantity }} tracked here{% if option.suggested %} - earliest{% endif %}</small>
                 </div>
-                <div class="expiration-rows">
-                    {% if group.spec.operation_type.is_takeout and group.options %}
-                    <div class="alert warning compact-alert">Choose the earliest expiration date you can, so older stock gets used first.</div>
-                    {% endif %}
-
-                    {% for option in group.options %}
-                    <div class="expiration-row expiration-static-row{% if option.suggested %} suggested-expiration{% endif %}">
-                        <div>
-                            <strong>{{ option.expires_on.isoformat() }}</strong>
-                            <small>{{ option.quantity }} tracked here{% if option.suggested %} - earliest{% endif %}</small>
-                        </div>
-                        {{ expiration_stepper(
-                            "exp_known_" ~ group.spec.key ~ "_" ~ option.expires_on.isoformat(),
-                            option.default_quantity,
-                            option.quantity if group.spec.operation_type.is_takeout else target,
-                            group.item.name ~ " expiring " ~ option.expires_on.isoformat()
-                        ) }}
-                    </div>
-                    {% endfor %}
-
-                    {% if group.spec.allows_new_dates %}
-                    {{ new_expiration_row(group, 0) }}
-                    <template data-exp-new-template>
-                        {{ new_expiration_row(group, "__INDEX__") }}
-                    </template>
-                    {% endif %}
-
-                    {% if group.spec.allows_other %}
-                    {% set other_discouraged = group.spec.operation_type.is_count or group.spec.operation_type.is_restock %}
-                    <div class="expiration-row expiration-static-row expiration-other" data-exp-other-row data-exp-other-discouraged="{{ 1 if other_discouraged else 0 }}">
-                        <div>
-                            <strong>Other / Not Listed</strong>
-                            {% if other_discouraged %}
-                            <small>Not suggested if you have the actual date; using Other makes expiration tracking less accurate.</small>
-                            {% else %}
-                            <small>Only use this if none of the dates above match what's actually being taken.</small>
-                            {% endif %}
-                        </div>
-                        {{ expiration_stepper("exp_other_" ~ group.spec.key, 0, target, group.item.name ~ " other expiration quantity") }}
-                    </div>
-                    {% endif %}
-                </div>
-            </section>
+                {{ expiration_stepper(
+                    "exp_known_" ~ group.spec.key ~ "_" ~ option.expires_on.isoformat(),
+                    option.default_quantity,
+                    option.quantity if group.spec.operation_type.is_takeout else target,
+                    group.item.name ~ " expiring " ~ option.expires_on.isoformat()
+                ) }}
+            </div>
             {% endfor %}
+
+            {% if group.spec.allows_new_dates %}
+            <div class="expiration-newdate-rows">
+                {{ new_expiration_row(group, 0) }}
+                <template data-exp-new-template>
+                    {{ new_expiration_row(group, "__INDEX__") }}
+                </template>
+            </div>
+            {% endif %}
+
+            {% if group.spec.allows_other %}
+            {% if group.spec.other_discouraged %}
+            <button type="button" class="expiration-other-toggle" data-exp-other-toggle>Date missing from equipment? Tap here</button>
+            {% endif %}
+            <div class="expiration-row expiration-other{% if group.spec.other_discouraged %} hidden{% endif %}" data-exp-other-row data-exp-other-discouraged="{{ 1 if group.spec.other_discouraged else 0 }}">
+                <div class="expiration-row-info">
+                    <strong class="expiration-date">{{ "Unable to Enter Date" if group.spec.other_discouraged else "Other / Not Listed" }}</strong>
+                    <small class="expiration-meta">
+                        {% if group.spec.other_discouraged %}
+                        Less accurate. Use only if the date truly isn't on the equipment.
+                        {% else %}
+                        Only use this if none of the dates above match what's actually being taken.
+                        {% endif %}
+                    </small>
+                </div>
+                {{ expiration_stepper("exp_other_" ~ group.spec.key, 0, target, group.item.name ~ " other expiration quantity") }}
+            </div>
+            {% endif %}
         </div>
     </section>
     {% endfor %}
