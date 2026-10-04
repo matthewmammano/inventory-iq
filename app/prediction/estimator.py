@@ -11,7 +11,7 @@ from app.inventory.models import Item
 from app.prediction.usage_model import get_inventory_trend
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LocationProjection:
     """Current stock plus learned usage trend for one item/location."""
 

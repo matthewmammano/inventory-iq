@@ -17,7 +17,7 @@ from app.inventory.location_state_service import ItemLocationKey
 from app.inventory.models import ActionLog, InventoryExpirationBalance, InventoryItemLocationState, InventoryStorageBalance, Item
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class StateAuditRow:
     """Flat state row for the stale-count audit."""
 
@@ -31,7 +31,7 @@ class StateAuditRow:
     last_counted_at: datetime | None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ExpirationAuditRow:
     """Flat expiration row for the expired/expiring audit."""
 
@@ -47,7 +47,7 @@ class ExpirationAuditRow:
     notice_days: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ExpirationCountAuditRow:
     """Flat quantity mismatch row for tracked expiration counts."""
 

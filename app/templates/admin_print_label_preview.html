@@ -8,6 +8,7 @@
 <button class="success-button" type="button" data-print-trigger>Print</button>
 <a class="header-action" href="{{ url_for('admin.print_labels', agency_id=agency_id) }}">Back to Labels</a>
 {% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/print-label-preview.css') }}">{% endblock %}
 
 {% block content %}
 <section class="label-sheet">

@@ -1,0 +1,40 @@
+/* Stays in @layer base so main.css layer precedence is unchanged by load position. */
+@layer base {
+
+.bulk-combined-table th[colspan] {
+  text-align: center;
+}
+
+.bulk-combined-table th[scope="row"] {
+  padding-top: 18px;
+  padding-bottom: 15px;
+}
+
+.bulk-combined-table td {
+  position: relative;
+  padding: 30px 0 15px 0;
+  vertical-align: top;
+  text-align: center;
+}
+
+.bulk-combined-table tbody tr td,
+.bulk-combined-table tbody tr th {
+  border-bottom: 2px solid var(--color-soft-line);
+}
+
+.bulk-combined-table .storage-group-start {
+  border-left: 2px solid var(--color-soft-line);
+}
+
+.bulk-combined-table td .field-hint {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  right: 8px;
+  width: auto;
+  max-width: calc(100% - 16px);
+  margin: 0;
+  text-align: center;
+}
+
+}

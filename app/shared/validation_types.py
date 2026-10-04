@@ -96,7 +96,7 @@ AdminPinChange = Annotated[str | None, BeforeValidator(_blank_to_none), AfterVal
 TagColor = Annotated[str, AfterValidator(normalize_hex_color)]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class FieldSpec:
     label: str
     message: str

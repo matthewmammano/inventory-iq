@@ -21,7 +21,7 @@ class ItemLocationKey:
     agency_location_id: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LocationStateRollup:
     """Rollup values needed to refresh one item/location state row."""
 
@@ -31,7 +31,7 @@ class LocationStateRollup:
     last_takeout_at: datetime | None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LocationStateSettings:
     """Scalar item/agency settings needed for state math."""
 
@@ -41,7 +41,7 @@ class LocationStateSettings:
     prior_daily_usage: float
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LocationStateRebuildInput:
     """One active item/location pair with scalar settings."""
 

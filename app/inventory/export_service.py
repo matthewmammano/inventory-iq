@@ -25,7 +25,7 @@ from .history_service import HISTORY_REPORT_LIMIT, HistoryLogQuery, list_history
 CSV_BOM = "\ufeff"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class HistoryExportSummary:
     attachment: EmailAttachment
     total_actions: int

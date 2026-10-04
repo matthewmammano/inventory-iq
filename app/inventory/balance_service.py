@@ -13,7 +13,7 @@ from app.shared.clock import utc_now
 from .models import ActionLog, InventoryStorageBalance, Item, StorageBalanceKey
 
 
-@dataclass
+@dataclass(slots=True)
 class BalanceState:
     """Computed current state for one agency/item/storage key."""
 
@@ -22,7 +22,7 @@ class BalanceState:
     last_takeout_at: datetime | None = None
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class BalanceReconciliationResult:
     """Summary of one reconciliation pass."""
 

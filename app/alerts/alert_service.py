@@ -54,7 +54,7 @@ RARE_TAKEOUT_NO_PRIOR_ACCOUNT_AGE_DAYS = 365
 AlertKey = tuple[int, str]  # (agency_id, dedupe_key)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class AlertSpec:
     """The alert that should currently be open for one (agency, dedupe key)."""
 

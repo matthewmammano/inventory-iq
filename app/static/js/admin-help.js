@@ -14,7 +14,16 @@ document.addEventListener("DOMContentLoaded", () => {
         search: element.dataset.helpSearch || "",
     }));
     const empty = document.querySelector("[data-help-empty]");
-    const fuse = buildSearch(articles);
+    const fuse = window.buildFuzzySearch(articles, {
+        keys: [
+            { name: "title", weight: 0.5 },
+            { name: "summary", weight: 0.15 },
+            { name: "tags", weight: 0.25 },
+            { name: "search", weight: 0.1 },
+        ],
+        threshold: 0.35,
+        ignoreLocation: true,
+    });
     let selectedTag = "";
 
     function matchesSelectedTag(article) {
@@ -64,27 +73,3 @@ document.addEventListener("DOMContentLoaded", () => {
     search.addEventListener("input", updateResults);
     updateResults();
 });
-
-function buildSearch(articles) {
-    if (typeof Fuse !== "undefined") {
-        return new Fuse(articles, {
-            keys: [
-                { name: "title", weight: 0.5 },
-                { name: "tags", weight: 0.25 },
-                { name: "summary", weight: 0.15 },
-                { name: "search", weight: 0.1 },
-            ],
-            threshold: 0.35,
-            ignoreLocation: true,
-            includeScore: true,
-        });
-    }
-    return {
-        search: (query) => {
-            const normalized = query.toLowerCase();
-            return articles
-                .filter((article) => `${article.title} ${article.summary} ${article.tags.join(" ")} ${article.search}`.toLowerCase().includes(normalized))
-                .map((item) => ({ item, score: 0 }));
-        },
-    };
-}

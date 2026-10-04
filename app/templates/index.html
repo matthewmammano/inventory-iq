@@ -15,6 +15,7 @@
         <a class="admin" href="{{ url_for('guest.admin_login', agency_id=agency_id) }}">Admin</a>
     {% endif %}
 {% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/scan-route-strip.css') }}">{% endblock %}
 
 {% block content %}
 <section class="search">
@@ -51,5 +52,6 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/vendor/fuse.min.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/upc-scanner.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/fuzzy-search.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/inventory-search.js') }}" defer></script>
 {% endblock %}

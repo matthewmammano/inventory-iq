@@ -24,7 +24,7 @@ from app.shared.clock import utc_now_naive
 type StorageQuantityGrid = dict[tuple[int, int], int]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LocationQuantityGrid:
     """Template-ready item/storage quantities for one physical location."""
 
@@ -34,7 +34,7 @@ class LocationQuantityGrid:
     quantities: StorageQuantityGrid
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LocationItemSelection:
     """Template-ready location plus active item list."""
 
@@ -42,7 +42,7 @@ class LocationItemSelection:
     items: list[Item]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LocationItemSummary:
     """Template-ready location plus active item count."""
 

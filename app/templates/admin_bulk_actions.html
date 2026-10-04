@@ -7,6 +7,7 @@
 <button class="success-button hidden" id="bulk-save-button" type="button">Continue</button>
 <a class="header-action" href="{{ url_for('admin.bulk_actions', agency_id=agency_id, agency_location_id=location.id) }}" data-bulk-back>Back to Bulk Action</a>
 {% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/bulk-action-grid.css') }}">{% endblock %}
 
 {% block content %}
 <form id="bulk-action-form" method="POST" class="panel stack" data-bulk-form>

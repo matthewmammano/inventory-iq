@@ -56,7 +56,7 @@ SEVERITY_RANK = {severity: rank for rank, severity in enumerate(SEVERITY_ORDER)}
 STAT_KEYS = tuple(NotificationOutcome)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class AlertEmail:
     """A composed notification email and the alerts it credits as notified."""
 

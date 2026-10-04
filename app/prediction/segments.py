@@ -23,7 +23,7 @@ from app.prediction.constants import (
 from app.shared.clock import utc_now
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class CountAnchor:
     """A completed full-location count at one point in time."""
 
@@ -31,7 +31,7 @@ class CountAnchor:
     total_quantity: int
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TrendSegment:
     """Usage trend between two count anchors."""
 
@@ -44,7 +44,7 @@ class TrendSegment:
     weight: float
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TrustedMovement:
     """Trusted non-count inventory movement inside a training window."""
 

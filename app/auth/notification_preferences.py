@@ -68,7 +68,7 @@ SCAN_ALERT_SCOPE_LABELS = {
 SCAN_ALERT_SCOPE_CHOICES = tuple((scope.value, scope.label) for scope in ScanAlertScope)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class NotificationPreference:
     key: NotificationPreferenceKey
     field: str

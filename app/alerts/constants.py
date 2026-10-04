@@ -117,7 +117,7 @@ class NotificationOutcome(StrEnum):
     SUPPRESSED = "suppressed"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class AlertDefinition:
     """Central metadata for one alert type.
 

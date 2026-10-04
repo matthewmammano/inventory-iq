@@ -5,6 +5,7 @@
 {% block sub_title %}Location: {{ location.name }}{% endblock %}
 {% block main_class %}search-main{% endblock %}
 {% block header_right %}<a class="header-action" href="{{ url_for('admin.bulk_actions', agency_id=agency_id, agency_location_id=location.id) }}">Back to Bulk Action</a>{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/bulk-item-select.css') }}">{% endblock %}
 
 {% block content %}
 <form method="POST" class="search bulk-select" data-bulk-item-select>

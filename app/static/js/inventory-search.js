@@ -11,7 +11,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const scanErrorUrl = list.dataset.scanErrorUrl;
     const fromStorageId = list.dataset.fromStorageId;
     const toStorageId = list.dataset.toStorageId;
-    const fuse = buildSearch(items);
+    const fuse = window.buildFuzzySearch(items, { keys: ["name", "upcs", "tags"], threshold: 0.9 });
 
     function itemUrl(itemId) {
         if (scanItemBase && fromStorageId && toStorageId) {
@@ -60,21 +60,6 @@ document.addEventListener("DOMContentLoaded", () => {
     showResults("");
     window.bindUpcScanner(scanUpc);
 });
-
-function buildSearch(items) {
-    if (typeof Fuse !== "undefined") {
-        return new Fuse(items, { keys: ["name", "upcs", "tags"], threshold: 0.9, includeScore: true });
-    }
-    return {
-        search: (query) => items
-            .filter((item) => searchableText(item).includes(query.toLowerCase()))
-            .map((item) => ({ item, score: 0 })),
-    };
-}
-
-function searchableText(item) {
-    return `${item.name} ${(item.upcs || []).join(" ")} ${item.tags.join(" ")}`.toLowerCase();
-}
 
 function navigateTo(url) {
     window.InventoryLoadingOverlay?.show({ immediate: true });

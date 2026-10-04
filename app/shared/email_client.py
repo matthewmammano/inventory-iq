@@ -27,7 +27,7 @@ class EmailAttemptResult(StrEnum):
     FAILED = "FAILED"
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class OutboundEmail:
     """Minimal email payload used by auth, alerts, and maintenance reports."""
 
@@ -38,7 +38,7 @@ class OutboundEmail:
     attachments: tuple["EmailAttachment", ...] = ()
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class EmailAttachment:
     """Binary email attachment payload."""
 

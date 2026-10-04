@@ -7,7 +7,7 @@ from app.alerts.constants import ALERT_DEFINITIONS, STOCK_ALERT_RANK, AlertSever
 from app.prediction.constants import MAX_EFFECTIVE_DAILY_USAGE, MIN_EFFECTIVE_DAILY_USAGE
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class StockStateEvaluation:
     """Forecasted and effective stock-alert result for one item/location state."""
 

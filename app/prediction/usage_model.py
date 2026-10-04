@@ -12,7 +12,7 @@ from app.prediction.segments import TrendSegment, build_training_signature, extr
 from app.shared.clock import utc_now_naive
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class TrendFit:
     """Persistable weighted trend fit."""
 
