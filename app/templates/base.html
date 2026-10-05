@@ -79,6 +79,27 @@
         </div>
     </div>
 
+    {% if agency_id is defined and current_user.is_authenticated and request.endpoint != 'guest.index' %}
+    {% set on_admin_home = request.endpoint == 'admin.admin_panel' %}
+    <div
+        id="idle-timeout"
+        class="modal-backdrop hidden"
+        role="alertdialog"
+        aria-labelledby="idle-timeout-title"
+        data-home-url="{{ url_for('admin.admin_panel', agency_id=agency_id) if admin and not on_admin_home else url_for('guest.index', agency_id=agency_id) }}"
+        data-idle-seconds="{{ idle_seconds }}"
+        data-warning-seconds="{{ idle_warning_seconds }}">
+        <div class="modal stack">
+            <h2 id="idle-timeout-title">Are you still here?</h2>
+            <p>Taking you to the home screen in <strong data-idle-countdown>{{ idle_warning_seconds }}</strong> seconds.</p>
+            <div class="button-row">
+                <button class="success-button" type="button" data-idle-stay>I Am Still Here</button>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/idle-timeout.js') }}" defer></script>
+    {% endif %}
+
     <script src="{{ url_for('static', filename='js/diagnostics.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/image-fallback.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/flash.js') }}" defer></script>

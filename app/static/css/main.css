@@ -440,8 +440,7 @@ td.danger-text {
   pointer-events: none;
 }
 
-/* Shared by .item-trend-button and .row-action-button (each in its own component file) --
-   same small square icon-only button in both, down to an identical hover/focus state. */
+/* Shared square icon-only button; .item-trend-button and .row-action-button only add padding. */
 .icon-button-sm {
   width: 28px;
   height: 28px;
@@ -2022,6 +2021,10 @@ body.loading-active > *:not(.loading-overlay) {
     height: 1.8rem;
   }
   .delete-toggle {
+    width: 44px;
+    height: 44px;
+  }
+  .icon-button-sm {
     width: 44px;
     height: 44px;
   }

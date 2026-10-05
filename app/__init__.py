@@ -22,6 +22,7 @@ from app.diagnostics import bp as diagnostics_bp
 from app.errors import register_error_handlers
 from app.inventory import admin_bp, guest_bp
 from app.shared.config import settings
+from app.shared.constants import IDLE_TIMEOUT, IDLE_WARNING_SECONDS
 from app.shared.database import init_db
 from app.shared.email_client import log_email_config_status
 from app.shared.form_validation import validation_attrs, validation_group_attrs
@@ -156,6 +157,10 @@ def _register_template_filters(app: Flask) -> None:
 
 
 def _register_template_context(app: Flask) -> None:
+    @app.context_processor
+    def idle_timeout_settings() -> dict[str, Any]:
+        return {"idle_seconds": IDLE_TIMEOUT, "idle_warning_seconds": IDLE_WARNING_SECONDS}
+
     @app.context_processor
     def admin_pending_tasks() -> dict[str, Any]:
         if not has_request_context():

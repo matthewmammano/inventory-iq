@@ -138,9 +138,8 @@
 }
 
 @media (hover: none) and (pointer: coarse) {
+  /* Keeps the filling SVG proportional to the larger tap box .icon-button-sm switches to. */
   .row-action-button {
-    width: 44px;
-    height: 44px;
     padding: 10px;
   }
 }
