@@ -10,6 +10,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 load_dotenv()
 
 DEV_DATABASE_URL = "sqlite:///instance/inventory_iq.db"
+DEV_SECRET_KEY = "dev-insecure-not-for-prod"  # nosec B105 - dev/CI default; prod rejects it via DEV_PLACEHOLDERS
+DEV_PLACEHOLDERS = {"database_url": DEV_DATABASE_URL, "secret_key": DEV_SECRET_KEY}
 PROD_REQUIRED_FIELDS = (
     "database_url",
     "secret_key",
@@ -32,7 +34,7 @@ class Settings(BaseSettings):
     )
     database_url: str = DEV_DATABASE_URL
     instance_path: str = ""
-    secret_key: str = ""
+    secret_key: str = DEV_SECRET_KEY
 
     # Blank email settings are allowed in dev; prod startup rejects blanks below.
     email_api_url: str = ""
@@ -61,24 +63,20 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_production_config(self) -> "Settings":
-        if not self.secret_key:
-            raise ValueError("SECRET_KEY must be set")
         if not self.is_prod:
             return self
 
         # Prevent Railway/prod from silently using local-only placeholders.
         missing = [field.upper() for field in PROD_REQUIRED_FIELDS if not self._prod_value(field)]
         if missing:
-            raise ValueError(f"Missing production environment variables: {', '.join(missing)}")
+            raise ValueError(f"Missing or placeholder production environment variables: {', '.join(missing)}")
         if self.dev_clock_enabled:
             raise ValueError("DEV_CLOCK_ENABLED must be false in prod")
         return self
 
     def _prod_value(self, field: str) -> str:
         value = str(getattr(self, field, "") or "")
-        if field == "database_url" and value == DEV_DATABASE_URL:
-            return ""
-        return value
+        return "" if value == DEV_PLACEHOLDERS.get(field) else value
 
     @property
     def is_dev(self) -> bool:
