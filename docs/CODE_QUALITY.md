@@ -1,6 +1,6 @@
 # Code Quality Tooling
 
-What every configured lint/type/security tool actually checks, why it's there, and which `AGENTS.md` rule it backs. Config lives in `pyproject.toml` and `.pre-commit-config.yaml`; install/run everything with `pre-commit run --all-files`.
+What every configured lint/type/security tool actually checks, why it's there, and which `CLAUDE.md` rule it backs. Config lives in `pyproject.toml` and `.pre-commit-config.yaml`; install/run everything with `pre-commit run --all-files`.
 
 ## Ruff
 
@@ -16,7 +16,7 @@ One tool, many rule groups (`[tool.ruff.lint].select`). Each group maps to a rea
 
 Run: `ruff check .` / `ruff format .` (also runs automatically via pre-commit).
 
-**Not enforced by ruff:** "docstrings required on public APIs" (`AGENTS.md`, Comments section) stays a written rule only. Turning on `D101/102/103` surfaced 380 pre-existing gaps across the codebase, and pre-commit lints a changed file's whole content, not just touched lines; an unrelated one-line fix would fail over pre-existing gaps in that file. Not worth the friction right now.
+**Not enforced by ruff:** "docstrings required on public APIs" (`CLAUDE.md`, Comments section) stays a written rule only. Turning on `D101/102/103` surfaced 380 pre-existing gaps across the codebase, and pre-commit lints a changed file's whole content, not just touched lines; an unrelated one-line fix would fail over pre-existing gaps in that file. Not worth the friction right now.
 
 ## Pyright + Mypy
 
@@ -44,13 +44,33 @@ Dead-code detector (`[tool.vulture]`, `paths = ["app", "scripts", "tasks"]`, `mi
 
 Encodes part of the Architecture Rules layering as a mechanically-checked contract (`[tool.importlinter]`) instead of only a written rule. Currently one narrow, verified-passing contract: `app.shared.config`, `app.shared.database`, `app.shared.clock`, and `app.shared.validators` (the genuinely foundational modules) may never import from any domain package (`app.inventory`, `app.auth`, `app.prediction`, `app.alerts`, `app.diagnostics`, `app.admin_help`).
 
-This is intentionally a starting contract, not the full `routes -> services -> queries -> infra` layering from `AGENTS.md`; expressing that fully would need `app/inventory/`'s flat service/query files reorganized into dedicated subpackages first (a separate, larger change, not done as a side effect of adding this tool). `app/shared/scheduler.py` and `app/shared/utils.py` are legitimate cross-domain orchestrators and are deliberately excluded from the contract's source modules.
+This is intentionally a starting contract, not the full `routes -> services -> queries -> infra` layering from `CLAUDE.md`; expressing that fully would need `app/inventory/`'s flat service/query files reorganized into dedicated subpackages first (a separate, larger change, not done as a side effect of adding this tool). `app/shared/scheduler.py` and `app/shared/utils.py` are legitimate cross-domain orchestrators and are deliberately excluded from the contract's source modules.
 
 Run: `lint-imports`.
 
 ## Flask App Import (local smoke check)
 
 `python -c "from app import create_app; create_app()"`: the cheapest possible check that the app still boots (catches import cycles, missing config, broken blueprint registration) before anything more expensive runs.
+
+## Dependency Safety (uv)
+
+Three local hooks guard the dependency set. Dependencies are declared in `pyproject.toml` and pinned in `uv.lock`; see [DEPLOYMENT.md](DEPLOYMENT.md) for the full workflow.
+
+| Hook | Command | Checks |
+| --- | --- | --- |
+| `uv-lock-check` | `uv lock --check` | `uv.lock` is in sync with `pyproject.toml`. Catches a dependency edit that was never locked, which would otherwise fail the production build (Railpack installs with `--locked`) instead of the commit. |
+| `uv-audit` | `uv audit --preview-features audit-command` | Every locked package against known vulnerability advisories (CVEs) and yanked releases. |
+| `uv-outdated` | `uv tree --outdated --depth 1` | Reports direct dependencies with newer releases available. |
+
+The first two run automatically, but only when `pyproject.toml` or `uv.lock` is part of the commit, so normal code commits pay nothing.
+
+`uv-outdated` is `stages: [manual]`: being behind a release is information, not a defect, so it must never block a commit. Run it on purpose when you want the report:
+
+```text
+pre-commit run --hook-stage manual uv-outdated --all-files
+```
+
+`uv audit` is a preview command, hence the `--preview-features` flag; drop the flag once it stabilizes.
 
 ## Pre-commit Housekeeping Hooks
 

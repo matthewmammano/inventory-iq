@@ -15,6 +15,40 @@ Runtime, environment, and operational commands for Inventory IQ. Architecture li
 - Gunicorn
 - PostgreSQL in production; local default is SQLite. This is a known, accepted dev/prod parity gap (SQLite has no local-install cost for solo dev). Stick to the SQLAlchemy query layer rather than raw SQL so code keeps working on both; if raw SQL is ever unavoidable, keep it dialect-agnostic.
 
+## Dependencies
+
+Managed with [uv](https://docs.astral.sh/uv/). `pyproject.toml` declares what the project needs; `uv.lock` pins the entire resolved graph (every transitive package, with hashes) and is committed.
+
+| File | Role |
+| --- | --- |
+| `pyproject.toml` `[project].dependencies` | Runtime deps, installed in production |
+| `pyproject.toml` `[dependency-groups].dev` | Lint/type/test tooling, never installed in production |
+| `uv.lock` | The exact resolved versions, committed and authoritative |
+| `.python-version` | Interpreter pin (`3.13`), read by both uv locally and Railpack in the build |
+
+Common commands:
+
+- `uv sync` - install/refresh the local `.venv` to match the lockfile exactly (including dev tools).
+- `uv add <pkg>` / `uv add --dev <pkg>` - add a dependency and update the lockfile in one step.
+- `uv lock` - re-resolve after hand-editing `pyproject.toml`.
+- `uv lock --check` - fail if `uv.lock` is stale relative to `pyproject.toml` (runs in pre-commit).
+- `uv run <cmd>` - run a command in the project environment without activating it.
+
+Do not use `pip install` for app dependencies, and never create a root `requirements.txt`. Railpack's Python provider checks for `requirements.txt` *before* `pyproject.toml` + `uv.lock`, so a root `requirements.txt` silently switches the production build back to pip and ignores the lockfile entirely. (`scripts/demo_data/requirements.txt` is fine: it is a separate local-only dependency set and is not at the repo root, so the builder never sees it.)
+
+### Production install
+
+Railway builds with Railpack (Nixpacks is sunset), which detects `pyproject.toml` + `uv.lock` and installs with:
+
+```text
+uv sync --locked --no-dev --no-install-project
+```
+
+- `--locked` fails the build if `uv.lock` does not match `pyproject.toml`, so a forgotten `uv lock` breaks the deploy instead of silently resolving something new.
+- `--no-dev` skips the `dev` dependency group, so lint/type tooling never ships.
+
+Railpack does **not** read `requires-python`; the interpreter comes from `.python-version` (via mise), so that file is what actually keeps dev and prod on the same Python. Railpack installs uv itself at `latest`, so the build can pick up a newer uv than the local one; `[tool.uv] required-version = ">=0.12"` in `pyproject.toml` guards the floor.
+
 ## Security
 
 - Every state-changing form carries a CSRF token; validated globally via `Flask-WTF`'s `CSRFProtect` (`app/__init__.py`). The `/api/debug/report` diagnostics endpoint is the one intentional `@csrf.exempt`: it is fired by background `fetch()` from unauthenticated pages and only logs client telemetry.
@@ -24,11 +58,16 @@ Runtime, environment, and operational commands for Inventory IQ. Architecture li
 
 ## Local Setup
 
-1. Copy `.env.example` to `.env`.
-2. Set `SECRET_KEY`.
-3. Run `alembic upgrade head`.
-4. Start the app with `python run.py`.
-5. Open `http://127.0.0.1:5000`.
+Install uv once, system-wide (it manages per-project environments, so it does not belong inside a venv): `sudo pacman -S uv` on Arch, or see [the install docs](https://docs.astral.sh/uv/getting-started/installation/).
+
+1. Run `uv sync` to create `.venv` and install locked runtime + dev dependencies.
+2. Copy `.env.example` to `.env`.
+3. Set `SECRET_KEY`.
+4. Run `uv run alembic upgrade head`.
+5. Start the app with `uv run python run.py`.
+6. Open `http://127.0.0.1:5000`.
+
+`uv sync` picks the interpreter from `.python-version` and installs it if missing, so a fresh clone lands on the same Python as production without any manual venv steps.
 
 ## Config
 
@@ -105,5 +144,6 @@ The in-process scheduler is for dev/demo only and is disabled in production.
 
 - Deploy one reviewed commit SHA at a time.
 - Run migrations before serving new code.
+- Commit `uv.lock` alongside any `pyproject.toml` dependency change; a stale lockfile fails the build, not the app.
 - Keep local/staging/prod services as similar as practical, especially database behavior.
 - Prefer fix-forward for low-risk production issues; use a hotfix branch only when urgent isolation is needed.

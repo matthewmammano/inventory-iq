@@ -1,5 +1,10 @@
 # My TODO
 
+- for synthetic database table creation... ALL entries should be somewhat normal, have expirations, users ALWAYS follow best protocol, standard user MISS SCAN rates (with admin COUNT and RECOUNT corrections AS EXPECTED)... but then artificially inject EXACTLY 1-2 of each ADMIN feature manually just at VERY VERY END:
+  - scanout items WITHOUT using expiration date as guest
+  - scanout item UPC that does not exist
+  - etc...
+
 - make it so that on scrolling in screens with tables... and stuff where pages are typically very large in scrolling... maybe just portions scroll instead... so admin-panel/data page... maybe JUST the table scrolls... that way we ALWAYS see the "Back to Admin" on top, the {"Items", "Locations", ...} selectors, and the table header {"Name", "Primary UPC", etc}.
 
 - make header smaller height AND fixed top EVEN on scrolls! make sure nothing else affected / covered by this change!
@@ -44,7 +49,7 @@
 
 - `class AlertSeverity(StrEnum)` is the BEST coding work of art I have ever done! Can you check EVERY OTHER class, datatype, and function in the codebase to see if they can be improved to be as elegant and maintainable as that one? (like using different Enum types, or dataclasses, or Pydantic models, computed fields, etc). Make sure you check THOROUGHLY with agents AND/OR regex searching marking each as possible refactoring candidate. Then make a list of all the candidates and we can review together with LOC saved estimates AND clear coding clarity benefits.
 
-- research better AGENTS.md, combine with that, mainintable code and using PY latest features, never outdated
+- research better CLAUDE.md, combine with that, mainintable code and using PY latest features, never outdated
 
 - @scheduler.py page has SO much ugly code
   - is there a way to have elegant code for cron setting logic maintainable? for dev?

@@ -1,4 +1,4 @@
-# AGENTS.md
+# CLAUDE.md
 
 **READ THIS FILE AFTER EVERY PROMPT.** It defines reusable coding-agent rules for production software work.
 
@@ -93,6 +93,7 @@ Before writing code, verify:
 - Public names should read correctly out of context; no abbreviation that only makes sense inside the function it's declared in.
 - No `@staticmethod` unless an existing library's interface forces it. If a "method" never touches `self`, it's a module-level function.
 - One term, one meaning, everywhere in the codebase. If a word names one domain concept in one module, it cannot name a different one elsewhere.
+- **Dependencies are managed with `uv`, never `pip`.** Runtime deps go in `[project].dependencies`, tooling in `[dependency-groups].dev`, both in `pyproject.toml`; then run `uv lock` and commit `uv.lock`. Never add a root `requirements.txt` (it silently overrides `uv.lock` in the Railpack build) and never hand-edit `uv.lock`. See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
 
 ## Comments
 
@@ -173,7 +174,7 @@ When reviewing or editing, look for:
 
 - **Never run `git add`, `git commit`, `git push`, or `gh pr create`.** Always print the exact command for the human to run instead.
 - The only exception is an explicit, same-message grant of permission for that specific action (e.g. "you have permission to run this," "run it yourself") - approving a plan, or saying "ok"/"looks good," is not that grant.
-- For commit message, branch name, and split-vs-single-commit decisions, use `.agents/skills/git-change-workflow/` rather than improvising the format here.
+- For commit message, branch name, and split-vs-single-commit decisions, use the `git-change-workflow` skill rather than improvising the format here.
 
 ## Explanations In Chat
 

@@ -73,6 +73,30 @@ repos:
     hooks:
       - id: vulture
 
+  # Dependency safety: lockfile drift, known CVEs, and an on-demand staleness report.
+  - repo: local
+    hooks:
+      - id: uv-lock-check
+        name: Lockfile matches pyproject
+        entry: uv lock --check
+        language: system
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+
+      - id: uv-audit
+        name: Dependency vulnerability audit
+        entry: uv audit --preview-features audit-command
+        language: system
+        files: ^(pyproject\.toml|uv\.lock)$
+        pass_filenames: false
+
+      - id: uv-outdated
+        name: Outdated dependency report
+        entry: uv tree --outdated --depth 1
+        language: system
+        stages: [manual]
+        pass_filenames: false
+
   # App import smoke check
   - repo: local
     hooks:

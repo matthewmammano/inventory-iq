@@ -46,4 +46,4 @@ routes -> schemas/DTOs -> services -> query/repository-style modules -> shared i
 - New persistent field: model, Alembic migration, service validation, UI/report references.
 - New scheduled work: task entrypoint under `tasks/` plus shared service function.
 - New local-only tool: `scripts/`.
-- New reusable agent workflow: `.agents/skills/<skill-name>/SKILL.md`.
+- New reusable agent workflow: a personal skill at `~/.claude/skills/<skill-name>/SKILL.md`, not in this repo.
