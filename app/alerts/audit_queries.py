@@ -204,7 +204,7 @@ def _count_audit_row(row: Any, *, storage_quantity: int, tracked_expiration_quan
     )
 
 
-def _expiration_totals_base() -> Select[Any]:
+def _expiration_totals_base() -> Select[int, int, str, int, str, int, str]:
     """Identity columns + join/filter scaffold shared by both expiration-total queries."""
     return (
         select(Agency.id, Item.id, Item.name, Storage.id, Storage.name, Location.id, Location.name)

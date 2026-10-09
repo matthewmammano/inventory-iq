@@ -100,6 +100,13 @@ repos:
   # App import smoke check
   - repo: local
     hooks:
+      - id: check-dashes
+        name: No em-dash or prose double hyphen
+        entry: .venv/bin/python scripts/check_dashes.py
+        language: system
+        types: [text]
+        exclude: ^scripts/demo_data/
+
       - id: flask-app-import
         name: Flask app import
         entry: .venv/bin/python -c "from app import create_app; create_app()"

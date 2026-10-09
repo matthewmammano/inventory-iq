@@ -1,7 +1,7 @@
 """Create database tables for local/dev deployments.
 
-Production should use migrations once Alembic is introduced. This script keeps
-schema creation explicit instead of hiding it inside web app startup.
+Production runs `alembic upgrade head` instead. This script keeps schema
+creation explicit rather than hiding it inside web app startup.
 """
 
 from pathlib import Path

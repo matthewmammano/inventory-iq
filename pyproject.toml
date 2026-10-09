@@ -61,7 +61,7 @@ extend-exclude = ["scripts/demo_data"]
 [tool.ruff.lint]
 # C90 actually turns on the mccabe check below (it was configured but never selected).
 # PLR codes are the length/complexity subset only, not the full noisy pylint-refactor family.
-# Docstring presence (D101-103) stays an CLAUDE.md-only rule, not ruff-enforced -- 380
+# Docstring presence (D101-103) stays a CLAUDE.md-only rule, not ruff-enforced; 380
 # pre-existing gaps made it too disruptive to turn on as a hard gate.
 select = [
     "E", "F", "I", "UP", "B", "C4", "SIM", "RUF", "NPY", "PTH", "N", "ERA",

@@ -27,12 +27,18 @@ def _database_url() -> str:
     return normalize_database_url(settings.database_url).replace("%", "%%")
 
 
+def _render_as_batch() -> bool:
+    """SQLite cannot ALTER a column in place, so autogenerate must emit batch operations."""
+    return _database_url().startswith("sqlite")
+
+
 def run_migrations_offline() -> None:
     context.configure(
         url=_database_url(),
         target_metadata=target_metadata,
         literal_binds=True,
         dialect_opts={"paramstyle": "named"},
+        render_as_batch=_render_as_batch(),
     )
     with context.begin_transaction():
         context.run_migrations()
@@ -47,7 +53,7 @@ def run_migrations_online() -> None:
         poolclass=pool.NullPool,
     )
     with connectable.connect() as connection:
-        context.configure(connection=connection, target_metadata=target_metadata)
+        context.configure(connection=connection, target_metadata=target_metadata, render_as_batch=_render_as_batch())
         with context.begin_transaction():
             context.run_migrations()
 

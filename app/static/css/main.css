@@ -398,7 +398,7 @@ td.danger-text {
 }
 
 .panel-header > p { flex-basis: 100%; }
-/* h1-h3/p all reset to margin:0, and .panel-header's own gap only spaces its direct children --
+/* h1-h3/p all reset to margin:0, and .panel-header's own gap only spaces its direct children;
    a title+description pair wrapped in a plain div (so header-right content can sit beside them)
    needs its own gap or the two sit flush against each other with nothing between them. */
 .panel-header > div {
@@ -1327,7 +1327,7 @@ input[type="checkbox"]:focus-visible {
 
 /*
   The table's own header sticks relative to its nearest scroll-container
-  ancestor, so .table-wrap (not .panel) must be the element that scrolls --
+  ancestor, so .table-wrap (not .panel) must be the element that scrolls.
   .table-wrap already needs overflow-x for wide tables, and a sticky thead
   computed against a non-scrolling ancestor never pins on scroll.
 */
@@ -2578,7 +2578,7 @@ button:disabled {
 
 @media (orientation: landscape) and (max-height: 560px) {
   /* Every rem-based font-size in the app (including in admin-help.css and item-trend-modal.css)
-     is a multiple of this one value, so shrinking it here is a single, sitewide reduction --
+     is a multiple of this one value, so shrinking it here is a single, sitewide reduction;
      the layer wins over @layer base's default regardless of file position. --font-scale already
      reacts to narrow width (phone portrait); it never accounted for short height until now, so
      any page without its own landscape-specific overrides below was still rendering at full size. */

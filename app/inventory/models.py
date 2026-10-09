@@ -265,7 +265,7 @@ class ActionLog(Base):
     from_storage_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("agency_storages.id"))
     to_storage_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("agency_storages.id"))
     admin_action: Mapped[bool] = mapped_column(Boolean)
-    time_scanned: Mapped[datetime | None] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
+    time_scanned: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)
 
     item = relationship("Item", back_populates="action_logs", lazy="select")
     from_storage = relationship("Storage", foreign_keys=[from_storage_id], lazy="select")

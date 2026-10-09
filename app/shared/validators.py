@@ -131,9 +131,7 @@ def validate_non_negative_integer(value: int | None, field_name: str, *, allow_n
 
 def normalize_hex_color(value: str | None) -> str:
     """Validate and normalize #RRGGBB color strings."""
-    if not value or not isinstance(value, str):
-        raise TypeError("Color must be a string")
-    normalized = value.strip()
+    normalized = (value or "").strip()
     if not re.match(r"^#[0-9A-Fa-f]{6}$", normalized):
         raise ValueError("Color must be valid hex format: #rrggbb")
     return normalized.upper()
