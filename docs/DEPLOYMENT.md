@@ -100,6 +100,14 @@ Production rejects missing required values and rejects `DEV_CLOCK_ENABLED=true`.
 - Dev app startup runs Alembic to `head`.
 - Production must run migrations before the web process starts.
 - Use `create_all()` only for dev/test helpers, never production schema management.
+- `20261008_0001_baseline_schema.py` is a frozen full-schema snapshot; the v1 incremental history was squashed into it. Add new changes as normal incremental revisions on top.
+- A baseline must stay frozen: never regenerate it from the live models, or databases created before the next revision will skip that revision's changes.
+
+An existing database stamped at a squashed-away revision cannot resolve its own version, so re-point it once:
+
+```txt
+alembic stamp --purge 20261008_0001
+```
 
 Railway pre-deploy:
 
