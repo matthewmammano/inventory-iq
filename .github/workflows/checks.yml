@@ -1,0 +1,32 @@
+name: checks
+
+on:
+  push:
+  pull_request:
+    branches: [prod]
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install locked dependencies
+        run: uv sync --locked
+
+      - uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+
+      - name: Lint, type, and security checks
+        run: SKIP=uv-audit uv run pre-commit run --all-files
+
+      - name: Dependency vulnerability audit (advisory only)
+        run: |
+          uv audit --preview-features audit-command \
+            || echo "::warning title=Dependency advisories::Known vulnerabilities found. See the log above."
