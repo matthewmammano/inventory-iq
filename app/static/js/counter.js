@@ -1,6 +1,5 @@
 const counterValue = document.querySelector('.counter-value');
 const counterInput = document.getElementById('counter_value');
-const submitBtn = document.querySelector('.submit-btn');
 const hiddenForm = document.getElementById('hidden-form');
 const minValue = parseInt(counterInput?.dataset.minValue || '0');
 
@@ -23,13 +22,6 @@ document.querySelectorAll('[data-value]').forEach(btn => {
     });
 });
 
-submitBtn.addEventListener('click', function() {
+hiddenForm?.addEventListener('submit', function() {
     counterInput.value = counterValue.textContent;
-
-    if (!hiddenForm) return;
-    if (typeof hiddenForm.requestSubmit === 'function') {
-        hiddenForm.requestSubmit();
-        return;
-    }
-    hiddenForm.submit();
 });

@@ -31,7 +31,7 @@ from app.inventory.schema import ScanItemQuery, ScanStartQuery
 from app.inventory.search_payload import load_item_search_payload
 from app.inventory.upc_service import record_unknown_upc
 from app.shared.database import get_session
-from app.shared.rate_limit import AUTH_RATE_LIMIT, limiter
+from app.shared.rate_limit import AUTH_RATE_LIMIT, failed_auth_only, limiter
 from app.shared.utils import (
     get_agency_id_from_request,
     is_static_request,
@@ -109,7 +109,7 @@ def _record_unknown_upc_from_request() -> str | None:
 
 
 @bp.route("/<int:agency_id>/admin", methods=["GET", "POST"])
-@limiter.limit(AUTH_RATE_LIMIT, methods=["POST"])
+@limiter.limit(AUTH_RATE_LIMIT, methods=["POST"], deduct_when=failed_auth_only)
 def admin_login(agency_id: int) -> Any:
     token = current_device_token()
     if request.method == "POST":

@@ -47,8 +47,9 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     function disableSubmitButtons(form) {
-        form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach((button) => {
-            button.disabled = true;
+        // form.elements, unlike querySelectorAll, includes buttons bound by the form attribute
+        [...form.elements].forEach((element) => {
+            if (element.type === "submit") element.disabled = true;
         });
     }
 

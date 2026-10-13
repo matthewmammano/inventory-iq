@@ -123,6 +123,7 @@
 {% endblock %}
 
 {% block extra_js %}
+<script src="{{ url_for('static', filename='js/info-tip.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/email-modal.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/report-print.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/sortable-table.js') }}" defer></script>
