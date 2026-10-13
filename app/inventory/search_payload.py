@@ -10,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.auth.queries import get_tags_by_ids
 from app.inventory.models import Item, ItemSecondaryUpc
 from app.shared.cache import ttl_cache
+from app.shared.timezone_utils import utc_isoformat
 
 if TYPE_CHECKING:
     from app.auth.models import ItemTag
@@ -102,7 +103,7 @@ def _item_payload_entry(
         "name": name,
         "upc": upcs[0] if upcs else "",
         "upcs": upcs,
-        "last_accessed": last_accessed.isoformat() if last_accessed else "",
+        "last_accessed": utc_isoformat(last_accessed),
         "tags": [tag.tag_name for tag in tags],
         "tag_data": [{"name": tag.tag_name, "color": tag.color, "text_color": tag.text_color} for tag in tags],
     }

@@ -155,7 +155,7 @@
                         <td>{{ item.expiration_notice_days_override if item.expiration_notice_days_override is not none else 'Default' }}</td>
                         <td>{{ item.guest_quick_adjust }}</td>
                         <td>{{ item.scan_alert_flagged }}</td>
-                        <td>{{ item.get_last_accessed_local(user_timezone).strftime('%Y-%m-%d %H:%M:%S') if item.last_accessed else 'Never' }}</td>
+                        <td>{{ item.last_accessed|local_datetime(user_timezone, 'Never') }}</td>
                         <td><img class="table-thumbnail" src="{{ item.image|image_src }}" alt="{{ item.name }}" loading="lazy" decoding="async"></td>
                     </tr>
                     {% endfor %}

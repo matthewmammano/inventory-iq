@@ -48,8 +48,8 @@
                 <td>{{ scan.upc }}</td>
                 <td>{{ scan.lookup_title or 'NA' }}</td>
                 <td>{{ scan.suggested_item.name if scan.suggested_item else 'NA' }}</td>
-                <td>{{ scan.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
-                <td>{{ scan.created_at.strftime('%Y-%m-%d %H:%M') }}</td>
+                <td>{{ scan.updated_at|local_datetime(user_timezone) }}</td>
+                <td>{{ scan.created_at|local_datetime(user_timezone) }}</td>
                 <td>
                     {{ upc_review_actions(scan, items, ignored) }}
                 </td>

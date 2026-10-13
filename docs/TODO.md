@@ -1,17 +1,7 @@
 # My TODO
 
-`P0` before the demo, `P3` whenever. Tags: `[OPEN]` `[PARTIAL]` `[PLAN]` needs a decision first, `[INVESTIGATE]` unknown scope.
+`P1` is the top open tier right now. `P3` whenever. Tags: `[OPEN]` `[PARTIAL]` `[PLAN]` needs a decision first, `[INVESTIGATE]` unknown scope.
 Finished items move to **Done** as one line; items judged not worth doing are deleted, not kept.
-
----
-
-## P0 - Demo blockers
-
-### P0.1 Timezone pipeline: trend chart dates are wrong [OPEN]
-
-Store UTC (correct), convert on the device every time it is shown.
-`models.py:268` stores naive UTC. `history_service.py:195` serializes with `at.isoformat()`, giving `"2026-09-12T01:34:34"` with no `Z`. `item-trend-modal.js` then does `new Date(point.at)`, which parses an offsetless string as browser-local. At UTC-4/-5 every point, tooltip and axis label shifts 4-5 hours; scans near UTC midnight land on the wrong day.
-Scope: audit every naive datetime serialized to a template, JSON, email or printed report. Not just the chart. `/health` has the same bug (P1.9).
 
 ---
 
@@ -47,7 +37,7 @@ Several bulk and print templates render a headers-only table instead of "nothing
 Settle company-vs-product naming and apply it to `<title>`, the manifest, and emails. Same task: `<meta name="description">`, Open Graph + Twitter cards, per-page titles, `robots.txt`, `sitemap.xml`, JSON-LD `SoftwareApplication`. Only pays off once P1.1 exists.
 
 ### P1.9 `/health` reports healthy with a dead database [PLAN]
-Returns a status string and a naive-local timestamp, nothing else, so Railway keeps routing to a broken app. Add a `SELECT 1` and return 503 on failure; confirm the poll interval first.
+Returns only a status string and a timestamp, so Railway keeps routing to a broken app. Add a `SELECT 1` and return 503 on failure; confirm the poll interval first. The naive-timestamp half of this is already fixed.
 
 ### P1.10 Align login failure handling [OPEN] blocks a security fix
 The wrong-password path does `flash()` + `redirect()` (302), discarding the typed email; the pydantic path re-renders via `_render_login(email, field_errors)` and keeps it. Align on re-rendering.
@@ -171,6 +161,15 @@ For later accountability features.
 ---
 
 ## Done
+
+### 2026-10-13 timezone pipeline
+
+- [FIXED] **P0 every datetime sent to the browser was read as device-local.** The database stores naive UTC correctly, but `isoformat()` on a naive value produces `2026-09-12T01:34:34` with no offset, and JS `new Date()` treats an offsetless string as local time. A 01:34 UTC scan rendered as "Sep 12, 1:34 AM" on every device instead of Sep 11, 9:34 PM in New York, so trend-chart points, axis labels and tooltips were off by the UTC offset and scans near UTC midnight landed on the wrong day.
+  New `utc_isoformat` in `timezone_utils.py` stamps the offset before anything crosses to the browser, applied at `history_service.py` (chart points) and `search_payload.py` (`last_accessed`). The chart already calls `toLocaleDateString`, so it now converts per device with no JS change.
+  Three server-rendered tables were also printing raw UTC or re-implementing the conversion inline. New `local_datetime` Jinja filter (one `format_local_datetime` helper) replaced all of them: `admin_pending_upcs.html` was showing unconverted UTC in both date columns, while `macros.html` and `admin_data.html` each hand-rolled `get_*_local(...).strftime(...)`. `Item.get_last_accessed_local` became dead and was deleted. Display format is now one constant, `%Y-%m-%d %H:%M`; seconds were dropped as noise on a kiosk.
+  `/health` returned `datetime.now()`, server-local with no offset; it returns aware UTC now.
+  Decoupling bug found and fixed on the way: `_last_known_point` parsed its own serialized output back with `datetime.fromisoformat`, so stamping the string made it compare an aware datetime against a naive one and raise. `_operation_points` now reports its newest `(datetime, quantity)` directly and nothing re-parses the wire format.
+  Verified: all 240 item/location charts produce byte-identical quantities, `trend_per_day`, confidence and count/operation points before and after, with the only difference being the trendline's `utc_now()` endpoint moving between runs; 512 of 512 chart points carry `+00:00` where none did before; and real Chromium at three device timezones renders Sep 11 9:34 PM (New York), Sep 11 6:34 PM (Los Angeles), Sep 12 1:34 AM (UTC) from the same stored instant. All 25 pre-commit hooks pass.
 
 ### 2026-10-12 demo fixes
 

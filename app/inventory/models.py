@@ -90,10 +90,6 @@ class Item(Base):
     def __repr__(self) -> str:
         return f"<Item {self.name}>"
 
-    def get_last_accessed_local(self, user_timezone: str) -> datetime | None:
-        """Return last_accessed converted from UTC to the user's local timezone."""
-        return convert_utc_to_local(self.last_accessed, user_timezone)
-
     def add_tag(self, tag_id: int) -> None:
         _require_int_tag_id(tag_id)
         if self.tag_ids is None:

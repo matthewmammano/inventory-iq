@@ -15,6 +15,7 @@ from app.prediction.schema import ItemTrendChartResponse, TrendChartPoint
 from app.prediction.segments import CountAnchor, extract_count_anchors, get_location_storage_ids
 from app.prediction.usage_model import get_inventory_trend
 from app.shared.clock import utc_now
+from app.shared.timezone_utils import utc_isoformat
 
 
 def build_item_trend_chart(
@@ -27,7 +28,7 @@ def build_item_trend_chart(
     storage_ids = get_location_storage_ids(session, agency_id, location.id)
     count_anchors = extract_count_anchors(session, agency_id, item.id, location.id)
     discrepancies = _count_discrepancies(session, agency_id, item.id, storage_ids, count_anchors)
-    operation_points = _operation_points(session, agency_id, item.id, storage_ids)
+    operation_points, last_operation = _operation_points(session, agency_id, item.id, storage_ids)
     trend = get_inventory_trend(session, agency_id, item.id, location.id)
     visible_trend = _visible_trend(trend.trend_per_day) if trend and trend.trend_per_day is not None else None
     return ItemTrendChartResponse(
@@ -41,7 +42,7 @@ def build_item_trend_chart(
         ],
         operation_points=operation_points,
         trendline_points=_trendline_points(
-            _last_known_point(count_anchors, operation_points),
+            _last_known_point(count_anchors, last_operation),
             visible_trend,
         ),
         trend_per_day=visible_trend,
@@ -55,9 +56,9 @@ def _operation_points(
     agency_id: int,
     item_id: int,
     storage_ids: list[int],
-) -> list[TrendChartPoint]:
+) -> tuple[list[TrendChartPoint], tuple[datetime, float] | None]:
     if not storage_ids:
-        return []
+        return [], None
     rows = session.execute(
         select(ActionLog)
         .where(
@@ -73,6 +74,7 @@ def _operation_points(
     ).scalars()
     quantities: dict[int, int] = dict.fromkeys(storage_ids, 0)
     operation_points: list[TrendChartPoint] = []
+    newest: tuple[datetime, float] | None = None
     for log in rows:
         scanned_at = log.time_scanned
         if scanned_at is None:
@@ -84,7 +86,8 @@ def _operation_points(
             continue
         if total != before:
             operation_points.append(_point(scanned_at, total, log.operation_type.value))
-    return operation_points
+            newest = (scanned_at, float(total))
+    return operation_points, newest
 
 
 def _count_discrepancies(
@@ -146,14 +149,14 @@ def _apply_log(quantities: dict[int, int], log: ActionLog) -> None:
 
 def _last_known_point(
     count_anchors: list[CountAnchor],
-    operation_points: list[TrendChartPoint],
+    last_operation: tuple[datetime, float] | None,
 ) -> tuple[datetime, float] | None:
     """Most recent real datapoint: a count or a logged restock/takeout/transfer, whichever is newer."""
     candidates: list[tuple[datetime, float]] = []
     if count_anchors:
         candidates.append((count_anchors[-1].counted_at, count_anchors[-1].total_quantity))
-    if operation_points:
-        candidates.append((datetime.fromisoformat(operation_points[-1].at), operation_points[-1].quantity))
+    if last_operation:
+        candidates.append(last_operation)
     return max(candidates, key=lambda point: point[0]) if candidates else None
 
 
@@ -192,7 +195,7 @@ def _point(
     discrepancy: float | None = None,
 ) -> TrendChartPoint:
     return TrendChartPoint(
-        at=at.isoformat(),
+        at=utc_isoformat(at),
         quantity=round(float(quantity), 2),
         operation=operation,
         expected_quantity=round(float(expected_quantity), 2) if expected_quantity is not None else None,

@@ -2,7 +2,6 @@
 
 import logging
 import re
-from datetime import datetime
 from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
@@ -21,6 +20,7 @@ from app.auth.queries import get_agency
 from app.diagnostics import bp as diagnostics_bp
 from app.errors import register_error_handlers
 from app.inventory import admin_bp, guest_bp
+from app.shared.clock import utc_now
 from app.shared.config import settings
 from app.shared.constants import IDLE_TIMEOUT, IDLE_WARNING_SECONDS
 from app.shared.database import init_db
@@ -33,6 +33,7 @@ from app.shared.rate_limit import register_rate_limiting
 from app.shared.request_logging import register_request_logging
 from app.shared.security_headers import register_security_headers
 from app.shared.text_formatting import pluralize
+from app.shared.timezone_utils import format_local_datetime
 
 csrf = CSRFProtect()
 
@@ -140,6 +141,7 @@ def _register_blueprints(app: Flask) -> None:
 def _register_template_filters(app: Flask) -> None:
     app.add_template_filter(bold_item_name, "bold_item_name")
     app.add_template_filter(pluralize, "pluralize")
+    app.add_template_filter(format_local_datetime, "local_datetime")
     app.add_template_global(validation_attrs, "validation_attrs")
     app.add_template_global(validation_group_attrs, "validation_group_attrs")
 
@@ -202,4 +204,4 @@ def _register_favicon_route(app: Flask) -> None:
 def _register_health_check(app: Flask) -> None:
     @app.route("/health")
     def health_check():
-        return {"status": "healthy", "timestamp": datetime.now().isoformat()}
+        return {"status": "healthy", "timestamp": utc_now().isoformat()}
