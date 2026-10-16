@@ -3,7 +3,8 @@
 {% block title %}{{ page_title }}{% endblock %}
 {% block header_title %}{{ page_title }}{% endblock %}
 {% block sub_title %}{{ page_subtitle }}{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ cancel_url }}">{{ back_label|default("Back") }}</a>{% endblock %}
+{% set back_url = cancel_url %}
+{% block header_right %}<a class="header-action" href="{{ back_url }}">{{ back_label|default("Back") }}</a>{% endblock %}
 
 {% macro expiration_stepper(name, value, row_max, label, start_hidden=False) -%}
 <div class="expiration-stepper"{% if start_hidden %} hidden{% endif %}>

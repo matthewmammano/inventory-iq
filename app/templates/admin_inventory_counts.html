@@ -12,7 +12,6 @@
     {% endif %}
     <button class="button" type="button" data-report-print-url="{{ counts_print_url }}" data-report-print-area="#counts-print-area">Print Report</button>
     <button class="success-button" data-email-modal-open="report-email-modal" type="button">Email Report</button>
-    <a class="header-action" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>
 {% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/item-trend-modal.css') }}">{% endblock %}
 

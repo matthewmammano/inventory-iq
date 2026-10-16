@@ -7,7 +7,6 @@
 <button class="success-button{% if active_tab != 'items' %} hidden{% endif %}" type="button" data-modal-open="item-modal-add" data-tab-action="items">Add Item</button>
 <button class="success-button{% if active_tab != 'tags' %} hidden{% endif %}" type="button" data-modal-open="tag-modal-add" data-tab-action="tags">Add Tag</button>
 <button class="success-button{% if active_tab != 'notifications' %} hidden{% endif %}" type="button" data-modal-open="notif-modal-add" data-tab-action="notifications">Add Notification</button>
-<a class="header-action" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>
 {% endblock %}
 
 {% macro edit_icon() -%}

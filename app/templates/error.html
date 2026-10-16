@@ -1,33 +1,18 @@
 {% extends "base.html" %}
 
-{% block title %}{{ error_title | default("Error") }}{% endblock %}
-{% block header_title %}{{ error_message | default("Error") }}{% endblock %}
-{% block sub_title %}{{ error_title | default("Inventory IQ") }}{% endblock %}
-{% block header_right %}
-    {% if current_user.is_authenticated %}
-        <a class="header-action" href="{{ url_for('guest.index', agency_id=current_user.id) }}">Home</a>
-    {% else %}
-        <a class="header-action" href="{{ url_for('auth.login') }}">Home</a>
-    {% endif %}
-{% endblock %}
+{% block title %}{{ error_page.headline }}{% endblock %}
+{% block header_title %}{{ error_page.headline }}{% endblock %}
+{% block sub_title %}Inventory IQ{% endblock %}
+{% block header_right %}<a class="home-button" href="{{ error_home_url }}">Home</a>{% endblock %}
 
 {% block content %}
 <section class="panel">
     <div class="empty-state">
-        <div class="error-code">{{ error_code | default("!") }}</div>
-        <h2>{{ error_message | default("An error occurred") }}</h2>
-        <p>{{ error_description | default("Please try again or contact support.") }}</p>
+        <h2>{{ error_page.help_text }}</h2>
         <div class="button-row">
-            <a class="quiet-button" href="{{ url_for('auth.login') }}" data-history-back>Go Back</a>
-            {% if current_user.is_authenticated %}
-                <a class="success-button" href="{{ url_for('guest.index', agency_id=current_user.id) }}">Go Home</a>
-            {% else %}
-                <a class="success-button" href="{{ url_for('auth.login') }}">Go Home</a>
-            {% endif %}
+            <a class="success-button" href="{{ error_home_url }}">Go Home</a>
         </div>
-        {% if error_help %}<p>{{ error_help }}</p>{% endif %}
+        <div class="error-code">Error {{ error_page.code }}</div>
     </div>
 </section>
 {% endblock %}
-
-{% block extra_js %}<script src="{{ url_for('static', filename='js/history-back.js') }}" defer></script>{% endblock %}

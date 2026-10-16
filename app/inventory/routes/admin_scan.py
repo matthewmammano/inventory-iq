@@ -90,7 +90,7 @@ def admin_scan_items(agency_id: int) -> Any:
         agency_id=agency_id,
         logo_img=current_user.image,
         admin=True,
-        page_subtitle="Ready for barcode scan or item search",
+        page_subtitle="Point the scanner at the barcode, or type the item name",
         selected_scan_route=scan_route.label,
         selected_from_location_label=scan_route.from_label,
         selected_to_location_label=scan_route.to_label,
@@ -166,7 +166,7 @@ def _render_admin_scan_setup(agency_id: int) -> Any:
         to_locations=to_locations,
         selected_from_id=query.from_storage_id,
         selected_to_id=query.to_storage_id,
-        setup_subtitle="Choose the FROM and TO locations for the next scans",
+        setup_subtitle="Pick where items come from and where they go. This stays set until you change it",
         admin=True,
     )
 

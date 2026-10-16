@@ -55,6 +55,11 @@ Decide first: is 0 the right floor, or is "you will be 12 short" useful informat
 ### P1.13 Logout is a plain GET [INVESTIGATE]
 Any link, prefetch or embedded image can end a session. Convert to POST with the existing CSRF token, or document as accepted.
 
+### P1.14 Expired stock has no disposal operation [PLAN] separate commit
+`OperationType` is COUNT, RESTOCK, TAKEOUT, TRANSFER. Throwing out expired or damaged stock has to be recorded as a TAKEOUT today, which feeds `estimator.py` usage rates and therefore inflates reorder quantities for every item that ever expires.
+Add a fifth `OperationType` (DISPOSAL) with its own migration, exclude it from usage math, and restrict it to admins. Pending Tasks already surfaces the expired-stock rows that this action would resolve, so its "Remove Expired" link should target the new operation instead of bulk edit.
+Decide first: admin-only or any scanner, and whether a reason (expired / damaged / recalled) is required.
+
 ---
 
 ## P2 - Investigate, scope unknown

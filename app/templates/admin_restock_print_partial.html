@@ -1,3 +1,4 @@
+<div class="report-sheet {{ 'report-sheet-detailed' if detailed else 'report-sheet-simple' }}">
 <section class="print-title">
     <h1>Restock Report</h1>
     <div class="print-kv-grid">
@@ -10,7 +11,7 @@
 
 {% if restock_data|length == 0 %}
 <div class="empty-state"><h2>No items found</h2></div>
-{% else %}
+{% elif detailed %}
 <section class="panel">
     <div class="table-wrap">
         <table>
@@ -41,7 +42,7 @@
                 {% set expiration = row.expiration_breakdown %}
                 <tr>
                     <td>{{ row.item.name|bold_item_name }}</td>
-                    <td>{{ row.item.increments }}</td>
+                    <td>{{ row.item.increments or "Each" }}</td>
                     <td>{{ row.current_total }}</td>
                     <td>{{ row.projected_lead_time_total if row.projected_lead_time_total is not none else 'N/A' }}</td>
                     <td>{{ row.usage_display if row.usage_display is not none else 'N/A' }}</td>
@@ -55,7 +56,7 @@
                     <td>{{ expiration.expiring_soon_count if expiration else '-' }}</td>
                     <td>{% if row.days_until_stockout is not none %}{{ row.days_until_stockout if row.days_until_stockout <= 365 else 365 }}{% else %}N/A{% endif %}</td>
                     <td>{{ row.suggested_reorder_date.strftime('%Y-%m-%d') if row.suggested_reorder_date else 'N/A' }}</td>
-                    <td>{{ row.last_counted_at.strftime('%Y-%m-%d') if row.last_counted_at else 'N/A' }}</td>
+                    <td>{{ row.last_counted_at|local_date(user_timezone, 'N/A') }}</td>
                     <td>{{ row.confidence_display ~ '%' if row.confidence_display is not none else 'N/A' }}</td>
                     <td>{{ row.order_amount_display }}</td>
                 </tr>
@@ -64,4 +65,34 @@
         </table>
     </div>
 </section>
+{% else %}
+<section class="panel">
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Item</th>
+                    <th>Unit</th>
+                    <th>On Hand</th>
+                    <th>Par Level</th>
+                    <th>Order Qty</th>
+                    <th>Soonest Expiration</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for row in restock_data %}
+                <tr>
+                    <td>{{ row.item.name|bold_item_name }}</td>
+                    <td>{{ row.item.increments or "Each" }}</td>
+                    <td>{{ row.current_total }}</td>
+                    <td>{{ row.min_quantity if row.min_quantity > 0 else '-' }}</td>
+                    <td>{{ row.order_amount_display }}</td>
+                    <td>{{ row.expiration_breakdown.soonest_label if row.expiration_breakdown else '-' }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
 {% endif %}
+</div>

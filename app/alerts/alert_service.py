@@ -5,8 +5,9 @@ expiration): the set that *should* be open is computed from current state, then
 compared to what *is* open: a new key opens a row, a changed alert type closes
 the old row (SUPERSEDED) and opens a new one, and a vanished key resolves its row.
 Occurrence alerts (scan activity, unknown UPC) are opened directly and closed on
-resolution or by an age sweep. Any new alert row starts with a clean notification
-slate, which is what lets escalation and recurrence notify immediately.
+resolution, or swept once they are aged and confirmed emailed. Any new alert row
+starts with a clean notification slate, which is what lets escalation and
+recurrence notify immediately.
 """
 
 from collections.abc import Collection
@@ -34,8 +35,8 @@ from .audit_queries import (
     load_expiration_count_audit_rows,
     load_state_audit_rows,
 )
-from .constants import ACTION_ALERT_TYPES, STOCK_ALERT_TYPES, AlertStatus, AlertType, ClosedReason
-from .models import Alert
+from .constants import ACTION_ALERT_TYPES, NOTIFY_ONCE_ALERT_TYPES, STOCK_ALERT_TYPES, AlertStatus, AlertType, ClosedReason, DeliveryStatus
+from .models import Alert, AlertNotification, EmailDelivery
 from .payloads import (
     ExpirationCountNeededPayload,
     ExpirationStockPayload,
@@ -247,15 +248,36 @@ def _open_alerts(
 
 
 def _sweep_informational_alerts(session: Session, agency_id: int | None, now: datetime) -> int:
+    """Close aged notify-once alerts, except any whose every notification email errored."""
     cutoff = now - INFORMATIONAL_SWEEP_AGE
+    open_alerts = list(_open_alerts(session, agency_id, NOTIFY_ONCE_ALERT_TYPES, None).values())
+    never_delivered = _never_delivered_alert_ids(session, [alert.id for alert in open_alerts])
     swept = 0
-    for alert in _open_alerts(session, agency_id, ACTION_ALERT_TYPES.values(), None).values():
-        if alert.opened_at < cutoff:
+    for alert in open_alerts:
+        if alert.opened_at < cutoff and alert.id not in never_delivered:
             _close_alert(alert, now, ClosedReason.SENT)
             swept += 1
     if swept:
         session.flush()
     return swept
+
+
+def _never_delivered_alert_ids(session: Session, alert_ids: list[int]) -> set[int]:
+    """Alerts that were emailed to someone and every one of those sends failed."""
+    if not alert_ids:
+        return set()
+    rows = (
+        session.execute(
+            select(AlertNotification.alert_id, EmailDelivery.status)
+            .join(EmailDelivery, EmailDelivery.id == AlertNotification.email_delivery_id)
+            .where(AlertNotification.alert_id.in_(alert_ids))
+        )
+        .tuples()
+        .all()
+    )
+    attempted = {alert_id for alert_id, _ in rows}
+    delivered = {alert_id for alert_id, status in rows if status == DeliveryStatus.SENT}
+    return attempted - delivered
 
 
 def _alert_item_location_key(alert: Alert) -> ItemLocationKey | None:

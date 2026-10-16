@@ -18,7 +18,7 @@ from app.inventory.location_operations import build_location_count_rows
 from app.inventory.models import ActionLog, Item
 from app.shared.clock import utc_now
 from app.shared.email_client import EmailAttachment
-from app.shared.timezone_utils import convert_utc_to_local
+from app.shared.timezone_utils import convert_utc_to_local, format_local_date
 
 from .history_service import HISTORY_REPORT_LIMIT, HistoryLogQuery, list_history_logs
 
@@ -187,7 +187,7 @@ def build_restock_csv_attachment(agency: Agency, location_name: str, rows: Seque
             **_expiration_export_values(row.expiration_breakdown, expiring_label),
             "Days Until Stockout": _days_until_stockout_export(row.days_until_stockout),
             "Reorder Date": row.suggested_reorder_date.strftime("%Y-%m-%d") if row.suggested_reorder_date else "N/A",
-            "Last Counted": row.last_counted_at.strftime("%Y-%m-%d") if row.last_counted_at else "N/A",
+            "Last Counted": format_local_date(row.last_counted_at, agency.timezone, "N/A"),
             "Confidence": f"{row.confidence_display}%" if row.confidence_display is not None else "N/A",
             "Order Amount": row.order_amount_display,
         }

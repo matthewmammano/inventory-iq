@@ -14,6 +14,13 @@ Inventory IQ-specific conventions only. Architecture, data, deploy, and observab
 - Tooltips are for optional explanation on dense tables, icon-only actions, calculated values, or advanced concepts.
 - Do not add tooltips to normal buttons like Save, Back, Continue, Add, Link, Print, or Cancel.
 
+## Header Buttons
+
+- Every screen except the two home screens gets one automatic button at the top right: `Home`, or `Back` when the screen has no other back link. This is the one place a plain `Back` label is allowed.
+- Color carries the meaning: charcoal `.home-button` for Home and Back, red `.header-action` for leaving a screen, green `.success-button` for doing something, plain white `.button` for a harmless action, tan `.task-tray-button` for the Pending Tasks count.
+- Set a button's color with those classes only. No per-page or inline button colors.
+- Keep the header to three buttons at most, and exactly one dark button.
+
 ## Icons
 
 - Preferred icon source for this project: [Icons8 Material Outlined](https://icons8.com/icons/all--style-material-outlined).

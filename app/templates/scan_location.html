@@ -2,8 +2,9 @@
 
 {% block title %}Scan Location{% endblock %}
 {% block header_title %}Scan Location{% endblock %}
-{% block sub_title %}Choose where this device is being used right now{% endblock %}
-{% block header_right %}<a class="header-action" href="{{ url_for('guest.index', agency_id=agency_id) }}">Back to Scan</a>{% endblock %}
+{% block sub_title %}Tap where you are standing right now{% endblock %}
+{% set back_url = url_for('guest.index', agency_id=agency_id) %}
+{% block header_right %}<a class="header-action" href="{{ back_url }}">Back</a>{% endblock %}
 
 {% block content %}
 {% if locations|length == 0 %}
@@ -18,7 +19,7 @@
     <div class="panel-header">
         <div>
             <h2>Where is this device being used?</h2>
-            <p>This appears when the browser forgets the saved location. Pick the current location, then continue to storage selection.</p>
+            <p>Tap the place you are standing in, then tap the green button at the bottom.</p>
         </div>
     </div>
     <form method="POST" class="panel-body stack" data-validation-live="submit">

@@ -33,7 +33,7 @@ from app.shared.rate_limit import register_rate_limiting
 from app.shared.request_logging import register_request_logging
 from app.shared.security_headers import register_security_headers
 from app.shared.text_formatting import pluralize
-from app.shared.timezone_utils import format_local_datetime
+from app.shared.timezone_utils import format_local_date, format_local_datetime
 
 csrf = CSRFProtect()
 
@@ -142,6 +142,7 @@ def _register_template_filters(app: Flask) -> None:
     app.add_template_filter(bold_item_name, "bold_item_name")
     app.add_template_filter(pluralize, "pluralize")
     app.add_template_filter(format_local_datetime, "local_datetime")
+    app.add_template_filter(format_local_date, "local_date")
     app.add_template_global(validation_attrs, "validation_attrs")
     app.add_template_global(validation_group_attrs, "validation_group_attrs")
 

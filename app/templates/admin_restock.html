@@ -10,9 +10,19 @@
     {% else %}
         {% set restock_print_url = url_for('admin.restock_print', agency_id=agency_id) %}
     {% endif %}
-    <button class="button" type="button" data-report-print-url="{{ restock_print_url }}" data-report-print-area="#restock-print-area">Print Report</button>
+    <label class="header-toggle">
+        <input type="checkbox" id="restock-print-detailed">
+        All details
+    </label>
+    <button
+        class="button"
+        type="button"
+        data-report-print-url="{{ restock_print_url }}"
+        data-report-print-area="#restock-print-area"
+        data-report-print-detailed="#restock-print-detailed">
+        Print Report
+    </button>
     <button class="success-button" data-email-modal-open="restock-email-modal" type="button">Email Report</button>
-    <a class="header-action" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>
 {% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/item-trend-modal.css') }}">{% endblock %}
 
@@ -83,7 +93,7 @@
                         <td data-sort-value="{{ expiration.expiring_soon_count if expiration else 0 }}">{{ expiration.expiring_soon_count if expiration else '-' }}</td>
                         <td class="{{ row.days_class }}" data-sort-value="{{ row.days_until_stockout if row.days_until_stockout is not none else 999999 }}">{% if row.days_until_stockout is not none %}{{ row.days_until_stockout if row.days_until_stockout <= 365 else 365 }}{% else %}N/A{% endif %}</td>
                         <td data-sort-value="{{ row.suggested_reorder_date.strftime('%Y-%m-%d') if row.suggested_reorder_date else '9999-12-31' }}">{{ row.suggested_reorder_date.strftime('%Y-%m-%d') if row.suggested_reorder_date else 'N/A' }}</td>
-                        <td data-sort-value="{{ row.last_counted_at.strftime('%Y-%m-%d') if row.last_counted_at else '9999-12-31' }}">{{ row.last_counted_at.strftime('%Y-%m-%d') if row.last_counted_at else 'N/A' }}</td>
+                        <td data-sort-value="{{ row.last_counted_at|local_date(user_timezone, '9999-12-31') }}">{{ row.last_counted_at|local_date(user_timezone, 'N/A') }}</td>
                         <td data-sort-value="{{ row.confidence_display if row.confidence_display is not none else -1 }}">{{ row.confidence_display ~ '%' if row.confidence_display is not none else 'N/A' }}</td>
                         <td class="{{ row.order_class }}" data-sort-value="{{ row.order_amount if row.order_amount is not none else -1 }}">{{ row.order_amount_display }}</td>
                     </tr>

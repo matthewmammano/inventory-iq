@@ -98,7 +98,8 @@ def _process_alerts(session: Session, agency: Agency, recipient: NotificationRec
     if deliver_batch(email.batch, retry_delays_seconds=NOTIFICATION_RETRY_DELAYS_SECONDS):
         _record_alert_sent(session, agency, recipient, email, now)
         return [NotificationOutcome.SENT]
-    _record_failure(session, agency, recipient, NotificationDeliveryKind.ALERT, email.batch)
+    delivery = _record_failure(session, agency, recipient, NotificationDeliveryKind.ALERT, email.batch)
+    _link_alert_notifications(session, delivery, recipient, email.notified_alerts, now)
     return [NotificationOutcome.FAILED]
 
 
@@ -146,7 +147,12 @@ def _last_notified_by_alert(session: Session, recipient_id: int, alert_ids: list
     rows = (
         session.execute(
             select(AlertNotification.alert_id, func.max(AlertNotification.notified_at))
-            .where(AlertNotification.notification_recipient_id == recipient_id, AlertNotification.alert_id.in_(alert_ids))
+            .join(EmailDelivery, EmailDelivery.id == AlertNotification.email_delivery_id)
+            .where(
+                AlertNotification.notification_recipient_id == recipient_id,
+                AlertNotification.alert_id.in_(alert_ids),
+                EmailDelivery.status == DeliveryStatus.SENT,
+            )
             .group_by(AlertNotification.alert_id)
         )
         .tuples()
@@ -302,12 +308,19 @@ def _record_alert_sent(session: Session, agency: Agency, recipient: Notification
     delivery = _new_delivery(agency, recipient, email.batch, outcome)
     session.add(delivery)
     session.flush()
-    for alert in email.notified_alerts:
-        session.add(AlertNotification(alert_id=alert.id, notification_recipient_id=recipient.id, email_delivery_id=delivery.id, notified_at=now))
+    _link_alert_notifications(session, delivery, recipient, email.notified_alerts, now)
     logger.info(
         "Notification alert email delivered",
         extra={"agency_id": agency.id, "notification_recipient_id": recipient.id, "alert_count": len(email.notified_alerts)},
     )
+
+
+def _link_alert_notifications(
+    session: Session, delivery: EmailDelivery, recipient: NotificationRecipient, alerts: tuple[Alert, ...], now: datetime
+) -> None:
+    """Record which alerts one delivery attempt covered, whether it was delivered or errored."""
+    for alert in alerts:
+        session.add(AlertNotification(alert_id=alert.id, notification_recipient_id=recipient.id, email_delivery_id=delivery.id, notified_at=now))
 
 
 def _record_report_sent(session: Session, agency: Agency, recipient: NotificationRecipient, email: AlertEmail, now: datetime) -> None:
@@ -316,7 +329,9 @@ def _record_report_sent(session: Session, agency: Agency, recipient: Notificatio
     logger.info("Notification report email delivered", extra={"agency_id": agency.id, "notification_recipient_id": recipient.id})
 
 
-def _record_failure(session: Session, agency: Agency, recipient: NotificationRecipient, kind: NotificationDeliveryKind, batch: EmailBatch) -> None:
+def _record_failure(
+    session: Session, agency: Agency, recipient: NotificationRecipient, kind: NotificationDeliveryKind, batch: EmailBatch
+) -> EmailDelivery:
     outcome = DeliveryOutcome(kind, DeliveryStatus.ERROR, None)
     delivery = _new_delivery(agency, recipient, batch, outcome)
     delivery.error_type = "EMAIL_DELIVERY_FAILED"
@@ -328,6 +343,7 @@ def _record_failure(session: Session, agency: Agency, recipient: NotificationRec
         extra={"email_delivery_id": delivery.id, "agency_id": agency.id, "notification_recipient_id": recipient.id, "kind": kind.value},
     )
     send_developer_delivery_failure_alert(delivery)
+    return delivery
 
 
 def _new_delivery(agency: Agency, recipient: NotificationRecipient, batch: EmailBatch, outcome: DeliveryOutcome) -> EmailDelivery:

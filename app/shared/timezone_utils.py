@@ -7,6 +7,7 @@ from loguru import logger
 
 DEFAULT_TIMEZONE = "UTC"
 DISPLAY_DATETIME_FORMAT = "%Y-%m-%d %H:%M"
+DISPLAY_DATE_FORMAT = "%Y-%m-%d"
 
 
 def resolve_timezone(timezone: str | None) -> str:
@@ -43,3 +44,9 @@ def format_local_datetime(value: datetime | None, timezone: str, fallback: str =
     """Render a stored UTC datetime in the agency's timezone for server-rendered pages."""
     local = convert_utc_to_local(value, resolve_timezone(timezone))
     return local.strftime(DISPLAY_DATETIME_FORMAT) if local else fallback
+
+
+def format_local_date(value: datetime | None, timezone: str, fallback: str = "") -> str:
+    """Render a stored UTC datetime as a date in the agency's timezone."""
+    local = convert_utc_to_local(value, resolve_timezone(timezone))
+    return local.strftime(DISPLAY_DATE_FORMAT) if local else fallback

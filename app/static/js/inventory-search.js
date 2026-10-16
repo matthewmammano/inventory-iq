@@ -1,17 +1,28 @@
+const MAX_VISIBLE_RESULTS = 7;
+const SEARCH_THRESHOLD = 0.4;
+const LOAD_FAILED_NOTE = "Could not load the item list. Close this page and open it again.";
+const NO_ITEMS_NOTE = "No items here yet.";
+const noMatchNote = (query) => `Nothing matches "${query}". Check the spelling or scan the barcode.`;
+
 document.addEventListener("DOMContentLoaded", () => {
-    const MAX_VISIBLE_RESULTS = 7;
     const search = document.querySelector("#search");
     const list = document.querySelector("#results");
     if (!search || !list) return;
 
-    const items = JSON.parse(list.dataset.items || "[]");
+    const items = parseItems(list.dataset.items);
+    if (!items) {
+        list.replaceChildren(noteRow(LOAD_FAILED_NOTE, "search-note--error"));
+        search.disabled = true;
+        return;
+    }
+
     const agencyId = list.dataset.agencyId;
     const isAdmin = list.dataset.admin === "true";
     const scanItemBase = list.dataset.scanItemBase;
     const scanErrorUrl = list.dataset.scanErrorUrl;
     const fromStorageId = list.dataset.fromStorageId;
     const toStorageId = list.dataset.toStorageId;
-    const fuse = window.buildFuzzySearch(items, { keys: ["name", "upcs", "tags"], threshold: 0.9 });
+    const fuse = window.buildFuzzySearch(items, { keys: ["name", "upcs", "tags"], threshold: SEARCH_THRESHOLD });
 
     function itemUrl(itemId) {
         if (scanItemBase && fromStorageId && toStorageId) {
@@ -45,6 +56,10 @@ document.addEventListener("DOMContentLoaded", () => {
                 : new Date(b.item.last_accessed || 0) - new Date(a.item.last_accessed || 0)
         );
         list.replaceChildren();
+        if (!results.length) {
+            list.appendChild(noteRow(query.trim() ? noMatchNote(query.trim()) : NO_ITEMS_NOTE));
+            return;
+        }
         results.slice(0, MAX_VISIBLE_RESULTS).forEach(({ item }) => list.appendChild(resultRow(item, itemUrl)));
     }
 
@@ -61,9 +76,24 @@ document.addEventListener("DOMContentLoaded", () => {
     window.bindUpcScanner(scanUpc);
 });
 
+function parseItems(raw) {
+    try {
+        return JSON.parse(raw || "[]");
+    } catch {
+        return null;
+    }
+}
+
 function navigateTo(url) {
     window.InventoryLoadingOverlay?.show({ immediate: true });
     window.location.href = url;
+}
+
+function noteRow(text, variant) {
+    const row = document.createElement("li");
+    row.className = variant ? `search-note ${variant}` : "search-note";
+    row.textContent = text;
+    return row;
 }
 
 function resultRow(item, itemUrl) {

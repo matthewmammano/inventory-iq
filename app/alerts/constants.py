@@ -211,6 +211,7 @@ ACTION_ALERT_TYPES = {
     OperationType.TRANSFER: AlertType.TRANSFER_ACTION,
 }
 
+NOTIFY_ONCE_ALERT_TYPES = frozenset(alert_type for alert_type, definition in ALERT_DEFINITIONS.items() if definition.resend_after is None)
 STOCK_ALERT_RANK = {alert_type: definition.stock_rank for alert_type, definition in ALERT_DEFINITIONS.items() if definition.stock_rank}
 STOCK_ALERT_TYPES = frozenset(STOCK_ALERT_RANK)
 PREFERENCE_BY_TYPE = {

@@ -2,14 +2,13 @@
 
 {% block title %}Admin Login{% endblock %}
 {% block header_title %}Admin Login{% endblock %}
-{% block sub_title %}Enter the PIN for {{ agency_name }}{% endblock %}
-{% block header_right %}<a class="exit" href="{{ url_for('guest.index', agency_id=agency_id) }}">Exit Admin</a>{% endblock %}
+{% block sub_title %}Admins only. Tap Back if you are here to scan{% endblock %}
 {% block main_class %}pin-shell{% endblock %}
 
 {% block content %}
 <form method="POST" class="login-panel">
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-    <p class="helper">Enter the admin PIN to continue.</p>
+    <p class="helper">Type the 4-digit PIN for admin access to settings, stock details, and more.</p>
     <input id="pin-value" type="hidden" name="password" value="">
     <div id="pin-display" class="pin-display" aria-label="PIN entry">----</div>
     <div class="keypad" aria-label="Admin PIN keypad">

@@ -210,7 +210,7 @@ def format_scan_route_label(from_storage, to_storage, *, is_admin: bool) -> str:
 
 
 def storage_selection_subtitle(item_name: str) -> Markup:
-    return Markup("Choose FROM and TO for {item_name}").format(item_name=bold_item_name(item_name))
+    return Markup("Tap where {item_name} is now, then where it is going").format(item_name=bold_item_name(item_name))
 
 
 def format_scan_location_label(location, *, is_admin: bool, takeout_allowed: bool = False) -> str:

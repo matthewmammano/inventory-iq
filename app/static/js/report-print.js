@@ -1,3 +1,10 @@
+const printUrl = (button) => {
+    const url = new URL(button.dataset.reportPrintUrl, window.location.origin);
+    const detailToggle = document.querySelector(button.dataset.reportPrintDetailed || "");
+    if (detailToggle?.checked) url.searchParams.set("detailed", "1");
+    return url.toString();
+};
+
 document.addEventListener("DOMContentLoaded", () => {
     const buttons = document.querySelectorAll("[data-report-print-url]");
     if (!buttons.length) return;
@@ -19,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
         button.addEventListener("click", async () => {
             window.InventoryLoadingOverlay?.show({ immediate: true });
             try {
-                const response = await fetch(button.dataset.reportPrintUrl, { headers: { "X-Requested-With": "fetch" } });
+                const response = await fetch(printUrl(button), { headers: { "X-Requested-With": "fetch" } });
                 if (!response.ok) throw new Error("Could not load print report.");
                 printArea.innerHTML = await response.text();
                 window.InventoryLoadingOverlay?.hide();

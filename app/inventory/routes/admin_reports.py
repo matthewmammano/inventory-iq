@@ -122,6 +122,7 @@ def restock(agency_id: int, agency_location_id: int | None = None) -> Any:
         restock_data=restock_data,
         notification_recipients=notification_recipients,
         active_location_id=active_location.id if active_location else None,
+        user_timezone=current_user.timezone,
         admin=True,
     )
 
@@ -148,6 +149,8 @@ def restock_print(agency_id: int, agency_location_id: int | None = None) -> Any:
         agency_id=agency_id,
         location_name=active_location.name if active_location else "Restock Report",
         restock_data=restock_data,
+        user_timezone=current_user.timezone,
+        detailed=request.args.get("detailed") == "1",
         admin=True,
     )
 

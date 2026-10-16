@@ -4,9 +4,9 @@ document.addEventListener("DOMContentLoaded", () => {
     const fields = [...document.querySelectorAll("[data-label]")];
     const form = document.querySelector("#settings-form");
     const saveButton = document.querySelector("#save-button");
-    const backLink = document.querySelector("#back-link");
+    const homeLink = document.querySelector("[data-home-link]");
     const modal = document.querySelector("#confirm-modal");
-    if (!changeReview || !formValidation || !fields.length || !form || !saveButton || !backLink || !modal) return;
+    if (!changeReview || !formValidation || !fields.length || !form || !saveButton || !homeLink || !modal) return;
 
     const modalTitle = document.querySelector("#modal-title");
     const modalMessage = document.querySelector("#modal-message");
@@ -62,7 +62,7 @@ document.addEventListener("DOMContentLoaded", () => {
         await openModal("save");
     });
     saveButton.addEventListener("click", () => openModal("save"));
-    backLink.addEventListener("click", (event) => {
+    homeLink.addEventListener("click", (event) => {
         if (changes().length === 0) return;
         event.preventDefault();
         openModal("back");
@@ -71,7 +71,7 @@ document.addEventListener("DOMContentLoaded", () => {
     confirmButton.addEventListener("click", async () => {
         if (modalMode === "back") {
             loadingOverlay?.show({ immediate: true });
-            window.location.href = backLink.href;
+            window.location.href = homeLink.href;
             return;
         }
         if (!(await formValidation.validateForm(form))) {

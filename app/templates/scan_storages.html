@@ -1,12 +1,12 @@
+{% from "macros.html" import storage_step %}
 {% extends "base.html" %}
 
 {% block title %}Storage Selection{% endblock %}
 {% block header_title %}Choose Route{% endblock %}
 {% block sub_title %}{{ page_subtitle }}{% endblock %}
 {% block main_class %}kiosk-main{% endblock %}
-{% block header_right %}
-    <a class="back" href="{{ url_for('admin.admin_scan_items' if admin else 'guest.index', agency_id=agency_id) }}">Back to Scan</a>
-{% endblock %}
+{% set back_url = url_for('admin.admin_scan_items' if admin else 'guest.index', agency_id=agency_id) %}
+{% block header_right %}<a class="header-action" href="{{ back_url }}">Back</a>{% endblock %}
 
 {% block content %}
 <form id="scan-form" method="POST" action="{{ url_for('admin.scan_storages' if admin else 'guest.scan_storages', agency_id=agency_id) }}" class="stack" data-validation-submit="manual">
@@ -19,7 +19,7 @@
 
     <section class="selector">
         <div class="group">
-            <h2>From</h2>
+            {{ storage_step("from") }}
             {% if user_restock_allow and to_locations|length > 0 %}
             <label class="radio-card">
                 <input type="radio" name="from_storage_id" value="-1" {% if auto_from_id == -1 %}checked{% endif %}>
@@ -41,7 +41,7 @@
         </div>
 
         <div class="group" id="to-storage-options">
-            <h2>To</h2>
+            {{ storage_step("to") }}
             <label class="radio-card">
                 <input type="radio" name="to_storage_id" value="-3" {% if auto_to_id == -3 %}checked{% endif %}>
                 <span class="choice">TAKE</span>

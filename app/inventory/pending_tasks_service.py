@@ -12,7 +12,9 @@ from app.inventory.models import UnknownUpcScan
 
 
 @dataclass(frozen=True, slots=True)
-class StaleCountTask:
+class LocationItemsTask:
+    """Items at one location that an admin has to correct together."""
+
     agency_location_id: int
     location_name: str
     item_ids: list[int]
@@ -25,18 +27,21 @@ class StaleCountTask:
 @dataclass(frozen=True, slots=True)
 class PendingTaskSummary:
     missing_expiration_count: int
-    stale_counts: list[StaleCountTask]
+    stale_counts: list[LocationItemsTask]
+    expired_stock: list[LocationItemsTask]
     new_barcode_count: int
 
     @property
     def total_count(self) -> int:
-        return self.missing_expiration_count + sum(task.count for task in self.stale_counts) + self.new_barcode_count
+        location_items = sum(task.count for task in (*self.stale_counts, *self.expired_stock))
+        return self.missing_expiration_count + location_items + self.new_barcode_count
 
 
 def pending_task_summary(session: Session, agency_id: int) -> PendingTaskSummary:
     return PendingTaskSummary(
         missing_expiration_count=_open_event_count(session, agency_id, AlertType.EXPIRATION_COUNT_NEEDED),
-        stale_counts=_stale_count_tasks(session, agency_id),
+        stale_counts=_location_items_tasks(session, agency_id, AlertType.STALE_COUNT),
+        expired_stock=_location_items_tasks(session, agency_id, AlertType.EXPIRED_STOCK),
         new_barcode_count=_new_barcode_count(session, agency_id),
     )
 
@@ -60,11 +65,11 @@ def _open_event_count(session: Session, agency_id: int, alert_type: AlertType) -
     )
 
 
-def _stale_count_tasks(session: Session, agency_id: int) -> list[StaleCountTask]:
+def _location_items_tasks(session: Session, agency_id: int, alert_type: AlertType) -> list[LocationItemsTask]:
     details = session.execute(
         select(Alert.detail).where(
             Alert.agency_id == agency_id,
-            Alert.alert_type == AlertType.STALE_COUNT,
+            Alert.alert_type == alert_type,
             Alert.status == AlertStatus.OPEN,
         )
     ).scalars()
@@ -78,7 +83,7 @@ def _stale_count_tasks(session: Session, agency_id: int) -> list[StaleCountTask]
         existing_name, item_ids = by_location.setdefault(location_id, (location_name, set()))
         by_location[location_id] = (existing_name, item_ids | {item_id})
     return [
-        StaleCountTask(location_id, location_name, sorted(item_ids))
+        LocationItemsTask(location_id, location_name, sorted(item_ids))
         for location_id, (location_name, item_ids) in sorted(by_location.items(), key=lambda row: row[1][0])
     ]
 

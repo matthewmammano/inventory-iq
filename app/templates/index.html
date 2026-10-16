@@ -2,17 +2,14 @@
 
 {% block title %}Scan Inventory{% endblock %}
 {% block header_title %}Scan Inventory{% endblock %}
-{% block sub_title %}{{ page_subtitle if page_subtitle is defined else "Ready for barcode scan or item search" }}{% endblock %}
+{% block sub_title %}{{ page_subtitle if page_subtitle is defined else "Point the scanner at the barcode, or type the item name" }}{% endblock %}
 {% block main_class %}search-main{% endblock %}
+{% set back_url = url_for('admin.admin_scan_items', agency_id=agency_id) if selected_scan_route is defined else none %}
 {% block header_right %}
-    {% if admin %}
-        {% if selected_scan_route %}
-        <a class="header-action" href="{{ url_for('admin.admin_scan_items', agency_id=agency_id) }}">Back to Route</a>
-        {% else %}
-        <a class="header-action" href="{{ url_for('admin.admin_panel', agency_id=agency_id) }}">Back to Admin</a>
-        {% endif %}
-    {% else %}
-        <a class="admin" href="{{ url_for('guest.admin_login', agency_id=agency_id) }}">Admin</a>
+    {% if not admin %}
+    <a class="admin" href="{{ url_for('guest.admin_login', agency_id=agency_id) }}">Admin</a>
+    {% elif back_url %}
+    <a class="header-action" href="{{ back_url }}">Back</a>
     {% endif %}
 {% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/scan-route-strip.css') }}">{% endblock %}
