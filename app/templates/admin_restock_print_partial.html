@@ -1,14 +1,5 @@
-<div class="report-sheet {{ 'report-sheet-detailed' if detailed else 'report-sheet-simple' }}">
-<section class="print-title">
-    <h1>Restock Report</h1>
-    <div class="print-kv-grid">
-        <div class="print-kv-row">
-            <span class="print-kv-label">Location:</span>
-            <span class="print-kv-value">{{ location_name }}</span>
-        </div>
-    </div>
-</section>
-
+{% from "macros.html" import report_sheet %}
+{% call report_sheet("Restock Report", "landscape" if detailed else "portrait", [("Location", location_name)], dense=detailed) %}
 {% if restock_data|length == 0 %}
 <div class="empty-state"><h2>No items found</h2></div>
 {% elif detailed %}
@@ -95,4 +86,4 @@
     </div>
 </section>
 {% endif %}
-</div>
+{% endcall %}

@@ -20,6 +20,23 @@
          data-fallback-src="{{ url_for('static', filename='images/not-found.jpg') }}">
 {% endmacro %}
 
+{% macro report_sheet(title, orientation, facts, dense=false) %}
+    <div class="report-sheet report-sheet-{{ orientation }}{{ ' report-sheet-dense' if dense }}">
+        <section class="print-title">
+            <h1>{{ title }}</h1>
+            <div class="print-kv-grid">
+                {% for label, value in facts %}
+                <div class="print-kv-row">
+                    <span class="print-kv-label">{{ label }}:</span>
+                    <span class="print-kv-value">{{ value }}</span>
+                </div>
+                {% endfor %}
+            </div>
+        </section>
+        {{ caller() }}
+    </div>
+{% endmacro %}
+
 {% macro history_table(action_logs, user_timezone) %}
     <div class="table-wrap">
         <table>
@@ -55,4 +72,24 @@
         </label>
         {% endfor %}
     </div>
+{% endmacro %}
+
+{% macro nav_card_grid(cards, grid_class="") %}
+    <div class="card-menu {{ grid_class }}">
+        {% for card in cards %}
+        <a class="card{{ ' nav-primary' if card.primary }}" href="{{ card.url }}">
+            <h2>{{ card.title }}</h2>
+            <p>{{ card.detail }}</p>
+        </a>
+        {% endfor %}
+    </div>
+{% endmacro %}
+
+{% macro admin_header_icons(agency_id) %}
+<a class="quiet-button icon-action" href="{{ url_for('admin.settings_page', agency_id=agency_id) }}" aria-label="Settings" title="Settings">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3.2"/><path d="M19.5 14.6a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5v.2a2 2 0 0 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 0 1 0-4h.2a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3h.1a1.6 1.6 0 0 0 1-1.5V3a2 2 0 0 1 4 0v.2a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8v.1a1.6 1.6 0 0 0 1.5 1h.2a2 2 0 0 1 0 4h-.2a1.6 1.6 0 0 0-1.5 1z"/></svg>
+</a>
+<a class="quiet-button icon-action" href="{{ url_for('admin.admin_help', agency_id=agency_id) }}" aria-label="Help" title="Help">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9.3"/><path d="M9.3 9.4a2.8 2.8 0 0 1 5.5.6c0 1.9-2.8 2.4-2.8 2.4v1.1"/><path d="M12 17.2h.01"/></svg>
+</a>
 {% endmacro %}

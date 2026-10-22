@@ -69,7 +69,7 @@ def admin_scan_items(agency_id: int) -> Any:
         )
         if unknown_upc_status == UnknownUpcStatus.PENDING:
             flash("Choose the item this barcode should open.", "warning")
-            return redirect(url_for("admin.pending_upcs", agency_id=agency_id, focus_upc=unknown_upc))
+            return redirect(url_for("admin.unknown_barcodes", agency_id=agency_id, focus_upc=unknown_upc))
         if unknown_upc_status:
             message = unknown_upc_status.message
         elif unknown_upc:

@@ -1,9 +1,9 @@
 document.addEventListener("DOMContentLoaded", () => {
     const changeReview = window.InventoryChangeReview;
-    const form = document.querySelector("#bulk-action-form");
+    const form = document.querySelector("#bulk-edit-form");
     const saveButton = document.querySelector("#bulk-save-button");
     const submitButton = document.querySelector("#bulk-submit-button");
-    const back = document.querySelector("[data-bulk-back]");
+    const leaveLinks = [...document.querySelectorAll("[data-page-back], [data-home-link]")];
     const modal = document.querySelector("#bulk-confirm-modal");
     const changeList = document.querySelector("#bulk-change-list");
     const modalTitle = document.querySelector("#bulk-modal-title");
@@ -13,7 +13,8 @@ document.addEventListener("DOMContentLoaded", () => {
     const loadingOverlay = window.InventoryLoadingOverlay;
     const formValidation = window.InventoryFormValidation;
     let modalMode = "save";
-    if (!changeReview || !form || !saveButton || !submitButton || !back || !modal || !changeList || !modalTitle || !modalMessage || !confirmButton || !cancelButton || !formValidation) return;
+    let leaveUrl = "";
+    if (!changeReview || !form || !saveButton || !submitButton || !leaveLinks.length || !modal || !changeList || !modalTitle || !modalMessage || !confirmButton || !cancelButton || !formValidation) return;
 
     const quantityInputs = [...document.querySelectorAll("[data-count-input], [data-restock-input]")];
     const changedInputs = () => [...document.querySelectorAll("[data-original-value]")]
@@ -76,11 +77,12 @@ document.addEventListener("DOMContentLoaded", () => {
     form.addEventListener("submit", updateRequiredCounts, { capture: true });
 
     saveButton.addEventListener("click", () => openModal("save"));
-    back.addEventListener("click", (event) => {
+    leaveLinks.forEach((link) => link.addEventListener("click", (event) => {
         if (changedInputs().length === 0) return;
         event.preventDefault();
+        leaveUrl = link.href;
         openModal("back");
-    });
+    }));
 
     cancelButton.addEventListener("click", () => {
         modal.classList.add("hidden");
@@ -92,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
             return;
         }
         loadingOverlay?.show({ immediate: true });
-        window.location.href = back.href;
+        window.location.href = leaveUrl;
     });
     updateRequiredCounts();
     renderDirtyState();

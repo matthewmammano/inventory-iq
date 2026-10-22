@@ -3,9 +3,9 @@
 {% block title %}Select Items{% endblock %}
 {% block header_title %}Select Items{% endblock %}
 {% block sub_title %}Location: {{ location.name }}{% endblock %}
+{% block instructions %}Tick the items you are working on, then press Continue. Type in the search box to find one fast.{% endblock %}
 {% block main_class %}search-main{% endblock %}
-{% set back_url = url_for('admin.bulk_actions', agency_id=agency_id, agency_location_id=location.id) %}
-{% block header_right %}<a class="header-action" href="{{ back_url }}">Back</a>{% endblock %}
+{% set back_url = url_for('admin.bulk_edit', agency_id=agency_id, agency_location_id=location.id) %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/bulk-item-select.css') }}">{% endblock %}
 
 {% block content %}
@@ -34,7 +34,7 @@
         {% endfor %}
     </ul>
     <div class="button-row">
-        <button class="success-button" type="submit" disabled data-continue>Continue to Bulk Grid</button>
+        <button class="success-button" type="submit" disabled data-continue>Continue to Bulk Edit</button>
     </div>
 </form>
 {% endblock %}

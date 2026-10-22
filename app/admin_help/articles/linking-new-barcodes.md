@@ -1,7 +1,7 @@
 ---
 id: linking-new-barcodes
 title: Linking New Barcodes
-summary: Connect a new or alternate barcode to the correct item from Pending UPCs.
+summary: Connect a new or alternate barcode to the correct item from Unknown Barcodes.
 tags: Barcodes, Items
 ---
 
@@ -15,9 +15,9 @@ The same inventory item may arrive with a different package, supplier, size labe
 
 ## Link Carefully
 
-1. Open **Pending UPCs** and review the scanned UPC.
-2. Search for the correct existing item.
-3. Link only when you are sure the barcode represents that item.
+1. Open **Unknown Barcodes** and review the scanned UPC.
+2. Pick the correct item from the "Which item is this?" list.
+3. Press Link only when you are sure the barcode represents that item.
 4. Scan it again afterward to confirm it opens the right item.
 
 > Online lookup suggestions shown on this page can help identify a product, but they are not proof of what it should count as in your inventory. The admin decides what a barcode means here. See [Handling Unknown Barcodes](handling-unknown-barcodes) for the full review flow.

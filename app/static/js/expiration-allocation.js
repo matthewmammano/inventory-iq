@@ -134,14 +134,6 @@ document.addEventListener("DOMContentLoaded", () => {
         return valid;
     }
 
-    function renderOtherHighlight(group) {
-        const otherRow = group.querySelector("[data-exp-other-row]");
-        const otherQty = otherRow?.querySelector("[data-exp-qty]");
-        if (!otherRow || !otherQty) return;
-        const discouraged = otherRow.dataset.expOtherDiscouraged === "1";
-        otherRow.classList.toggle("expiration-other-used", discouraged && quantity(otherQty) > 0);
-    }
-
     function renderMinusButtons(group) {
         group.querySelectorAll("[data-exp-minus]").forEach((button) => {
             button.disabled = quantity(button.closest(".expiration-stepper")?.querySelector("[data-exp-qty]")) <= 0;
@@ -190,7 +182,6 @@ document.addEventListener("DOMContentLoaded", () => {
             const mismatch = submitAttempted && !totalMatches;
             group.classList.toggle("expiration-group-incomplete", mismatch);
             complete = rowsValid && complete && totalMatches;
-            renderOtherHighlight(group);
             renderMinusButtons(group);
             group.querySelectorAll("[data-exp-plus]").forEach((button) => {
                 button.disabled = requiresExact && total >= target;
@@ -202,12 +193,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     form.addEventListener("click", (event) => {
-        const otherToggle = event.target.closest("[data-exp-other-toggle]");
-        if (otherToggle) {
-            otherToggle.closest(".expiration-card-body")?.querySelector("[data-exp-other-row]")?.classList.remove("hidden");
-            otherToggle.remove();
-            return;
-        }
         const button = event.target.closest("[data-exp-minus], [data-exp-plus]");
         if (!button) return;
         const qtyEl = button.closest(".expiration-stepper")?.querySelector("[data-exp-qty]");

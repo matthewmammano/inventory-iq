@@ -1,0 +1,136 @@
+/* Admin dashboard: the scrolling "needs attention" strip above the navigation grid. */
+
+@layer base {
+  .attention-strip {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    align-items: stretch;
+  }
+
+  .attention-arrow {
+    width: clamp(38px, 3.5vw, 52px);
+    margin: 6px 0 14px;
+    padding: 0;
+    font-size: clamp(1.6rem, 3vw, 2.2rem);
+    line-height: 1;
+  }
+
+  .attention-arrow[disabled] {
+    opacity: 0.35;
+    cursor: default;
+  }
+
+  /* The strip scrolls sideways on its own so the page body never does. */
+  .attention-track {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(clamp(248px, 24vw, 340px), 1fr);
+    gap: 14px;
+    padding: 6px 4px 14px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scroll-snap-type: x mandatory;
+  }
+
+  .attention-card {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: clamp(10px, 1.4vw, 18px);
+    min-height: clamp(96px, 9.5vw, 128px);
+    scroll-snap-align: start;
+  }
+
+  .attention-count {
+    color: var(--color-primary-dark);
+    font-family: var(--font-heading);
+    font-size: clamp(2.4rem, 4.6vw, 3.6rem);
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+  }
+
+  .attention-body {
+    display: grid;
+    gap: 4px;
+  }
+
+  .attention-title {
+    font-family: var(--font-heading);
+    font-size: clamp(1rem, 1.8vw, 1.2rem);
+    font-weight: 700;
+    letter-spacing: -0.015em;
+    text-wrap: balance;
+  }
+
+  .attention-detail {
+    color: var(--color-muted);
+    font-weight: 500;
+    line-height: 1.3;
+  }
+
+  /* Severity is carried by the top edge and the count, so the card face stays readable at kiosk distance. */
+  .attention-critical {
+    border-top-color: var(--color-danger-border);
+    background: var(--color-danger-bg);
+  }
+
+  .attention-critical .attention-count { color: var(--color-danger-border); }
+
+  .attention-warning {
+    border-top-color: var(--color-warning-border);
+    background: var(--color-warning-bg);
+  }
+
+  .attention-warning .attention-count { color: var(--color-warning-border); }
+
+  .attention-watch {
+    border-top-color: var(--color-info-border);
+    background: var(--color-info-bg);
+  }
+
+  .attention-watch .attention-count { color: var(--color-info-border); }
+
+  /* A cleared type stays on the strip for reassurance, so it must not look tappable. */
+  .attention-clear {
+    border-top-color: var(--color-soft-line);
+    background: var(--color-white);
+    cursor: default;
+  }
+
+  .attention-clear .attention-count { color: var(--color-line); }
+  .attention-clear .attention-title { color: var(--color-muted); }
+
+  .attention-clear:hover,
+  .attention-clear:active {
+    transform: none;
+    background-image: none;
+    box-shadow: var(--shadow-soft);
+  }
+
+  /* A fixed column count, not auto-fit, so every row fills exactly and no card is left stranded. */
+  .card-menu.dashboard-nav { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+
+  .dashboard-nav > .card { grid-column: span 2; }
+  .dashboard-nav > .nav-primary { grid-column: span 3; }
+
+  /* Secondary destinations read smaller than the shared menu card; primaries keep it. */
+  .card-menu.dashboard-nav > .card:not(.nav-primary) { min-height: clamp(72px, 6vw, 104px); }
+  .card-menu.dashboard-nav > .card:not(.nav-primary) h2 { font-size: clamp(1.15rem, 1.5vw, 1.45rem); }
+
+  /* The dashboard owns a full screen on its own, so the shared footer spacing is dead height here. */
+  .admin-dashboard .footer-actions { margin-top: 0; }
+  .admin-dashboard .support { padding-top: 0; }
+
+  /* Arrows only earn their width where a pointer drives the page; a phone swipes the strip instead. */
+  @media (max-width: 700px) {
+    .attention-strip { grid-template-columns: minmax(0, 1fr); }
+    .attention-arrow { display: none; }
+    .attention-track { grid-auto-columns: minmax(min(86vw, 320px), 1fr); }
+    .card-menu.dashboard-nav { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .dashboard-nav > .card,
+    .dashboard-nav > .nav-primary { grid-column: span 1; }
+    /* An odd card count would otherwise leave the last one stranded at half width. */
+    .dashboard-nav > .card:last-child:nth-child(odd) { grid-column: span 2; }
+  }
+}

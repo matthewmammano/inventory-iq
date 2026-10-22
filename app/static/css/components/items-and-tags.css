@@ -1,0 +1,146 @@
+/* .icon-button-sm owns the square and hover; this adds only the flex-row and SVG inset deltas. */
+
+@layer base {
+  .row-action-button {
+    flex-shrink: 0;
+    box-sizing: border-box;
+    padding: 6px;
+  }
+
+  .row-action-button svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+  }
+
+  .row-name-cell {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .items-and-tags-modal {
+    width: min(820px, 96vw);
+    max-height: min(88vh, 820px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .items-and-tags-modal > [data-modal-view="edit"] {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+
+  .items-and-tags-modal h2 {
+    flex: 0 0 auto;
+    margin-bottom: 16px;
+  }
+
+  .items-and-tags-modal form {
+    flex: 1 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+    align-items: start;
+    gap: 16px 18px;
+  }
+
+  .items-and-tags-modal .edit-field {
+    margin: 0;
+  }
+
+  .items-and-tags-modal .edit-field > span {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 0.85rem;
+    white-space: nowrap;
+  }
+
+  .items-and-tags-modal .table-input,
+  .items-and-tags-modal select.table-input {
+    width: 100%;
+    min-width: 0;
+  }
+
+  .items-and-tags-modal .check-option,
+  .items-and-tags-modal fieldset,
+  .items-and-tags-modal .button-row,
+  .items-and-tags-modal small,
+  .items-and-tags-modal .wide-field,
+  .items-and-tags-modal .toggle-row {
+    grid-column: 1 / -1;
+  }
+
+  .toggle-row {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px 32px;
+  }
+
+  .items-and-tags-modal .checkbox-list {
+    grid-column: 1 / -1;
+    max-height: 12rem;
+    overflow-y: auto;
+  }
+
+  .secondary-upc-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .items-and-tags-modal fieldset {
+    margin: 6px 0 0;
+    padding: 10px 12px;
+    border: 2px solid var(--color-soft-line);
+    border-radius: var(--radius-sm);
+  }
+
+  .items-and-tags-modal fieldset legend {
+    padding: 0 6px;
+    font-weight: 800;
+    color: #46380f;
+  }
+
+  .items-and-tags-modal .button-row {
+    position: sticky;
+    bottom: -1px;
+    z-index: 1;
+    margin-top: 8px;
+    padding-top: 8px;
+    background: var(--color-panel);
+    border-top: 1px solid var(--color-soft-line);
+  }
+
+  .modal-delete-confirm {
+    display: grid;
+    gap: 10px;
+  }
+
+  .modal-delete-confirm.hidden {
+    display: none;
+  }
+
+  .items-and-tags-modal > [data-delete-trigger] {
+    margin-top: 12px;
+  }
+
+  @media (max-width: 640px) {
+    .items-and-tags-modal form {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (hover: none) and (pointer: coarse) {
+    /* Keeps the filling SVG proportional to the larger tap box .icon-button-sm switches to. */
+    .row-action-button {
+      padding: 10px;
+    }
+  }
+}

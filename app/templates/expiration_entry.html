@@ -4,7 +4,6 @@
 {% block header_title %}{{ page_title }}{% endblock %}
 {% block sub_title %}{{ page_subtitle }}{% endblock %}
 {% set back_url = cancel_url %}
-{% block header_right %}<a class="header-action" href="{{ back_url }}">{{ back_label|default("Back") }}</a>{% endblock %}
 
 {% macro expiration_stepper(name, value, row_max, label, start_hidden=False) -%}
 <div class="expiration-stepper"{% if start_hidden %} hidden{% endif %}>
@@ -59,7 +58,7 @@
                 {% if show_recount_links %}
                 <a
                     class="quiet-button expiration-recount-link"
-                    href="{{ url_for('admin.bulk_edit', agency_id=agency_id, agency_location_id=group.storage.location_id, item_ids=group.item.id) }}">
+                    href="{{ url_for('admin.bulk_edit_items', agency_id=agency_id, agency_location_id=group.storage.location_id, item_ids=group.item.id) }}">
                     Count Wrong? Recount
                 </a>
                 {% endif %}
@@ -99,19 +98,10 @@
             {% endif %}
 
             {% if group.spec.allows_other %}
-            {% if group.spec.other_discouraged %}
-            <button type="button" class="expiration-other-toggle" data-exp-other-toggle>Date missing from equipment? Tap here</button>
-            {% endif %}
-            <div class="expiration-row expiration-other{% if group.spec.other_discouraged %} hidden{% endif %}" data-exp-other-row data-exp-other-discouraged="{{ 1 if group.spec.other_discouraged else 0 }}">
+            <div class="expiration-row expiration-other" data-exp-other-row>
                 <div class="expiration-row-info">
-                    <strong class="expiration-date">{{ "Unable to Enter Date" if group.spec.other_discouraged else "Other / Not Listed" }}</strong>
-                    <small class="expiration-meta">
-                        {% if group.spec.other_discouraged %}
-                        Less accurate. Use only if the date truly isn't on the equipment.
-                        {% else %}
-                        Only use this if none of the dates above match what's actually being taken.
-                        {% endif %}
-                    </small>
+                    <strong class="expiration-date">Other / Not Listed</strong>
+                    <small class="expiration-meta">Only use this if none of the dates above match what's actually being taken.</small>
                 </div>
                 {{ expiration_stepper("exp_other_" ~ group.spec.key, 0, target, group.item.name ~ " other expiration quantity") }}
             </div>

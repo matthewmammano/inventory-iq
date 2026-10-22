@@ -6,10 +6,8 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
-from alembic import command
-from alembic.config import Config
-from flask import Flask, has_request_context, request, send_from_directory, url_for
-from flask_login import LoginManager, current_user
+from flask import Flask, send_from_directory, url_for
+from flask_login import LoginManager
 from flask_wtf import CSRFProtect
 from loguru import logger
 from werkzeug.middleware.proxy_fix import ProxyFix
@@ -20,6 +18,7 @@ from app.auth.queries import get_agency
 from app.diagnostics import bp as diagnostics_bp
 from app.errors import register_error_handlers
 from app.inventory import admin_bp, guest_bp
+from app.inventory.admin_navigation import hub_back_url
 from app.shared.clock import utc_now
 from app.shared.config import settings
 from app.shared.constants import IDLE_TIMEOUT, IDLE_WARNING_SECONDS
@@ -44,8 +43,8 @@ ROUTE_MODULES = (
     "app.diagnostics.routes",
     "app.inventory.routes.admin",
     "app.inventory.routes.admin_bulk",
-    "app.inventory.routes.admin_data",
     "app.inventory.routes.admin_help",
+    "app.inventory.routes.admin_items_and_tags",
     "app.inventory.routes.admin_reports",
     "app.inventory.routes.admin_scan",
     "app.inventory.routes.admin_upc",
@@ -115,19 +114,12 @@ def _configure_app(app: Flask) -> None:
 
 
 def _init_extensions(app: Flask) -> None:
-    _run_dev_migrations()
     init_db(settings.database_url)
     login_manager.init_app(app)
     cast(Any, login_manager).login_view = "auth.login"
     login_manager.login_message = "Please log in to access this page."
     login_manager.login_message_category = "warning"
     csrf.init_app(app)
-
-
-def _run_dev_migrations() -> None:
-    if settings.is_dev:
-        logger.info("Running dev database migrations")
-        command.upgrade(Config(str(Path(__file__).resolve().parent.parent / "alembic.ini")), "head")
 
 
 def _register_blueprints(app: Flask) -> None:
@@ -165,22 +157,8 @@ def _register_template_context(app: Flask) -> None:
         return {"idle_seconds": IDLE_TIMEOUT, "idle_warning_seconds": IDLE_WARNING_SECONDS}
 
     @app.context_processor
-    def admin_pending_tasks() -> dict[str, Any]:
-        if not has_request_context():
-            return {"admin_pending_task_count": 0}
-        agency_id = request.view_args.get("agency_id") if request.view_args else None
-        if request.endpoint != "admin.admin_panel" or agency_id is None or not current_user.is_authenticated:
-            return {"admin_pending_task_count": 0}
-        try:
-            from app.inventory.pending_tasks_service import pending_task_count
-            from app.shared.database import get_session
-
-            with get_session() as session:
-                count = pending_task_count(session, current_user.id)
-        except Exception:
-            logger.debug("Admin pending task badge count could not be loaded")
-            count = 0
-        return {"admin_pending_task_count": count}
+    def header_navigation() -> dict[str, Any]:
+        return {"hub_back_url": hub_back_url()}
 
 
 def _register_auth_loader() -> None:

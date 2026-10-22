@@ -13,7 +13,9 @@ from app.auth.models import Agency
 from app.auth.queries import list_top_locations
 from app.inventory import admin_bp as bp
 from app.inventory.admin_edit_service import save_admin_settings
+from app.inventory.admin_navigation import DASHBOARD_LINKS, NAV_HUBS, nav_cards
 from app.inventory.barcodes import upc_bars
+from app.inventory.dashboard_service import attention_tiles
 from app.inventory.expiration_service import save_expiration_count_correction
 from app.inventory.expiration_ui_service import (
     build_expiration_entry_groups,
@@ -23,7 +25,6 @@ from app.inventory.expiration_ui_service import (
     sort_expiration_groups,
 )
 from app.inventory.item_queries import list_items
-from app.inventory.pending_tasks_service import pending_task_summary
 from app.shared.constants import ADMIN_TIMEOUT, SAVE_RETRY_MESSAGE
 from app.shared.database import get_session
 from app.shared.form_parsing import selected_int_ids
@@ -70,28 +71,35 @@ def check_admin() -> Any:
 
 @bp.route("/<int:agency_id>/admin-panel")
 def admin_panel(agency_id: int) -> Any:
+    with get_session() as s:
+        tiles = attention_tiles(s, current_user.id)
     return render_template(
         "admin_panel.html",
         agency_id=agency_id,
+        attention_tiles=tiles,
+        nav_cards=nav_cards(DASHBOARD_LINKS, agency_id),
         contact_phone=current_app.config.get("CONTACT_PHONE", ""),
         panel_subtitle="Inventory Controls",
         admin=True,
     )
 
 
-@bp.route("/<int:agency_id>/admin-panel/pending-tasks")
-def pending_tasks(agency_id: int) -> Any:
-    with get_session() as s:
-        tasks = pending_task_summary(s, current_user.id)
+@bp.route("/<int:agency_id>/admin-panel/menu/<hub_slug>")
+def admin_hub(agency_id: int, hub_slug: str) -> Any:
+    hub = NAV_HUBS.get(hub_slug)
+    if hub is None:
+        logger.info("Unknown admin hub requested", extra={"agency_id": agency_id, "hub_slug": hub_slug})
+        return redirect(url_for("admin.admin_panel", agency_id=agency_id))
     return render_template(
-        "admin_pending_tasks.html",
+        "admin_hub.html",
         agency_id=agency_id,
-        tasks=tasks,
+        hub=hub,
+        nav_cards=nav_cards(hub.links, agency_id),
         admin=True,
     )
 
 
-@bp.route("/<int:agency_id>/admin-panel/pending-tasks/expiration-dates", methods=["GET", "POST"])
+@bp.route("/<int:agency_id>/admin-panel/expiration-dates", methods=["GET", "POST"])
 def pending_expiration_dates(agency_id: int) -> Any:
     from app.alerts.alert_service import sync_expiration_alerts
 
@@ -101,7 +109,7 @@ def pending_expiration_dates(agency_id: int) -> Any:
             sync_expiration_alerts(s, agency_id=current_user.id)
             s.commit()
             flash("No missing expiration dates need review.", "info")
-            return redirect(url_for("admin.pending_tasks", agency_id=agency_id))
+            return redirect(url_for("admin.admin_panel", agency_id=agency_id))
         if request.method == "POST":
             try:
                 allocations_by_key = parse_expiration_allocations(request.form, groups)
@@ -125,7 +133,7 @@ def pending_expiration_dates(agency_id: int) -> Any:
                 extra={"agency_id": current_user.id, "item_storage_pair_count": len(groups)},
             )
             flash(f"Saved expiration dates for {len(groups)} item/storage pair(s).", "success")
-            return redirect(url_for("admin.pending_tasks", agency_id=agency_id))
+            return redirect(url_for("admin.admin_panel", agency_id=agency_id))
         return _render_pending_expiration_dates(agency_id, groups)
 
 
@@ -136,8 +144,8 @@ def _render_pending_expiration_dates(agency_id: int, groups) -> Any:
         groups=sort_expiration_groups(groups),
         hidden_fields=hidden_form_fields(request.form),
         form_action=None,
-        cancel_url=url_for("admin.pending_tasks", agency_id=agency_id),
-        back_label="Back to Pending Tasks",
+        cancel_url=url_for("admin.admin_panel", agency_id=agency_id),
+        back_label="Back to Dashboard",
         show_bottom_cancel=False,
         show_recount_links=True,
         compact_entry=True,

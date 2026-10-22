@@ -3,11 +3,12 @@
 {% block title %}Help Center{% endblock %}
 {% block header_title %}Help Center{% endblock %}
 {% block sub_title %}Short answers for common admin questions{% endblock %}
+{% block instructions %}Search or tap a topic to read how something works.{% endblock %}
 {% block main_class %}help-main{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-help.css') }}">{% endblock %}
 
 {% block content %}
-<section class="help-search" data-admin-help>
+<section class="search help-search" data-admin-help>
     <label for="admin-help-search">Search Help</label>
     <input type="search" id="admin-help-search" placeholder="Search help articles" autocomplete="off">
     <div class="help-tags" aria-label="Filter help articles by tag">
@@ -21,7 +22,7 @@
 </section>
 
 <section class="help-results" aria-live="polite">
-    <div class="help-card-grid">
+    <div class="card-menu help-card-grid">
         {% for article in articles %}
         <a
             class="card help-card"

@@ -27,12 +27,12 @@ from app.shared.validators import first_validation_error_message
 PENDING_UPC_REVIEW_ACTIONS = {
     PendingUpcReviewAction.IGNORE: (ignore_unknown_upc, "Pending UPC ignored", "UPC ignored."),
     PendingUpcReviewAction.UNIGNORE: (unignore_unknown_upc, "Pending UPC restored", "UPC moved back to pending."),
-    PendingUpcReviewAction.REMOVE: (remove_unknown_upc, "Pending UPC review removed", "UPC review canceled."),
+    PendingUpcReviewAction.REMOVE: (remove_unknown_upc, "Pending UPC review removed", "Barcode deleted from the list."),
 }
 
 
-@bp.route("/<int:agency_id>/admin-panel/pending-upcs", methods=["GET", "POST"])
-def pending_upcs(agency_id: int) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/unknown-barcodes", methods=["GET", "POST"])
+def unknown_barcodes(agency_id: int) -> Any:
     if request.method == "POST":
         return _save_pending_upc_review(agency_id)
     with get_session() as s:
@@ -40,7 +40,7 @@ def pending_upcs(agency_id: int) -> Any:
         items = list_items(current_user.id, session=s)
     focus_upc = request.args.get("focus_upc", "").strip()
     return render_template(
-        "admin_pending_upcs.html",
+        "admin_unknown_barcodes.html",
         agency_id=agency_id,
         pending_upcs=_upcs_by_status(review_upcs, UnknownUpcStatus.PENDING),
         ignored_upcs=_upcs_by_status(review_upcs, UnknownUpcStatus.IGNORE),
@@ -125,5 +125,5 @@ def _upcs_by_status(scans: list[UnknownUpcScan], status: UnknownUpcStatus) -> li
 
 def _pending_upc_redirect(agency_id: int, *, focus_upc: str | None = None):
     if focus_upc:
-        return url_for("admin.pending_upcs", agency_id=agency_id, focus_upc=focus_upc)
-    return url_for("admin.pending_upcs", agency_id=agency_id)
+        return url_for("admin.unknown_barcodes", agency_id=agency_id, focus_upc=focus_upc)
+    return url_for("admin.unknown_barcodes", agency_id=agency_id)

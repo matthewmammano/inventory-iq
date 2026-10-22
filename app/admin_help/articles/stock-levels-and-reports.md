@@ -1,13 +1,13 @@
 ---
-id: inventory-levels-and-reports
-title: Inventory Levels And Reports
+id: stock-levels-and-reports
+title: Stock Levels And Reports
 summary: Understand current counts, low stock, the trend chart, printing, and emailed CSV reports.
-tags: Inventory Levels, Reports
+tags: Stock Levels, Reports
 ---
 
 ## Where To Go
 
-Open **Inventory Levels** from the Admin Panel. It shows what Inventory IQ believes is currently on hand, broken down by location and storage, so you can see both totals and where stock actually sits.
+Open **Stock Levels** from the Admin Panel. It shows what Inventory IQ believes is currently on hand, broken down by location and storage, so you can see both totals and where stock actually sits.
 
 ## What To Look For
 

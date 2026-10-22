@@ -1,7 +1,7 @@
 ---
 id: handling-unknown-barcodes
 title: Handling Unknown Barcodes
-summary: Review UPCs that were scanned but not recognized, from the Pending UPCs page.
+summary: Review UPCs that were scanned but not recognized, from the Unknown Barcodes page.
 tags: Barcodes, Scanning
 ---
 
@@ -11,13 +11,13 @@ An unknown barcode is a UPC that someone scanned but Inventory IQ could not matc
 
 ## Review Flow
 
-1. Open **Pending UPCs** from the Admin Panel, or click "Review Barcodes" from a Pending Tasks row.
+1. Open **Unknown Barcodes** from the dashboard, or tap the "New Barcode" tile.
 2. Review the UPC and any online lookup suggestion shown.
-3. Search for the correct existing item.
+3. Pick the correct item from the "Which item is this?" list and press Link.
 4. Link the UPC to that item only when it should count as the same inventory. See [Linking New Barcodes](linking-new-barcodes).
-5. Leave it unresolved (Ignore) if you are not sure yet; it will stay on this page until you decide.
+5. Press Ignore if you are not sure yet; it moves to the Ignored list and Move Back returns it. Delete removes the barcode from the page entirely.
 
-> The Pending UPCs page always shows every pending and ignored barcode together; it does not narrow down to just one when you arrive from a Pending Tasks link. Use the search or the highlighted row to find the one you came to review.
+> The Unknown Barcodes page lists every barcode waiting to be linked, and the Ignored list below it when there are any; it does not narrow down to just one when you arrive from a dashboard tile. Look for the highlighted row to find the one you came to review.
 
 ## Example
 

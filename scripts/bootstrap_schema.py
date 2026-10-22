@@ -1,7 +1,7 @@
-"""Create database tables for local/dev deployments.
+"""Create or upgrade the database schema for any environment.
 
-Production runs `alembic upgrade head` instead. This script keeps schema
-creation explicit rather than hiding it inside web app startup.
+Runs the same `alembic upgrade head` production runs, so dev and prod can never
+drift apart. Schema creation stays explicit rather than hiding inside app startup.
 """
 
 from pathlib import Path
@@ -10,7 +10,7 @@ from alembic import command
 from alembic.config import Config
 
 from app.shared.config import settings
-from app.shared.database import create_all, init_db
+from app.shared.database import init_db
 from app.shared.logging import setup_logging
 from app.shared.model_registry import import_model_modules
 from app.shared.task_logging import logged_task
@@ -19,7 +19,7 @@ _REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 def run() -> None:
-    """Create all registered ORM tables if they do not already exist."""
+    """Bring the configured database up to the latest migration."""
     setup_logging(json_logs=settings.is_prod)
     with logged_task(
         "admin_cli.bootstrap_schema",
@@ -34,8 +34,7 @@ def run() -> None:
             result["sqlite_path"] = str(db_path)
 
         init_db(settings.database_url)
-        create_all()
-        command.stamp(Config(str(_REPO_ROOT / "alembic.ini")), "head")
+        command.upgrade(Config(str(_REPO_ROOT / "alembic.ini")), "head")
 
 
 if __name__ == "__main__":

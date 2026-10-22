@@ -17,7 +17,7 @@ When you Restock a tracked item, enter the expiration date printed on the new st
 
 ## Fix Missing Expiration Dates
 
-If a tracked item already has stock on hand with no expiration date recorded, Pending Tasks shows a "Fix Missing Expiration Dates" row with a count of item/storage pairs that need it. Opening "Fix Dates" from there lets you assign dates to existing quantity directly, without creating a new Count, Restock, or Takeout action.
+If a tracked item already has stock on hand with no expiration date recorded, the dashboard shows a "Missing a Date" tile with a count of item/storage pairs that need it. Opening that tile lets you assign dates to existing quantity directly, without creating a new Count, Restock, or Takeout action.
 
 ## Warning Alerts
 

@@ -3,12 +3,13 @@
 {% block title %}{{ title }}{% endblock %}
 {% block header_title %}{{ title }}{% endblock %}
 {% block sub_title %}Choose the location to open{% endblock %}
+{% block instructions %}Pick the location you are standing in. You choose which items on the next screen.{% endblock %}
 
 {% block content %}
 {% if locations|length == 0 %}
 <section class="panel"><div class="empty-state"><h2>No locations found</h2></div></section>
 {% else %}
-<section class="grid admin-menu">
+<section class="card-menu">
     {% for location in locations %}
     <a class="card" href="{{ url_for(endpoint, agency_id=agency_id, agency_location_id=location.id) }}">
         <h2>{{ location.name }}</h2>

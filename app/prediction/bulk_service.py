@@ -185,7 +185,7 @@ class BulkService:
         return RestockAnalysisRow(
             item=item,
             current_total=current_quantity,
-            projected_lead_time_total=round(current_quantity - daily_usage * lead_time_days) if daily_usage is not None else None,
+            projected_lead_time_total=max(round(current_quantity - daily_usage * lead_time_days), 0) if daily_usage is not None else None,
             min_quantity=min_qty,
             max_quantity=max_qty,
             gap_to_min=max(min_qty - current_quantity, 0),

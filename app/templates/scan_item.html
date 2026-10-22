@@ -5,7 +5,7 @@
 {% block sub_title %}{{ page_subtitle }}{% endblock %}
 {% block main_class %}quantity-main{% endblock %}
 {% set back_url = cancel_url or url_for('admin.admin_scan_items' if admin else 'guest.index', agency_id=agency_id) %}
-{% block header_right %}<a class="cancel" href="{{ back_url }}">Cancel</a>{% endblock %}
+{% set back_label = "Cancel" %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/scan-route-strip.css') }}">{% endblock %}
 
 {% block content %}

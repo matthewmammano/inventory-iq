@@ -19,4 +19,4 @@ Summary emails group recent activity into one recap: Daily, Weekly, Monthly, or 
 
 ## Report Emails
 
-Report emails are sent manually, from a report page (**Inventory Levels**, **Restock**, or **View History**), by clicking Email Report and choosing recipients. They are never sent automatically just because the page exists; no recipient chosen means no email sent. Each includes a CSV spreadsheet-style attachment scoped to what was on screen (location, date range, or both).
+Report emails are sent manually, from a report page (**Stock Levels**, **Restock**, or **View History**), by clicking Email Report and choosing recipients. They are never sent automatically just because the page exists; no recipient chosen means no email sent. Each includes a CSV spreadsheet-style attachment scoped to what was on screen (location, date range, or both).

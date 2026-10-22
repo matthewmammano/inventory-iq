@@ -22,7 +22,7 @@ Guest capabilities depend on agency settings:
 - Admin actions should set `admin_action=True` in inventory history.
 - Admin flow may bypass guest permission restrictions but must still validate location, storage, item, and quantity.
 
-## Bulk Actions
+## Bulk Edit
 
 - Select a location, route/mode, and target items before editing quantities.
 - Save only explicit changes.
@@ -48,7 +48,7 @@ Guest capabilities depend on agency settings:
 ## UPC Review
 
 - Unknown UPC scans are held for admin classification.
-- The Pending UPCs page always shows the full Pending and Ignored lists together; there is no single-review or "return to tasks" mode. A `focus_upc` query param only highlights a row, it never hides the rest.
+- The Unknown Barcodes page always shows the full Pending and Ignored lists together; there is no single-review mode. A `focus_upc` query param only highlights a row, it never hides the rest.
 - Online lookup suggestions are uncertain and must be worded as assistance, not truth.
 - Linking a UPC should preserve agency-level uniqueness rules from [DATA_MODEL.md](DATA_MODEL.md).
 - UPC entry should validate length, digits, and check digit in the browser before submit when practical, then re-check the same rules in Python.

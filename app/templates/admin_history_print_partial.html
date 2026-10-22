@@ -1,23 +1,6 @@
-{% from "macros.html" import history_table %}
-
-<section class="print-title">
-    <h1>Inventory History</h1>
-    <div class="print-kv-grid">
-        <div class="print-kv-row">
-            <span class="print-kv-label">Agency:</span>
-            <span class="print-kv-value">{{ agency_name }}</span>
-        </div>
-        <div class="print-kv-row">
-            <span class="print-kv-label">Location:</span>
-            <span class="print-kv-value">{{ location_name }}</span>
-        </div>
-        <div class="print-kv-row">
-            <span class="print-kv-label">Date Range:</span>
-            <span class="print-kv-value">{{ start_date or "Beginning" }} to {{ end_date or "Today" }}</span>
-        </div>
-    </div>
-</section>
-
+{% from "macros.html" import history_table, report_sheet %}
+{% set facts = [("Agency", agency_name), ("Location", location_name), ("Date Range", (start_date or "Beginning") ~ " to " ~ (end_date or "Today"))] %}
+{% call report_sheet("Inventory History", "landscape", facts) %}
 {% if action_logs|length == 0 %}
 <section class="panel">
     <div class="empty-state"><h2>No action history found</h2></div>
@@ -27,3 +10,4 @@
     {{ history_table(action_logs, user_timezone) }}
 </section>
 {% endif %}
+{% endcall %}

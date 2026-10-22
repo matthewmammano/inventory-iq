@@ -7,7 +7,6 @@
 {% set back_url = url_for('admin.print_labels', agency_id=agency_id) %}
 {% block header_right %}
 <button class="success-button" type="button" data-print-trigger>Print</button>
-<a class="header-action" href="{{ back_url }}">Back</a>
 {% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/print-label-preview.css') }}">{% endblock %}
 

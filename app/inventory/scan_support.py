@@ -35,11 +35,6 @@ class ScanSurface(StrEnum):
             return url_for("admin.admin_scan_items", agency_id=agency_id)
         return url_for("guest.index", agency_id=agency_id)
 
-    def scan_item_error_url(self, agency_id: int) -> str:
-        if self == ScanSurface.ADMIN:
-            return url_for("admin.admin_panel", agency_id=agency_id)
-        return url_for("guest.index", agency_id=agency_id)
-
     def scan_item_cancel_url(self, agency_id: int, from_storage_id: Any, to_storage_id: Any) -> str:
         if self == ScanSurface.ADMIN:
             return self.admin_scan_items_url(agency_id, from_storage_id=from_storage_id, to_storage_id=to_storage_id)

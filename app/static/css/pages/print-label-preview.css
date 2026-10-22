@@ -1,11 +1,4 @@
-/* Stays in @layer base so main.css @layer responsive keeps overriding body > main here. */
 @layer base {
-
-.label-preview-main {
-  width: min(var(--content-width-md), calc(100% - (var(--page-gutter) * 2)));
-  margin: 0 auto;
-  padding: 18px 0;
-}
 
 .label-sheet {
   display: grid;

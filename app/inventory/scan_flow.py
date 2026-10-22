@@ -340,7 +340,7 @@ def _save_scan_or_error(
             },
         )
         flash(str(exc), "error")
-        return None, redirect(surface.scan_item_error_url(agency_id))
+        return None, redirect(surface.fallback_url(agency_id))
     except ScanSubmitItemNotFoundError:
         return None, _scan_item_not_found_response(agency_id, surface, request_data)
     except (InventoryError, ValueError) as exc:
@@ -355,7 +355,7 @@ def _save_scan_or_error(
             },
         )
         flash(str(exc), "warning")
-        return None, redirect(surface.scan_item_error_url(agency_id))
+        return None, redirect(surface.fallback_url(agency_id))
     except Exception:
         logger.exception(
             "Inventory update crashed unexpectedly",
@@ -367,7 +367,7 @@ def _save_scan_or_error(
             },
         )
         flash("Inventory could not be saved. Try again.", "error")
-        return None, redirect(surface.scan_item_error_url(agency_id))
+        return None, redirect(surface.fallback_url(agency_id))
 
 
 def handle_scan_item_post(agency_id: int, form_data: dict, is_admin: bool = False):
@@ -376,7 +376,7 @@ def handle_scan_item_post(agency_id: int, form_data: dict, is_admin: bool = Fals
 
     request_data = _parse_scan_item_request(form_data)
     if request_data is None:
-        return redirect(surface.scan_item_error_url(agency_id))
+        return redirect(surface.fallback_url(agency_id))
 
     with get_session() as db:
         groups = _scan_expiration_groups(db, request_data)

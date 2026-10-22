@@ -22,4 +22,4 @@ tags: History, Reports
 
 ## Good Use
 
-Use History when you need to understand why a number changed, not just what the number is right now; for that, use [Inventory Levels And Reports](inventory-levels-and-reports) instead.
+Use History when you need to understand why a number changed, not just what the number is right now; for that, use [Stock Levels And Reports](stock-levels-and-reports) instead.

@@ -43,12 +43,12 @@ from app.shared.constants import SAVE_RETRY_MESSAGE
 from app.shared.database import get_session
 
 
-@bp.route("/<int:agency_id>/admin-panel/data")
-def admin_data(agency_id: int) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/items-and-tags")
+def items_and_tags(agency_id: int) -> Any:
     with get_session() as s:
-        context = _admin_data_context(s, current_user.id)
+        context = _items_and_tags_context(s, current_user.id)
     return render_template(
-        "admin_data.html",
+        "admin_items_and_tags.html",
         agency_id=agency_id,
         active_tab=request.args.get("tab", "items"),
         alert_email_frequency_choices=ALERT_EMAIL_FREQUENCY_CHOICES,
@@ -61,7 +61,7 @@ def admin_data(agency_id: int) -> Any:
     )
 
 
-def _admin_data_context(session: Session, agency_id: int) -> dict[str, Any]:
+def _items_and_tags_context(session: Session, agency_id: int) -> dict[str, Any]:
     return {
         "items": list_items(agency_id, session=session),
         "locations": list(
@@ -75,10 +75,10 @@ def _admin_data_context(session: Session, agency_id: int) -> dict[str, Any]:
 
 
 def _redirect_to_tab(agency_id: int, tab: str) -> Any:
-    return redirect(url_for("admin.admin_data", agency_id=agency_id, tab=tab))
+    return redirect(url_for("admin.items_and_tags", agency_id=agency_id, tab=tab))
 
 
-@bp.route("/<int:agency_id>/admin-panel/data/items", methods=["POST"])
+@bp.route("/<int:agency_id>/admin-panel/items-and-tags/items", methods=["POST"])
 def admin_create_item(agency_id: int) -> Any:
     return _save_row(
         agency_id,
@@ -88,7 +88,7 @@ def admin_create_item(agency_id: int) -> Any:
     )
 
 
-@bp.route("/<int:agency_id>/admin-panel/data/items/<int:item_id>", methods=["POST"])
+@bp.route("/<int:agency_id>/admin-panel/items-and-tags/items/<int:item_id>", methods=["POST"])
 def admin_update_item(agency_id: int, item_id: int) -> Any:
     return _save_row(
         agency_id,
@@ -98,12 +98,12 @@ def admin_update_item(agency_id: int, item_id: int) -> Any:
     )
 
 
-@bp.route("/<int:agency_id>/admin-panel/data/items/<int:item_id>/delete", methods=["POST"])
+@bp.route("/<int:agency_id>/admin-panel/items-and-tags/items/<int:item_id>/delete", methods=["POST"])
 def admin_delete_item(agency_id: int, item_id: int) -> Any:
     return _save_row(agency_id, "items", lambda item: f'Item "{item.name}" removed.', lambda s: delete_item(s, current_user.id, item_id))
 
 
-@bp.route("/<int:agency_id>/admin-panel/data/tags", methods=["POST"])
+@bp.route("/<int:agency_id>/admin-panel/items-and-tags/tags", methods=["POST"])
 def admin_create_tag(agency_id: int) -> Any:
     return _save_row(
         agency_id,
@@ -113,7 +113,7 @@ def admin_create_tag(agency_id: int) -> Any:
     )
 
 
-@bp.route("/<int:agency_id>/admin-panel/data/tags/<int:tag_id>", methods=["POST"])
+@bp.route("/<int:agency_id>/admin-panel/items-and-tags/tags/<int:tag_id>", methods=["POST"])
 def admin_update_tag(agency_id: int, tag_id: int) -> Any:
     return _save_row(
         agency_id,
@@ -123,12 +123,12 @@ def admin_update_tag(agency_id: int, tag_id: int) -> Any:
     )
 
 
-@bp.route("/<int:agency_id>/admin-panel/data/tags/<int:tag_id>/delete", methods=["POST"])
+@bp.route("/<int:agency_id>/admin-panel/items-and-tags/tags/<int:tag_id>/delete", methods=["POST"])
 def admin_delete_tag(agency_id: int, tag_id: int) -> Any:
     return _save_row(agency_id, "tags", lambda tag: f'Tag "{tag.tag_name}" removed.', lambda s: delete_tag(s, current_user.id, tag_id))
 
 
-@bp.route("/<int:agency_id>/admin-panel/data/notifications", methods=["POST"])
+@bp.route("/<int:agency_id>/admin-panel/items-and-tags/notifications", methods=["POST"])
 def admin_create_notification(agency_id: int) -> Any:
     return _save_row(
         agency_id,
@@ -138,7 +138,7 @@ def admin_create_notification(agency_id: int) -> Any:
     )
 
 
-@bp.route("/<int:agency_id>/admin-panel/data/notifications/<int:recipient_id>", methods=["POST"])
+@bp.route("/<int:agency_id>/admin-panel/items-and-tags/notifications/<int:recipient_id>", methods=["POST"])
 def admin_update_notification(agency_id: int, recipient_id: int) -> Any:
     return _save_row(
         agency_id,
@@ -148,7 +148,7 @@ def admin_update_notification(agency_id: int, recipient_id: int) -> Any:
     )
 
 
-@bp.route("/<int:agency_id>/admin-panel/data/notifications/<int:recipient_id>/delete", methods=["POST"])
+@bp.route("/<int:agency_id>/admin-panel/items-and-tags/notifications/<int:recipient_id>/delete", methods=["POST"])
 def admin_delete_notification(agency_id: int, recipient_id: int) -> Any:
     return _save_row(
         agency_id,

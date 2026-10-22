@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 
-{% block title %}Bulk Action{% endblock %}
-{% block header_title %}Bulk Action{% endblock %}
+{% block title %}Bulk Edit{% endblock %}
+{% block header_title %}Bulk Edit{% endblock %}
 {% block sub_title %}Location: {{ location.name }}{% endblock %}
-{% set back_url = url_for('admin.bulk_actions', agency_id=agency_id) %}
-{% block header_right %}<a class="header-action" href="{{ back_url }}">Back</a>{% endblock %}
+{% block instructions %}All Items opens every item at this location. Certain Items lets you pick a short list first.{% endblock %}
+{% set back_url = url_for('admin.bulk_edit', agency_id=agency_id) %}
 
 {% block content %}
-<section class="grid admin-menu">
-    <a class="card" href="{{ url_for('admin.bulk_edit', agency_id=agency_id, agency_location_id=location.id) }}">
+<section class="card-menu">
+    <a class="card" href="{{ url_for('admin.bulk_edit_items', agency_id=agency_id, agency_location_id=location.id) }}">
         <h2>All Items</h2>
         <p>Count or restock every active item at this location</p>
     </a>
     <a class="card" href="{{ url_for('admin.bulk_select_items', agency_id=agency_id, agency_location_id=location.id) }}">
         <h2>Certain Items</h2>
-        <p>Select specific items before opening the bulk grid</p>
+        <p>Select specific items before editing counts</p>
     </a>
 </section>
 <p class="muted-note">{{ item_count }} active items available</p>

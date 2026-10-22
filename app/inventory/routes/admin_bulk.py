@@ -75,9 +75,9 @@ class BulkEditRejection:
     form_state: BulkEditFormState
 
 
-@bp.route("/<int:agency_id>/admin-panel/bulk-actions")
-@bp.route("/<int:agency_id>/admin-panel/bulk-actions/<int:agency_location_id>")
-def bulk_actions(agency_id: int, agency_location_id: int | None = None) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/bulk-edit")
+@bp.route("/<int:agency_id>/admin-panel/bulk-edit/<int:agency_location_id>")
+def bulk_edit(agency_id: int, agency_location_id: int | None = None) -> Any:
     if agency_location_id is None:
         with get_session() as s:
             locations = list_top_locations(current_user.id, s)
@@ -85,8 +85,8 @@ def bulk_actions(agency_id: int, agency_location_id: int | None = None) -> Any:
             "admin_select_location.html",
             agency_id=agency_id,
             locations=locations,
-            endpoint="admin.bulk_actions",
-            title="Bulk Action",
+            endpoint="admin.bulk_edit",
+            title="Bulk Edit",
             admin=True,
         )
 
@@ -104,7 +104,7 @@ def bulk_actions(agency_id: int, agency_location_id: int | None = None) -> Any:
 
 
 @bp.route(
-    "/<int:agency_id>/admin-panel/bulk-actions/<int:agency_location_id>/items",
+    "/<int:agency_id>/admin-panel/bulk-edit/<int:agency_location_id>/items",
     methods=["GET", "POST"],
 )
 def bulk_select_items(agency_id: int, agency_location_id: int) -> Any:
@@ -119,7 +119,7 @@ def bulk_select_items(agency_id: int, agency_location_id: int) -> Any:
             logger.info("Bulk item selection rejected: no items were selected", extra={"agency_location_id": agency_location_id})
             flash("Select at least one item.", "warning")
             return redirect(url_for("admin.bulk_select_items", agency_id=agency_id, agency_location_id=agency_location_id))
-        return redirect(_bulk_edit_url(agency_id, agency_location_id, item_ids))
+        return redirect(_bulk_edit_items_url(agency_id, agency_location_id, item_ids))
 
     return render_template(
         "admin_bulk_select_items.html",
@@ -131,10 +131,10 @@ def bulk_select_items(agency_id: int, agency_location_id: int) -> Any:
 
 
 @bp.route(
-    "/<int:agency_id>/admin-panel/bulk-actions/<int:agency_location_id>/edit",
+    "/<int:agency_id>/admin-panel/bulk-edit/<int:agency_location_id>/edit",
     methods=["GET", "POST"],
 )
-def bulk_edit(agency_id: int, agency_location_id: int) -> Any:
+def bulk_edit_items(agency_id: int, agency_location_id: int) -> Any:
     with get_session() as s:
         grid = load_location_quantity_grid(s, current_user.id, agency_location_id)
         if grid is None:
@@ -192,7 +192,7 @@ def bulk_edit(agency_id: int, agency_location_id: int) -> Any:
 def _invalid_bulk_location_response(agency_id: int, agency_location_id: int) -> Any:
     _log_bulk_location_missing(agency_id, agency_location_id)
     flash("Choose a valid location.", "error")
-    return redirect(url_for("admin.bulk_actions", agency_id=agency_id))
+    return redirect(url_for("admin.bulk_edit", agency_id=agency_id))
 
 
 def _reject_bulk_edit(session, agency_id: int, grid, required: dict[int, set[int]], rejection: BulkEditRejection) -> Any:
@@ -211,13 +211,14 @@ def _render_bulk_edit(
     state = form_state or BulkEditFormState.empty()
     suggested_restock = suggested_restock_item_ids(session, current_user.id, grid.location.id, grid.items)
     return render_template(
-        "admin_bulk_actions.html",
+        "admin_bulk_edit.html",
         agency_id=agency_id,
         location=grid.location,
         rows=_bulk_rows(grid.items, grid.storages, required, suggested_restock, state),
         storages=grid.storages,
         item_ids=[item.id for item in grid.items],
         stale_count_days=current_user.count_last_days,
+        back_url=_bulk_edit_back_url(agency_id, grid.location.id),
         admin=True,
     )
 
@@ -235,7 +236,7 @@ def _save_bulk_edit(session, agency_id: int, location, submission: BulkEditSubmi
     except ValueError as exc:
         logger.info("Bulk expiration entry rejected", extra={"agency_location_id": location.id, "error": str(exc)})
         flash(str(exc), "warning")
-        return redirect(_bulk_edit_url(agency_id, location.id, item_ids))
+        return redirect(_bulk_edit_items_url(agency_id, location.id, item_ids))
 
     try:
         result = save_bulk_edit(
@@ -247,7 +248,7 @@ def _save_bulk_edit(session, agency_id: int, location, submission: BulkEditSubmi
     except BulkEditEmptyError:
         logger.info("Bulk action rejected: no count or restock entries submitted", extra={"agency_location_id": location.id})
         flash("No count or restock entries entered.", "info")
-        return redirect(_bulk_edit_url(agency_id, location.id, item_ids))
+        return redirect(_bulk_edit_items_url(agency_id, location.id, item_ids))
     except Exception:
         session.rollback()
         logger.exception(
@@ -260,7 +261,7 @@ def _save_bulk_edit(session, agency_id: int, location, submission: BulkEditSubmi
             },
         )
         flash("Bulk action could not be saved. Try again.", "error")
-        return redirect(_bulk_edit_url(agency_id, location.id, item_ids))
+        return redirect(_bulk_edit_items_url(agency_id, location.id, item_ids))
 
     logger.info(
         "Bulk inventory changes saved",
@@ -276,7 +277,7 @@ def _save_bulk_edit(session, agency_id: int, location, submission: BulkEditSubmi
         flash("No changes entered.", "info")
     else:
         flash(f"Saved {result.count_entry_count} count and {result.restock_entry_count} restock entries for {location.name}.", "success")
-    return redirect(url_for("admin.admin_panel", agency_id=agency_id))
+    return redirect(url_for("admin.stock_levels", agency_id=agency_id, agency_location_id=location.id))
 
 
 def _render_bulk_expiration_entry(agency_id: int, location, groups, item_ids: set[int]) -> Any:
@@ -286,8 +287,8 @@ def _render_bulk_expiration_entry(agency_id: int, location, groups, item_ids: se
         groups=sort_expiration_groups(groups),
         hidden_fields=hidden_form_fields(request.form),
         form_action=None,
-        cancel_url=_bulk_edit_url(agency_id, location.id, item_ids),
-        back_label="Back to Bulk Action",
+        cancel_url=_bulk_edit_items_url(agency_id, location.id, item_ids),
+        back_label="Back to Bulk Edit",
         cancel_label="Cancel Bulk Update",
         submit_label="Save Bulk Updates",
         page_title="Expiration Dates",
@@ -330,15 +331,21 @@ def _selected_item_ids(raw_ids: list[str], items) -> set[int]:
     return selected_int_ids(raw_ids, {item.id for item in items})
 
 
-def _bulk_edit_url(agency_id: int, agency_location_id: int, item_ids: set[int]) -> str:
+def _bulk_edit_back_url(agency_id: int, agency_location_id: int) -> str:
+    """Back goes to the item picker when the grid was opened from a selection, else to the mode menu."""
+    endpoint = "admin.bulk_select_items" if request.values.get("item_ids") else "admin.bulk_edit"
+    return url_for(endpoint, agency_id=agency_id, agency_location_id=agency_location_id)
+
+
+def _bulk_edit_items_url(agency_id: int, agency_location_id: int, item_ids: set[int]) -> str:
     if item_ids:
         return url_for(
-            "admin.bulk_edit",
+            "admin.bulk_edit_items",
             agency_id=agency_id,
             agency_location_id=agency_location_id,
             item_ids=",".join(str(item_id) for item_id in sorted(item_ids)),
         )
-    return url_for("admin.bulk_edit", agency_id=agency_id, agency_location_id=agency_location_id)
+    return url_for("admin.bulk_edit_items", agency_id=agency_id, agency_location_id=agency_location_id)
 
 
 def _log_bulk_location_missing(agency_id: int, agency_location_id: int) -> None:

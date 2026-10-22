@@ -5,7 +5,6 @@
 {% block sub_title %}{{ article.title }}{% endblock %}
 {% block main_class %}help-main{% endblock %}
 {% set back_url = url_for('admin.admin_help', agency_id=agency_id) %}
-{% block header_right %}<a class="header-action" href="{{ back_url }}">Back</a>{% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/admin-help.css') }}">{% endblock %}
 
 {% block content %}

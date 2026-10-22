@@ -7,7 +7,6 @@ from typing import Any
 from sqlalchemy.orm import Session
 
 from app.inventory.expiration_ui_service import ExpirationBreakdown, expiration_breakdowns_by_item
-from app.inventory.ui import get_days_until_low_class, get_inventory_level_class, get_order_quantity_class
 from app.prediction.bulk_service import BulkService, RestockAnalysisRow
 
 
@@ -33,8 +32,6 @@ class RestockPageRow:
     current_total_class: str
     projected_total_class: str
     min_quantity_class: str
-    days_class: str
-    order_class: str
     expiration_breakdown: ExpirationBreakdown | None
 
 
@@ -64,17 +61,15 @@ def _page_row(row: RestockAnalysisRow, expiration_breakdown: ExpirationBreakdown
         confidence_display=row.confidence_display,
         daily_usage_rate=row.daily_usage_rate,
         usage_display=row.usage_display,
-        current_total_class=classes["current_total_class"],
+        current_total_class=classes.get("current_total_class", ""),
         projected_total_class=classes.get("projected_total_class", ""),
         min_quantity_class=classes.get("min_quantity_class", ""),
-        days_class=get_days_until_low_class(row.days_until_stockout),
-        order_class=get_order_quantity_class(row.order_amount),
         expiration_breakdown=expiration_breakdown,
     )
 
 
 def _restock_cell_classes(current_total: int, min_quantity: int, projected_total: int) -> dict[str, str]:
-    classes = {"current_total_class": get_inventory_level_class(current_total)}
+    classes: dict[str, str] = {}
 
     if current_total <= 0:
         classes["current_total_class"] = "restock-critical"

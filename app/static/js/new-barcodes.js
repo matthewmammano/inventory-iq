@@ -33,7 +33,7 @@ document.addEventListener("DOMContentLoaded", () => {
             const select = linkForm.querySelector("select[name='item_id']");
             if (select?.value) return;
             event.preventDefault();
-            const upc = linkForm.closest("tr")?.querySelector("td")?.textContent?.trim() || "this UPC";
+            const upc = linkForm.dataset.upc || "this UPC";
             window.InventoryFlash?.show("warning", `Select an item before linking UPC ${upc}.`);
         });
     });

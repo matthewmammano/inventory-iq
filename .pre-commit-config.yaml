@@ -122,3 +122,10 @@ repos:
         additional_dependencies: [import-linter==2.15]
         pass_filenames: false
         types: [python]
+
+      - id: alembic-check
+        name: Migration matches models
+        entry: .venv/bin/alembic check
+        language: system
+        pass_filenames: false
+        files: ^(app/.*models.*\.py|migrations/.*\.py)$

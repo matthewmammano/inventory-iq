@@ -5,7 +5,7 @@ Inventory IQ-specific conventions only. Architecture, data, deploy, and observab
 ## UI Text
 
 - Visible labels carry required meaning; tooltips are optional explanation only.
-- Prefer specific actions: `Save Changes`, `Back to Admin`, `Back to Bulk Action`, `Back to Labels`, `Back to Scan`.
+- Prefer specific actions: `Save Changes`, `Back to Admin`, `Back to Bulk Edit`, `Back to Labels`, `Back to Scan`.
 - Prefer specific continuations: `Continue to Item Scan`, `Continue to Bulk Grid`, `Continue to Storage Selection`.
 - Avoid vague labels such as `Go`, `Submit`, `Save`, `Back`, or `Continue` when context matters.
 - Placeholders are examples or formats only: `12-digit UPC`, `Search items or UPCs`, `Scan item barcode or search inventory`, `name@example.com`, `https://example.com/image.jpg`, `e.g. each`, `e.g. 7`.
@@ -17,7 +17,7 @@ Inventory IQ-specific conventions only. Architecture, data, deploy, and observab
 ## Header Buttons
 
 - Every screen except the two home screens gets one automatic button at the top right: `Home`, or `Back` when the screen has no other back link. This is the one place a plain `Back` label is allowed.
-- Color carries the meaning: charcoal `.home-button` for Home and Back, red `.header-action` for leaving a screen, green `.success-button` for doing something, plain white `.button` for a harmless action, tan `.task-tray-button` for the Pending Tasks count.
+- Color carries the meaning: charcoal `.home-button` for Home and Back, red `.header-action` for leaving a screen, green `.success-button` for doing something, plain white `.button` for a harmless action.
 - Set a button's color with those classes only. No per-page or inline button colors.
 - Keep the header to three buttons at most, and exactly one dark button.
 

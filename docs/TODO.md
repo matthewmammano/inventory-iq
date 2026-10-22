@@ -14,13 +14,6 @@ Finished items move to **Done** as one line; items judged not worth doing are de
 `app/admin_help/articles/` has 601 lines of help, served only by `admin_bp` at `/<agency>/admin-panel/help`. Zero help links on any guest template, so kiosk volunteers can never open it.
 Decide: a guest-visible subset under a guest route, or a persistent Help affordance in `base.html`, or both.
 
-### P1.3 Search shows a silent blank on zero matches [OPEN]
-Search is already fuzzy (`fuzzy-search.js`); that is not the issue. `showResults` calls `list.replaceChildren()` and appends nothing when there are no matches, so the dropdown empties with no message. Add a non-clickable "No items match X" row plus a hint to scan the barcode. `inventory-search.js`.
-
-### P1.4 Every error page shows a giant "!" [INVESTIGATE]
-`error.html:17` renders `{{ error_code | default("!") }}` and `:28` gates on `error_help`; no Python file passes either. All five handlers (404, CSRF, 403, 429, 500) render the same blank page.
-Pass a real code and a per-error help line from `_err()` in `errors.py`. 429 especially needs "you tried too many times, wait a minute."
-
 ### P1.5 "RESTOCK / COUNT / TAKE" are presented as if they were places [PLAN]
 `scan_storages.html` lists them as `.radio-card` options beside real storage names under From/To, but they are actions (`VirtualLocation.RESTOCK=-1`, `COUNT=-2`, `TAKEOUT=-3`). "From: RESTOCK" is a mental-model problem for a volunteer.
 Decide: split action from place into two steps, or keep one list with plain-English labels and a visual divider. No routing capability may be lost.
@@ -47,17 +40,29 @@ Not just cosmetic: because failure returns 302 it is indistinguishable from succ
 No `<noscript>` anywhere, and Settings / Bulk Save start `hidden` and are revealed only by JS. A script that fails to load or throws leaves a page that looks fine with no working buttons and no explanation.
 Options: (1) `<noscript>` banner in `base.html`, cheapest, misses a script that throws; (2) invert the default so those controls render visible and JS hides them; (3) inline `<head>` script sets `data-js-ready`, CSS keys the reveal off it, plus a `window.onerror` bar. Leaning (2) for the buttons, (3)'s error bar later with P2.5.
 
-### P1.12 "Total After Lead Time" can display negative [PLAN]
-`bulk_service.py:188` does `round(current_quantity - daily_usage * lead_time_days)` with no floor, unlike `estimator.py:70` which clamps. Rendered raw at `admin_restock.html:74`.
-Measured minimum across all 240 location states is -0.007, which rounds to 0, so today's data never shows it. Live scanning during the demo can surface it.
-Decide first: is 0 the right floor, or is "you will be 12 short" useful information that needs different wording instead?
-
 ### P1.13 Logout is a plain GET [INVESTIGATE]
 Any link, prefetch or embedded image can end a session. Convert to POST with the existing CSRF token, or document as accepted.
 
+### P1.15 No first-login password change [PLAN]
+`set_password.html` existed but had no route and no blocks of its own, so it was deleted. There is no signup: an agency account is created with a password that someone hands over, and nothing forces that password to be changed, so the handover password stays valid forever.
+Decided: create the account with no usable password and point the new admin at Forgot Password on day one, so the reset PIN they request is the only way in and no password is ever handed over. Reuses `password_reset_service` as is, with no new column, screen, or failure mode.
+Still to build: whatever creates an agency must leave `password_hash` unusable rather than seeding a default, and `auth.login` must not leak which accounts are in that state.
+
+### P1.16 Tables have no sorting, filtering, or reset [PLAN]
+Stock Levels and Restock sort client-side only; History, Unknown Barcodes, Items & Tags, and Pending Expiration Dates cannot be reordered at all. Nothing filters, and nothing says how to get back to the default order.
+Client-side sorting was tried on History and pulled back out: it reorders only the 50 rows the page happens to be showing, which reads as a whole-table sort and is not one. Sorting a paginated table has to happen in the query.
+Build it once for every table instead of per page: a `TableQuery` model (sort column, direction, filters, page) parsed at the route boundary, a shared query helper that applies it, and one macro rendering clickable headings, a filter row, and a visible "Reset to default" control with the active sort and filters labeled in plain words. Pagination has to move to that same model so sort and filter apply across all rows, not one page.
+Blocks: decide per table which columns are sortable and which are worth filtering, before any of it is written.
+
+### P1.17 Some pages should be blocked on the wrong device [PLAN]
+Bulk Edit, the print previews, History, and Items & Tags are wide table screens that are unusable on a phone, and the scan screens are built for a kiosk touchscreen. Today every page renders on every device and the user is left to find out it does not work.
+Wanted: a per-page rule declaring which device sizes and which input mode (touchscreen mode on or off) that page supports, and a blocking screen ("Open this on the kiosk" / "Open this on a computer") instead of a broken layout, with a way through for an admin who insists.
+Build it as one config table of page -> allowed devices read by a `base.html` guard, not an `@media` hack per page. Needs the device/touchscreen signal settled first: viewport width alone, a pointer media query, or the existing touchscreen-mode setting.
+Blocks: decide the exact device buckets and which pages land in each, plus whether the block is advisory (dismissable) or hard.
+
 ### P1.14 Expired stock has no disposal operation [PLAN] separate commit
 `OperationType` is COUNT, RESTOCK, TAKEOUT, TRANSFER. Throwing out expired or damaged stock has to be recorded as a TAKEOUT today, which feeds `estimator.py` usage rates and therefore inflates reorder quantities for every item that ever expires.
-Add a fifth `OperationType` (DISPOSAL) with its own migration, exclude it from usage math, and restrict it to admins. Pending Tasks already surfaces the expired-stock rows that this action would resolve, so its "Remove Expired" link should target the new operation instead of bulk edit.
+Add a fifth `OperationType` (DISPOSAL) with its own migration, exclude it from usage math, and restrict it to admins. The dashboard "Expired" tile already surfaces the rows this action would resolve, so it should target the new operation instead of bulk edit.
 Decide first: admin-only or any scanner, and whether a reason (expired / damaged / recalled) is required.
 
 ---
@@ -65,7 +70,7 @@ Decide first: admin-only or any scanner, and whether a reason (expired / damaged
 ## P2 - Investigate, scope unknown
 
 ### P2.1 Restock Report print layout [INVESTIGATE]
-`main.css:2033-2160` sets `table-layout: fixed; width: 100%` at 8pt with no `@page { size: landscape }`, against 16 columns and 120 rows. Long names share a cell with the trend button. Print-preview `admin.restock_print` for real before concluding; likely fix is landscape scoped to `.printing-report`, or fewer print columns. Check `admin_inventory_counts.html` for the same pattern.
+`main.css:2033-2160` sets `table-layout: fixed; width: 100%` at 8pt with no `@page { size: landscape }`, against 16 columns and 120 rows. Long names share a cell with the trend button. Print-preview `admin.restock_print` for real before concluding; likely fix is landscape scoped to `.printing-report`, or fewer print columns. Check `admin_stock_levels.html` for the same pattern.
 
 ### P2.2 Table-only scrolling, smaller pinned header [PARTIAL]
 Scroll only the table so the Back bar, tab selectors and table header stay put.
@@ -80,17 +85,11 @@ Shipped: sticky `thead` on all panels (`2cf01a7`), `100svh` shell with `body{ove
 ### P2.5 Custom offline / 504 pages [INVESTIGATE]
 Avoid Railway and Chrome defaults. Service worker intercepting fetch failures and status checks, serving a cached page. Overlaps P1.11 option 3.
 
-### P2.6 Alerts table shows lifetime history, not current state [INVESTIGATE]
-Only 3 rows / 12 units are expired today (Chest Seal 3, Epi Pen Child 7, Glucose 2) and 1 row / 3 units expires within 30 days, but the alerts table holds 105 `EXPIRED_STOCK` + 107 `EXPIRING_SOON` lifetime rows. A raw alerts view reads as a crisis. Find which surfaces show lifetime vs open counts and label them. For the demo, show the `admin_restock.html:82-83` columns.
-
 ### P2.7 Stale docs [INVESTIGATE]
 `DEPLOYMENT.md:56` claims no third-party CDN remains; true for scripts, but fonts still load from Google via `main.css:6`. `INSTANCE_PATH` (`config.py:36`) is missing from its env var list.
 
 ### P2.8 Dev reruns migrations every app start [INVESTIGATE]
 `_run_dev_migrations()` calls `command.upgrade(..., "head")` on every dev boot. Slow, and it can hide a broken migration until prod. Gate it or move it next to `scripts/bootstrap_schema.py`.
-
-### P2.9 `admin_pending_tasks` swallows every exception [INVESTIGATE]
-`except Exception: logger.debug(...)` in a context processor that runs on every page, so a broken query renders as "no pending tasks."
 
 ### P2.10 `image_src` hits the filesystem per image [INVESTIGATE]
 `(Path(static_folder) / filename).exists()` on every image, every request. Cache or drop it.
@@ -165,13 +164,26 @@ For later accountability features.
 
 ---
 
+### P3.15 Retention cleanup for alert and delivery history [OPEN]
+`alerts` already holds 20177 rows against 29 open, and `email_deliveries` / `alert_notifications` grow with it. Nothing prunes any of them.
+Delete `CLOSED` alerts older than a retention window, cascading to their notification and delivery rows. Starting point: one year, as a constant, run from the existing scheduler with `claimed_scheduler_run`.
+Not urgent; the row counts cost nothing at this size. Decide the window before writing it, since deletion is not reversible.
+
 ## Done
+
+### 2026-10-16 demo prep
+
+- [FIXED] **P1.3 search went silently blank on zero matches.** `showResults` emptied the dropdown and appended nothing. It now appends a non-clickable note row: `noMatchNote(query)` when a search matched nothing, `NO_ITEMS_NOTE` when the inventory itself is empty, and `LOAD_FAILED_NOTE` when the payload fails to load.
+- [FIXED] **P1.4 all five error pages rendered the same blank screen with a giant "!".** New frozen `ErrorPage` dataclass in `errors.py` (`code`, `headline`, `help_text`) with one instance per handler, written for a volunteer at a kiosk; 429 now reads "Too many tries / Wait one minute, then try again." `error.html` renders the headline, the help line and the real code.
+- [FIXED] **P1.12 "Total After Lead Time" could render negative.** `bulk_service.py` now floors `projected_lead_time_total` at 0, matching the clamp `estimator.py` already applied. Decision recorded: 0 is the floor, since a negative total read as a broken forecast rather than as useful information.
+- [FIXED] **The notify-once alert sweep closed alerts whose emails never arrived.** The sweep gained a delivery check, but a failed send recorded no link between the delivery and the alerts it carried, so the check had nothing to read and never fired. `_record_failure` now returns its delivery row and the alert links are written on both the sent and failed paths through one shared `_link_alert_notifications`; "already notified" now means delivered, not attempted, so a failed email is still retried. Verified with a fake provider over two passes: provider down leaves the alert open, provider recovered sends the retry and then the sweep closes it.
+- [DONE] Header navigation and button colors. One automatic `Home` / `Back` button per screen, a single `.header-action` definition where two conflicting ones had silently resolved by source order, and one color meaning per intent. Recorded in `docs/CONVENTIONS.md` under Header Buttons. Dead `.header-button` / `.back` / `.exit` classes, the `header_button` macro and `history-back.js` deleted with no remaining references.
 
 ### 2026-10-13 timezone pipeline
 
 - [FIXED] **P0 every datetime sent to the browser was read as device-local.** The database stores naive UTC correctly, but `isoformat()` on a naive value produces `2026-09-12T01:34:34` with no offset, and JS `new Date()` treats an offsetless string as local time. A 01:34 UTC scan rendered as "Sep 12, 1:34 AM" on every device instead of Sep 11, 9:34 PM in New York, so trend-chart points, axis labels and tooltips were off by the UTC offset and scans near UTC midnight landed on the wrong day.
   New `utc_isoformat` in `timezone_utils.py` stamps the offset before anything crosses to the browser, applied at `history_service.py` (chart points) and `search_payload.py` (`last_accessed`). The chart already calls `toLocaleDateString`, so it now converts per device with no JS change.
-  Three server-rendered tables were also printing raw UTC or re-implementing the conversion inline. New `local_datetime` Jinja filter (one `format_local_datetime` helper) replaced all of them: `admin_pending_upcs.html` was showing unconverted UTC in both date columns, while `macros.html` and `admin_data.html` each hand-rolled `get_*_local(...).strftime(...)`. `Item.get_last_accessed_local` became dead and was deleted. Display format is now one constant, `%Y-%m-%d %H:%M`; seconds were dropped as noise on a kiosk.
+  Three server-rendered tables were also printing raw UTC or re-implementing the conversion inline. New `local_datetime` Jinja filter (one `format_local_datetime` helper) replaced all of them: `admin_unknown_barcodes.html` was showing unconverted UTC in both date columns, while `macros.html` and `admin_items_and_tags.html` each hand-rolled `get_*_local(...).strftime(...)`. `Item.get_last_accessed_local` became dead and was deleted. Display format is now one constant, `%Y-%m-%d %H:%M`; seconds were dropped as noise on a kiosk.
   `/health` returned `datetime.now()`, server-local with no offset; it returns aware UTC now.
   Decoupling bug found and fixed on the way: `_last_known_point` parsed its own serialized output back with `datetime.fromisoformat`, so stamping the string made it compare an aware datetime against a naive one and raise. `_operation_points` now reports its newest `(datetime, quantity)` directly and nothing re-parses the wire format.
   Verified: all 240 item/location charts produce byte-identical quantities, `trend_per_day`, confidence and count/operation points before and after, with the only difference being the trendline's `utc_now()` endpoint moving between runs; 512 of 512 chart points carry `+00:00` where none did before; and real Chromium at three device timezones renders Sep 11 9:34 PM (New York), Sep 11 6:34 PM (Los Angeles), Sep 12 1:34 AM (UTC) from the same stored instant. All 25 pre-commit hooks pass.
@@ -190,18 +202,19 @@ For later accountability features.
 
 ### Earlier
 
-- [FIXED] Sticky table headers generalized from `.tabbed-panel .panel thead th` to `.panel thead th`, so Pending UPCs and bulk-combined tables get them too.
+- [FIXED] Sticky table headers generalized from `.tabbed-panel .panel thead th` to `.panel thead th`, so Unknown Barcodes and bulk-combined tables get them too.
 - [FIXED] Search no longer autofocuses on coarse-pointer devices, so the on-screen keyboard stops covering kiosk results.
 - [FIXED] Submit buttons disable synchronously in `loading-overlay.js` instead of waiting out the 180ms overlay delay.
 - [FIXED] Two real fuzzy-search copies (`inventory-search.js`, `admin-help.js`) now share `fuzzy-search.js`; net -14 lines, identical results over 15 queries per call site with and without Fuse. `bulk-item-select.js` was left alone: it is exact-substring row-hiding and never loads Fuse. Done at two occurrences rather than three because both files declared a global `buildSearch` with conflicting tuning.
 - [FIXED] All 25 `@dataclass` declarations across 15 files carry `slots=True`. `BalanceState` stays mutable: it is a genuine accumulator. Verified by exercising every object against the dev DB and rolling back; the email send path was left unexercised because running it sends real mail.
 - [FIXED] Touch targets for small icon buttons moved onto the shared `.icon-button-sm` class, fixing the trend-chart buttons on Restock and Inventory Counts and dropping a duplicate rule in `admin-data.css`.
 - [DONE] Idle auto-return: one hour untouched shows a 10-second countdown, then steps one level toward the front door (admin sub-page to Admin Home, Admin Home or guest sub-page to Guest Home). Guest Home renders no timer, so it never loops. Any input resets it. `IDLE_TIMEOUT` / `IDLE_WARNING_SECONDS` in `shared/constants.py`; reuses the existing modal and overlay markup, so zero new CSS. 41 lines, 20 browser checks.
-- [PARTIAL] `main.css` 2901 to 2716 lines: four blocks moved to `pages/print-label-preview.css`, `pages/bulk-action-grid.css`, `components/bulk-item-select.css`, `components/scan-route-strip.css`, each linked only from its own templates, deletions only, `@layer base` membership kept.
+- [PARTIAL] `main.css` 2901 to 2716 lines: four blocks moved to `pages/print-label-preview.css`, `pages/bulk-edit-grid.css`, `components/bulk-item-select.css`, `components/scan-route-strip.css`, each linked only from its own templates, deletions only, `@layer base` membership kept.
   Skipped as too order-coupled: the expiration-entry block, and `.upc-*` / `.search` / `.required-cell` / `.suggested-row` / `.invalid-cell` / `.history-pagination`. Revisit with `@layer` applied more deliberately.
 
 ### Closed, no action
 
+- Alerts table holding lifetime rows: correct by design. 20177 rows, 29 open, and `EXPIRED_STOCK` open = 3 matches the 3 genuinely expired rows. Every query in `alert_service.py` and `email_service.py` filters `status == OPEN`, and no alerts list page exists, so no screen ever showed a lifetime count. If an alerts or readiness tile is ever built, it must count open rows only.
 - Google Fonts over the internet via `main.css:6` (typography degrades on bad venue wifi): accepted.
 - 77 of 120 items give guests single-step `-`/`+` only; 43 have `guest_quick_adjust`: accepted.
 - Login tells strangers an email exists ("Use the emailed PIN to set your password" instead of a generic error): accepted, the audience is a few known agencies.

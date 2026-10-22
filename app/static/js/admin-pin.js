@@ -1,5 +1,5 @@
 document.addEventListener("DOMContentLoaded", () => {
-    const form = document.querySelector(".login-panel");
+    const form = document.querySelector(".pin-panel");
     const pinInput = document.querySelector("#pin-value");
     const pinDisplay = document.querySelector("#pin-display");
     if (!form || !pinInput || !pinDisplay) return;

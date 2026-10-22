@@ -14,7 +14,7 @@ Email providers watch for patterns they associate with bulk or automated mail: a
 Every Inventory IQ email displays the sender name **Inventory IQ**. The subject line always starts with one of these patterns, so you can recognize a real message at a glance and safely search your spam folder for it:
 
 - Alert emails start with a colored square and severity, for example `🟥 [CRITICAL]`, `🟧 [HIGH]`, `🟨 [MEDIUM]`, `🟩 [LOW]`, or `🟦 [INFO]`, followed by "Inventory Alerts" and your squad name.
-- Report emails start with `⬜ [REPORT]`, followed by the report name (Inventory Counts, History Logs, or Restock Estimates) and your squad name.
+- Report emails start with `⬜ [REPORT]`, followed by the report name (Stock Levels, History Logs, or Restock Estimates) and your squad name.
 - Summary emails are titled `Inventory Daily Summary`, `Inventory Weekly Summary`, `Inventory Monthly Summary`, or `Inventory Yearly Summary`.
 
 > Do not allowlist by subject line alone, since anyone could send a lookalike subject. Allowlist the sender's actual email address, which you can only see by opening one real Inventory IQ email you already received and checking who it is from.

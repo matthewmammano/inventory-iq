@@ -22,7 +22,7 @@
 <body class="{% if admin %}admin-screen{% endif %}">
     {% set show_admin_home = admin and request.endpoint != 'admin.admin_panel' %}
     {% set home_url = url_for('admin.admin_panel' if show_admin_home else 'guest.index', agency_id=agency_id) if agency_id is defined else none %}
-    {% set page_back_url = back_url|default(none, true) %}
+    {% set page_back_url = back_url|default(none, true) or hub_back_url %}
     {% set show_home_button = home_url and page_back_url != home_url and request.endpoint not in ['guest.index', 'admin.admin_panel'] %}
     {% block header %}
     {% set default_logo = 'images/logos/me.svg' %}
@@ -38,24 +38,21 @@
             </div>
         </div>
         <div class="header-actions">
-            {% if admin and agency_id is defined and request.endpoint == 'admin.admin_panel' %}
-            {% set pending_task_preview_count = 9 if admin_pending_task_count > 9 else admin_pending_task_count %}
-            <a class="header-action task-tray-button" href="{{ url_for('admin.pending_tasks', agency_id=agency_id) }}">
-                Pending Tasks
-                {% if pending_task_preview_count %}
-                <span class="task-badge">{{ pending_task_preview_count }}</span>
-                {% endif %}
-            </a>
-            {% endif %}
             {% block header_right %}{% endblock %}
+            {% if page_back_url %}
+            <a class="header-action" href="{{ page_back_url }}" data-page-back>{{ back_label|default('Back', true) }}</a>
+            {% endif %}
             {% if show_home_button %}
-            <a class="home-button" href="{{ home_url }}" data-home-link>{{ 'Home' if page_back_url else 'Back' }}</a>
+            <a class="home-button" href="{{ home_url }}" data-home-link>Home</a>
             {% endif %}
         </div>
     </header>
     {% endblock header %}
 
     <main class="{% block main_class %}stack{% endblock %}">
+        {% if self.instructions()|trim %}
+        <p class="page-intro">{% block instructions %}{{ page_instructions|default('', true) }}{% endblock %}</p>
+        {% endif %}
         {% block content %}{% endblock %}
     </main>
 

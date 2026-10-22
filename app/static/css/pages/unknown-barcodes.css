@@ -1,0 +1,75 @@
+/* Unknown barcodes: one row per barcode, so the item picker and its buttons never live in a table cell. */
+
+@layer base {
+  .barcode-list {
+    display: grid;
+    gap: 12px;
+    margin: 0;
+    padding: 18px;
+    list-style: none;
+  }
+
+  .barcode-row {
+    display: grid;
+    grid-template-columns: minmax(200px, 1fr) auto auto;
+    gap: clamp(12px, 1.6vw, 24px);
+    align-items: center;
+    padding: 14px 16px;
+    background: var(--color-white);
+    border: 1px solid var(--color-soft-line);
+    border-radius: var(--radius-md);
+  }
+
+  .barcode-row-focus {
+    background: var(--color-row-focus);
+    border-color: var(--color-primary-dark);
+  }
+
+  .barcode-id {
+    display: grid;
+    gap: 3px;
+    min-width: 0;
+  }
+
+  .barcode-number {
+    font-family: var(--font-heading);
+    font-size: clamp(1.15rem, 1.6vw, 1.5rem);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: 0.02em;
+  }
+
+  .barcode-note {
+    color: var(--color-muted);
+    font-size: 0.9rem;
+    line-height: 1.35;
+    overflow-wrap: anywhere;
+  }
+
+  .barcode-link {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+  }
+
+  .barcode-link select { width: clamp(220px, 24vw, 430px); }
+
+  .barcode-link select option[value=""] { color: var(--color-muted); }
+
+  .barcode-row-actions {
+    /* Last column either way, since an ignored row has no item picker before it. */
+    grid-column: -2;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+  }
+
+  @media (max-width: 900px) {
+    .barcode-list { padding: 12px; }
+    .barcode-row { grid-template-columns: minmax(0, 1fr); }
+    .barcode-link select { width: 100%; }
+    .barcode-row-actions > form { flex: 1 1 0; }
+    .barcode-row-actions button { width: 100%; }
+  }
+}

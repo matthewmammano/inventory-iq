@@ -9,6 +9,7 @@ from loguru import logger
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from app.auth.device_locations import get_device_location_id
 from app.auth.models import Agency, Location
 from app.auth.queries import list_active_emails, list_top_locations
 from app.inventory import admin_bp as bp
@@ -26,6 +27,7 @@ from app.shared.form_parsing import selected_int_ids
 from app.shared.validators import first_validation_error_message, parse_optional_int
 
 HISTORY_PAGE_SIZE = 50
+ALL_LOCATIONS_ID = 0
 
 
 @bp.route("/<int:agency_id>/items/<int:item_id>/locations/<int:agency_location_id>/trend", methods=["GET"])
@@ -42,9 +44,9 @@ def item_trend_chart(agency_id: int, item_id: int, agency_location_id: int) -> A
         return build_item_trend_chart(s, current_user.id, item, location).model_dump(mode="json")
 
 
-@bp.route("/<int:agency_id>/admin-panel/inventory-count-levels")
-@bp.route("/<int:agency_id>/admin-panel/inventory-count-levels/<int:agency_location_id>")
-def inventory_counts(agency_id: int, agency_location_id: int | None = None) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/stock-levels")
+@bp.route("/<int:agency_id>/admin-panel/stock-levels/<int:agency_location_id>")
+def stock_levels(agency_id: int, agency_location_id: int | None = None) -> Any:
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
         notification_recipients = list_active_emails(current_user.id, s)
@@ -52,7 +54,7 @@ def inventory_counts(agency_id: int, agency_location_id: int | None = None) -> A
         active_tab = build_inventory_count_page(s, current_user.id, active_location.id) if active_location else InventoryCountPage([], [])
 
     return render_template(
-        "admin_inventory_counts.html",
+        "admin_stock_levels.html",
         agency_id=agency_id,
         locations=locations,
         active_location=active_location,
@@ -64,25 +66,25 @@ def inventory_counts(agency_id: int, agency_location_id: int | None = None) -> A
     )
 
 
-@bp.route("/<int:agency_id>/admin-panel/inventory-count-levels/email", methods=["POST"])
-def send_inventory_counts_email(agency_id: int) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/stock-levels/email", methods=["POST"])
+def send_stock_levels_email(agency_id: int) -> Any:
     selected_ids = _selected_notification_recipient_ids(request.form.getlist("notification_recipient_ids"))
     active_location_id = parse_optional_int(request.form.get("active_location_id"))
     with get_session() as s:
         sent, total = send_inventory_count_report(s, current_user.id, selected_ids)
     _flash_email_delivery_result("Inventory report", sent, total, selected_count=len(selected_ids), log_name="Inventory report email")
-    return redirect(_inventory_counts_url(agency_id, active_location_id))
+    return redirect(_stock_levels_url(agency_id, active_location_id))
 
 
-@bp.route("/<int:agency_id>/admin-panel/inventory-count-levels/print")
-@bp.route("/<int:agency_id>/admin-panel/inventory-count-levels/<int:agency_location_id>/print")
-def inventory_counts_print(agency_id: int, agency_location_id: int | None = None) -> Any:
+@bp.route("/<int:agency_id>/admin-panel/stock-levels/print")
+@bp.route("/<int:agency_id>/admin-panel/stock-levels/<int:agency_location_id>/print")
+def stock_levels_print(agency_id: int, agency_location_id: int | None = None) -> Any:
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
         active_location = _active_location(locations, agency_location_id)
         active_tab = build_inventory_count_page(s, current_user.id, active_location.id) if active_location else InventoryCountPage([], [])
     return render_template(
-        "admin_inventory_counts_print_partial.html",
+        "admin_stock_levels_print_partial.html",
         agency_id=agency_id,
         location_name=active_location.name if active_location else "Inventory Report",
         inventory_data=active_tab.inventory_data,
@@ -91,10 +93,10 @@ def inventory_counts_print(agency_id: int, agency_location_id: int | None = None
     )
 
 
-def _inventory_counts_url(agency_id: int, agency_location_id: int | None) -> str:
+def _stock_levels_url(agency_id: int, agency_location_id: int | None) -> str:
     if agency_location_id:
-        return url_for("admin.inventory_counts", agency_id=agency_id, agency_location_id=agency_location_id)
-    return url_for("admin.inventory_counts", agency_id=agency_id)
+        return url_for("admin.stock_levels", agency_id=agency_id, agency_location_id=agency_location_id)
+    return url_for("admin.stock_levels", agency_id=agency_id)
 
 
 @bp.route("/<int:agency_id>/admin-panel/restock")
@@ -219,15 +221,16 @@ def admin_history(agency_id: int, agency_location_id: int | None = None) -> Any:
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
         notification_recipients = list_active_emails(current_user.id, s)
-        active_location = _active_location(locations, agency_location_id) if agency_location_id else None
-        action_logs, has_next_page = list_history_logs(s, current_user.id, agency_location_id, HistoryLogQuery(query.page_number, HISTORY_PAGE_SIZE))
+        active_location = _history_location(locations, agency_location_id)
+        location_filter_id = active_location.id if active_location else None
+        action_logs, has_next_page = list_history_logs(s, current_user.id, location_filter_id, HistoryLogQuery(query.page_number, HISTORY_PAGE_SIZE))
     return render_template(
         "admin_history.html",
         agency_id=agency_id,
         locations=locations,
         notification_recipients=notification_recipients,
         action_logs=action_logs,
-        active_location_id=agency_location_id,
+        active_location_id=active_location.id if active_location else ALL_LOCATIONS_ID,
         active_location_name=active_location.name if active_location else "All Locations",
         page=query.page_number,
         has_next_page=has_next_page,
@@ -279,11 +282,11 @@ def admin_history_print(agency_id: int, agency_location_id: int | None = None) -
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
         agency = s.get(Agency, current_user.id)
-        active_location = _active_location(locations, agency_location_id) if agency_location_id else None
+        active_location = _history_location(locations, agency_location_id)
         action_logs, _ = list_history_logs(
             s,
             current_user.id,
-            agency_location_id,
+            active_location.id if active_location else None,
             HistoryLogQuery(1, HISTORY_REPORT_LIMIT, date_range.start_utc, date_range.end_utc),
         )
     return render_template(
@@ -305,9 +308,17 @@ def _history_url(agency_id: int, agency_location_id: int | None) -> str:
     return url_for("admin.admin_history", agency_id=agency_id)
 
 
+def _history_location(locations: list[Location], agency_location_id: int | None) -> Location | None:
+    """History spans every squad unless a tab or this device's setting names one."""
+    if agency_location_id == ALL_LOCATIONS_ID:
+        return None
+    wanted_id = agency_location_id or get_device_location_id(current_user.id)
+    return next((location for location in locations if location.id == wanted_id), None)
+
+
 def _active_location(locations: list[Location], agency_location_id: int | None) -> Location | None:
+    """Falls back to the location this device is set to in settings, so a kiosk opens on its own squad."""
     if not locations:
         return None
-    if agency_location_id is None:
-        return locations[0]
-    return next((location for location in locations if location.id == agency_location_id), locations[0])
+    wanted_id = agency_location_id if agency_location_id is not None else get_device_location_id(current_user.id)
+    return next((location for location in locations if location.id == wanted_id), locations[0])

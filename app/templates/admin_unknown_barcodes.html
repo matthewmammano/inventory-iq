@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% set lookup_tip = "This is not exact. It is only an online barcode lookup used to speed up classifying the UPC, and it may be wrong." %}
+
+{% macro review_button(scan, action, label, button_class) %}
+<form method="POST" class="inline-form">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
+    <input type="hidden" name="action" value="{{ action }}">
+    <button class="{{ button_class }}" type="submit">{{ label }}</button>
+</form>
+{% endmacro %}
+
+{% macro barcode_row(scan, items, ignored=False) %}
+<li class="barcode-row{{ ' barcode-row-focus' if scan.upc == focus_upc }}">
+    <div class="barcode-id">
+        <span class="barcode-number">{{ scan.upc }}</span>
+        <span class="barcode-note">
+            Online guess: {{ scan.lookup_title or 'none' }}
+            <button type="button" class="info-tip" aria-label="{{ lookup_tip }}" data-tooltip="{{ lookup_tip }}">i</button>
+        </span>
+        <span class="barcode-note">Last scanned {{ scan.updated_at|local_datetime(user_timezone) }}, first scanned {{ scan.created_at|local_datetime(user_timezone) }}</span>
+    </div>
+    {% if not ignored %}
+    <form method="POST" class="upc-review-link barcode-link" data-upc="{{ scan.upc }}" data-validation-submit="manual" novalidate>
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="unknown_upc_id" value="{{ scan.id }}">
+        <input type="hidden" name="action" value="RESOLVE">
+        <select name="item_id" aria-label="Item for barcode {{ scan.upc }}">
+            <option value="" disabled selected>Which item is this?</option>
+            {% for item in items %}
+            <option value="{{ item.id }}" {% if scan.suggested_item_id == item.id %}selected{% endif %}>{{ item.name }}</option>
+            {% endfor %}
+        </select>
+        <button class="success-button" type="submit">Link</button>
+    </form>
+    {% endif %}
+    <div class="barcode-row-actions">
+        {% if ignored %}
+        {{ review_button(scan, 'UNIGNORE', 'Move Back', 'quiet-button') }}
+        {% else %}
+        {{ review_button(scan, 'IGNORE', 'Ignore', 'quiet-button') }}
+        {% endif %}
+        {{ review_button(scan, 'REMOVE', 'Delete', 'danger-button') }}
+    </div>
+</li>
+{% endmacro %}
+
+{% block title %}Unknown Barcodes{% endblock %}
+{% block header_title %}Unknown Barcodes{% endblock %}
+{% block sub_title %}Link new scanned barcodes to inventory items{% endblock %}
+{% block instructions %}These barcodes were scanned but no item uses them yet. Choose the item each one should open, or ignore it.{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/unknown-barcodes.css') }}">{% endblock %}
+
+{% block content %}
+<section class="panel">
+    <div class="panel-header">
+        <div>
+            <h2>Scan or Enter Barcode</h2>
+            <p>Add a barcode by hand if it is not on the list yet.</p>
+        </div>
+        <form method="POST" class="inline-form upc-add-form" data-validation-submit="manual" novalidate>
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="action" value="ADD">
+            <input name="upc" autocomplete="off" autofocus {{ validation_attrs("upc12", placeholder="12-digit UPC") }}>
+            <button class="success-button" type="submit">Add</button>
+        </form>
+    </div>
+</section>
+
+<section class="panel">
+    <div class="panel-header">
+        <h2>Waiting To Be Linked</h2>
+    </div>
+    {% if pending_upcs|length == 0 %}
+    <div class="empty-state"><h2>Nothing waiting</h2></div>
+    {% else %}
+    <ul class="barcode-list">
+        {% for scan in pending_upcs %}
+        {{ barcode_row(scan, items) }}
+        {% endfor %}
+    </ul>
+    {% endif %}
+</section>
+
+{% if ignored_upcs|length > 0 %}
+<section class="panel">
+    <div class="panel-header">
+        <h2>Ignored</h2>
+    </div>
+    <ul class="barcode-list">
+        {% for scan in ignored_upcs %}
+        {{ barcode_row(scan, items, ignored=True) }}
+        {% endfor %}
+    </ul>
+</section>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/info-tip.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/upc-scanner.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/new-barcodes.js') }}" defer></script>
+{% endblock %}

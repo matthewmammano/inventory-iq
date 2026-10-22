@@ -1,8 +1,9 @@
 {% extends "base.html" %}
 
-{% block title %}Data{% endblock %}
-{% block header_title %}Data{% endblock %}
+{% block title %}Items & Tags{% endblock %}
+{% block header_title %}Items & Tags{% endblock %}
 {% block sub_title %}View, add, edit, or remove items, locations, tags, and notifications{% endblock %}
+{% block instructions %}Set up the items you stock here first. Tags group items together, and notifications say who gets alert emails.{% endblock %}
 {% block header_right %}
 <button class="success-button{% if active_tab != 'items' %} hidden{% endif %}" type="button" data-modal-open="item-modal-add" data-tab-action="items">Add Item</button>
 <button class="success-button{% if active_tab != 'tags' %} hidden{% endif %}" type="button" data-modal-open="tag-modal-add" data-tab-action="tags">Add Tag</button>
@@ -165,7 +166,7 @@
 
         {% for item in items %}
         <div class="modal-backdrop hidden" id="item-modal-{{ item.id }}">
-            <div class="modal admin-data-modal">
+            <div class="modal items-and-tags-modal">
                 <div data-modal-view="edit">
                     <h2>Edit Item</h2>
                     <form method="POST" action="{{ url_for('admin.admin_update_item', agency_id=agency_id, item_id=item.id) }}" novalidate>
@@ -184,7 +185,7 @@
         {% endfor %}
 
         <div class="modal-backdrop hidden" id="item-modal-add">
-            <div class="modal admin-data-modal">
+            <div class="modal items-and-tags-modal">
                 <h2>Add Item</h2>
                 <form method="POST" action="{{ url_for('admin.admin_create_item', agency_id=agency_id) }}" novalidate>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -247,7 +248,7 @@
 
         {% for tag in tags %}
         <div class="modal-backdrop hidden" id="tag-modal-{{ tag.id }}">
-            <div class="modal admin-data-modal">
+            <div class="modal items-and-tags-modal">
                 <div data-modal-view="edit">
                     <h2>Edit Tag</h2>
                     <form method="POST" action="{{ url_for('admin.admin_update_tag', agency_id=agency_id, tag_id=tag.id) }}" novalidate>
@@ -266,7 +267,7 @@
         {% endfor %}
 
         <div class="modal-backdrop hidden" id="tag-modal-add">
-            <div class="modal admin-data-modal">
+            <div class="modal items-and-tags-modal">
                 <h2>Add Tag</h2>
                 <form method="POST" action="{{ url_for('admin.admin_create_tag', agency_id=agency_id) }}" novalidate>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -306,7 +307,7 @@
 
         {% for recipient in notifications %}
         <div class="modal-backdrop hidden" id="notif-modal-{{ recipient.id }}">
-            <div class="modal admin-data-modal">
+            <div class="modal items-and-tags-modal">
                 <div data-modal-view="edit">
                     <h2>Edit Notification</h2>
                     <form method="POST" action="{{ url_for('admin.admin_update_notification', agency_id=agency_id, recipient_id=recipient.id) }}" novalidate>
@@ -325,7 +326,7 @@
         {% endfor %}
 
         <div class="modal-backdrop hidden" id="notif-modal-add">
-            <div class="modal admin-data-modal">
+            <div class="modal items-and-tags-modal">
                 <h2>Add Notification</h2>
                 <form method="POST" action="{{ url_for('admin.admin_create_notification', agency_id=agency_id) }}" novalidate>
                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
@@ -341,11 +342,11 @@
 </div>
 {% endblock %}
 
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/admin-data.css') }}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/items-and-tags.css') }}">{% endblock %}
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/tabs.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/modal-actions.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/dynamic-field-list.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/tag-chip-colors.js') }}" defer></script>
-<script src="{{ url_for('static', filename='js/admin-data.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/items-and-tags.js') }}" defer></script>
 {% endblock %}

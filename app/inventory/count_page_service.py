@@ -7,16 +7,13 @@ from sqlalchemy.orm import Session
 
 from app.inventory.expiration_ui_service import ExpirationBreakdown, expiration_breakdowns_by_item
 from app.inventory.location_operations import build_location_count_rows
-from app.inventory.ui import get_inventory_level_class
 
 
 @dataclass(frozen=True, slots=True)
 class InventoryCountPageRow:
     item: Any
     storage_counts: dict[int, int]
-    storage_classes: dict[int, str]
     total: int
-    total_class: str
     expiration_breakdown: ExpirationBreakdown | None
 
 
@@ -37,9 +34,7 @@ def build_inventory_count_page(session: Session, agency_id: int, agency_location
             InventoryCountPageRow(
                 item=item,
                 storage_counts=storage_counts,
-                storage_classes={storage.id: get_inventory_level_class(storage_counts[storage.id]) for storage in storages},
                 total=total,
-                total_class=get_inventory_level_class(total),
                 expiration_breakdown=expiration_breakdowns.get(item.id),
             )
         )

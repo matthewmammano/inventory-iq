@@ -4,24 +4,11 @@
 {% block title %}Restock Report{% endblock %}
 {% block header_title %}Restock{% endblock %}
 {% block sub_title %}Review reorder needs and receiving priorities by location{% endblock %}
+{% block instructions %}What to order and how much, worked out from how fast each item is used.{% endblock %}
+{% set restock_print_url = url_for('admin.restock_print', agency_id=agency_id, agency_location_id=active_location_id) if active_location_id else url_for('admin.restock_print', agency_id=agency_id) %}
+
 {% block header_right %}
-    {% if active_location_id %}
-        {% set restock_print_url = url_for('admin.restock_print', agency_id=agency_id, agency_location_id=active_location_id) %}
-    {% else %}
-        {% set restock_print_url = url_for('admin.restock_print', agency_id=agency_id) %}
-    {% endif %}
-    <label class="header-toggle">
-        <input type="checkbox" id="restock-print-detailed">
-        All details
-    </label>
-    <button
-        class="button"
-        type="button"
-        data-report-print-url="{{ restock_print_url }}"
-        data-report-print-area="#restock-print-area"
-        data-report-print-detailed="#restock-print-detailed">
-        Print Report
-    </button>
+    <button class="button" type="button" data-report-print-open="restock-print-modal">Print Report</button>
     <button class="success-button" data-email-modal-open="restock-email-modal" type="button">Email Report</button>
 {% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/item-trend-modal.css') }}">{% endblock %}
@@ -91,11 +78,11 @@
                         <td data-sort-value="{{ expiration.soonest_sort_value if expiration else '9999-12-31' }}">{{ expiration.soonest_label if expiration else '-' }}</td>
                         <td data-sort-value="{{ expiration.expired_count if expiration else 0 }}">{{ expiration.expired_count if expiration else '-' }}</td>
                         <td data-sort-value="{{ expiration.expiring_soon_count if expiration else 0 }}">{{ expiration.expiring_soon_count if expiration else '-' }}</td>
-                        <td class="{{ row.days_class }}" data-sort-value="{{ row.days_until_stockout if row.days_until_stockout is not none else 999999 }}">{% if row.days_until_stockout is not none %}{{ row.days_until_stockout if row.days_until_stockout <= 365 else 365 }}{% else %}N/A{% endif %}</td>
+                        <td data-sort-value="{{ row.days_until_stockout if row.days_until_stockout is not none else 999999 }}">{% if row.days_until_stockout is not none %}{{ row.days_until_stockout if row.days_until_stockout <= 365 else 365 }}{% else %}N/A{% endif %}</td>
                         <td data-sort-value="{{ row.suggested_reorder_date.strftime('%Y-%m-%d') if row.suggested_reorder_date else '9999-12-31' }}">{{ row.suggested_reorder_date.strftime('%Y-%m-%d') if row.suggested_reorder_date else 'N/A' }}</td>
                         <td data-sort-value="{{ row.last_counted_at|local_date(user_timezone, '9999-12-31') }}">{{ row.last_counted_at|local_date(user_timezone, 'N/A') }}</td>
                         <td data-sort-value="{{ row.confidence_display if row.confidence_display is not none else -1 }}">{{ row.confidence_display ~ '%' if row.confidence_display is not none else 'N/A' }}</td>
-                        <td class="{{ row.order_class }}" data-sort-value="{{ row.order_amount if row.order_amount is not none else -1 }}">{{ row.order_amount_display }}</td>
+                        <td data-sort-value="{{ row.order_amount if row.order_amount is not none else -1 }}">{{ row.order_amount_display }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -127,6 +114,30 @@
         </div>
         <button class="quiet-button" data-email-modal-close type="button">Close</button>
         {% endif %}
+    </div>
+</div>
+<div class="modal-backdrop hidden" id="restock-print-modal" data-report-print-modal>
+    <div class="modal">
+        <h2>Print Restock Report</h2>
+        <p>Choose how much goes on the printout.</p>
+        <label class="setting-row">
+            <div>
+                <div class="setting-name">All details</div>
+                <p>Every forecast column, printed sideways in small type. Off prints just what to order.</p>
+            </div>
+            <input type="checkbox" id="restock-print-detailed">
+        </label>
+        <div class="button-row">
+            <button
+                class="button"
+                type="button"
+                data-report-print-url="{{ restock_print_url }}"
+                data-report-print-area="#restock-print-area"
+                data-report-print-detailed="#restock-print-detailed">
+                Print
+            </button>
+            <button class="quiet-button" type="button" data-report-print-close>Cancel</button>
+        </div>
     </div>
 </div>
 <section id="restock-print-area" class="print-only" aria-hidden="true" data-report-print-area></section>

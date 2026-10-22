@@ -1,0 +1,14 @@
+{% extends "base.html" %}
+{% from "macros.html" import admin_header_icons, nav_card_grid %}
+
+{% block title %}{{ hub.title }}{% endblock %}
+{% block header_title %}{{ hub.title }}{% endblock %}
+{% block sub_title %}{{ hub.subtitle }}{% endblock %}
+{% block header_right %}{{ admin_header_icons(agency_id) }}{% endblock %}
+{% block instructions %}{{ hub.instructions }}{% endblock %}
+
+{% block content %}
+<section>
+    {{ nav_card_grid(nav_cards) }}
+</section>
+{% endblock %}

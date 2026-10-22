@@ -42,7 +42,8 @@ class ExpirationEntrySpec:
 
     @property
     def allows_other(self) -> bool:
-        return True
+        """Stock going onto a shelf must be dated from the package; only takeouts may be undated."""
+        return self.operation_type.is_takeout or self.operation_type.is_transfer
 
     @property
     def new_date_row_count(self) -> int:
@@ -54,10 +55,6 @@ class ExpirationEntrySpec:
     def requires_exact_total(self) -> bool:
         """Takeout totals may miss target: tracked lots may not match what's physically being taken."""
         return not self.operation_type.is_takeout
-
-    @property
-    def other_discouraged(self) -> bool:
-        return self.operation_type.is_count or self.operation_type.is_restock
 
     @property
     def card_subtitle(self) -> str:

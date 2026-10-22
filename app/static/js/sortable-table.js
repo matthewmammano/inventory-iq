@@ -24,10 +24,21 @@ document.addEventListener("DOMContentLoaded", () => {
             });
         });
 
-        const defaultColumn = Number(table.dataset.defaultSortColumn);
-        if (Number.isInteger(defaultColumn)) sortRows(defaultColumn, table.dataset.defaultSortDirection || "asc");
+        const requested = requestedSort(table);
+        const startColumn = requested?.column ?? Number(table.dataset.defaultSortColumn);
+        if (Number.isInteger(startColumn)) sortRows(startColumn, requested?.direction || table.dataset.defaultSortDirection || "asc");
     });
 });
+
+// A link may land on this page asking for one column, named so the index can shift with the data.
+function requestedSort(table) {
+    const params = new URLSearchParams(window.location.search);
+    const key = params.get("sort");
+    if (!key) return null;
+    const header = table.querySelector(`th[data-sort-key="${CSS.escape(key)}"]`);
+    if (!header) return null;
+    return { column: Number(header.dataset.sortColumn), direction: params.get("dir") === "asc" ? "asc" : "desc" };
+}
 
 function compareCells(left, right, direction) {
     const leftValue = sortValue(left);

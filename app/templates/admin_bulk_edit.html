@@ -1,17 +1,16 @@
 {% extends "base.html" %}
 
-{% block title %}Bulk Action{% endblock %}
-{% block header_title %}Bulk Action{% endblock %}
+{% block title %}Bulk Edit{% endblock %}
+{% block header_title %}Bulk Edit{% endblock %}
 {% block sub_title %}Location: {{ location.name }}{% endblock %}
-{% set back_url = url_for('admin.bulk_actions', agency_id=agency_id, agency_location_id=location.id) %}
+{% block instructions %}Type what is on the shelf now under COUNT, and what you are adding under RESTOCK. Boxes you leave blank are not changed.{% endblock %}
 {% block header_right %}
 <button class="success-button hidden" id="bulk-save-button" type="button">Continue</button>
-<a class="header-action" href="{{ back_url }}" data-bulk-back>Back</a>
 {% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/bulk-action-grid.css') }}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/bulk-edit-grid.css') }}">{% endblock %}
 
 {% block content %}
-<form id="bulk-action-form" method="POST" class="panel stack" data-bulk-form>
+<form id="bulk-edit-form" method="POST" class="panel stack" data-bulk-form>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% for item_id in item_ids %}
     <input type="hidden" name="item_ids" value="{{ item_id }}">
@@ -107,5 +106,5 @@
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/change-review.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/quantity-dirty-fields.js') }}" defer></script>
-<script src="{{ url_for('static', filename='js/bulk-actions.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/bulk-edit.js') }}" defer></script>
 {% endblock %}

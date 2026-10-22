@@ -22,7 +22,7 @@ from app.inventory.location_operations import build_location_count_rows
 from app.inventory.restock_page_service import RestockPageRow, build_restock_page_rows
 from app.shared.clock import utc_now
 from app.shared.email_client import EmailAttachment
-from app.shared.email_subjects import HISTORY_LOGS_TITLE, INVENTORY_COUNTS_TITLE, RESTOCK_REPORT_TITLE, report_subject
+from app.shared.email_subjects import HISTORY_LOGS_TITLE, RESTOCK_REPORT_TITLE, STOCK_LEVELS_TITLE, report_subject
 from app.shared.timezone_utils import convert_utc_to_local
 
 REPORT_SEVERITY = AlertSeverity.INFO
@@ -173,7 +173,7 @@ def _build_inventory_count_batch(session: Session, agency: Agency) -> EmailBatch
     sections, rows, stockouts, below_min = _inventory_sections(session, agency)
     return _report_batch(
         agency,
-        INVENTORY_COUNTS_TITLE,
+        STOCK_LEVELS_TITLE,
         "This email includes the current inventory report. A separate CSV is attached for each location.",
         summary=[
             AlertSummaryItem(label="Locations", count=len(sections), color=REPORT_SEVERITY.color),

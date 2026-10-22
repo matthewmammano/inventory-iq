@@ -14,7 +14,7 @@ Open **Data** from the Admin Panel, then the **Items** tab. Click the edit icon 
 - **Name** is what users see while scanning and on reports. Keep it recognizable at a glance.
 - **Primary UPC and Secondary UPCs** control which scanned barcodes match this item. See [Linking New Barcodes](linking-new-barcodes) for adding an extra one later.
 - **Tags** group items for searching and review.
-- **Min Quantity / Max Quantity** define low-stock and overstock thresholds used by Restock and Inventory Levels.
+- **Min Quantity / Max Quantity** define low-stock and overstock thresholds used by Restock and Stock Levels.
 - **Order Size** and **Lead Time Override** feed restock planning. Leaving Lead Time Override blank uses the squad default.
 - **Track Expiration Dates** turns on per-scan expiration entry for this item. See [Tracking Expiration Dates](tracking-expiration-dates).
 
@@ -26,4 +26,4 @@ Open **Data** from the Admin Panel, then the **Items** tab. Click the edit icon 
 
 ## Delete Behavior
 
-> Deleting an item marks it inactive once you save; it does not erase it. Existing History rows for that item stay exactly as they are, so past audits still make sense. A deleted item drops out of scanning, Restock, and Inventory Levels. If its old barcode gets scanned again later, Inventory IQ will not match it to the deleted item; it shows up as an unknown barcode instead. See [Handling Unknown Barcodes](handling-unknown-barcodes) if that item comes back into use.
+> Deleting an item marks it inactive once you save; it does not erase it. Existing History rows for that item stay exactly as they are, so past audits still make sense. A deleted item drops out of scanning, Restock, and Stock Levels. If its old barcode gets scanned again later, Inventory IQ will not match it to the deleted item; it shows up as an unknown barcode instead. See [Handling Unknown Barcodes](handling-unknown-barcodes) if that item comes back into use.

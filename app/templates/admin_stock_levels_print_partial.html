@@ -1,13 +1,5 @@
-<section class="print-title">
-    <h1>Inventory Report</h1>
-    <div class="print-kv-grid">
-        <div class="print-kv-row">
-            <span class="print-kv-label">Location:</span>
-            <span class="print-kv-value">{{ location_name }}</span>
-        </div>
-    </div>
-</section>
-
+{% from "macros.html" import report_sheet %}
+{% call report_sheet("Inventory Report", "landscape", [("Location", location_name)]) %}
 {% if inventory_data|length == 0 %}
 <div class="empty-state"><h2>No items found</h2></div>
 {% else %}
@@ -45,3 +37,4 @@
     </div>
 </section>
 {% endif %}
+{% endcall %}
