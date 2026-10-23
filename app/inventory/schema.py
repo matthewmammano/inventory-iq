@@ -111,10 +111,16 @@ class HistoryPageQuery(BaseModel):
     """History list query parameters."""
 
     page: OptionalParsedInt = None
+    sort: str = ""
+    dir: str = ""
 
     @property
     def page_number(self) -> int:
         return max(self.page or 1, 1)
+
+    @property
+    def descending(self) -> bool:
+        return self.dir != "asc"
 
 
 def _query_values_with_permission_defaults(values: Mapping[str, Any], *, is_admin: bool) -> dict[str, Any]:

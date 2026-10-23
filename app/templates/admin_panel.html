@@ -19,7 +19,8 @@
         <div class="attention-track" data-attention-track>
             {% for tile in attention_tiles %}
                 {% if tile.count %}
-            <a class="card attention-card attention-{{ tile.severity }}" href="{{ url_for(tile.endpoint, agency_id=agency_id, sort=tile.sort_key or none, dir='desc' if tile.sort_key else none) }}">
+                {% set tile_dir = tile.sort_direction if tile.sort_key else none %}
+            <a class="card attention-card attention-{{ tile.severity }}" href="{{ url_for(tile.endpoint, agency_id=agency_id, sort=tile.sort_key or none, dir=tile_dir) }}">
                 <span class="attention-count">{{ tile.count }}</span>
                 <span class="attention-body">
                     <span class="attention-title">{{ tile.title }}</span>
@@ -55,8 +56,22 @@
             Contact Priority One Technologies support.
         {% endif %}
     </div>
-    <a class="danger-button" href="{{ url_for('auth.logout') }}">Logout of Squad Account</a>
+    <button class="danger-button" type="button" data-modal-open="logout-modal">Logout of Squad Account</button>
 </section>
+
+<div class="modal-backdrop hidden" id="logout-modal">
+    <div class="modal confirm-modal">
+        <h2>Log out of this squad?</h2>
+        <p>Everyone on this device gets signed out. You will need the squad email and password to get back in.</p>
+        <div class="button-row">
+            <a class="danger-button" href="{{ url_for('auth.logout') }}" data-countdown-seconds="5">Yes, Log Out</a>
+            <button class="success-button" type="button" data-modal-close>Stay Logged In</button>
+        </div>
+    </div>
+</div>
 {% endblock %}
 
-{% block extra_js %}<script src="{{ url_for('static', filename='js/admin-dashboard.js') }}" defer></script>{% endblock %}
+{% block extra_js %}
+<script src="{{ url_for('static', filename='js/admin-dashboard.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/modal-actions.js') }}" defer></script>
+{% endblock %}

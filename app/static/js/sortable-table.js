@@ -1,43 +1,53 @@
 document.addEventListener("DOMContentLoaded", () => {
-    document.querySelectorAll("[data-sort-table]").forEach((table) => {
-        const headers = [...table.querySelectorAll("th[data-sort-column]")];
-        const tbody = table.tBodies[0];
-        if (!tbody) return;
-
-        const sortRows = (column, direction) => {
-            const rows = [...tbody.rows];
-            rows.sort((left, right) => compareCells(left.cells[column], right.cells[column], direction));
-            tbody.replaceChildren(...rows);
-            headers.forEach((header) => header.classList.toggle("sorted-column", Number(header.dataset.sortColumn) === column));
-            table.querySelectorAll("td.sorted-cell").forEach((cell) => cell.classList.remove("sorted-cell"));
-            [...tbody.rows].forEach((row) => row.cells[column]?.classList.add("sorted-cell"));
-            table.dataset.sortDirection = direction;
-            table.dataset.sortColumn = column;
-        };
-
-        headers.forEach((header) => {
-            header.addEventListener("click", (event) => {
-                if (event.target.closest("button")) return;
-                const column = Number(header.dataset.sortColumn);
-                const nextDirection = table.dataset.sortColumn === String(column) && table.dataset.sortDirection === "asc" ? "desc" : "asc";
-                sortRows(column, nextDirection);
-            });
-        });
-
-        const requested = requestedSort(table);
-        const startColumn = requested?.column ?? Number(table.dataset.defaultSortColumn);
-        if (Number.isInteger(startColumn)) sortRows(startColumn, requested?.direction || table.dataset.defaultSortDirection || "asc");
-    });
+    document.querySelectorAll("[data-sort-table]").forEach(makeSortable);
 });
 
-// A link may land on this page asking for one column, named so the index can shift with the data.
-function requestedSort(table) {
+function makeSortable(table) {
+    const headers = [...(table.tHead?.rows[0].cells ?? [])];
+    const tbody = table.tBodies[0];
+    if (!headers.length || !tbody) return;
+
+    const sortRows = (column, direction) => {
+        const rows = [...tbody.rows];
+        rows.sort((left, right) => compareCells(left.cells[column], right.cells[column], direction));
+        tbody.replaceChildren(...rows);
+        headers.forEach((header, index) => header.classList.toggle("sorted-column", index === column));
+        table.querySelectorAll("td.sorted-cell").forEach((cell) => cell.classList.remove("sorted-cell"));
+        [...tbody.rows].forEach((row) => row.cells[column]?.classList.add("sorted-cell"));
+        table.dataset.sortDirection = direction;
+        table.dataset.sortColumn = column;
+    };
+
+    headers.forEach((header, column) => {
+        header.addEventListener("click", (event) => {
+            if (event.target.closest("button")) return;
+            const sortedAscending = table.dataset.sortColumn === String(column) && table.dataset.sortDirection === "asc";
+            sortRows(column, sortedAscending ? "desc" : "asc");
+        });
+    });
+
+    const start = requestedSort(headers) ?? defaultSort(table, headers);
+    if (start) sortRows(start.column, start.direction);
+}
+
+// A link may land on this page asking for one column, named so it survives the columns moving.
+function requestedSort(headers) {
     const params = new URLSearchParams(window.location.search);
-    const key = params.get("sort");
+    const column = columnForKey(headers, params.get("sort"));
+    if (column === null) return null;
+    return { column, direction: params.get("dir") === "asc" ? "asc" : "desc" };
+}
+
+function defaultSort(table, headers) {
+    const column = columnForKey(headers, table.dataset.defaultSortKey);
+    if (column === null) return null;
+    return { column, direction: table.dataset.defaultSortDirection || "asc" };
+}
+
+function columnForKey(headers, key) {
     if (!key) return null;
-    const header = table.querySelector(`th[data-sort-key="${CSS.escape(key)}"]`);
-    if (!header) return null;
-    return { column: Number(header.dataset.sortColumn), direction: params.get("dir") === "asc" ? "asc" : "desc" };
+    const column = headers.findIndex((header) => header.dataset.sortKey === key);
+    return column === -1 ? null : column;
 }
 
 function compareCells(left, right, direction) {

@@ -8,7 +8,7 @@
 
 .shelf-label {
   width: 3.375in;
-  min-height: 2.125in;
+  min-height: 2in;
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr) auto auto;
   gap: 2px;

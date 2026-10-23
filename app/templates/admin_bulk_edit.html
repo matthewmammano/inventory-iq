@@ -1,15 +1,18 @@
 {% extends "base.html" %}
+{% from "macros.html" import device_gate %}
 
 {% block title %}Bulk Edit{% endblock %}
 {% block header_title %}Bulk Edit{% endblock %}
 {% block sub_title %}Location: {{ location.name }}{% endblock %}
+{% block main_class %}stack bulk-edit-main{% endblock %}
 {% block instructions %}Type what is on the shelf now under COUNT, and what you are adding under RESTOCK. Boxes you leave blank are not changed.{% endblock %}
 {% block header_right %}
 <button class="success-button hidden" id="bulk-save-button" type="button">Continue</button>
 {% endblock %}
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/bulk-edit-grid.css') }}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/pages/bulk-edit-grid.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/components/device-gate.css') }}">{% endblock %}
 
 {% block content %}
+{{ device_gate(url_for('admin.admin_panel', agency_id=agency_id), min_width=1000, needs_keyboard=true) }}
 <form id="bulk-edit-form" method="POST" class="panel stack" data-bulk-form>
     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
     {% for item_id in item_ids %}
@@ -84,9 +87,7 @@
                 </tbody>
             </table>
         </div>
-        <div class="button-row">
-            <button class="success-button hidden" id="bulk-submit-button" type="submit">Continue</button>
-        </div>
+        <button class="success-button hidden" id="bulk-submit-button" type="submit">Continue</button>
     </div>
 </form>
 
@@ -107,4 +108,5 @@
 <script src="{{ url_for('static', filename='js/change-review.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/quantity-dirty-fields.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/bulk-edit.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/device-gate.js') }}" defer></script>
 {% endblock %}

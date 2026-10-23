@@ -1,10 +1,15 @@
 {% extends "base.html" %}
+{% from "macros.html" import device_gate %}
 
 {% block title %}Items & Tags{% endblock %}
 {% block header_title %}Items & Tags{% endblock %}
 {% block sub_title %}View, add, edit, or remove items, locations, tags, and notifications{% endblock %}
 {% block instructions %}Set up the items you stock here first. Tags group items together, and notifications say who gets alert emails.{% endblock %}
 {% block header_right %}
+<label class="advanced-columns{% if active_tab != 'items' %} hidden{% endif %}" data-tab-action="items">
+    <input type="checkbox">
+    <span>Show every column</span>
+</label>
 <button class="success-button{% if active_tab != 'items' %} hidden{% endif %}" type="button" data-modal-open="item-modal-add" data-tab-action="items">Add Item</button>
 <button class="success-button{% if active_tab != 'tags' %} hidden{% endif %}" type="button" data-modal-open="tag-modal-add" data-tab-action="tags">Add Tag</button>
 <button class="success-button{% if active_tab != 'notifications' %} hidden{% endif %}" type="button" data-modal-open="notif-modal-add" data-tab-action="notifications">Add Notification</button>
@@ -124,6 +129,7 @@
 {%- endmacro %}
 
 {% block content %}
+{{ device_gate(url_for('admin.admin_panel', agency_id=agency_id), min_width=1000, needs_keyboard=true) }}
 <div class="tabbed-panel">
     <section class="tab-strip">
         <a class="tab-button{% if active_tab == 'items' %} active{% endif %}" href="#items" data-tab="items">Items</a>
@@ -137,8 +143,8 @@
         <div class="empty-state"><h2>No items found</h2></div>
         {% else %}
         <div class="table-wrap">
-            <table>
-                <thead><tr><th>Name</th><th>Primary UPC</th><th>Secondary UPCs</th><th>Increments</th><th>Tags</th><th>Min Quantity</th><th>Max Quantity</th><th>Order Size</th><th>Lead Time Override</th><th>Track Expiration?</th><th>Expiration Warning Override</th><th>Expanded ±5, ±10</th><th>Flagged for Scan Alerts?</th><th>Last Accessed</th><th>Image</th></tr></thead>
+            <table data-sort-table>
+                <thead><tr><th>Name</th><th>Primary UPC</th><th>Secondary UPCs</th><th>Increments</th><th>Tags</th><th>Min Quantity</th><th>Max Quantity</th><th>Order Size</th><th>Lead Time Override</th><th class="col-advanced">Track Expiration?</th><th class="col-advanced">Expiration Warning Override</th><th class="col-advanced">Expanded ±5, ±10</th><th class="col-advanced">Flagged for Scan Alerts?</th><th class="col-advanced">Last Accessed</th><th class="col-advanced">Image</th></tr></thead>
                 <tbody>
                     {% for item in items %}
                     <tr>
@@ -151,12 +157,12 @@
                         <td>{{ item.max_quantity }}</td>
                         <td>{{ item.batch_size }}</td>
                         <td>{{ item.restock_delivery_days if item.restock_delivery_days is not none else 'Default' }}</td>
-                        <td>{{ item.expiration_tracking_enabled }}</td>
-                        <td>{{ item.expiration_notice_days_override if item.expiration_notice_days_override is not none else 'Default' }}</td>
-                        <td>{{ item.guest_quick_adjust }}</td>
-                        <td>{{ item.scan_alert_flagged }}</td>
-                        <td>{{ item.last_accessed|local_datetime(user_timezone, 'Never') }}</td>
-                        <td><img class="table-thumbnail" src="{{ item.image|image_src }}" alt="{{ item.name }}" loading="lazy" decoding="async"></td>
+                        <td class="col-advanced">{{ item.expiration_tracking_enabled }}</td>
+                        <td class="col-advanced">{{ item.expiration_notice_days_override if item.expiration_notice_days_override is not none else 'Default' }}</td>
+                        <td class="col-advanced">{{ item.guest_quick_adjust }}</td>
+                        <td class="col-advanced">{{ item.scan_alert_flagged }}</td>
+                        <td class="col-advanced">{{ item.last_accessed|local_datetime(user_timezone, 'Never') }}</td>
+                        <td class="col-advanced"><img class="table-thumbnail" src="{{ item.image|image_src }}" alt="{{ item.name }}" loading="lazy" decoding="async"></td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -342,11 +348,13 @@
 </div>
 {% endblock %}
 
-{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/items-and-tags.css') }}">{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/items-and-tags.css') }}"><link rel="stylesheet" href="{{ url_for('static', filename='css/components/device-gate.css') }}">{% endblock %}
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/tabs.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/modal-actions.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/dynamic-field-list.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/tag-chip-colors.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/items-and-tags.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/sortable-table.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/device-gate.js') }}" defer></script>
 {% endblock %}

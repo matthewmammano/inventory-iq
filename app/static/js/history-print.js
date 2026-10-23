@@ -11,11 +11,6 @@ document.addEventListener("DOMContentLoaded", () => {
     const dateInputs = [...document.querySelectorAll("[data-history-date]")];
     const formValidation = window.InventoryFormValidation;
 
-    const cleanupPrintState = () => {
-        document.body.classList.remove("printing-report");
-        printArea?.replaceChildren();
-    };
-
     const todayInTimezone = (timezone) => {
         const parts = new Intl.DateTimeFormat("en-US", {
             timeZone: timezone || undefined,
@@ -65,29 +60,16 @@ document.addEventListener("DOMContentLoaded", () => {
         if (!form || !formValidation || !printArea) return;
         if (!(await formValidation.validateForm(form))) return;
         const url = `${modal?.dataset.printAction}?${new URLSearchParams(new FormData(form))}`;
-        window.InventoryLoadingOverlay?.show({ immediate: true });
+        modal?.classList.add("hidden");
         try {
-            const response = await fetch(url, { headers: { "X-Requested-With": "fetch" } });
-            if (!response.ok) throw new Error(await response.text());
-            printArea.innerHTML = await response.text();
-            modal?.classList.add("hidden");
-            window.InventoryLoadingOverlay?.hide();
-            document.body.classList.add("printing-report");
-            window.print();
-            window.setTimeout(cleanupPrintState, 250);
+            await window.InventoryPrintPreview.printFetchedHtml(url, printArea);
         } catch (error) {
-            window.InventoryLoadingOverlay?.hide();
-            cleanupPrintState();
+            modal?.classList.remove("hidden");
             const message = error.message || "Could not load print history.";
             const target = form.querySelector(message.startsWith("Start date") ? "[name='start_date']" : "[name='end_date']");
             if (!target) return;
             formValidation.setExternalError(target, message);
             await formValidation.validateField(target);
         }
-    });
-
-    window.addEventListener("afterprint", cleanupPrintState);
-    document.addEventListener("visibilitychange", () => {
-        if (!document.hidden) window.setTimeout(cleanupPrintState, 250);
     });
 });

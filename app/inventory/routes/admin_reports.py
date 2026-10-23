@@ -1,6 +1,7 @@
 """Admin inventory report, restock, and history routes."""
 
 from collections.abc import Mapping
+from dataclasses import replace
 from typing import Any
 
 from flask import flash, redirect, render_template, request, url_for
@@ -15,7 +16,14 @@ from app.auth.queries import list_active_emails, list_top_locations
 from app.inventory import admin_bp as bp
 from app.inventory.constants import INVALID_FORM_DATA_MESSAGE
 from app.inventory.count_page_service import InventoryCountPage, build_inventory_count_page
-from app.inventory.history_service import HISTORY_REPORT_LIMIT, HistoryLogQuery, list_history_logs
+from app.inventory.history_service import (
+    HISTORY_COLUMNS,
+    HISTORY_REPORT_LIMIT,
+    HistoryLogQuery,
+    count_history_logs,
+    list_history_logs,
+    normalize_history_sort_key,
+)
 from app.inventory.models import Item
 from app.inventory.report_email_service import HistoryReportRange, send_history_report, send_inventory_count_report, send_restock_report
 from app.inventory.restock_page_service import RestockPageRow, build_restock_page_rows
@@ -24,6 +32,7 @@ from app.prediction.history_service import build_item_trend_chart
 from app.shared.cache import ttl_cache
 from app.shared.database import get_session
 from app.shared.form_parsing import selected_int_ids
+from app.shared.pagination import PageNav, PageWindow, build_page_nav
 from app.shared.validators import first_validation_error_message, parse_optional_int
 
 HISTORY_PAGE_SIZE = 50
@@ -214,6 +223,24 @@ def _history_date_range(
         return None, first_validation_error_message(exc, INVALID_FORM_DATA_MESSAGE)
 
 
+def _history_page_nav(agency_id: int, active_location: Location | None, query: HistoryLogQuery, window: PageWindow) -> PageNav:
+    location_id = active_location.id if active_location else ALL_LOCATIONS_ID
+    direction = "desc" if query.descending else "asc"
+    return build_page_nav(
+        window,
+        url_for_page=lambda page: url_for(
+            "admin.admin_history",
+            agency_id=agency_id,
+            agency_location_id=location_id,
+            sort=query.sort_key,
+            dir=direction,
+            page=page,
+        ),
+        jump_action=url_for("admin.admin_history", agency_id=agency_id, agency_location_id=location_id),
+        jump_fields=(("sort", query.sort_key), ("dir", direction)),
+    )
+
+
 @bp.route("/<int:agency_id>/admin-panel/history")
 @bp.route("/<int:agency_id>/admin-panel/history/<int:agency_location_id>")
 def admin_history(agency_id: int, agency_location_id: int | None = None) -> Any:
@@ -223,17 +250,29 @@ def admin_history(agency_id: int, agency_location_id: int | None = None) -> Any:
         notification_recipients = list_active_emails(current_user.id, s)
         active_location = _history_location(locations, agency_location_id)
         location_filter_id = active_location.id if active_location else None
-        action_logs, has_next_page = list_history_logs(s, current_user.id, location_filter_id, HistoryLogQuery(query.page_number, HISTORY_PAGE_SIZE))
+        log_query = HistoryLogQuery(
+            query.page_number,
+            HISTORY_PAGE_SIZE,
+            sort_key=normalize_history_sort_key(query.sort),
+            descending=query.descending,
+        )
+        total_rows = count_history_logs(s, current_user.id, location_filter_id, log_query)
+        window = PageWindow(log_query.page, total_rows, HISTORY_PAGE_SIZE)
+        log_query = replace(log_query, page=window.current_page)
+        action_logs = list_history_logs(s, current_user.id, location_filter_id, log_query)
+        history_pages = _history_page_nav(agency_id, active_location, log_query, window)
     return render_template(
         "admin_history.html",
         agency_id=agency_id,
         locations=locations,
         notification_recipients=notification_recipients,
         action_logs=action_logs,
+        history_columns=HISTORY_COLUMNS,
+        history_pages=history_pages,
+        sort_key=log_query.sort_key,
+        sort_descending=log_query.descending,
         active_location_id=active_location.id if active_location else ALL_LOCATIONS_ID,
         active_location_name=active_location.name if active_location else "All Locations",
-        page=query.page_number,
-        has_next_page=has_next_page,
         admin=True,
         user_timezone=current_user.timezone,
         today_date=HistoryDateRange(timezone=current_user.timezone).local_today.isoformat(),
@@ -283,7 +322,7 @@ def admin_history_print(agency_id: int, agency_location_id: int | None = None) -
         locations = list_top_locations(current_user.id, s)
         agency = s.get(Agency, current_user.id)
         active_location = _history_location(locations, agency_location_id)
-        action_logs, _ = list_history_logs(
+        action_logs = list_history_logs(
             s,
             current_user.id,
             active_location.id if active_location else None,

@@ -5,7 +5,7 @@ function switchTo(tab) {
     document.querySelectorAll("[data-tab-action]").forEach((action) => action.classList.add("hidden"));
     tab.classList.add("active");
     document.querySelector(tab.getAttribute("href")).classList.remove("hidden");
-    document.querySelector(`[data-tab-action="${tab.dataset.tab}"]`)?.classList.remove("hidden");
+    document.querySelectorAll(`[data-tab-action="${tab.dataset.tab}"]`).forEach((action) => action.classList.remove("hidden"));
 }
 
 window.InventoryTabs = { switchTo };

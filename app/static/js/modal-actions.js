@@ -1,7 +1,10 @@
 document.addEventListener("DOMContentLoaded", () => {
     document.querySelectorAll("[data-modal-open]").forEach((button) => {
         const modal = document.getElementById(button.dataset.modalOpen);
-        button.addEventListener("click", () => modal?.classList.remove("hidden"));
+        button.addEventListener("click", () => {
+            modal?.classList.remove("hidden");
+            modal?.querySelectorAll("[data-countdown-seconds]").forEach(holdUntilCountdownEnds);
+        });
     });
 
     document.querySelectorAll(".modal-backdrop").forEach((modal) => {
@@ -26,3 +29,22 @@ document.addEventListener("DOMContentLoaded", () => {
         });
     });
 });
+
+// A destructive confirm stays unclickable until its countdown ends, so nobody taps through it by reflex.
+function holdUntilCountdownEnds(control) {
+    const label = (control.dataset.countdownLabel ??= control.textContent.trim());
+    let remaining = Number(control.dataset.countdownSeconds);
+
+    control.classList.add("counting-down");
+    control.setAttribute("tabindex", "-1");
+    control.textContent = `${label} (${remaining})`;
+
+    const tick = setInterval(() => {
+        remaining -= 1;
+        control.textContent = remaining > 0 ? `${label} (${remaining})` : label;
+        if (remaining > 0) return;
+        clearInterval(tick);
+        control.classList.remove("counting-down");
+        control.removeAttribute("tabindex");
+    }, 1000);
+}

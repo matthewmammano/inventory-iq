@@ -257,7 +257,6 @@ def _build_restock_batch(agency: Agency, location_name: str, rows: list[RestockP
                     AlertTableColumn(key="expiring_soon", label=_expiring_soon_label(agency)),
                     AlertTableColumn(key="days_until_stockout", label="Days Until Stockout"),
                     AlertTableColumn(key="reorder_date", label="Reorder Date"),
-                    AlertTableColumn(key="last_counted", label="Last Counted"),
                     AlertTableColumn(key="confidence", label="Confidence"),
                     AlertTableColumn(key="order_amount", label="Order Amount"),
                 ],
@@ -366,7 +365,6 @@ def _restock_email_row(row: RestockPageRow) -> ReportRow:
         "expiring_soon": expiring_soon,
         "days_until_stockout": _days_until_stockout_display(row.days_until_stockout),
         "reorder_date": row.suggested_reorder_date.strftime("%Y-%m-%d") if row.suggested_reorder_date else "N/A",
-        "last_counted": row.last_counted_at.strftime("%Y-%m-%d") if row.last_counted_at else "N/A",
         "confidence": f"{row.confidence_display}%" if row.confidence_display is not None else "N/A",
         "order_amount": row.order_amount_display,
     }

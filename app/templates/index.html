@@ -7,7 +7,9 @@
 {% set back_url = url_for('admin.admin_scan_items', agency_id=agency_id) if selected_scan_route is defined else none %}
 {% block header_right %}
     {% if not admin %}
-    <a class="admin" href="{{ url_for('guest.admin_login', agency_id=agency_id) }}">Admin</a>
+    <a class="admin icon-action" href="{{ url_for('guest.admin_login', agency_id=agency_id) }}" aria-label="Admin" title="Admin">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="7.5" cy="15.5" r="5.5"/><path d="m21 2-9.6 9.6"/><path d="m15.5 7.5 3 3L22 7l-3-3"/></svg>
+    </a>
     {% endif %}
 {% endblock %}
 {% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/scan-route-strip.css') }}">{% endblock %}

@@ -31,17 +31,17 @@
     {% else %}
     <section class="panel">
         <div class="table-wrap">
-            <table data-sort-table data-default-sort-column="0" data-default-sort-direction="asc">
+            <table data-sort-table data-default-sort-key="item" data-default-sort-direction="asc">
                 <thead>
                     <tr>
-                        <th data-sort-column="0">Item</th>
+                        <th data-sort-key="item">Item</th>
                         {% for storage in storages %}
-                        <th data-sort-column="{{ loop.index }}">{{ storage.name }}</th>
+                        <th>{{ storage.name }}</th>
                         {% endfor %}
-                        <th data-sort-column="{{ storages|length + 1 }}">Total</th>
-                        <th data-sort-column="{{ storages|length + 2 }}" data-sort-key="soonest_expiration">Soonest Expiration</th>
-                        <th data-sort-column="{{ storages|length + 3 }}" data-sort-key="expired">Expired</th>
-                        <th data-sort-column="{{ storages|length + 4 }}" data-sort-key="expiring_soon">Expiring Within {{ current_user.expiration_notice_days }} Days</th>
+                        <th>Total</th>
+                        <th data-sort-key="soonest_expiration">Soonest Expiration</th>
+                        <th data-sort-key="expired">Expired</th>
+                        <th data-sort-key="expiring_soon">Expiring Within {{ current_user.expiration_notice_days }} Days</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -107,6 +107,7 @@
 
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/email-modal.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/print-preview.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/report-print.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/sortable-table.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/item-trend-modal.js') }}" defer></script>

@@ -143,4 +143,50 @@
       padding: 10px;
     }
   }
+
+  .advanced-columns {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    min-height: 48px;
+    padding: 0 16px;
+    border: 2px solid var(--color-home-border);
+    border-radius: var(--radius-md);
+    background: var(--color-white);
+    font-family: var(--font-heading);
+    font-size: 1rem;
+    font-weight: 700;
+    white-space: nowrap;
+    cursor: pointer;
+  }
+
+  .advanced-columns input {
+    width: 24px;
+    height: 24px;
+    margin: 0;
+    accent-color: var(--color-primary-dark);
+  }
+
+  .advanced-columns:hover {
+    background: var(--color-row-focus);
+  }
+
+  .advanced-columns:has(:checked):hover {
+    background: var(--color-home-border);
+  }
+
+  .advanced-columns:has(:checked) {
+    background: var(--color-home-bg);
+    color: var(--color-white);
+  }
+
+  /* Unchecked hides the six columns that push the table past a kiosk screen. */
+  body:not(:has(.advanced-columns input:checked)) .col-advanced {
+    display: none;
+  }
+
+  /* Checked, the table scrolls sideways at full column width instead of squeezing every column. */
+  body:has(.advanced-columns input:checked) #items table {
+    min-width: max-content;
+  }
 }

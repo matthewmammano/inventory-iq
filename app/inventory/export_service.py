@@ -18,7 +18,7 @@ from app.inventory.location_operations import build_location_count_rows
 from app.inventory.models import ActionLog, Item
 from app.shared.clock import utc_now
 from app.shared.email_client import EmailAttachment
-from app.shared.timezone_utils import convert_utc_to_local, format_local_date
+from app.shared.timezone_utils import convert_utc_to_local
 
 from .history_service import HISTORY_REPORT_LIMIT, HistoryLogQuery, list_history_logs
 
@@ -50,7 +50,7 @@ def build_history_csv_attachment(
     end_utc: datetime | None,
 ) -> HistoryExportSummary:
     """Return one history CSV attachment and summary metrics for the selected scope."""
-    logs, _ = list_history_logs(session, agency.id, agency_location_id, HistoryLogQuery(1, HISTORY_REPORT_LIMIT, start_utc, end_utc))
+    logs = list_history_logs(session, agency.id, agency_location_id, HistoryLogQuery(1, HISTORY_REPORT_LIMIT, start_utc, end_utc))
     history_fieldnames = [
         "Scanned At",
         "Item Name",
@@ -168,7 +168,6 @@ def build_restock_csv_attachment(agency: Agency, location_name: str, rows: Seque
         expiring_label,
         "Days Until Stockout",
         "Reorder Date",
-        "Last Counted",
         "Confidence",
         "Order Amount",
     ]
@@ -187,7 +186,6 @@ def build_restock_csv_attachment(agency: Agency, location_name: str, rows: Seque
             **_expiration_export_values(row.expiration_breakdown, expiring_label),
             "Days Until Stockout": _days_until_stockout_export(row.days_until_stockout),
             "Reorder Date": row.suggested_reorder_date.strftime("%Y-%m-%d") if row.suggested_reorder_date else "N/A",
-            "Last Counted": format_local_date(row.last_counted_at, agency.timezone, "N/A"),
             "Confidence": f"{row.confidence_display}%" if row.confidence_display is not None else "N/A",
             "Order Amount": row.order_amount_display,
         }

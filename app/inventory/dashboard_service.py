@@ -38,6 +38,7 @@ class AttentionTile:
     counter: AttentionCounter
     extra_noun: str = ""
     sort_key: str = ""
+    sort_direction: str = "desc"
     count: int = 0
     extra: int = 0
 
@@ -58,6 +59,8 @@ ATTENTION_TILES: dict[AlertType, AttentionTile] = {
         AttentionSeverity.CRITICAL,
         AttentionCounter.ITEM_LOCATIONS,
         extra_noun="squad",
+        sort_key="total",
+        sort_direction="asc",
     ),
     AlertType.EXPIRED_STOCK: AttentionTile(
         "Expired",
@@ -75,6 +78,8 @@ ATTENTION_TILES: dict[AlertType, AttentionTile] = {
         AttentionSeverity.WARNING,
         AttentionCounter.ITEM_LOCATIONS,
         extra_noun="squad",
+        sort_key="total",
+        sort_direction="asc",
     ),
     AlertType.EXPIRING_SOON: AttentionTile(
         "Expiring Soon",
@@ -92,6 +97,8 @@ ATTENTION_TILES: dict[AlertType, AttentionTile] = {
         AttentionSeverity.WARNING,
         AttentionCounter.ITEM_LOCATIONS,
         extra_noun="squad",
+        sort_key="days_until_stockout",
+        sort_direction="asc",
     ),
     AlertType.LOW_STOCK_FORECAST: AttentionTile(
         "Will Run Low",
@@ -100,6 +107,8 @@ ATTENTION_TILES: dict[AlertType, AttentionTile] = {
         AttentionSeverity.WARNING,
         AttentionCounter.ITEM_LOCATIONS,
         extra_noun="squad",
+        sort_key="days_until_stockout",
+        sort_direction="asc",
     ),
     AlertType.EXPIRATION_COUNT_NEEDED: AttentionTile(
         "Missing Dates",

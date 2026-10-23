@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% from "macros.html" import email_recipient_options, history_table %}
+{% from "macros.html" import email_recipient_options, history_table, page_nav %}
 
 {% block title %}Action History{% endblock %}
 {% block header_title %}View History{% endblock %}
@@ -25,17 +25,9 @@
     </section>
     {% else %}
     <section class="panel">
-        {{ history_table(action_logs, user_timezone) }}
-
-        <div class="button-row history-pagination">
-            {% if has_next_page %}
-            <a class="success-button" href="{{ url_for('admin.admin_history', agency_id=agency_id, agency_location_id=active_location_id, page=page+1) }}">Scroll to Older</a>
-            {% endif %}
-            {% if page > 1 %}
-            <a class="quiet-button" href="{{ url_for('admin.admin_history', agency_id=agency_id, agency_location_id=active_location_id, page=page-1) }}">Scroll to Newer</a>
-            {% endif %}
-        </div>
+        {{ history_table(action_logs, user_timezone, history_columns, sort_key, sort_descending, agency_id, active_location_id) }}
     </section>
+    {{ page_nav(history_pages) }}
     {% endif %}
 </div>
 
@@ -79,7 +71,10 @@
 <section id="history-print-area" class="print-only" aria-hidden="true"></section>
 {% endblock %}
 
+{% block extra_css %}<link rel="stylesheet" href="{{ url_for('static', filename='css/components/page-nav.css') }}">{% endblock %}
+
 {% block extra_js %}
 <script src="{{ url_for('static', filename='js/email-modal.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/print-preview.js') }}" defer></script>
 <script src="{{ url_for('static', filename='js/history-print.js') }}" defer></script>
 {% endblock %}

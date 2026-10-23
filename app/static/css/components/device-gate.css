@@ -1,0 +1,48 @@
+/* Covers the page until the device is confirmed usable for it. */
+
+@layer base {
+  .device-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 200;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(17, 24, 32, 0.72);
+  }
+
+  .device-gate-open {
+    overflow: hidden;
+  }
+
+  .device-gate-card {
+    display: grid;
+    gap: 18px;
+    width: min(540px, 100%);
+    padding: clamp(24px, 4vw, 40px);
+    border: 2px solid var(--color-home-border);
+    border-radius: var(--radius-lg);
+    background: var(--color-panel);
+    box-shadow: var(--shadow-soft);
+    text-align: center;
+  }
+
+  .device-gate-card > div {
+    display: grid;
+    gap: 18px;
+  }
+
+  .device-gate-card h2 {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    text-wrap: balance;
+  }
+
+  .device-gate-card p {
+    font-size: clamp(1rem, 1.6vw, 1.15rem);
+    line-height: 1.45;
+  }
+
+  .device-gate-card .button-row {
+    justify-content: center;
+  }
+}

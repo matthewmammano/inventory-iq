@@ -13,11 +13,12 @@
   }
 
   .help-tag {
-    min-height: 44px;
+    min-height: 40px;
     display: inline-flex;
     gap: 6px;
     align-items: center;
     padding: 0 10px;
+    font-size: 0.88rem;
     border: 2px solid var(--color-line);
     border-radius: var(--radius-sm);
     background: var(--color-white);
@@ -69,9 +70,26 @@
     gap: 12px;
   }
 
-  .help-card-grid { --card-menu-min: 280px; }
+  .help-card-grid {
+    --card-menu-min: 240px;
+    gap: 10px;
+  }
 
-  .card-menu.help-card-grid > .help-card { min-height: 164px; }
+  .card-menu.help-card-grid > .help-card {
+    min-height: clamp(108px, 9vw, 140px);
+    gap: 4px;
+    padding: clamp(10px, 1vw, 14px);
+  }
+
+  .card-menu.help-card-grid > .help-card h2 {
+    font-size: clamp(1.02rem, 1.1vw, 1.22rem);
+    line-height: 1.2;
+  }
+
+  .card-menu.help-card-grid > .help-card p {
+    font-size: clamp(0.82rem, 0.8vw, 0.92rem);
+    line-height: 1.35;
+  }
 
   .help-card[hidden] {
     display: none;
@@ -87,6 +105,16 @@
     border-color: #81734c;
     background: #f4f0df;
     color: #2f2b1e;
+  }
+
+  .help-card .tag {
+    min-height: 22px;
+    padding: 1px 7px;
+    font-size: 0.72rem;
+  }
+
+  .help-search label {
+    font-size: 0.92rem;
   }
 
   .help-article .panel-header > div:first-child {

@@ -37,10 +37,23 @@
     </div>
 {% endmacro %}
 
-{% macro history_table(action_logs, user_timezone) %}
+{% macro history_table(action_logs, user_timezone, columns=none, sort_key="", sort_descending=true, agency_id=none, location_id=none) %}
     <div class="table-wrap">
         <table>
-            <thead><tr><th>Time</th><th>Item</th><th>Type</th><th>Qty</th><th>From</th><th>To</th><th>Admin?</th><th>Expirations</th></tr></thead>
+            <thead><tr>
+                {% if columns and agency_id %}
+                {% for column in columns %}
+                {% if column.sort_key %}
+                {% set is_sorted = column.sort_key == sort_key %}
+                <th class="sortable-heading{{ ' sorted-column' if is_sorted }}"><a href="{{ url_for('admin.admin_history', agency_id=agency_id, agency_location_id=location_id, sort=column.sort_key, dir='asc' if is_sorted and sort_descending else 'desc') }}">{{ column.label }}{{ (' ↓' if sort_descending else ' ↑') if is_sorted }}</a></th>
+                {% else %}
+                <th>{{ column.label }}</th>
+                {% endif %}
+                {% endfor %}
+                {% else %}
+                <th>Time</th><th>Item</th><th>Type</th><th>Qty</th><th>From</th><th>To</th><th>Admin?</th><th>Expirations</th>
+                {% endif %}
+            </tr></thead>
             <tbody>
                 {% for log in action_logs %}
                 <tr>
@@ -92,4 +105,65 @@
 <a class="quiet-button icon-action" href="{{ url_for('admin.admin_help', agency_id=agency_id) }}" aria-label="Help" title="Help">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9.3"/><path d="M9.3 9.4a2.8 2.8 0 0 1 5.5.6c0 1.9-2.8 2.4-2.8 2.4v1.1"/><path d="M12 17.2h.01"/></svg>
 </a>
+{% endmacro %}
+
+{% macro device_gate(back_url, min_width=none, needs_keyboard=false) %}
+<div class="device-gate hidden"
+     data-device-gate
+     {% if min_width %}data-gate-min-width="{{ min_width }}"{% endif %}
+     {% if needs_keyboard %}data-gate-keyboard="1"{% endif %}>
+    <div class="device-gate-card">
+        <div class="hidden" data-gate-reason="size">
+            <h2>This screen is too small for this page</h2>
+            <p>There is too much here to fit on a phone. Open it on the kiosk or a laptop instead.</p>
+            <div class="button-row">
+                <a class="button" href="{{ back_url }}">Go Back</a>
+                <button class="quiet-button" type="button" data-gate-continue>Open It Anyway</button>
+            </div>
+        </div>
+        <div class="hidden" data-gate-reason="keyboard">
+            <h2>You need a keyboard for this page</h2>
+            <p>There are hundreds of boxes to type numbers into. Plug a keyboard into this device, or open it on a laptop.</p>
+            <div class="button-row">
+                <button class="success-button" type="button" data-gate-keyboard-confirm>I Have a Keyboard</button>
+                <a class="quiet-button" href="{{ back_url }}">Go Back</a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endmacro %}
+
+{% macro page_nav(nav) %}
+{% if nav.is_needed %}
+<nav class="page-nav" aria-label="Pages">
+    {% if nav.previous_url %}
+    <a class="quiet-button" href="{{ nav.previous_url }}">Previous</a>
+    {% else %}
+    <span class="quiet-button page-nav-off">Previous</span>
+    {% endif %}
+    <div class="page-nav-numbers">
+        {% for link in nav.links %}
+        {% if link.url %}
+        <a class="page-number{{ ' current' if link.current }}" href="{{ link.url }}" {{ 'aria-current=page' if link.current }}>{{ link.label }}</a>
+        {% else %}
+        <span class="page-gap">{{ link.label }}</span>
+        {% endif %}
+        {% endfor %}
+    </div>
+    <form class="page-jump" method="GET" action="{{ nav.jump_action }}">
+        {% for name, value in nav.jump_fields %}
+        <input type="hidden" name="{{ name }}" value="{{ value }}">
+        {% endfor %}
+        <label for="page-jump-input">Page</label>
+        <input id="page-jump-input" type="number" name="page" value="{{ nav.page }}" min="1" max="{{ nav.total_pages }}" inputmode="numeric">
+        <span>of {{ nav.total_pages }}</span>
+        <button class="quiet-button" type="submit">Go</button>
+    </form>
+    {% if nav.next_url %}
+    <a class="quiet-button" href="{{ nav.next_url }}">Next</a>
+    {% else %}
+    <span class="quiet-button page-nav-off">Next</span>
+    {% endif %}
+</nav>
+{% endif %}
 {% endmacro %}

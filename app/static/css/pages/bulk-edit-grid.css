@@ -1,20 +1,71 @@
 /* Stays in @layer base so main.css layer precedence is unchanged by load position. */
 @layer base {
 
+.bulk-edit-main {
+  --bulk-hint-font: 0.67rem;
+  --bulk-hint-line: 1.35;
+  --bulk-hint-band: calc(var(--bulk-hint-font) * var(--bulk-hint-line) + 4px);
+  --bulk-input-height: clamp(34px, 4.6svh, 42px);
+  --bulk-cell-pad-end: 5px;
+  --bulk-head-row-height: clamp(26px, 3.4svh, 34px);
+  overflow: hidden;
+}
+
+/* The grid, not the page, owns the vertical scroll so the shared sticky thead rule has a scroller to pin against. */
+.bulk-edit-main>[data-bulk-form] {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+[data-bulk-form]>.panel-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: clamp(8px, 1.4svh, 16px);
+}
+
+[data-bulk-form] .table-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Collapsed borders make Chromium paint scrolled rows over sticky cells, so this grid separates them. */
+.bulk-combined-table {
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.bulk-combined-table thead th {
+  height: var(--bulk-head-row-height);
+  padding-block: 2px;
+  white-space: nowrap;
+  border-bottom: 2px solid var(--color-soft-line);
+}
+
+/* The second header row pins below the first instead of on top of it. */
+.bulk-combined-table thead tr:nth-child(2) th {
+  top: var(--bulk-head-row-height);
+}
+
 .bulk-combined-table th[colspan] {
   text-align: center;
 }
 
 .bulk-combined-table th[scope="row"] {
-  padding-top: 18px;
-  padding-bottom: 15px;
+  padding-top: var(--bulk-hint-band);
+  padding-bottom: var(--bulk-cell-pad-end);
 }
 
 .bulk-combined-table td {
   position: relative;
-  padding: 30px 0 15px 0;
+  padding: var(--bulk-hint-band) 4px var(--bulk-cell-pad-end);
   vertical-align: top;
   text-align: center;
+}
+
+.bulk-combined-table .table-input {
+  min-height: var(--bulk-input-height);
+  padding-inline: 8px;
 }
 
 .bulk-combined-table tbody tr td,
@@ -26,15 +77,32 @@
   border-left: 2px solid var(--color-soft-line);
 }
 
+.bulk-combined-table tbody tr:focus-within>th[scope="row"] {
+  background: var(--color-primary);
+}
+
+/* Inline so a row tag rides beside the item name instead of adding a line to the row. */
+.bulk-combined-table th[scope="row"] .field-hint {
+  display: inline-block;
+  margin: 0 0 0 6px;
+  vertical-align: middle;
+}
+
+/* One line in the reserved band above each input, so showing a hint cannot reflow the grid. */
 .bulk-combined-table td .field-hint {
   position: absolute;
-  top: 6px;
-  left: 8px;
-  right: 8px;
-  width: auto;
-  max-width: calc(100% - 16px);
+  top: 0;
+  left: 50%;
+  z-index: 1;
+  width: max-content;
+  max-width: none;
   margin: 0;
+  padding: 0 5px;
+  font-size: var(--bulk-hint-font);
+  line-height: var(--bulk-hint-line);
+  white-space: nowrap;
   text-align: center;
+  transform: translateX(-50%);
 }
 
 }

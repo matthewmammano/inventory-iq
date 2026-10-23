@@ -48,17 +48,27 @@ Any link, prefetch or embedded image can end a session. Convert to POST with the
 Decided: create the account with no usable password and point the new admin at Forgot Password on day one, so the reset PIN they request is the only way in and no password is ever handed over. Reuses `password_reset_service` as is, with no new column, screen, or failure mode.
 Still to build: whatever creates an agency must leave `password_hash` unusable rather than seeding a default, and `auth.login` must not leak which accounts are in that state.
 
-### P1.16 Tables have no sorting, filtering, or reset [PLAN]
-Stock Levels and Restock sort client-side only; History, Unknown Barcodes, Items & Tags, and Pending Expiration Dates cannot be reordered at all. Nothing filters, and nothing says how to get back to the default order.
-Client-side sorting was tried on History and pulled back out: it reorders only the 50 rows the page happens to be showing, which reads as a whole-table sort and is not one. Sorting a paginated table has to happen in the query.
-Build it once for every table instead of per page: a `TableQuery` model (sort column, direction, filters, page) parsed at the route boundary, a shared query helper that applies it, and one macro rendering clickable headings, a filter row, and a visible "Reset to default" control with the active sort and filters labeled in plain words. Pagination has to move to that same model so sort and filter apply across all rows, not one page.
-Blocks: decide per table which columns are sortable and which are worth filtering, before any of it is written.
+### P1.16 Table filtering [OPEN] semi-high priority
+Sorting is built. Filtering is not, and nothing says how to get back to the default order.
+Sorting as shipped: any table gets click-to-sort from `data-sort-table` alone (`sortable-table.js` derives the column from heading position, so deleting a column cannot break it). Live on Items & Tags, Restock, and Stock Levels. History sorts in the query instead, because it paginates 50 rows at a time and a client-side sort there would reorder one page while looking like a whole-table sort; its sortable columns come from `HISTORY_COLUMNS` in `history_service.py` and changing the sort resets to page 1.
+Decided, do not revisit: no sorting on Notifications, Locations, or Tags. Never on Bulk Edit (rows must not move while someone is typing into them, and its header uses `colspan`). History From / To / Expirations stay unsortable: `history_name` and `expiration_summary` are Python properties with no column to order by, and the location tab strip already covers the From/To case.
+Pagination controls are built: `app/shared/pagination.py` turns a `PageWindow` into a `PageNav` (numbered links with gaps, Previous/Next, and a jump-to-page box), rendered by the `page_nav` macro and styled by `components/page-nav.css`. Any future paginated table reuses both.
+Still to build: a filter row per table, and a visible "Reset to default" control that names the active sort and filters in plain words. Filtering a paginated table has to happen in the query like History's sort does, and must reset to page 1.
+Blocks: decide per table which columns are worth filtering.
 
-### P1.17 Some pages should be blocked on the wrong device [PLAN]
-Bulk Edit, the print previews, History, and Items & Tags are wide table screens that are unusable on a phone, and the scan screens are built for a kiosk touchscreen. Today every page renders on every device and the user is left to find out it does not work.
-Wanted: a per-page rule declaring which device sizes and which input mode (touchscreen mode on or off) that page supports, and a blocking screen ("Open this on the kiosk" / "Open this on a computer") instead of a broken layout, with a way through for an admin who insists.
-Build it as one config table of page -> allowed devices read by a `base.html` guard, not an `@media` hack per page. Needs the device/touchscreen signal settled first: viewport width alone, a pointer media query, or the existing touchscreen-mode setting.
-Blocks: decide the exact device buckets and which pages land in each, plus whether the block is advisory (dismissable) or hard.
+### P1.17 Blocking pages on the wrong device [PARTIAL]
+Built: the `device_gate(back_url, min_width, needs_keyboard)` macro plus `device-gate.js`. A page opts in by calling the macro; `min_width` blocks narrow screens and `needs_keyboard` asks once whether this device has a keyboard, since a browser cannot detect one (the barcode scanner registers as a keyboard, so waiting for a keypress false-positives).
+Both answers are one-day cookies, no database: `inventory_iq_keyboard` and `inventory_iq_small_screen_ok`. Both blocks are advisory, dismissable, and re-checked on window resize so rotating a phone or resizing a window re-evaluates.
+Live on: Bulk Edit (`min_width=1000`, keyboard) and Items & Tags (`min_width=1000`, keyboard). 1000 was picked to block both iPhone orientations (393 and 852) while passing the 1280 kiosk.
+Still to decide: whether the print previews and the scan screens get rules too, and whether the kiosk touchscreen-mode setting should feed the input-mode half instead of viewport width alone. If more than a handful of pages opt in, move the per-page arguments into one config table read by a `base.html` guard instead of a macro call per template.
+
+### P1.18 Owners, Admins, and Guests with per-PIN location scope [PLAN] HIGH PRIORITY, biggest open item
+Every admin login sees every location today. That is a real bug, not just a gap: clicking the Out of Stock dashboard tile navigates to a location the person does not manage.
+Wanted: three roles. Guests scan and nothing else. Admins get a PIN scoped to a managed-location list. Owners get every location.
+The role has to filter three things consistently, not just the location pickers: which locations appear as choices, which rows every dashboard alert tile counts, and where each tile's link lands.
+Agreed design for multi-location logins, decided: one location selector at the top of the admin panel. It defaults to every location that PIN can reach and lets the person narrow to a single one. The same control serves an Owner and an Admin who manages several, so there is one mechanism and no role-specific behavior to explain, and a single-location Admin simply sees one entry in it. Selecting a location re-scopes the whole admin panel, every alert tile count, and every tile link, not just the pickers. A typical Admin manages one location, so the default must stay correct and silent for that case.
+Touches the database (a role column, a PIN-to-location mapping, a migration), the PIN unlock flow, `dashboard_service.py`, and every location picker. Deliberately deferred until after the demo; design the schema first.
+Folds in: the "Not Counted Lately" tile has no column to sort by now that Last Counted is deleted, so decide where it should land as part of scoping the tiles.
 
 ### P1.14 Expired stock has no disposal operation [PLAN] separate commit
 `OperationType` is COUNT, RESTOCK, TAKEOUT, TRANSFER. Throwing out expired or damaged stock has to be recorded as a TAKEOUT today, which feeds `estimator.py` usage rates and therefore inflates reorder quantities for every item that ever expires.
@@ -136,9 +146,6 @@ Staying deferred is correct: every display path already flips the sign (`format_
 - Weekly+: takeout leaders by count, plus ML trends only if >60% of items are ML-trained.
 - Monthly+: restock coverage (restocked vs taken out); replenishment health (under/over/balanced) as a pie chart; longer trend notes only when clearer than raw tables.
 - Mandatory: trends that show the AI value, reviewed by me first.
-
-### P3.8 Keyboard-only pages [OPEN]
-Some pages need a physical keyboard. Restrict those and say so clearly, without banning users who have both a keyboard and a touchscreen.
 
 ### P3.9 Railway env consolidation [OPEN]
 One place for env vars and secrets across crons, web and DB, kept in sync, probably `web-1`. Work out which services need which.

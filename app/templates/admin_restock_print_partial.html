@@ -18,12 +18,10 @@
                     <th>Max</th>
                     <th>Batch Size</th>
                     <th>Lead Time Days</th>
-                    <th>Soonest Expiration</th>
                     <th>Expired</th>
                     <th>Expiring Within {{ current_user.expiration_notice_days }} Days</th>
                     <th>Days Until Stockout</th>
                     <th>Reorder Date</th>
-                    <th>Last Counted</th>
                     <th>Confidence</th>
                     <th>Order Amount</th>
                 </tr>
@@ -42,12 +40,10 @@
                     <td>{{ row.max_quantity if row.max_quantity > 0 else '-' }}</td>
                     <td>{{ row.item.batch_size if row.item.batch_size else '-' }}</td>
                     <td>{{ row.lead_time_days }}</td>
-                    <td>{{ expiration.soonest_label if expiration else '-' }}</td>
                     <td>{{ expiration.expired_count if expiration else '-' }}</td>
                     <td>{{ expiration.expiring_soon_count if expiration else '-' }}</td>
                     <td>{% if row.days_until_stockout is not none %}{{ row.days_until_stockout if row.days_until_stockout <= 365 else 365 }}{% else %}N/A{% endif %}</td>
                     <td>{{ row.suggested_reorder_date.strftime('%Y-%m-%d') if row.suggested_reorder_date else 'N/A' }}</td>
-                    <td>{{ row.last_counted_at|local_date(user_timezone, 'N/A') }}</td>
                     <td>{{ row.confidence_display ~ '%' if row.confidence_display is not none else 'N/A' }}</td>
                     <td>{{ row.order_amount_display }}</td>
                 </tr>
@@ -67,7 +63,6 @@
                     <th>On Hand</th>
                     <th>Par Level</th>
                     <th>Order Qty</th>
-                    <th>Soonest Expiration</th>
                 </tr>
             </thead>
             <tbody>
@@ -78,7 +73,6 @@
                     <td>{{ row.current_total }}</td>
                     <td>{{ row.min_quantity if row.min_quantity > 0 else '-' }}</td>
                     <td>{{ row.order_amount_display }}</td>
-                    <td>{{ row.expiration_breakdown.soonest_label if row.expiration_breakdown else '-' }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
