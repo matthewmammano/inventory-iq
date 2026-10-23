@@ -75,3 +75,8 @@ pre-commit run --hook-stage manual uv-outdated --all-files
 ## Pre-commit Housekeeping Hooks
 
 Trailing whitespace, end-of-file newline, YAML/TOML/JSON syntax, merge-conflict markers, case conflicts, AST validity, `breakpoint()`/`pdb` leftovers, private-key detection, LF line endings, large-file guard. Standard hygiene, not project-specific.
+
+## Repo Scripts (local hooks)
+
+- `scripts/check_dashes.py` (`check-dashes`): rejects an em-dash or a prose `--` in any text file, so copy and comments stay on hyphens. `--flag` and `--custom-property` are unaffected.
+- `scripts/check_migrations.py` (`alembic-check`): confirms the migrations fully describe the models. `alembic check` alone needs a database already at head, so the script builds a throwaway SQLite one, upgrades it, then diffs the models against it. No real database is touched, and it runs only when a models or migrations file changes.

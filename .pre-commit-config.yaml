@@ -125,7 +125,7 @@ repos:
 
       - id: alembic-check
         name: Migration matches models
-        entry: .venv/bin/alembic check
+        entry: .venv/bin/python scripts/check_migrations.py
         language: system
         pass_filenames: false
         files: ^(app/.*models.*\.py|migrations/.*\.py)$
