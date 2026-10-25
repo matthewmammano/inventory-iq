@@ -109,12 +109,18 @@ def get_scan_permissions(agency_id: int, *, is_admin: bool = False) -> ScanPermi
         return ScanPermissions(count=False, restock=False)
 
 
-def load_scan_storage_choices(agency_id: int, is_admin: bool, session: Session) -> ScanStorageChoices:
+def load_scan_storage_choices(
+    agency_id: int,
+    is_admin: bool,
+    session: Session,
+    *,
+    agency_location_id: int | None = None,
+) -> ScanStorageChoices:
     if is_admin:
         storages = list_locations(agency_id, session=session)
         return ScanStorageChoices(storages, storages, None)
 
-    default_location_id = get_device_location_id(agency_id, session)
+    default_location_id = agency_location_id if agency_location_id is not None else get_device_location_id(agency_id, session)
     storages = list_locations(agency_id, agency_location_id=default_location_id, session=session)
     return ScanStorageChoices(
         [storage for storage in storages if storage.user_access_from],

@@ -57,11 +57,12 @@ def list_items(
             stmt = stmt.where(Item.active.is_(True))
         order_column = Item.last_accessed.desc().nulls_last() if order_by_last_accessed else Item.name
         items = list(db.execute(stmt.order_by(order_column)).scalars().all())
-        _attach_tags(agency_id, items, db)
+        attach_item_tags(agency_id, items, db)
         return items
 
 
-def _attach_tags(agency_id: int, items: list[Item], session: Session) -> None:
+def attach_item_tags(agency_id: int, items: list[Item], session: Session) -> None:
+    """Load each item's tag rows and drop its inactive barcodes, as the search payload expects."""
     for item in items:
         item.secondary_upcs = [code for code in item.secondary_upcs if code.active]
     tag_ids = {tag_id for item in items for tag_id in (item.tag_ids or [])}

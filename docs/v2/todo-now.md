@@ -119,8 +119,8 @@ Coupling to clean up in Phase 2:
 ### Phase 2 - Backend
 54 routes become JSON endpoints. Business rules move and get cleaned, never reinvented. Models and migrations are not touched.
 
-- [ ] Response models per boundary, separate from request models
-- [ ] Guest scan endpoints first:
+- [ ] Response models per boundary, separate from request models (done for the scan surface: `app/auth/response.py`, `app/inventory/response.py`)
+- [x] Guest scan endpoints, all five live and covered by 23 tests:
       `GET /api/v1/agencies/{id}/locations`
       `GET .../storages?location_id=`
       `GET .../items`
@@ -128,6 +128,13 @@ Coupling to clean up in Phase 2:
       `POST .../scans`
 - [ ] Remaining admin endpoints by domain
 - [ ] Thin handlers, decisions in services, persistence in queries
+
+Every agency-scoped route is gated once in `app/api/agency_access.py`: signed in, own agency, account active.
+
+Picked up while building these:
+- A list response is declared as a Pydantic `RootModel`, not `list[Model]`. APIFlask accepts both, only one type-checks.
+- `build_item_search_payload` needs tags attached first, so `_attach_tags` is now the public `attach_item_tags`.
+- Hey API's prettier step was removed; prettier was never installed, so the client had never generated.
 
 ### Phase 3 - Guest Scan Screen
 **Approval gate.** Artifact first, then build.
@@ -172,8 +179,8 @@ Component layer is proven by now, so these compose faster than they look.
 | Thing | Count |
 |---|---|
 | Python files / lines | 139 / 18,496 |
-| Tests | 58 |
-| Routes | 54 |
+| Tests | 81 |
+| Routes | 54 v1 + 5 JSON |
 | Templates | 34 |
 | CSS files / lines | 12 / 3,885 |
 | Client JS files / lines | 36 / 2,480 |

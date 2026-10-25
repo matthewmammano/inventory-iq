@@ -1,10 +1,743 @@
 {
+  "components": {
+    "schemas": {
+      "HTTPError": {
+        "properties": {
+          "detail": {
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ItemListResponse": {
+        "description": "A page of searchable items.",
+        "items": {
+          "$ref": "#/components/schemas/ItemListResponse.ItemResponse"
+        },
+        "title": "ItemListResponse",
+        "type": "array"
+      },
+      "ItemListResponse.ItemResponse": {
+        "description": "One searchable item. Name and tags only; the scan list shows no on-hand count.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_accessed": {
+            "title": "Last Accessed",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/ItemListResponse.ItemTagResponse"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "upc": {
+            "title": "Upc",
+            "type": "string"
+          },
+          "upcs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Upcs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "upc",
+          "upcs",
+          "last_accessed",
+          "tags"
+        ],
+        "title": "ItemResponse",
+        "type": "object"
+      },
+      "ItemListResponse.ItemTagResponse": {
+        "description": "A tag as the item row renders it.",
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "text_color": {
+            "title": "Text Color",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "color",
+          "text_color"
+        ],
+        "title": "ItemTagResponse",
+        "type": "object"
+      },
+      "ItemResponse": {
+        "description": "One searchable item. Name and tags only; the scan list shows no on-hand count.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_accessed": {
+            "title": "Last Accessed",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "$ref": "#/components/schemas/ItemResponse.ItemTagResponse"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "upc": {
+            "title": "Upc",
+            "type": "string"
+          },
+          "upcs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Upcs",
+            "type": "array"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "upc",
+          "upcs",
+          "last_accessed",
+          "tags"
+        ],
+        "title": "ItemResponse",
+        "type": "object"
+      },
+      "ItemResponse.ItemTagResponse": {
+        "description": "A tag as the item row renders it.",
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "text_color": {
+            "title": "Text Color",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "color",
+          "text_color"
+        ],
+        "title": "ItemTagResponse",
+        "type": "object"
+      },
+      "LocationListResponse": {
+        "description": "Every location an agency keeps stock in.",
+        "items": {
+          "$ref": "#/components/schemas/LocationListResponse.LocationResponse"
+        },
+        "title": "LocationListResponse",
+        "type": "array"
+      },
+      "LocationListResponse.LocationResponse": {
+        "description": "One top-level place an agency keeps stock.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "LocationResponse",
+        "type": "object"
+      },
+      "ScanRequest": {
+        "additionalProperties": false,
+        "description": "One scan the kiosk is submitting, with its expiration split when the item is tracked.",
+        "properties": {
+          "counter_value": {
+            "title": "Counter Value",
+            "type": "integer"
+          },
+          "expiration_allocations": {
+            "items": {
+              "$ref": "#/components/schemas/ScanRequest.ExpirationAllocationRequest"
+            },
+            "title": "Expiration Allocations",
+            "type": "array"
+          },
+          "from_storage_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "From Storage Id"
+          },
+          "item_id": {
+            "exclusiveMinimum": 0,
+            "title": "Item Id",
+            "type": "integer"
+          },
+          "to_storage_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "To Storage Id"
+          }
+        },
+        "required": [
+          "item_id",
+          "counter_value"
+        ],
+        "title": "ScanRequest",
+        "type": "object"
+      },
+      "ScanRequest.ExpirationAllocationRequest": {
+        "additionalProperties": false,
+        "description": "How many units of one scan belong to one expiration date.",
+        "properties": {
+          "expires_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expires On"
+          },
+          "quantity": {
+            "minimum": 0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quantity"
+        ],
+        "title": "ExpirationAllocationRequest",
+        "type": "object"
+      },
+      "ScanResultResponse": {
+        "description": "What one saved scan did. The caller phrases its own confirmation from these facts.",
+        "properties": {
+          "from_storage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanResultResponse.StorageResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "initial_count_required": {
+            "title": "Initial Count Required",
+            "type": "boolean"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "integer"
+          },
+          "item_name": {
+            "title": "Item Name",
+            "type": "string"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/ScanResultResponse.OperationType"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "to_storage": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ScanResultResponse.StorageResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "operation",
+          "item_id",
+          "item_name",
+          "quantity",
+          "from_storage",
+          "to_storage",
+          "initial_count_required"
+        ],
+        "title": "ScanResultResponse",
+        "type": "object"
+      },
+      "ScanResultResponse.OperationType": {
+        "description": "Inventory operation types.",
+        "enum": [
+          "COUNT",
+          "RESTOCK",
+          "TAKEOUT",
+          "TRANSFER"
+        ],
+        "title": "OperationType",
+        "type": "string"
+      },
+      "ScanResultResponse.StorageResponse": {
+        "description": "One storage unit, carrying the location name the kiosk shows beside it.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "location_id": {
+            "title": "Location Id",
+            "type": "integer"
+          },
+          "location_name": {
+            "title": "Location Name",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "location_id",
+          "location_name"
+        ],
+        "title": "StorageResponse",
+        "type": "object"
+      },
+      "ScanStorageOptionsResponse": {
+        "description": "Where a scan may come from and go to, and what this scanner is allowed to do.",
+        "properties": {
+          "can_count": {
+            "title": "Can Count",
+            "type": "boolean"
+          },
+          "can_restock": {
+            "title": "Can Restock",
+            "type": "boolean"
+          },
+          "default_location_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Default Location Id"
+          },
+          "from_storages": {
+            "items": {
+              "$ref": "#/components/schemas/ScanStorageOptionsResponse.StorageResponse"
+            },
+            "title": "From Storages",
+            "type": "array"
+          },
+          "to_storages": {
+            "items": {
+              "$ref": "#/components/schemas/ScanStorageOptionsResponse.StorageResponse"
+            },
+            "title": "To Storages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "from_storages",
+          "to_storages",
+          "default_location_id",
+          "can_count",
+          "can_restock"
+        ],
+        "title": "ScanStorageOptionsResponse",
+        "type": "object"
+      },
+      "ScanStorageOptionsResponse.StorageResponse": {
+        "description": "One storage unit, carrying the location name the kiosk shows beside it.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "location_id": {
+            "title": "Location Id",
+            "type": "integer"
+          },
+          "location_name": {
+            "title": "Location Name",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "location_id",
+          "location_name"
+        ],
+        "title": "StorageResponse",
+        "type": "object"
+      },
+      "ValidationError": {
+        "properties": {
+          "detail": {
+            "properties": {
+              "<location>": {
+                "properties": {
+                  "<field_name>": {
+                    "items": {
+                      "type": "string"
+                    },
+                    "type": "array"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      }
+    }
+  },
   "info": {
     "title": "Inventory IQ API",
     "version": "1.0.0"
   },
   "openapi": "3.1.0",
-  "paths": {},
+  "paths": {
+    "/api/v1/agencies/{agency_id}/items": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemListResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "List the agency's items, most recently scanned first",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/items/lookup": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "upc",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Upc",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Find one item by a scanned barcode",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/locations": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LocationListResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "List the agency's locations",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/scans": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ScanRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanResultResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Save one scan",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/storages": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Location Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanStorageOptionsResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "List where a scan may come from and go to",
+        "tags": [
+          "V1"
+        ]
+      }
+    }
+  },
   "tags": [
     {
       "name": "V1"
