@@ -48,7 +48,9 @@ def validate_email_format(
             return None
         raise ValueError("Email cannot be None")
     try:
-        normalized = validate_email(email).email
+        normalized = validate_email(
+            email, check_deliverability=False
+        ).normalized  # format only; a DNS lookup here would put the network inside every save
     except EmailNotValidError as exc:
         logger.debug("Email validation rejected input", extra={"error": str(exc)})
         raise ValueError("Invalid email format") from exc

@@ -3,17 +3,14 @@
 Nothing here touches the reset-email path; PIN rows are written directly.
 """
 
-from collections.abc import Iterator
-from contextlib import contextmanager
 from datetime import timedelta
 from typing import Final
 
 import pytest
-from flask import Flask
 from sqlalchemy.orm import Session
 
 from app.auth.constants import RESET_PIN_MAX_ATTEMPTS, RESET_PIN_TTL_MINUTES
-from app.auth.device_locations import DEVICE_COOKIE, get_device_location_id, save_device_location
+from app.auth.device_locations import get_device_location_id, save_device_location
 from app.auth.models import PasswordResetPins
 from app.auth.password_reset_service import reset_password_with_pin
 from app.auth.queries import get_agency, get_agency_by_email, get_agency_permissions, get_storage, list_locations
@@ -26,14 +23,6 @@ WRONG_RESET_PIN: Final[str] = "111111"
 NEW_PASSWORD: Final[str] = "Rescue-9876"
 DEVICE_TOKEN: Final[str] = "device-token-for-the-kiosk"
 OTHER_DEVICE_TOKEN: Final[str] = "device-token-for-the-phone"
-
-
-@contextmanager
-def _device(token: str | None) -> Iterator[None]:
-    """Device lookups read the cookie off the request, so that path needs one to exist."""
-    cookies = {DEVICE_COOKIE: token} if token else {}
-    with Flask(__name__).test_request_context(headers={"Cookie": "; ".join(f"{k}={v}" for k, v in cookies.items())}):
-        yield
 
 
 def _open_pin(session: Session, agency_id: int, *, pin: str = RESET_PIN, minutes_left: int = RESET_PIN_TTL_MINUTES) -> PasswordResetPins:
@@ -158,24 +147,21 @@ def test_a_device_remembers_the_location_it_was_set_to(agency: AgencyFixture, se
     save_device_location(agency.id, DEVICE_TOKEN, agency.location.id, session)
     session.commit()
 
-    with _device(DEVICE_TOKEN):
-        assert get_device_location_id(agency.id, session) == agency.location.id
+    assert get_device_location_id(agency.id, DEVICE_TOKEN, session) == agency.location.id
 
 
 def test_a_different_device_gets_no_remembered_location(agency: AgencyFixture, session: Session) -> None:
     save_device_location(agency.id, DEVICE_TOKEN, agency.location.id, session)
     session.commit()
 
-    with _device(OTHER_DEVICE_TOKEN):
-        assert get_device_location_id(agency.id, session) is None
+    assert get_device_location_id(agency.id, OTHER_DEVICE_TOKEN, session) is None
 
 
-def test_a_device_with_no_cookie_gets_no_remembered_location(agency: AgencyFixture, session: Session) -> None:
+def test_a_device_with_no_token_gets_no_remembered_location(agency: AgencyFixture, session: Session) -> None:
     save_device_location(agency.id, DEVICE_TOKEN, agency.location.id, session)
     session.commit()
 
-    with _device(None):
-        assert get_device_location_id(agency.id, session) is None
+    assert get_device_location_id(agency.id, None, session) is None
 
 
 def test_one_agencys_device_binding_is_invisible_to_another(agency: AgencyFixture, session: Session) -> None:
@@ -183,8 +169,7 @@ def test_one_agencys_device_binding_is_invisible_to_another(agency: AgencyFixtur
     save_device_location(agency.id, DEVICE_TOKEN, agency.location.id, session)
     session.commit()
 
-    with _device(DEVICE_TOKEN):
-        assert get_device_location_id(other.id, session) is None
+    assert get_device_location_id(other.id, DEVICE_TOKEN, session) is None
 
 
 def test_a_device_cannot_be_bound_to_another_agencys_location(agency: AgencyFixture, session: Session) -> None:
@@ -199,8 +184,7 @@ def test_clearing_a_devices_location_is_allowed(agency: AgencyFixture, session: 
     save_device_location(agency.id, DEVICE_TOKEN, None, session)
     session.commit()
 
-    with _device(DEVICE_TOKEN):
-        assert get_device_location_id(agency.id, session) is None
+    assert get_device_location_id(agency.id, DEVICE_TOKEN, session) is None
 
 
 def test_an_agency_is_loaded_by_id_for_the_login_session(agency: AgencyFixture, session: Session) -> None:

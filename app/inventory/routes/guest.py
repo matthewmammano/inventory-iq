@@ -9,8 +9,8 @@ from loguru import logger
 
 from app.auth.device_locations import (
     current_device_token,
-    get_device_location_id,
     get_or_create_device,
+    request_device_location_id,
     save_device_location,
     set_device_cookie,
 )
@@ -166,7 +166,7 @@ def _admin_login_response(agency_id: int, token: str) -> Any:
 @login_required
 def scan_start(agency_id: int) -> Any:
     query = ScanStartQuery.model_validate(request.args.to_dict())
-    if get_device_location_id(current_user.id) is None:
+    if request_device_location_id(current_user.id) is None:
         return redirect(url_for("guest.scan_location", agency_id=agency_id, item_id=query.item_id))
     return handle_scan_start(
         agency_id,
@@ -221,7 +221,7 @@ def scan_location(agency_id: int) -> Any:
 @bp.route("/<int:agency_id>/scan/storages", methods=["GET", "POST"])
 @login_required
 def scan_storages(agency_id: int) -> Any:
-    if get_device_location_id(current_user.id) is None:
+    if request_device_location_id(current_user.id) is None:
         return redirect(url_for("guest.scan_location", agency_id=agency_id, item_id=request.values.get("item_id")))
     if request.method == "POST":
         return handle_scan_storages_post(agency_id, request.form, is_admin=False)

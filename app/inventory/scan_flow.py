@@ -6,7 +6,9 @@ from flask import flash, redirect, render_template, url_for
 from flask_login import current_user
 from loguru import logger
 from pydantic import ValidationError
+from sqlalchemy.orm import Session
 
+from app.auth.device_locations import request_device_location_id
 from app.auth.models import Storage
 from app.prediction.bulk_service import BulkService
 from app.shared.database import get_session
@@ -53,6 +55,11 @@ from .schema import ScanItemQuery, ScanItemRequest, ScanStoragesRequest
 from .upc_service import record_unknown_upc
 
 
+def _device_location_id(is_admin: bool, session: Session) -> int | None:
+    """An admin sees every location, so only a guest scan is narrowed to the device's own."""
+    return None if is_admin else request_device_location_id(current_user.id, session)
+
+
 def handle_scan_start(
     agency_id: int,
     item_id: int | None,
@@ -83,7 +90,7 @@ def handle_scan_start(
             )
             flash(message, "warning")
             return redirect(surface.fallback_url(agency_id))
-        storage_choices = load_scan_storage_choices(current_user.id, is_admin, db)
+        storage_choices = load_scan_storage_choices(current_user.id, is_admin, db, agency_location_id=_device_location_id(is_admin, db))
 
     permissions = get_scan_permissions(agency_id, is_admin=is_admin)
     from_storages = storage_choices.from_storages
@@ -130,7 +137,7 @@ def handle_scan_storages_get(
             flash(SCAN_ITEM_NOT_FOUND_MESSAGE, "warning")
             return redirect(surface.fallback_url(agency_id))
 
-        storage_choices = load_scan_storage_choices(current_user.id, is_admin, db)
+        storage_choices = load_scan_storage_choices(current_user.id, is_admin, db, agency_location_id=_device_location_id(is_admin, db))
         from_storages = storage_choices.from_storages
         to_storages = storage_choices.to_storages
         default_location_id = storage_choices.default_location_id
@@ -174,7 +181,7 @@ def handle_scan_storages_post(agency_id: int, form_data: dict, is_admin: bool = 
         return redirect(surface.fallback_url(agency_id))
 
     with get_session() as db:
-        actor = ScanActor(current_user.id, is_admin, db)
+        actor = ScanActor(current_user.id, is_admin, db, _device_location_id(is_admin, db))
         route_error = validate_scan_route(actor, request_data.from_storage_id, request_data.to_storage_id, permissions)
 
     if request_data.same_location_error == "1" or route_error:
@@ -213,7 +220,7 @@ def handle_scan_item_get(agency_id: int, query: ScanItemQuery, is_admin: bool = 
     permissions = get_scan_permissions(agency_id, is_admin=is_admin)
 
     with get_session() as db:
-        actor = ScanActor(current_user.id, is_admin, db)
+        actor = ScanActor(current_user.id, is_admin, db, _device_location_id(is_admin, db))
         route_error = validate_scan_route(actor, from_storage_id, to_storage_id, permissions)
         item = _get_scan_item(db, item_id, None)
         from_storage = resolve_scan_location(from_storage_id, current_user.id, session=db)
@@ -383,7 +390,7 @@ def handle_scan_item_post(agency_id: int, form_data: dict, is_admin: bool = Fals
         if groups and form_data.get("expiration_confirmed") != "1":
             return _render_scan_expiration_entry(agency_id, groups, form_data, is_admin)
         expiration_allocations = parse_expiration_allocations(form_data, groups).get(groups[0].spec.key, []) if groups else None
-        actor = ScanActor(current_user.id, is_admin, db)
+        actor = ScanActor(current_user.id, is_admin, db, _device_location_id(is_admin, db))
         result, error_response = _save_scan_or_error(agency_id, actor, request_data, permissions, expiration_allocations)
 
     if error_response is not None:

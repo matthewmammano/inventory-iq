@@ -112,9 +112,9 @@ Rules the tests uncovered and now pin down:
 - A tracked item's COUNT must allocate every unit across expiration dates.
 - Stock counted before expiration tracking was switched on needs a follow-up count.
 
-Coupling to clean up in Phase 2:
-- `get_device_location_id` reads the device cookie off the Flask request, so business logic needs an HTTP request.
-- Email validation does a live DNS deliverability lookup.
+Coupling the tests exposed, both cleaned up in Phase 2:
+- `get_device_location_id` read the device cookie off the Flask request. It takes the token as an argument now, and `request_device_location_id` is the only thing that touches the cookie. `ScanActor` carries the location, so no service reaches for a request.
+- Email validation did a live DNS deliverability lookup on every save. Format only now.
 
 ### Phase 2 - Backend
 54 routes become JSON endpoints. Business rules move and get cleaned, never reinvented. Models and migrations are not touched.

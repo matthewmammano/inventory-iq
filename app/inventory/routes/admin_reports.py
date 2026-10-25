@@ -10,7 +10,7 @@ from loguru import logger
 from pydantic import ValidationError
 from sqlalchemy import select
 
-from app.auth.device_locations import get_device_location_id
+from app.auth.device_locations import request_device_location_id
 from app.auth.models import Agency, Location
 from app.auth.queries import list_active_emails, list_top_locations
 from app.inventory import admin_bp as bp
@@ -351,7 +351,7 @@ def _history_location(locations: list[Location], agency_location_id: int | None)
     """History spans every squad unless a tab or this device's setting names one."""
     if agency_location_id == ALL_LOCATIONS_ID:
         return None
-    wanted_id = agency_location_id or get_device_location_id(current_user.id)
+    wanted_id = agency_location_id or request_device_location_id(current_user.id)
     return next((location for location in locations if location.id == wanted_id), None)
 
 
@@ -359,5 +359,5 @@ def _active_location(locations: list[Location], agency_location_id: int | None) 
     """Falls back to the location this device is set to in settings, so a kiosk opens on its own squad."""
     if not locations:
         return None
-    wanted_id = agency_location_id if agency_location_id is not None else get_device_location_id(current_user.id)
+    wanted_id = agency_location_id if agency_location_id is not None else request_device_location_id(current_user.id)
     return next((location for location in locations if location.id == wanted_id), locations[0])

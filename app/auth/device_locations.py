@@ -30,15 +30,19 @@ def set_device_cookie(response: Response, token: str) -> None:
     )
 
 
-def get_device_location_id(agency_id: int, session: Session | None = None) -> int | None:
-    token = request.cookies.get(DEVICE_COOKIE)
-    if not token:
+def get_device_location_id(agency_id: int, device_token: str | None, session: Session | None = None) -> int | None:
+    if not device_token:
         return None
     with managed_session(session) as s:
-        device = _get_device(s, agency_id, token)
+        device = _get_device(s, agency_id, device_token)
         if not device or not device.active or device.agency_location_id is None:
             return None
         return device.agency_location_id
+
+
+def request_device_location_id(agency_id: int, session: Session | None = None) -> int | None:
+    """The location this browser is bound to; reading the cookie belongs at the request edge."""
+    return get_device_location_id(agency_id, request.cookies.get(DEVICE_COOKIE), session)
 
 
 def get_or_create_device(agency_id: int, token: str, session: Session) -> AgencyDevice:

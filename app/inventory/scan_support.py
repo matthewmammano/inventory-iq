@@ -10,7 +10,6 @@ from loguru import logger
 from markupsafe import Markup
 from sqlalchemy.orm import Session
 
-from app.auth.device_locations import get_device_location_id
 from app.auth.models import Storage
 from app.auth.queries import get_agency_permissions, get_storage, list_locations
 from app.shared.html_formatting import bold_item_name
@@ -77,6 +76,7 @@ class ScanActor:
     agency_id: int
     is_admin: bool
     session: Session
+    agency_location_id: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -120,18 +120,12 @@ def load_scan_storage_choices(
         storages = list_locations(agency_id, session=session)
         return ScanStorageChoices(storages, storages, None)
 
-    default_location_id = agency_location_id if agency_location_id is not None else get_device_location_id(agency_id, session)
-    storages = list_locations(agency_id, agency_location_id=default_location_id, session=session)
+    storages = list_locations(agency_id, agency_location_id=agency_location_id, session=session)
     return ScanStorageChoices(
         [storage for storage in storages if storage.user_access_from],
         [storage for storage in storages if storage.user_access_to],
-        default_location_id,
+        agency_location_id,
     )
-
-
-def storages_for_scan(agency_id: int, direction: str, is_admin: bool, session: Session) -> list[Storage]:
-    choices = load_scan_storage_choices(agency_id, is_admin, session)
-    return choices.from_storages if direction == "from" else choices.to_storages
 
 
 def operation_from_storage_ids(
@@ -182,7 +176,7 @@ def validate_scan_route(
     if from_storage_id == VirtualLocation.COUNT and not permissions.count:
         return "COUNT is not allowed for this scan."
 
-    choices = load_scan_storage_choices(actor.agency_id, actor.is_admin, actor.session)
+    choices = load_scan_storage_choices(actor.agency_id, actor.is_admin, actor.session, agency_location_id=actor.agency_location_id)
     from_storages = choices.from_storages
     to_storages = choices.to_storages
     valid_from_ids = set(_valid_from_ids(from_storages, to_storages, permissions))
