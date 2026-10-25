@@ -1,9 +1,29 @@
 # My TODO
 
-`P1` is the top open tier right now. `P3` whenever. Tags: `[OPEN]` `[PARTIAL]` `[PLAN]` needs a decision first, `[INVESTIGATE]` unknown scope.
+`P0` outranks everything. `P3` whenever. Tags: `[OPEN]` `[PARTIAL]` `[PLAN]` needs a decision first, `[INVESTIGATE]` unknown scope.
 Finished items move to **Done** as one line; items judged not worth doing are deleted, not kept.
 
 ---
+
+## P0 - The product must not look vibe-coded
+
+### P0.1 Adopt one real design system and rebuild every page against it [PLAN] TOP PRIORITY, outranks all other work
+The goal, in the owner's words: look human-designed, not generated. Stress what matters, hide what does not, keep every screen simple enough for an untechnical volunteer on a kiosk. This outranks features, roles, and filtering.
+
+Reference look: `https://www.usefragments.com/components` (Fragments UI). What it actually is, checked: a React component library on Base UI primitives, MIT, `@usefragments/ui` v4.5.0, 71 components, no Tailwind requirement. It cannot be installed into this app; this is Flask with Jinja templates, so its React components are unusable here.
+What is reusable: the package ships `tokens.css`, 155 lines of literal CSS custom properties (color, bg, text, border, radius, type, focus ring, selection, state layers), plus a light/dark pair keyed on `:root[data-theme="dark"]`. Those port directly into `main.css`, which already has a `:root` token block. The look of that library is mostly its tokens and its restraint, not its React.
+
+Two deliberate departures from Fragments, both decided:
+- Its type scale tops out small (11 / 12 / 14 / 15 / 16 / 20 / 24 / 32px). That is desktop-SaaS density, and this product's first device is a kiosk touchscreen used by older volunteers. Port the scale's *structure*, then shift every step up so kiosk body text lands near 18px and touch targets stay at least 46px.
+- Its default accent is indigo `#3d5ae8` on cool neutrals. This product is warm amber and cream (`--color-primary #f4c95d`, `--color-bg #fff8df`), and a stock indigo accent is the single most AI-generated-looking choice available. Keep the warm brand hues; borrow the token *structure* (tint / wash / hover / active per intent) and the neutral ramp discipline.
+
+Sequencing, agreed: a foundation pass first (tokens, type scale, spacing scale, one state-layer system, focus rings), then page by page, each page reviewed and approved by the owner before the next one starts. No page is "done" without that approval.
+
+Must ship alongside it: `docs/DESIGN_SYSTEM.md`, the DRY contract. Per component: what it is, which tokens it consumes, which pages use it, what it was branched from and why, and which pages should reuse it next. Per page: the components it is built from. The rule being enforced is that one fix in one place fixes every page, so a second near-duplicate component is a defect, not a variant.
+
+After the rebuild, not before: a compliance pass against `https://vercel.com/design/guidelines`.
+
+Open questions, blocking the foundation pass: whether dark mode is in scope at all (Fragments ships it, this app has never had it, and a kiosk in a station bay may want it); and whether the warm palette survives as the accent or retreats to a neutral shell with warm accents only.
 
 ## P1 - High value, needs a decision first
 
@@ -28,9 +48,6 @@ Several bulk and print templates render a headers-only table instead of "nothing
 ### P1.8 App name, favicon, and SEO [PLAN]
 `site.webmanifest` says `"name": "Priority One Technologies"` while the app titles itself "Inventory IQ". Only 2 icons, no `purpose: maskable`, so the Android home-screen icon can render wrong.
 Settle company-vs-product naming and apply it to `<title>`, the manifest, and emails. Same task: `<meta name="description">`, Open Graph + Twitter cards, per-page titles, `robots.txt`, `sitemap.xml`, JSON-LD `SoftwareApplication`. Only pays off once P1.1 exists.
-
-### P1.9 `/health` reports healthy with a dead database [PLAN]
-Returns only a status string and a timestamp, so Railway keeps routing to a broken app. Add a `SELECT 1` and return 503 on failure; confirm the poll interval first. The naive-timestamp half of this is already fixed.
 
 ### P1.10 Align login failure handling [OPEN] blocks a security fix
 The wrong-password path does `flash()` + `redirect()` (302), discarding the typed email; the pydantic path re-renders via `_render_login(email, field_errors)` and keeps it. Align on re-rendering.
@@ -179,6 +196,8 @@ Not urgent; the row counts cost nothing at this size. Decide the window before w
 ## Done
 
 ### 2026-10-16 demo prep
+- [DONE] `/health` runs `SELECT 1` through a real session and returns 503 `database unreachable` when it fails, so a load balancer stops routing to an app whose database is gone. Note: there is no `railway.json`, so nothing is polling `/health` in production yet; wiring a `healthcheckPath` is a separate step.
+
 
 - [FIXED] **P1.3 search went silently blank on zero matches.** `showResults` emptied the dropdown and appended nothing. It now appends a non-clickable note row: `noMatchNote(query)` when a search matched nothing, `NO_ITEMS_NOTE` when the inventory itself is empty, and `LOAD_FAILED_NOTE` when the payload fails to load.
 - [FIXED] **P1.4 all five error pages rendered the same blank screen with a giant "!".** New frozen `ErrorPage` dataclass in `errors.py` (`code`, `headline`, `help_text`) with one instance per handler, written for a volunteer at a kiosk; 429 now reads "Too many tries / Wait one minute, then try again." `error.html` renders the headline, the help line and the real code.

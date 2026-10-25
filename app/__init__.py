@@ -2,6 +2,7 @@
 
 import logging
 import re
+from http import HTTPStatus
 from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
@@ -10,6 +11,8 @@ from flask import Flask, send_from_directory, url_for
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
 from loguru import logger
+from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.alerts import bp as alerts_bp
@@ -21,8 +24,8 @@ from app.inventory import admin_bp, guest_bp
 from app.inventory.admin_navigation import hub_back_url
 from app.shared.clock import utc_now
 from app.shared.config import settings
-from app.shared.constants import IDLE_TIMEOUT, IDLE_WARNING_SECONDS
-from app.shared.database import init_db
+from app.shared.constants import HEALTH_NO_DATABASE, HEALTH_OK, IDLE_TIMEOUT, IDLE_WARNING_SECONDS
+from app.shared.database import get_session, init_db
 from app.shared.email_client import log_email_config_status
 from app.shared.form_validation import validation_attrs, validation_group_attrs
 from app.shared.html_formatting import bold_item_name
@@ -182,5 +185,11 @@ def _register_favicon_route(app: Flask) -> None:
 
 def _register_health_check(app: Flask) -> None:
     @app.route("/health")
-    def health_check():
-        return {"status": "healthy", "timestamp": utc_now().isoformat()}
+    def health_check() -> tuple[dict[str, str], int]:
+        try:
+            with get_session() as session:
+                session.execute(text("SELECT 1"))
+        except SQLAlchemyError as exc:
+            logger.error("Health check could not reach the database", extra={"error": str(exc)})
+            return {"status": HEALTH_NO_DATABASE, "timestamp": utc_now().isoformat()}, HTTPStatus.SERVICE_UNAVAILABLE
+        return {"status": HEALTH_OK, "timestamp": utc_now().isoformat()}, HTTPStatus.OK
