@@ -129,3 +129,24 @@ repos:
         language: system
         pass_filenames: false
         files: ^(app/.*models.*\.py|migrations/.*\.py)$
+
+      - id: openapi-drift
+        name: OpenAPI document matches routes
+        entry: .venv/bin/python scripts/check_openapi_drift.py
+        language: system
+        pass_filenames: false
+        files: ^(app/.*\.py|docs/v2/openapi\.json)$
+
+      - id: web-typecheck
+        name: Frontend type check
+        entry: npm --prefix web run typecheck
+        language: system
+        pass_filenames: false
+        files: ^web/.*\.(ts|tsx|json)$
+
+      - id: web-lint
+        name: Frontend lint
+        entry: npm --prefix web run lint
+        language: system
+        pass_filenames: false
+        files: ^web/.*\.(ts|tsx)$

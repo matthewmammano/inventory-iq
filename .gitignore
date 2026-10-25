@@ -71,8 +71,9 @@ temp/
 .tmp-pre-commit-cache/
 .pre-commit-cache/
 
-# Frontend artifacts, if added later
+# Frontend artifacts
 node_modules/
+app/static/v2/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*

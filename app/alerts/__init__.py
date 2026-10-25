@@ -1,3 +1,3 @@
-from flask import Blueprint
+from apiflask import APIBlueprint
 
-bp = Blueprint("alerts", __name__, template_folder="templates")
+bp = APIBlueprint("alerts", __name__, template_folder="templates", enable_openapi=False)

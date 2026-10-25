@@ -1,0 +1,19 @@
+:root {
+  --iq-font-heading: "Fira Sans", "Segoe UI", sans-serif;
+  --iq-touch-min: 46px;
+  --iq-page-gutter: clamp(10px, 2vw, 28px);
+  --iq-main-width: 1560px;
+}
+
+h1,
+h2,
+h3 {
+  font-family: var(--iq-font-heading);
+}
+
+button,
+a[role="button"],
+input,
+select {
+  min-height: var(--iq-touch-min);
+}

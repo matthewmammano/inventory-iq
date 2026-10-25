@@ -1,3 +1,3 @@
-from flask import Blueprint
+from apiflask import APIBlueprint
 
-bp = Blueprint("diagnostics", __name__)
+bp = APIBlueprint("diagnostics", __name__, enable_openapi=False)

@@ -7,6 +7,7 @@ from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
+from apiflask import APIFlask
 from flask import Flask, send_from_directory, url_for
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
@@ -16,10 +17,13 @@ from sqlalchemy.exc import SQLAlchemyError
 from werkzeug.middleware.proxy_fix import ProxyFix
 
 from app.alerts import bp as alerts_bp
+from app.api import api_bp
+from app.api.constants import API_SPEC_VERSION, API_TITLE, API_URL_PREFIX, OPENAPI_DOCS_PATH, OPENAPI_SPEC_PATH
 from app.auth import bp as auth_bp
 from app.auth.queries import get_agency
 from app.diagnostics import bp as diagnostics_bp
 from app.errors import register_error_handlers
+from app.frontend import register_frontend
 from app.inventory import admin_bp, guest_bp
 from app.inventory.admin_navigation import hub_back_url
 from app.shared.clock import utc_now
@@ -55,13 +59,21 @@ ROUTE_MODULES = (
 )
 
 
-def create_app() -> Flask:
+def create_app() -> APIFlask:
     """Create and configure the Flask application."""
     _setup_process_logging()
     import_model_modules()
     for module_name in ROUTE_MODULES:
         import_module(module_name)
-    app = Flask(__name__, instance_path=str(_instance_path()))
+    app = APIFlask(
+        __name__,
+        title=API_TITLE,
+        version=API_SPEC_VERSION,
+        spec_path=OPENAPI_SPEC_PATH,
+        docs_path=OPENAPI_DOCS_PATH,
+        json_errors=False,  # v1 HTML error pages stay; app/api/blueprint.py answers JSON for the API
+        instance_path=str(_instance_path()),
+    )
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # Railway sits one reverse-proxy hop in front
     _configure_app(app)
     register_request_logging(app)  # must register before any extension that can short-circuit via before_request (CSRF, login)
@@ -75,6 +87,7 @@ def create_app() -> Flask:
     _register_auth_loader()
     _register_favicon_route(app)
     _register_health_check(app)
+    register_frontend(app)
 
     logger.debug(
         "Flask app startup completed",
@@ -131,6 +144,8 @@ def _register_blueprints(app: Flask) -> None:
     app.register_blueprint(admin_bp, url_prefix="/inventory")
     app.register_blueprint(alerts_bp, url_prefix="/alerts")
     app.register_blueprint(diagnostics_bp, url_prefix="/")
+    app.register_blueprint(api_bp, url_prefix=API_URL_PREFIX)
+    csrf.exempt(api_bp)  # the JSON API authenticates per request, so it carries no form token
 
 
 def _register_template_filters(app: Flask) -> None:
@@ -173,8 +188,9 @@ def _register_auth_loader() -> None:
             return None
 
 
-def _register_favicon_route(app: Flask) -> None:
+def _register_favicon_route(app: APIFlask) -> None:
     @app.route("/favicon.ico")
+    @app.doc(hide=True)
     def favicon():
         return send_from_directory(
             Path(app.static_folder or "") / "favicons",
@@ -183,8 +199,9 @@ def _register_favicon_route(app: Flask) -> None:
         )
 
 
-def _register_health_check(app: Flask) -> None:
+def _register_health_check(app: APIFlask) -> None:
     @app.route("/health")
+    @app.doc(hide=True)
     def health_check() -> tuple[dict[str, str], int]:
         try:
             with get_session() as session:

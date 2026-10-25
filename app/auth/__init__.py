@@ -1,3 +1,3 @@
-from flask import Blueprint
+from apiflask import APIBlueprint
 
-bp = Blueprint("auth", __name__, template_folder="templates")
+bp = APIBlueprint("auth", __name__, template_folder="templates", enable_openapi=False)

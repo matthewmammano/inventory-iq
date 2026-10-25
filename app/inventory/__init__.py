@@ -1,4 +1,4 @@
-from flask import Blueprint
+from apiflask import APIBlueprint
 
-admin_bp = Blueprint("admin", __name__, template_folder="templates")
-guest_bp = Blueprint("guest", __name__, template_folder="templates")
+admin_bp = APIBlueprint("admin", __name__, template_folder="templates", enable_openapi=False)
+guest_bp = APIBlueprint("guest", __name__, template_folder="templates", enable_openapi=False)
