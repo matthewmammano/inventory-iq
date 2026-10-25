@@ -98,11 +98,23 @@ No visible change. v1 keeps serving every page.
 - [x] `web/node_modules/` and `app/static/v2/` in `.gitignore`
 
 ### Phase 1 - Safety Net
-18,496 lines of Python across 139 files currently have zero tests. Nothing proves behavior except clicking.
+18,496 lines of Python across 139 files had zero tests. Nothing proved behavior except clicking.
 
-- [ ] pytest with a throwaway database
-- [ ] Tests covering scan save, expiration allocation, alert firing, auth and PIN gating
-- [ ] Target: every business rule that moves in Phase 2 has a test before it moves
+- [x] pytest with a throwaway database: a fresh SQLite file per test, no network, no real email path
+- [x] 58 tests covering scan save (11), expiration allocation (12), alert firing (11), auth and PIN gating (24)
+- [x] `pytest` runs as a pre-commit gate; `pyright` and `mypy` now cover `tests/` too
+- [x] Every test drives the real services, so the rules are pinned where Phase 2 will move them
+
+Run them with `uv run pytest tests/ -q`.
+
+Rules the tests uncovered and now pin down:
+- RESTOCK is refused until every storage in the location was counted inside 90 days.
+- A tracked item's COUNT must allocate every unit across expiration dates.
+- Stock counted before expiration tracking was switched on needs a follow-up count.
+
+Coupling to clean up in Phase 2:
+- `get_device_location_id` reads the device cookie off the Flask request, so business logic needs an HTTP request.
+- Email validation does a live DNS deliverability lookup.
 
 ### Phase 2 - Backend
 54 routes become JSON endpoints. Business rules move and get cleaned, never reinvented. Models and migrations are not touched.
@@ -160,7 +172,7 @@ Component layer is proven by now, so these compose faster than they look.
 | Thing | Count |
 |---|---|
 | Python files / lines | 139 / 18,496 |
-| Tests | 0 |
+| Tests | 58 |
 | Routes | 54 |
 | Templates | 34 |
 | CSS files / lines | 12 / 3,885 |

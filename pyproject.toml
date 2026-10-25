@@ -37,6 +37,7 @@ dev = [
     "pre-commit",
     "types-cachetools",
     "playwright",
+    "pytest>=9.1.1",
 ]
 
 [tool.uv]
@@ -86,7 +87,7 @@ source_modules = ["app.shared.config", "app.shared.database", "app.shared.clock"
 forbidden_modules = ["app.inventory", "app.auth", "app.prediction", "app.alerts", "app.diagnostics", "app.admin_help"]
 
 [tool.pyright]
-include = ["app", "scripts", "tasks"]
+include = ["app", "scripts", "tasks", "tests"]
 # scripts/demo_data has its own separate dependency set (scripts/demo_data/requirements.txt,
 # e.g. numpy/pandas) and isn't installed into the main app venv this checks against.
 exclude = ["scripts/demo_data"]
