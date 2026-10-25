@@ -49,21 +49,15 @@ Several bulk and print templates render a headers-only table instead of "nothing
 `site.webmanifest` says `"name": "Priority One Technologies"` while the app titles itself "Inventory IQ". Only 2 icons, no `purpose: maskable`, so the Android home-screen icon can render wrong.
 Settle company-vs-product naming and apply it to `<title>`, the manifest, and emails. Same task: `<meta name="description">`, Open Graph + Twitter cards, per-page titles, `robots.txt`, `sitemap.xml`, JSON-LD `SoftwareApplication`. Only pays off once P1.1 exists.
 
-### P1.10 Align login failure handling [OPEN] blocks a security fix
-The wrong-password path does `flash()` + `redirect()` (302), discarding the typed email; the pydantic path re-renders via `_render_login(email, field_errors)` and keeps it. Align on re-rendering.
-Not just cosmetic: because failure returns 302 it is indistinguishable from success by status code, which is why `failed_auth_only` could not be applied to this route (see Done).
-
 ### P1.11 JS failure leaves a silently dead screen [PLAN]
 No `<noscript>` anywhere, and Settings / Bulk Save start `hidden` and are revealed only by JS. A script that fails to load or throws leaves a page that looks fine with no working buttons and no explanation.
 Options: (1) `<noscript>` banner in `base.html`, cheapest, misses a script that throws; (2) invert the default so those controls render visible and JS hides them; (3) inline `<head>` script sets `data-js-ready`, CSS keys the reveal off it, plus a `window.onerror` bar. Leaning (2) for the buttons, (3)'s error bar later with P2.5.
 
-### P1.13 Logout is a plain GET [INVESTIGATE]
-Any link, prefetch or embedded image can end a session. Convert to POST with the existing CSRF token, or document as accepted.
-
 ### P1.15 No first-login password change [PLAN]
 `set_password.html` existed but had no route and no blocks of its own, so it was deleted. There is no signup: an agency account is created with a password that someone hands over, and nothing forces that password to be changed, so the handover password stays valid forever.
 Decided: create the account with no usable password and point the new admin at Forgot Password on day one, so the reset PIN they request is the only way in and no password is ever handed over. Reuses `password_reset_service` as is, with no new column, screen, or failure mode.
-Still to build: whatever creates an agency must leave `password_hash` unusable rather than seeding a default, and `auth.login` must not leak which accounts are in that state.
+Still to build: whatever creates an agency must leave `password_hash` unusable rather than seeding a default, and `auth.login` must not leak which accounts are in that state (today a passwordless account redirects to Forgot Password while a real account re-renders, so the two are distinguishable).
+There is no register screen and there will not be one. Every account is created by the owner after payment. The procedure is written up under Operations below.
 
 ### P1.16 Table filtering [OPEN] semi-high priority
 Sorting is built. Filtering is not, and nothing says how to get back to the default order.
@@ -196,6 +190,8 @@ Not urgent; the row counts cost nothing at this size. Decide the window before w
 ## Done
 
 ### 2026-10-16 demo prep
+- [DONE] A failed login re-renders the form with the typed email intact and returns 401 instead of bouncing to a blank page via 302. That also made `deduct_when=failed_auth_only` applicable to `auth.login`, so a correct password no longer charges the auth rate limit and repeated wrong passwords do.
+- [DONE] `auth.logout` is POST only and the confirm modal submits a CSRF-protected form, so a prefetch, an `<img>` tag, or a pasted URL can no longer end a session. `GET /logout` returns 405.
 - [DONE] `/health` runs `SELECT 1` through a real session and returns 503 `database unreachable` when it fails, so a load balancer stops routing to an app whose database is gone. Note: there is no `railway.json`, so nothing is polling `/health` in production yet; wiring a `healthcheckPath` is a separate step.
 
 
@@ -260,3 +256,12 @@ Not urgent; the row counts cost nothing at this size. Decide the window before w
 ## Operations
 
 - [ACTION REQUIRED] Before the next prod deploy, run `alembic stamp --purge 20261008_0001` on prod, or `alembic upgrade head` fails with "Can't locate revision identified by '20260723_0027'". Rewrites a version number only; no data touched.
+
+### Creating a paid agency account
+No public signup exists by design. After payment, the owner creates the agency row and never sets or hands over a password:
+
+1. Create the agency with `password_hash` left unusable. Do not seed a default or temporary password.
+2. Tell the new admin to open the app and tap Forgot Password once, using their agency email.
+3. They receive a reset PIN by email and choose their own password through the existing `password_reset_service` flow.
+
+The point is that no password is ever transmitted or known to anyone but the account holder, so there is nothing to leak or to keep working forever. Building step 1 is the open half of P1.15.

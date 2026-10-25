@@ -63,10 +63,11 @@
     <div class="modal confirm-modal">
         <h2>Log out of this squad?</h2>
         <p>Everyone on this device gets signed out. You will need the squad email and password to get back in.</p>
-        <div class="button-row">
-            <a class="danger-button" href="{{ url_for('auth.logout') }}" data-countdown-seconds="5">Yes, Log Out</a>
+        <form class="button-row" method="POST" action="{{ url_for('auth.logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="danger-button" type="submit" data-countdown-seconds="5">Yes, Log Out</button>
             <button class="success-button" type="button" data-modal-close>Stay Logged In</button>
-        </div>
+        </form>
     </div>
 </div>
 {% endblock %}

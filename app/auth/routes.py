@@ -1,5 +1,7 @@
 """Auth routes: login, logout, and password reset."""
 
+from http import HTTPStatus
+
 from flask import flash, redirect, render_template, request, session, url_for
 from flask_login import current_user, login_user, logout_user
 from loguru import logger
@@ -7,7 +9,7 @@ from pydantic import ValidationError
 
 from app.shared.database import get_session
 from app.shared.email_addresses import email_domain
-from app.shared.rate_limit import AUTH_RATE_LIMIT, limiter
+from app.shared.rate_limit import AUTH_RATE_LIMIT, failed_auth_only, limiter
 
 from . import bp
 from .password_reset_service import create_password_reset_pin, reset_password_with_pin
@@ -18,7 +20,7 @@ PASSWORD_REQUIRED_MESSAGE = "Password is required."  # nosec B105 - user-facing 
 
 
 @bp.route("/", methods=["GET", "POST"])
-@limiter.limit(AUTH_RATE_LIMIT, methods=["POST"])
+@limiter.limit(AUTH_RATE_LIMIT, methods=["POST"], deduct_when=failed_auth_only)
 def login():
     if request.method == "POST":
         email = request.form.get("email", "").strip()
@@ -36,7 +38,7 @@ def login():
         if agency is None or not agency.active:
             logger.warning("Login rejected: invalid or inactive agency", extra={"email_domain": email_domain(email)})
             flash("Invalid email or password.", "error")
-            return redirect(url_for("auth.login"))
+            return _render_login(email), HTTPStatus.UNAUTHORIZED
 
         if not agency.password:
             logger.info("Login redirected: password has not been set", extra={"agency_id": agency.id})
@@ -50,7 +52,7 @@ def login():
 
         logger.warning("Login rejected: password mismatch", extra={"agency_id": agency.id})
         flash("Invalid email or password.", "error")
-        return redirect(url_for("auth.login"))
+        return _render_login(email), HTTPStatus.UNAUTHORIZED
 
     return _render_login()
 
@@ -107,7 +109,7 @@ def reset_password():
     return _render_reset_password(request.args.get("email", "").strip())
 
 
-@bp.route("/logout")
+@bp.route("/logout", methods=["POST"])
 def logout():
     session.pop("admin", None)
     session.pop("admin_last_active", None)
