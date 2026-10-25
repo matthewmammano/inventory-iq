@@ -1,0 +1,6 @@
+@layer iq-components {
+  .iq-note > * {
+    padding: var(--iq-row-padding);
+    text-align: start;
+  }
+}

@@ -17,7 +17,7 @@ export const TOUCH_TARGET_MIN = 46;
 export const THEME: ThemeInputs = {
   brand: "#f4c95d",
   neutral: "oklch(0.5 0.02 85)",
-  radius: 8,
+  radius: 4,
   scale: KIOSK_SCALE,
   font: FONT_SANS,
   primaryChrome: "accent",

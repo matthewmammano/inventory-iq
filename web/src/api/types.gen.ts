@@ -299,6 +299,26 @@ export type ScanStorageOptionsResponseStorageResponse = {
     name: string;
 };
 
+/**
+ * SignedInAgencyResponse
+ *
+ * The agency whose session is making the request, as the app shell needs it.
+ */
+export type SignedInAgencyResponse = {
+    /**
+     * Display Name
+     */
+    display_name: string;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Logo Url
+     */
+    logo_url: string;
+};
+
 export type ValidationError = {
     detail?: {
         '<location>'?: {
@@ -464,3 +484,19 @@ export type GetApiV1AgenciesByAgencyIdStoragesResponses = {
 };
 
 export type GetApiV1AgenciesByAgencyIdStoragesResponse = GetApiV1AgenciesByAgencyIdStoragesResponses[keyof GetApiV1AgenciesByAgencyIdStoragesResponses];
+
+export type GetApiV1MeData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/me';
+};
+
+export type GetApiV1MeResponses = {
+    /**
+     * Successful response
+     */
+    200: SignedInAgencyResponse;
+};
+
+export type GetApiV1MeResponse = GetApiV1MeResponses[keyof GetApiV1MeResponses];

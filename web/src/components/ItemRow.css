@@ -1,0 +1,56 @@
+@layer iq-components {
+  .iq-item-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto auto;
+    align-items: center;
+    gap: var(--iq-row-gap);
+    width: 100%;
+    min-height: var(--iq-touch-min);
+    padding: var(--iq-row-padding);
+    border: var(--fui-stroke-hairline, 1px) solid var(--fui-border);
+    border-radius: var(--fui-radius-surface);
+    background: var(--fui-bg-primary);
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .iq-item-row > strong {
+    font-size: var(--iq-row-name-size);
+  }
+
+  .iq-item-row:hover {
+    background: var(--fui-bg-hover);
+    border-color: var(--fui-border-strong);
+  }
+
+  .iq-item-tags {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    justify-self: end;
+    gap: var(--iq-tag-gap);
+    max-width: var(--iq-tag-column-max);
+  }
+
+  .iq-item-tag {
+    padding: var(--iq-tag-padding);
+    border: var(--fui-stroke-hairline, 1px) solid;
+    border-radius: var(--fui-radius-indicator);
+    font-size: var(--iq-tag-font-size);
+    line-height: 1.2;
+    white-space: nowrap;
+  }
+
+  .iq-item-chevron {
+    display: grid;
+    place-items: center;
+    color: var(--iq-accent-deep);
+  }
+
+  .iq-item-chevron svg {
+    width: var(--iq-chevron-size);
+    height: var(--iq-chevron-size);
+  }
+}

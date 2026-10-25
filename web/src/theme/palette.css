@@ -1,0 +1,38 @@
+/* The only place a color is named. Everything below hands these to Fragments' own tokens. */
+:root {
+  --iq-ground: #fff8df;
+  --iq-panel: #fffdf4;
+  --iq-row: #ffffff;
+  --iq-ink: #111820;
+  --iq-ink-soft: #3c4149;
+  --iq-muted: #605f56;
+  --iq-line: #e2d9b4;
+  --iq-line-strong: #cbbd8d;
+  --iq-accent: #f4c95d;
+  --iq-accent-deep: #a57210;
+  --iq-accent-wash: #fff7d6;
+  --iq-hover: #ffeab0;
+  --iq-active: #ffdf8c;
+  --iq-header-ink: #16100c;
+}
+
+:root {
+  --fui-app-canvas-bg: var(--iq-ground);
+  --fui-bg-primary: var(--iq-row);
+  --fui-bg-secondary: var(--iq-panel);
+  --fui-bg-elevated: var(--iq-panel);
+  --fui-bg-hover: var(--iq-hover);
+  --fui-bg-active: var(--iq-active);
+  --fui-border: var(--iq-line);
+  --fui-border-strong: var(--iq-line-strong);
+  --fui-field-bg: var(--iq-row);
+  --fui-field-border: var(--iq-ink-soft);
+  --fui-text-primary: var(--iq-ink);
+  --fui-text-secondary: var(--iq-ink-soft);
+  --fui-text-tertiary: var(--iq-muted);
+  --fui-focus-ring-color: var(--iq-accent-deep);
+}
+
+body {
+  background: var(--iq-ground);
+}

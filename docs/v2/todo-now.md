@@ -23,14 +23,39 @@ Rejection basis: 2,480 lines of existing client JS proves this is a genuinely in
 
 ## Departures From Fragments Defaults
 
-Both set once in the theme layer, never per page.
+All three set once in the theme layer, never per page.
 
 1. Type scale shifted up. Their scale is desktop SaaS density. Kiosk body lands near 18px, touch targets 46px minimum.
 2. Brand stays v1 amber. Their default indigo `#3d5ae8` is banned by global CLAUDE.md.
+3. Palette. `web/src/theme/palette.css` names every color once as `--iq-*`, then hands those
+   values to Fragments' own `--fui-*` tokens. One file recolors every screen. Our CSS never
+   spells a Fragments token name twice, so a rename upstream is a one-block fix.
 
 ## Approved Scan Screen Look
 
 Locked from artifact review: amber v1 palette, hairline borders, soft corners, v1 type size, name-only rows, bare X to clear the field, icon-only admin link using lucide `key-round`.
+
+Second pass, after the first build read as all white:
+- Amber page ground, filled amber header bar over a dark amber hairline, white rows on the wash.
+- The agency logo is a bare image with slightly rounded corners, where the mock had an "IQ" square.
+- A chevron closes every result row.
+- Match count stays in the field's `count` slot, not a separate line under it.
+- Rejected from the mock: the "Scanner ready" status dot, and the highlight on the top match.
+- Row names stay in the body face, bold, not the heading face.
+
+Third pass, from screenshots:
+- `radius` dropped from 8 to 4 in `tokens.ts`. Fragments derives surface radius as `radius * 2.4`,
+  so 8 made every row, tile and chip a pill.
+- Fragments' focus ring defaults to indigo `#3d5ae8`. It is dark amber now, at zero offset on the
+  search field, so focus reads as one thicker edge instead of a second outline around the border.
+- The page header is our own `<header>`, not Fragments' `Header`. Header.Brand caps its type at
+  15px, which left the screen title smaller than the row names.
+
+Fourth pass, from screenshots:
+- The search field and results sit in a centered measure, `clamp(600px, 74vw, 1080px)`, not the full
+  screen width.
+- Row hover is `#ffeab0`, far enough off the `#fff8df` ground to read as a change on a kiosk.
+- The field border is the softer ink, and the focus ring is 2px, so the resting field is thinner.
 
 ## Environment Rules
 
@@ -69,6 +94,10 @@ docs/v2/
 ## Shared Component Layer
 
 Built once, used everywhere. Changing a token or a wrapper changes every screen.
+
+Where a visual value lives, in order: a color goes in `theme/palette.css`, a size or spacing in
+`theme/kiosk.css`, anything about the page frame in `components/Page.css`. A screen's own CSS file
+never spells a raw color or a raw pixel size.
 
 | Component | Role |
 |---|---|
@@ -139,10 +168,23 @@ Picked up while building these:
 ### Phase 3 - Guest Scan Screen
 **Approval gate.** Artifact first, then build.
 
-- [ ] Theme token file
-- [ ] The 8 shared components
-- [ ] Scan screen live, verified on kiosk 1280x800, laptop 1440x900, TV 1920x1080, iPhone 393x852
+- [x] Theme token file
+- [x] The 4 shared components this screen needs: `Page`, `ScanField`, `ItemRow`, `Note`.
+      `DataTable`, `FormField`, `Modal` and `Toast` get built with the first screen that needs them.
+- [x] Scan screen live at `/v2`, running against the real endpoints
+- [x] Verified on kiosk 1280x800, laptop 1440x900, TV 1920x1080, iPhone 393x852
 - [ ] Barcode scanner tested with real hardware. Fast keystroke dumps into a React input are the known risk.
+
+Picked up while building it:
+- Nothing told the frontend which agency it is. `GET /api/v1/me` does now, and it is the one API route
+  outside the agency-scoped gate, so it checks the session itself.
+- The agency logo URL resolution moved out of the Jinja filter into `app/shared/image_paths.py`,
+  so the template and the API answer with the same URL.
+- Fragments `Badge` only takes a fixed set of tones, and tag colors come from the database, so the
+  tag chip is our own markup with the stored colors inline.
+- Fuse matches `tags.name`. v1 pointed at `tags`, which is an array of objects, so tag matching never fired.
+- Picking a row, and an unmatched barcode, both hand off to the v1 guest routes. Nothing is lost while
+  Phase 4 is unbuilt, and the unknown-barcode record still happens server side.
 
 ### Phase 4 - Rest Of Guest Flow
 Artifact approval per screen, in this order.
@@ -179,8 +221,8 @@ Component layer is proven by now, so these compose faster than they look.
 | Thing | Count |
 |---|---|
 | Python files / lines | 139 / 18,496 |
-| Tests | 81 |
-| Routes | 54 v1 + 5 JSON |
+| Tests | 83 |
+| Routes | 54 v1 + 6 JSON |
 | Templates | 34 |
 | CSS files / lines | 12 / 3,885 |
 | Client JS files / lines | 36 / 2,480 |

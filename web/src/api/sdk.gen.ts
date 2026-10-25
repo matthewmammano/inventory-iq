@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetApiV1AgenciesByAgencyIdItemsData, GetApiV1AgenciesByAgencyIdItemsErrors, GetApiV1AgenciesByAgencyIdItemsLookupData, GetApiV1AgenciesByAgencyIdItemsLookupErrors, GetApiV1AgenciesByAgencyIdItemsLookupResponses, GetApiV1AgenciesByAgencyIdItemsResponses, GetApiV1AgenciesByAgencyIdLocationsData, GetApiV1AgenciesByAgencyIdLocationsErrors, GetApiV1AgenciesByAgencyIdLocationsResponses, GetApiV1AgenciesByAgencyIdStoragesData, GetApiV1AgenciesByAgencyIdStoragesErrors, GetApiV1AgenciesByAgencyIdStoragesResponses, PostApiV1AgenciesByAgencyIdScansData, PostApiV1AgenciesByAgencyIdScansErrors, PostApiV1AgenciesByAgencyIdScansResponses } from './types.gen';
+import type { GetApiV1AgenciesByAgencyIdItemsData, GetApiV1AgenciesByAgencyIdItemsErrors, GetApiV1AgenciesByAgencyIdItemsLookupData, GetApiV1AgenciesByAgencyIdItemsLookupErrors, GetApiV1AgenciesByAgencyIdItemsLookupResponses, GetApiV1AgenciesByAgencyIdItemsResponses, GetApiV1AgenciesByAgencyIdLocationsData, GetApiV1AgenciesByAgencyIdLocationsErrors, GetApiV1AgenciesByAgencyIdLocationsResponses, GetApiV1AgenciesByAgencyIdStoragesData, GetApiV1AgenciesByAgencyIdStoragesErrors, GetApiV1AgenciesByAgencyIdStoragesResponses, GetApiV1MeData, GetApiV1MeResponses, PostApiV1AgenciesByAgencyIdScansData, PostApiV1AgenciesByAgencyIdScansErrors, PostApiV1AgenciesByAgencyIdScansResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -49,3 +49,8 @@ export const postApiV1AgenciesByAgencyIdScans = <ThrowOnError extends boolean = 
  * List where a scan may come from and go to
  */
 export const getApiV1AgenciesByAgencyIdStorages = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdStoragesData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdStoragesResponses, GetApiV1AgenciesByAgencyIdStoragesErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdStoragesResponses, GetApiV1AgenciesByAgencyIdStoragesErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/storages', ...options });
+
+/**
+ * Describe the signed-in agency
+ */
+export const getApiV1Me = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1MeData, ThrowOnError>): RequestResult<GetApiV1MeResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetApiV1MeResponses, unknown, ThrowOnError>({ url: '/api/v1/me', ...options });

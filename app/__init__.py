@@ -1,14 +1,13 @@
 """Flask application factory."""
 
 import logging
-import re
 from http import HTTPStatus
 from importlib import import_module
 from pathlib import Path
 from typing import Any, cast
 
 from apiflask import APIFlask
-from flask import Flask, send_from_directory, url_for
+from flask import Flask, send_from_directory
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
 from loguru import logger
@@ -33,6 +32,7 @@ from app.shared.database import get_session, init_db
 from app.shared.email_client import log_email_config_status
 from app.shared.form_validation import validation_attrs, validation_group_attrs
 from app.shared.html_formatting import bold_item_name
+from app.shared.image_paths import static_image_url
 from app.shared.logging import setup_logging
 from app.shared.model_registry import import_model_modules
 from app.shared.rate_limit import register_rate_limiting
@@ -47,6 +47,7 @@ login_manager = LoginManager()
 
 ROUTE_MODULES = (
     "app.api.guest_scan",
+    "app.api.session",
     "app.auth.routes",
     "app.diagnostics.routes",
     "app.inventory.routes.admin",
@@ -156,18 +157,7 @@ def _register_template_filters(app: Flask) -> None:
     app.add_template_filter(format_local_date, "local_date")
     app.add_template_global(validation_attrs, "validation_attrs")
     app.add_template_global(validation_group_attrs, "validation_group_attrs")
-
-    @app.template_filter("image_src")
-    def image_src(image_path: str | None) -> str:
-        if not image_path:
-            return url_for("static", filename="images/not-found.jpg")
-        if re.match(r"^(https?://|file://|[a-zA-Z]:|\.\.?/)", str(image_path)):  # keep absolute/URL inputs untouched
-            return image_path
-        filename = str(image_path).replace("\\", "/").lstrip("/").removeprefix("static/")  # normalize to static-relative path
-        static_folder = app.static_folder or ""
-        if static_folder and (Path(static_folder) / Path(filename)).exists():
-            return url_for("static", filename=filename)
-        return url_for("static", filename="images/not-found.jpg")
+    app.add_template_filter(static_image_url, "image_src")
 
 
 def _register_template_context(app: Flask) -> None:

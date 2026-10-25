@@ -17,3 +17,35 @@ input,
 select {
   min-height: var(--iq-touch-min);
 }
+
+:root {
+  --iq-page-header-gap: clamp(8px, 1.4vw, 16px);
+  --iq-page-logo-size: clamp(34px, 4vw, 48px);
+  --iq-results-gap: clamp(6px, 1vh, 12px);
+  --iq-row-gap: clamp(8px, 1.5vw, 20px);
+  --iq-row-padding: clamp(10px, 1.6vh, 16px) clamp(12px, 1.6vw, 20px);
+  --iq-tag-gap: 6px;
+  --iq-tag-padding: 2px 8px;
+  --iq-tag-font-size: 0.8em;
+  --iq-tag-column-max: 40%;
+  --iq-chevron-size: clamp(18px, 1.8vw, 24px);
+  --iq-header-padding-block: clamp(8px, 1.2vh, 14px);
+  --iq-field-height: clamp(50px, 5.6vh, 62px);
+  --iq-heading-gap: 2px;
+  --iq-page-title-size: clamp(19px, 1.7vw, 26px);
+  --iq-page-subtitle-size: clamp(13px, 1.05vw, 16px);
+  --iq-row-name-size: clamp(16px, 1.3vw, 21px);
+  --iq-measure: clamp(600px, 74vw, 1080px);
+  --iq-page-top-gap: clamp(16px, 3vh, 34px);
+}
+
+@layer iq-components {
+  .iq-results {
+    display: flex;
+    flex-direction: column;
+    gap: var(--iq-results-gap);
+    margin: 0;
+    padding: 0;
+    list-style: none;
+  }
+}

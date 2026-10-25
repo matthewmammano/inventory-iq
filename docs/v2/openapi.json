@@ -437,6 +437,30 @@
         "title": "StorageResponse",
         "type": "object"
       },
+      "SignedInAgencyResponse": {
+        "description": "The agency whose session is making the request, as the app shell needs it.",
+        "properties": {
+          "display_name": {
+            "title": "Display Name",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "logo_url": {
+            "title": "Logo Url",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "display_name",
+          "logo_url"
+        ],
+        "title": "SignedInAgencyResponse",
+        "type": "object"
+      },
       "ValidationError": {
         "properties": {
           "detail": {
@@ -732,6 +756,27 @@
           }
         },
         "summary": "List where a scan may come from and go to",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/me": {
+      "get": {
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedInAgencyResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Describe the signed-in agency",
         "tags": [
           "V1"
         ]

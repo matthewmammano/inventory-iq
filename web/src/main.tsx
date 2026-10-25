@@ -5,7 +5,9 @@ import { createRoot } from "react-dom/client";
 import { RouterProvider } from "react-router/dom";
 
 import "@usefragments/ui/styles";
+import "./theme/palette.css";
 import "./theme/kiosk.css";
+import "./lib/apiClient";
 
 import { router } from "./routes/router";
 import { THEME } from "./theme/tokens";

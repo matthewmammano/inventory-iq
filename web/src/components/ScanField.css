@@ -1,0 +1,21 @@
+@layer iq-components {
+  .iq-scan-field {
+    --fui-control-height-lg: var(--iq-field-height);
+    --fui-field-border: var(--iq-ink-soft);
+    --fui-focus-ring-offset: 0px;
+    --fui-focus-ring-width: 2px;
+  }
+
+  .iq-scan-field button[aria-label="Clear"] {
+    border: none;
+    background: none;
+    box-shadow: none;
+    color: var(--iq-muted);
+  }
+
+  .iq-scan-field button[aria-label="Clear"]:hover,
+  .iq-scan-field button[aria-label="Clear"]:active {
+    background: none;
+    color: var(--iq-ink);
+  }
+}
