@@ -2,19 +2,20 @@
 
 from http import HTTPStatus
 
-from flask import flash, redirect, render_template, request, session, url_for
+from flask import flash, redirect, render_template, request, url_for
 from flask_login import current_user, login_user, logout_user
 from loguru import logger
 from pydantic import ValidationError
 
+from app.auth.admin_session import clear_admin_session
 from app.shared.database import get_session
 from app.shared.email_addresses import email_domain
 from app.shared.rate_limit import AUTH_RATE_LIMIT, failed_auth_only, limiter
 
 from . import bp
 from .password_reset_service import create_password_reset_pin, reset_password_with_pin
-from .queries import get_agency_by_email
 from .schema import ForgotPasswordRequest, LoginRequest, ResetPasswordRequest
+from .sign_in_service import SignInOutcome, authenticate_agency
 
 PASSWORD_REQUIRED_MESSAGE = "Password is required."  # nosec B105 - user-facing validation copy, not a credential
 
@@ -33,26 +34,24 @@ def login():
             return _render_login(email, field_errors), 400
 
         with get_session() as s:
-            agency = get_agency_by_email(login_request.email, s)
+            result = authenticate_agency(s, login_request.email, login_request.password)
 
-        if agency is None or not agency.active:
-            logger.warning("Login rejected: invalid or inactive agency", extra={"email_domain": email_domain(email)})
-            flash("Invalid email or password.", "error")
-            return _render_login(email), HTTPStatus.UNAUTHORIZED
-
-        if not agency.password:
-            logger.info("Login redirected: password has not been set", extra={"agency_id": agency.id})
+        if result.outcome is SignInOutcome.PASSWORD_NOT_SET:
+            logger.info("Login redirected: password has not been set", extra={"agency_id": result.agency_id})
             flash("Use the emailed PIN to set your password.", "info")
             return redirect(url_for("auth.forgot_password", email=login_request.email))
 
-        if agency.check_password(login_request.password):
-            login_user(agency)
-            logger.info("User login succeeded for agency account", extra={"agency_id": agency.id})
-            return redirect(url_for("guest.index", agency_id=agency.id))
+        if result.outcome is SignInOutcome.REJECTED or result.agency is None:
+            logger.warning(
+                "Login rejected: invalid credentials",
+                extra={"email_domain": email_domain(email), "agency_id": result.agency_id},
+            )
+            flash("Invalid email or password.", "error")
+            return _render_login(email), HTTPStatus.UNAUTHORIZED
 
-        logger.warning("Login rejected: password mismatch", extra={"agency_id": agency.id})
-        flash("Invalid email or password.", "error")
-        return _render_login(email), HTTPStatus.UNAUTHORIZED
+        login_user(result.agency)
+        logger.info("User login succeeded for agency account", extra={"agency_id": result.agency.id})
+        return redirect(url_for("guest.index", agency_id=result.agency.id))
 
     return _render_login()
 
@@ -111,8 +110,7 @@ def reset_password():
 
 @bp.route("/logout", methods=["POST"])
 def logout():
-    session.pop("admin", None)
-    session.pop("admin_last_active", None)
+    clear_admin_session()
     agency_id = current_user.id if current_user.is_authenticated else None
     logout_user()
     logger.info("User logout completed", extra={"agency_id": agency_id})

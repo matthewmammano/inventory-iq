@@ -3,8 +3,25 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { getApiV1AgenciesByAgencyIdDeviceLocation, getApiV1AgenciesByAgencyIdItems, getApiV1AgenciesByAgencyIdItemsByItemIdExpirations, getApiV1AgenciesByAgencyIdItemsByItemIdScanContext, getApiV1AgenciesByAgencyIdItemsLookup, getApiV1AgenciesByAgencyIdLocations, getApiV1AgenciesByAgencyIdStorages, getApiV1Me, type Options, postApiV1AgenciesByAgencyIdScans, putApiV1AgenciesByAgencyIdDeviceLocation } from '../sdk.gen';
-import type { GetApiV1AgenciesByAgencyIdDeviceLocationData, GetApiV1AgenciesByAgencyIdDeviceLocationError, GetApiV1AgenciesByAgencyIdDeviceLocationResponse, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsData, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsError, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponse, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextError, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponse, GetApiV1AgenciesByAgencyIdItemsData, GetApiV1AgenciesByAgencyIdItemsError, GetApiV1AgenciesByAgencyIdItemsLookupData, GetApiV1AgenciesByAgencyIdItemsLookupError, GetApiV1AgenciesByAgencyIdItemsLookupResponse, GetApiV1AgenciesByAgencyIdItemsResponse, GetApiV1AgenciesByAgencyIdLocationsData, GetApiV1AgenciesByAgencyIdLocationsError, GetApiV1AgenciesByAgencyIdLocationsResponse, GetApiV1AgenciesByAgencyIdStoragesData, GetApiV1AgenciesByAgencyIdStoragesError, GetApiV1AgenciesByAgencyIdStoragesResponse, GetApiV1MeData, GetApiV1MeResponse, PostApiV1AgenciesByAgencyIdScansData, PostApiV1AgenciesByAgencyIdScansError, PostApiV1AgenciesByAgencyIdScansResponse, PutApiV1AgenciesByAgencyIdDeviceLocationData, PutApiV1AgenciesByAgencyIdDeviceLocationError, PutApiV1AgenciesByAgencyIdDeviceLocationResponse } from '../types.gen';
+import { deleteApiV1AgenciesByAgencyIdAdminSession, deleteApiV1Session, getApiV1AgenciesByAgencyIdAdminSession, getApiV1AgenciesByAgencyIdDeviceLocation, getApiV1AgenciesByAgencyIdItems, getApiV1AgenciesByAgencyIdItemsByItemIdExpirations, getApiV1AgenciesByAgencyIdItemsByItemIdScanContext, getApiV1AgenciesByAgencyIdItemsLookup, getApiV1AgenciesByAgencyIdLocations, getApiV1AgenciesByAgencyIdStorages, getApiV1Me, type Options, postApiV1AgenciesByAgencyIdAdminSession, postApiV1AgenciesByAgencyIdAdminSessionTemporaryPin, postApiV1AgenciesByAgencyIdScans, postApiV1AgenciesByAgencyIdUnknownBarcodes, postApiV1Session, putApiV1AgenciesByAgencyIdDeviceLocation } from '../sdk.gen';
+import type { DeleteApiV1AgenciesByAgencyIdAdminSessionData, DeleteApiV1AgenciesByAgencyIdAdminSessionError, DeleteApiV1SessionData, GetApiV1AgenciesByAgencyIdAdminSessionData, GetApiV1AgenciesByAgencyIdAdminSessionError, GetApiV1AgenciesByAgencyIdAdminSessionResponse, GetApiV1AgenciesByAgencyIdDeviceLocationData, GetApiV1AgenciesByAgencyIdDeviceLocationError, GetApiV1AgenciesByAgencyIdDeviceLocationResponse, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsData, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsError, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponse, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextError, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponse, GetApiV1AgenciesByAgencyIdItemsData, GetApiV1AgenciesByAgencyIdItemsError, GetApiV1AgenciesByAgencyIdItemsLookupData, GetApiV1AgenciesByAgencyIdItemsLookupError, GetApiV1AgenciesByAgencyIdItemsLookupResponse, GetApiV1AgenciesByAgencyIdItemsResponse, GetApiV1AgenciesByAgencyIdLocationsData, GetApiV1AgenciesByAgencyIdLocationsError, GetApiV1AgenciesByAgencyIdLocationsResponse, GetApiV1AgenciesByAgencyIdStoragesData, GetApiV1AgenciesByAgencyIdStoragesError, GetApiV1AgenciesByAgencyIdStoragesResponse, GetApiV1MeData, GetApiV1MeResponse, PostApiV1AgenciesByAgencyIdAdminSessionData, PostApiV1AgenciesByAgencyIdAdminSessionError, PostApiV1AgenciesByAgencyIdAdminSessionResponse, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinData, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinError, PostApiV1AgenciesByAgencyIdScansData, PostApiV1AgenciesByAgencyIdScansError, PostApiV1AgenciesByAgencyIdScansResponse, PostApiV1AgenciesByAgencyIdUnknownBarcodesData, PostApiV1AgenciesByAgencyIdUnknownBarcodesError, PostApiV1AgenciesByAgencyIdUnknownBarcodesResponse, PostApiV1SessionData, PostApiV1SessionError, PostApiV1SessionResponse, PutApiV1AgenciesByAgencyIdDeviceLocationData, PutApiV1AgenciesByAgencyIdDeviceLocationError, PutApiV1AgenciesByAgencyIdDeviceLocationResponse } from '../types.gen';
+
+/**
+ * Drop the admin unlock, the way leaving for a guest screen does
+ */
+export const deleteApiV1AgenciesByAgencyIdAdminSessionMutation = (options?: Partial<Options<DeleteApiV1AgenciesByAgencyIdAdminSessionData>>): UseMutationOptions<unknown, DeleteApiV1AgenciesByAgencyIdAdminSessionError, Options<DeleteApiV1AgenciesByAgencyIdAdminSessionData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DeleteApiV1AgenciesByAgencyIdAdminSessionError, Options<DeleteApiV1AgenciesByAgencyIdAdminSessionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteApiV1AgenciesByAgencyIdAdminSession({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -37,6 +54,58 @@ const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions
         params.query = options.query;
     }
     return [params];
+};
+
+export const getApiV1AgenciesByAgencyIdAdminSessionQueryKey = (options: Options<GetApiV1AgenciesByAgencyIdAdminSessionData>) => createQueryKey('getApiV1AgenciesByAgencyIdAdminSession', options);
+
+/**
+ * Say whether this browser still holds the admin unlock
+ */
+export const getApiV1AgenciesByAgencyIdAdminSessionOptions = (options: Options<GetApiV1AgenciesByAgencyIdAdminSessionData>) => queryOptions<GetApiV1AgenciesByAgencyIdAdminSessionResponse, GetApiV1AgenciesByAgencyIdAdminSessionError, GetApiV1AgenciesByAgencyIdAdminSessionResponse, ReturnType<typeof getApiV1AgenciesByAgencyIdAdminSessionQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getApiV1AgenciesByAgencyIdAdminSession({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getApiV1AgenciesByAgencyIdAdminSessionQueryKey(options)
+});
+
+/**
+ * Unlock the admin screens with the agency's 4-digit PIN
+ */
+export const postApiV1AgenciesByAgencyIdAdminSessionMutation = (options?: Partial<Options<PostApiV1AgenciesByAgencyIdAdminSessionData>>): UseMutationOptions<PostApiV1AgenciesByAgencyIdAdminSessionResponse, PostApiV1AgenciesByAgencyIdAdminSessionError, Options<PostApiV1AgenciesByAgencyIdAdminSessionData>> => {
+    const mutationOptions: UseMutationOptions<PostApiV1AgenciesByAgencyIdAdminSessionResponse, PostApiV1AgenciesByAgencyIdAdminSessionError, Options<PostApiV1AgenciesByAgencyIdAdminSessionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postApiV1AgenciesByAgencyIdAdminSession({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Email a new temporary admin PIN to the account address
+ */
+export const postApiV1AgenciesByAgencyIdAdminSessionTemporaryPinMutation = (options?: Partial<Options<PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinData>>): UseMutationOptions<unknown, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinError, Options<PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinData>> => {
+    const mutationOptions: UseMutationOptions<unknown, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinError, Options<PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postApiV1AgenciesByAgencyIdAdminSessionTemporaryPin({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
 };
 
 export const getApiV1AgenciesByAgencyIdDeviceLocationQueryKey = (options: Options<GetApiV1AgenciesByAgencyIdDeviceLocationData>) => createQueryKey('getApiV1AgenciesByAgencyIdDeviceLocation', options);
@@ -199,6 +268,23 @@ export const getApiV1AgenciesByAgencyIdStoragesOptions = (options: Options<GetAp
     queryKey: getApiV1AgenciesByAgencyIdStoragesQueryKey(options)
 });
 
+/**
+ * Record a scanned barcode no item carries
+ */
+export const postApiV1AgenciesByAgencyIdUnknownBarcodesMutation = (options?: Partial<Options<PostApiV1AgenciesByAgencyIdUnknownBarcodesData>>): UseMutationOptions<PostApiV1AgenciesByAgencyIdUnknownBarcodesResponse, PostApiV1AgenciesByAgencyIdUnknownBarcodesError, Options<PostApiV1AgenciesByAgencyIdUnknownBarcodesData>> => {
+    const mutationOptions: UseMutationOptions<PostApiV1AgenciesByAgencyIdUnknownBarcodesResponse, PostApiV1AgenciesByAgencyIdUnknownBarcodesError, Options<PostApiV1AgenciesByAgencyIdUnknownBarcodesData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postApiV1AgenciesByAgencyIdUnknownBarcodes({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
 export const getApiV1MeQueryKey = (options?: Options<GetApiV1MeData>) => createQueryKey('getApiV1Me', options);
 
 /**
@@ -216,3 +302,37 @@ export const getApiV1MeOptions = (options?: Options<GetApiV1MeData>) => queryOpt
     },
     queryKey: getApiV1MeQueryKey(options)
 });
+
+/**
+ * Sign out of the account and drop any admin unlock
+ */
+export const deleteApiV1SessionMutation = (options?: Partial<Options<DeleteApiV1SessionData>>): UseMutationOptions<unknown, DefaultError, Options<DeleteApiV1SessionData>> => {
+    const mutationOptions: UseMutationOptions<unknown, DefaultError, Options<DeleteApiV1SessionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await deleteApiV1Session({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};
+
+/**
+ * Sign in with an account email and password
+ */
+export const postApiV1SessionMutation = (options?: Partial<Options<PostApiV1SessionData>>): UseMutationOptions<PostApiV1SessionResponse, PostApiV1SessionError, Options<PostApiV1SessionData>> => {
+    const mutationOptions: UseMutationOptions<PostApiV1SessionResponse, PostApiV1SessionError, Options<PostApiV1SessionData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await postApiV1Session({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
+};

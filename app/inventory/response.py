@@ -187,3 +187,9 @@ class ExpirationEntryResponse(BaseModel):
             max_new_rows=group.spec.new_date_row_count,
             options=[ExpirationOptionResponse.of(option) for option in group.options],
         )
+
+
+class UnknownUpcResponse(BaseModel):
+    """What to tell a guest who scanned a barcode no item carries."""
+
+    message: str

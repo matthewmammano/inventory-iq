@@ -4,11 +4,11 @@ import type { ScanResultResponse } from "./api/types.gen";
 
 export const V2_BASENAME = "/v2";
 
-/** Barcodes in this inventory are 12-digit UPC-A. */
-export const UPC_LENGTH = 12;
+/** Digits this close together came from a scanner, not a person; the same gap of silence ends the burst. */
+export const SCANNER_BURST_GAP_MS = 50;
 
-/** A hardware scanner finishes a barcode in one burst; this much silence means the burst ended. */
-export const SCANNER_IDLE_MS = 100;
+/** The shortest digit run worth looking up, so a stray fast keypress is not a scan. */
+export const SCANNER_MIN_DIGITS = 8;
 
 export const MAX_VISIBLE_RESULTS = 7;
 
@@ -23,6 +23,7 @@ export const SEARCH_PLACEHOLDER = "Scan item barcode or search inventory";
 export const ADMIN_LINK_LABEL = "Admin";
 
 export const LOAD_FAILED_NOTE = "Could not load the item list. Close this page and open it again.";
+export const UNKNOWN_BARCODE_FAILED_NOTE = "Could not check that barcode. Try scanning it again.";
 export const NO_ITEMS_NOTE = "No items here yet.";
 export const LOADING_ITEMS_LABEL = "Loading inventory";
 

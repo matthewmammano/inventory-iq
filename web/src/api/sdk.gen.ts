@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetApiV1AgenciesByAgencyIdDeviceLocationData, GetApiV1AgenciesByAgencyIdDeviceLocationErrors, GetApiV1AgenciesByAgencyIdDeviceLocationResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsData, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsErrors, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextErrors, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponses, GetApiV1AgenciesByAgencyIdItemsData, GetApiV1AgenciesByAgencyIdItemsErrors, GetApiV1AgenciesByAgencyIdItemsLookupData, GetApiV1AgenciesByAgencyIdItemsLookupErrors, GetApiV1AgenciesByAgencyIdItemsLookupResponses, GetApiV1AgenciesByAgencyIdItemsResponses, GetApiV1AgenciesByAgencyIdLocationsData, GetApiV1AgenciesByAgencyIdLocationsErrors, GetApiV1AgenciesByAgencyIdLocationsResponses, GetApiV1AgenciesByAgencyIdStoragesData, GetApiV1AgenciesByAgencyIdStoragesErrors, GetApiV1AgenciesByAgencyIdStoragesResponses, GetApiV1MeData, GetApiV1MeResponses, PostApiV1AgenciesByAgencyIdScansData, PostApiV1AgenciesByAgencyIdScansErrors, PostApiV1AgenciesByAgencyIdScansResponses, PutApiV1AgenciesByAgencyIdDeviceLocationData, PutApiV1AgenciesByAgencyIdDeviceLocationErrors, PutApiV1AgenciesByAgencyIdDeviceLocationResponses } from './types.gen';
+import type { DeleteApiV1AgenciesByAgencyIdAdminSessionData, DeleteApiV1AgenciesByAgencyIdAdminSessionErrors, DeleteApiV1AgenciesByAgencyIdAdminSessionResponses, DeleteApiV1SessionData, DeleteApiV1SessionResponses, GetApiV1AgenciesByAgencyIdAdminSessionData, GetApiV1AgenciesByAgencyIdAdminSessionErrors, GetApiV1AgenciesByAgencyIdAdminSessionResponses, GetApiV1AgenciesByAgencyIdDeviceLocationData, GetApiV1AgenciesByAgencyIdDeviceLocationErrors, GetApiV1AgenciesByAgencyIdDeviceLocationResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsData, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsErrors, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextErrors, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponses, GetApiV1AgenciesByAgencyIdItemsData, GetApiV1AgenciesByAgencyIdItemsErrors, GetApiV1AgenciesByAgencyIdItemsLookupData, GetApiV1AgenciesByAgencyIdItemsLookupErrors, GetApiV1AgenciesByAgencyIdItemsLookupResponses, GetApiV1AgenciesByAgencyIdItemsResponses, GetApiV1AgenciesByAgencyIdLocationsData, GetApiV1AgenciesByAgencyIdLocationsErrors, GetApiV1AgenciesByAgencyIdLocationsResponses, GetApiV1AgenciesByAgencyIdStoragesData, GetApiV1AgenciesByAgencyIdStoragesErrors, GetApiV1AgenciesByAgencyIdStoragesResponses, GetApiV1MeData, GetApiV1MeResponses, PostApiV1AgenciesByAgencyIdAdminSessionData, PostApiV1AgenciesByAgencyIdAdminSessionErrors, PostApiV1AgenciesByAgencyIdAdminSessionResponses, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinData, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinErrors, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinResponses, PostApiV1AgenciesByAgencyIdScansData, PostApiV1AgenciesByAgencyIdScansErrors, PostApiV1AgenciesByAgencyIdScansResponses, PostApiV1AgenciesByAgencyIdUnknownBarcodesData, PostApiV1AgenciesByAgencyIdUnknownBarcodesErrors, PostApiV1AgenciesByAgencyIdUnknownBarcodesResponses, PostApiV1SessionData, PostApiV1SessionErrors, PostApiV1SessionResponses, PutApiV1AgenciesByAgencyIdDeviceLocationData, PutApiV1AgenciesByAgencyIdDeviceLocationErrors, PutApiV1AgenciesByAgencyIdDeviceLocationResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -17,6 +17,33 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
      */
     meta?: keyof ClientMeta extends never ? Record<string, unknown> : ClientMeta;
 };
+
+/**
+ * Drop the admin unlock, the way leaving for a guest screen does
+ */
+export const deleteApiV1AgenciesByAgencyIdAdminSession = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AgenciesByAgencyIdAdminSessionData, ThrowOnError>): RequestResult<DeleteApiV1AgenciesByAgencyIdAdminSessionResponses, DeleteApiV1AgenciesByAgencyIdAdminSessionErrors, ThrowOnError> => (options.client ?? client).delete<DeleteApiV1AgenciesByAgencyIdAdminSessionResponses, DeleteApiV1AgenciesByAgencyIdAdminSessionErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin-session', ...options });
+
+/**
+ * Say whether this browser still holds the admin unlock
+ */
+export const getApiV1AgenciesByAgencyIdAdminSession = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdAdminSessionData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdAdminSessionResponses, GetApiV1AgenciesByAgencyIdAdminSessionErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdAdminSessionResponses, GetApiV1AgenciesByAgencyIdAdminSessionErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin-session', ...options });
+
+/**
+ * Unlock the admin screens with the agency's 4-digit PIN
+ */
+export const postApiV1AgenciesByAgencyIdAdminSession = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdAdminSessionData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdAdminSessionResponses, PostApiV1AgenciesByAgencyIdAdminSessionErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdAdminSessionResponses, PostApiV1AgenciesByAgencyIdAdminSessionErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/admin-session',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Email a new temporary admin PIN to the account address
+ */
+export const postApiV1AgenciesByAgencyIdAdminSessionTemporaryPin = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinResponses, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinResponses, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin-session/temporary-pin', ...options });
 
 /**
  * Read the location this device is bound to
@@ -78,6 +105,28 @@ export const postApiV1AgenciesByAgencyIdScans = <ThrowOnError extends boolean = 
 export const getApiV1AgenciesByAgencyIdStorages = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdStoragesData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdStoragesResponses, GetApiV1AgenciesByAgencyIdStoragesErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdStoragesResponses, GetApiV1AgenciesByAgencyIdStoragesErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/storages', ...options });
 
 /**
+ * Record a scanned barcode no item carries
+ */
+export const postApiV1AgenciesByAgencyIdUnknownBarcodes = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdUnknownBarcodesData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdUnknownBarcodesResponses, PostApiV1AgenciesByAgencyIdUnknownBarcodesErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdUnknownBarcodesResponses, PostApiV1AgenciesByAgencyIdUnknownBarcodesErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/unknown-barcodes', ...options });
+
+/**
  * Describe the signed-in agency
  */
 export const getApiV1Me = <ThrowOnError extends boolean = false>(options?: Options<GetApiV1MeData, ThrowOnError>): RequestResult<GetApiV1MeResponses, unknown, ThrowOnError> => (options?.client ?? client).get<GetApiV1MeResponses, unknown, ThrowOnError>({ url: '/api/v1/me', ...options });
+
+/**
+ * Sign out of the account and drop any admin unlock
+ */
+export const deleteApiV1Session = <ThrowOnError extends boolean = false>(options?: Options<DeleteApiV1SessionData, ThrowOnError>): RequestResult<DeleteApiV1SessionResponses, unknown, ThrowOnError> => (options?.client ?? client).delete<DeleteApiV1SessionResponses, unknown, ThrowOnError>({ url: '/api/v1/session', ...options });
+
+/**
+ * Sign in with an account email and password
+ */
+export const postApiV1Session = <ThrowOnError extends boolean = false>(options?: Options<PostApiV1SessionData, ThrowOnError>): RequestResult<PostApiV1SessionResponses, PostApiV1SessionErrors, ThrowOnError> => (options?.client ?? client).post<PostApiV1SessionResponses, PostApiV1SessionErrors, ThrowOnError>({
+    url: '/api/v1/session',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options?.headers
+    }
+});

@@ -167,6 +167,13 @@ Coupling the tests exposed, both cleaned up in Phase 2:
       `GET .../items`
       `GET .../items/lookup?upc=`
       `POST .../scans`
+- [x] Account session and admin PIN endpoints, all six live and covered by 25 tests:
+      `POST /api/v1/session`
+      `DELETE /api/v1/session`
+      `GET /api/v1/agencies/{id}/admin-session`
+      `POST .../admin-session`
+      `DELETE .../admin-session`
+      `POST .../admin-session/temporary-pin`
 - [ ] Remaining admin endpoints by domain
 - [ ] Thin handlers, decisions in services, persistence in queries
 
@@ -176,6 +183,20 @@ Picked up while building these:
 - A list response is declared as a Pydantic `RootModel`, not `list[Model]`. APIFlask accepts both, only one type-checks.
 - `build_item_search_payload` needs tags attached first, so `_attach_tags` is now the public `attach_item_tags`.
 - Hey API's prettier step was removed; prettier was never installed, so the client had never generated.
+- The admin unlock rule lived inline in `app/shared/utils.py`, half of it duplicated as hand-rolled
+  `session.pop("admin", ...)` calls in two route files. It is one module now, `app/auth/admin_session.py`,
+  returning why a request was refused; v1 turns that into a flash and a redirect, the API into JSON.
+  Nothing outside that module names the session keys.
+- Same for the credential check: `app/auth/sign_in_service.py` owns it, and the v1 login route uses it too,
+  so an unknown email, an inactive account and a wrong password stay one indistinguishable refusal in both.
+- `failed_auth_only` counts a rate-limit attempt by "did not redirect", which is backwards for JSON, where
+  success is a 201. `refused_json_auth_only` is the 4xx-and-up twin, so a correct sign-in is never charged.
+- An account with no password set has no redirect to send in JSON, so it answers 409 and the screen sends
+  the person to the reset flow itself.
+- A PIN that is not 4 digits is refused at the schema, not by hashing it. It can never match, and that keeps
+  the hash comparison off a path that was never going to succeed.
+- The v1 PIN page also set the device cookie, because it carried a location picker. v2 has its own
+  device-location endpoint, so the PIN endpoint stays about the PIN.
 
 ### Phase 3 - Guest Scan Screen
 **Approval gate.** Artifact first, then build.
@@ -195,8 +216,10 @@ Picked up while building it:
 - Fragments `Badge` only takes a fixed set of tones, and tag colors come from the database, so the
   tag chip is our own markup with the stored colors inline.
 - Fuse matches `tags.name`. v1 pointed at `tags`, which is an array of objects, so tag matching never fired.
-- Picking a row, and an unmatched barcode, both hand off to the v1 guest routes. Nothing is lost while
-  Phase 4 is unbuilt, and the unknown-barcode record still happens server side.
+- A barcode no item carries is recorded by `POST .../unknown-barcodes` and answered with a `Toast`, so
+  an unreadable label never throws the scanner back to a v1 page. The admin review record is unchanged.
+- The scanner reads a digit burst anywhere on the page, focused or not, at any length. A length rule at
+  capture time dropped a short code silently; the lookup refuses it with a message instead.
 
 ### Phase 4 - Rest Of Guest Flow
 Artifact approval per screen, in this order.
@@ -233,8 +256,8 @@ Component layer is proven by now, so these compose faster than they look.
 | Thing | Count |
 |---|---|
 | Python files / lines | 139 / 18,496 |
-| Tests | 83 |
-| Routes | 54 v1 + 6 JSON |
+| Tests | 108 |
+| Routes | 54 v1 + 12 JSON |
 | Templates | 34 |
 | CSS files / lines | 12 / 3,885 |
 | Client JS files / lines | 36 / 2,480 |

@@ -50,6 +50,12 @@ class LocationListResponse(RootModel[list[LocationResponse]]):
     """Every location an agency keeps stock in."""
 
 
+class AdminSessionResponse(BaseModel):
+    """Whether this browser currently holds the admin unlock."""
+
+    unlocked: bool
+
+
 class SignedInAgencyResponse(BaseModel):
     """The agency whose session is making the request, as the app shell needs it."""
 

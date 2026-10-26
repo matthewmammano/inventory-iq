@@ -1,4 +1,4 @@
-"""The five JSON endpoints behind the guest scan screen, driven over real HTTP."""
+"""The JSON endpoints behind the guest scan screen, driven over real HTTP."""
 
 from http import HTTPStatus
 from typing import Any, Final
@@ -7,13 +7,16 @@ import pytest
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
-from app.inventory.constants import OperationType, VirtualLocation
+from app.inventory.constants import UNKNOWN_UPC_INVALID_MESSAGE, OperationType, VirtualLocation
+from app.inventory.models import UnknownUpcScan
 from app.inventory.quantity_service import calculate_item_quantities
 from tests.actions import Squad
 from tests.factories import AgencyFixture, build_agency, build_item
 
 COUNTED_QUANTITY: Final[int] = 6
 RESTOCK_QUANTITY: Final[int] = 4
+UNKNOWN_VALID_UPC: Final[str] = "999999999993"
+MALFORMED_UPC: Final[str] = "12345678998"
 
 
 def _api(agency_id: int, path: str = "") -> str:
@@ -230,3 +233,33 @@ def test_an_inactive_agency_is_locked_out(client: FlaskClient, agency: AgencyFix
     session.commit()
 
     assert client.get(_api(agency.id, "/items")).status_code == HTTPStatus.FORBIDDEN
+
+
+@pytest.fixture
+def no_upc_title_lookup(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.inventory.upc_service.lookup_upc_title", lambda _upc: None)
+
+
+@pytest.mark.usefixtures("no_upc_title_lookup")
+def test_an_unrecognized_barcode_is_recorded_for_admin_review(client: FlaskClient, agency: AgencyFixture) -> None:
+    response = client.post(_api(agency.id, "/unknown-barcodes"), query_string={"upc": UNKNOWN_VALID_UPC})
+
+    assert response.status_code == HTTPStatus.OK
+    assert "reviews" in response.get_json()["message"]
+
+
+@pytest.mark.usefixtures("no_upc_title_lookup")
+def test_a_malformed_barcode_is_answered_without_being_recorded(client: FlaskClient, agency: AgencyFixture, session: Session) -> None:
+    response = client.post(_api(agency.id, "/unknown-barcodes"), query_string={"upc": MALFORMED_UPC})
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.get_json()["message"] == UNKNOWN_UPC_INVALID_MESSAGE
+    assert session.query(UnknownUpcScan).count() == 0
+
+
+@pytest.mark.usefixtures("no_upc_title_lookup")
+def test_a_barcode_an_item_already_carries_is_reported_as_linked(client: FlaskClient, agency: AgencyFixture) -> None:
+    response = client.post(_api(agency.id, "/unknown-barcodes"), query_string={"upc": agency.item.upc})
+
+    assert response.status_code == HTTPStatus.OK
+    assert "already linked" in response.get_json()["message"]

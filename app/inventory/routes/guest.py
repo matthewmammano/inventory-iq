@@ -1,12 +1,12 @@
 """Guest blueprint routes."""
 
-from datetime import UTC, datetime
 from typing import Any
 
-from flask import flash, make_response, redirect, render_template, request, session, url_for
+from flask import flash, make_response, redirect, render_template, request, url_for
 from flask_login import current_user, login_required
 from loguru import logger
 
+from app.auth.admin_session import clear_admin_session, start_admin_session
 from app.auth.device_locations import (
     current_device_token,
     get_or_create_device,
@@ -45,9 +45,7 @@ def check_guest_auth() -> Any:
     if is_static_request():
         return None
 
-    # Always clear admin session on guest routes
-    session.pop("admin", None)
-    session.pop("admin_last_active", None)
+    clear_admin_session()  # a guest route always drops any admin unlock
 
     agency_id = get_agency_id_from_request()
     if agency_id is None:
@@ -130,8 +128,7 @@ def admin_login(agency_id: int) -> Any:
             return _admin_login_response(agency_id, token)
         pin = request.form.get("password", "")
         if agency.check_pin(pin):
-            session["admin"] = True
-            session["admin_last_active"] = datetime.now(UTC).timestamp()
+            start_admin_session()
             logger.info("Admin PIN login succeeded", extra={"agency_id": agency_id})
             flash("Admin access granted.", "success")
             response = make_response(redirect(url_for("admin.admin_panel", agency_id=agency_id)))

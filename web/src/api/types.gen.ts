@@ -5,6 +5,30 @@ export type ClientOptions = {
 };
 
 /**
+ * AdminPinRequest
+ *
+ * The 4-digit PIN someone is unlocking admin with; a PIN of any other length can never be right.
+ */
+export type AdminPinRequest = {
+    /**
+     * Pin
+     */
+    pin: string;
+};
+
+/**
+ * AdminSessionResponse
+ *
+ * Whether this browser currently holds the admin unlock.
+ */
+export type AdminSessionResponse = {
+    /**
+     * Unlocked
+     */
+    unlocked: boolean;
+};
+
+/**
  * DeviceLocationRequest
  *
  * The location a kiosk is being bound to, saved for a year against its device cookie.
@@ -452,6 +476,22 @@ export type ScanStorageOptionsResponseStorageResponse = {
 };
 
 /**
+ * SignInRequest
+ *
+ * The account email and password someone is signing in with.
+ */
+export type SignInRequest = {
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Password
+     */
+    password: string;
+};
+
+/**
  * SignedInAgencyResponse
  *
  * The agency whose session is making the request, as the app shell needs it.
@@ -471,6 +511,18 @@ export type SignedInAgencyResponse = {
     logo_url: string;
 };
 
+/**
+ * UnknownUpcResponse
+ *
+ * What to tell a guest who scanned a barcode no item carries.
+ */
+export type UnknownUpcResponse = {
+    /**
+     * Message
+     */
+    message: string;
+};
+
 export type ValidationError = {
     detail?: {
         '<location>'?: {
@@ -478,6 +530,114 @@ export type ValidationError = {
         };
     };
     message?: string;
+};
+
+export type DeleteApiV1AgenciesByAgencyIdAdminSessionData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin-session';
+};
+
+export type DeleteApiV1AgenciesByAgencyIdAdminSessionErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type DeleteApiV1AgenciesByAgencyIdAdminSessionError = DeleteApiV1AgenciesByAgencyIdAdminSessionErrors[keyof DeleteApiV1AgenciesByAgencyIdAdminSessionErrors];
+
+export type DeleteApiV1AgenciesByAgencyIdAdminSessionResponses = {
+    /**
+     * Successful response
+     */
+    200: unknown;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminSessionData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin-session';
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminSessionErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminSessionError = GetApiV1AgenciesByAgencyIdAdminSessionErrors[keyof GetApiV1AgenciesByAgencyIdAdminSessionErrors];
+
+export type GetApiV1AgenciesByAgencyIdAdminSessionResponses = {
+    /**
+     * Successful response
+     */
+    200: AdminSessionResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminSessionResponse = GetApiV1AgenciesByAgencyIdAdminSessionResponses[keyof GetApiV1AgenciesByAgencyIdAdminSessionResponses];
+
+export type PostApiV1AgenciesByAgencyIdAdminSessionData = {
+    body?: AdminPinRequest;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin-session';
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminSessionErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminSessionError = PostApiV1AgenciesByAgencyIdAdminSessionErrors[keyof PostApiV1AgenciesByAgencyIdAdminSessionErrors];
+
+export type PostApiV1AgenciesByAgencyIdAdminSessionResponses = {
+    /**
+     * Successful response
+     */
+    201: AdminSessionResponse;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminSessionResponse = PostApiV1AgenciesByAgencyIdAdminSessionResponses[keyof PostApiV1AgenciesByAgencyIdAdminSessionResponses];
+
+export type PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin-session/temporary-pin';
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinError = PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinErrors[keyof PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinErrors];
+
+export type PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinResponses = {
+    /**
+     * Successful response
+     */
+    200: unknown;
 };
 
 export type GetApiV1AgenciesByAgencyIdDeviceLocationData = {
@@ -781,6 +941,42 @@ export type GetApiV1AgenciesByAgencyIdStoragesResponses = {
 
 export type GetApiV1AgenciesByAgencyIdStoragesResponse = GetApiV1AgenciesByAgencyIdStoragesResponses[keyof GetApiV1AgenciesByAgencyIdStoragesResponses];
 
+export type PostApiV1AgenciesByAgencyIdUnknownBarcodesData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query: {
+        /**
+         * Upc
+         */
+        upc: string;
+    };
+    url: '/api/v1/agencies/{agency_id}/unknown-barcodes';
+};
+
+export type PostApiV1AgenciesByAgencyIdUnknownBarcodesErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PostApiV1AgenciesByAgencyIdUnknownBarcodesError = PostApiV1AgenciesByAgencyIdUnknownBarcodesErrors[keyof PostApiV1AgenciesByAgencyIdUnknownBarcodesErrors];
+
+export type PostApiV1AgenciesByAgencyIdUnknownBarcodesResponses = {
+    /**
+     * Successful response
+     */
+    200: UnknownUpcResponse;
+};
+
+export type PostApiV1AgenciesByAgencyIdUnknownBarcodesResponse = PostApiV1AgenciesByAgencyIdUnknownBarcodesResponses[keyof PostApiV1AgenciesByAgencyIdUnknownBarcodesResponses];
+
 export type GetApiV1MeData = {
     body?: never;
     path?: never;
@@ -796,3 +992,42 @@ export type GetApiV1MeResponses = {
 };
 
 export type GetApiV1MeResponse = GetApiV1MeResponses[keyof GetApiV1MeResponses];
+
+export type DeleteApiV1SessionData = {
+    body?: never;
+    path?: never;
+    query?: never;
+    url: '/api/v1/session';
+};
+
+export type DeleteApiV1SessionResponses = {
+    /**
+     * Successful response
+     */
+    200: unknown;
+};
+
+export type PostApiV1SessionData = {
+    body?: SignInRequest;
+    path?: never;
+    query?: never;
+    url: '/api/v1/session';
+};
+
+export type PostApiV1SessionErrors = {
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PostApiV1SessionError = PostApiV1SessionErrors[keyof PostApiV1SessionErrors];
+
+export type PostApiV1SessionResponses = {
+    /**
+     * Successful response
+     */
+    201: SignedInAgencyResponse;
+};
+
+export type PostApiV1SessionResponse = PostApiV1SessionResponses[keyof PostApiV1SessionResponses];

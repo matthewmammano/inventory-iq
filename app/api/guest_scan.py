@@ -9,6 +9,7 @@ from app.api.blueprint import api_bp
 from app.api.schema import ExpirationOptionsQuery, ScanRequest, ScanRouteQuery, StorageOptionsQuery, UpcLookupQuery
 from app.auth.queries import list_top_locations
 from app.auth.response import LocationListResponse, LocationResponse
+from app.inventory.constants import UNKNOWN_UPC_INVALID_MESSAGE
 from app.inventory.errors import InventoryError
 from app.inventory.expiration_ui_service import build_expiration_entry_groups, scan_expiration_spec
 from app.inventory.item_queries import attach_item_tags, get_agency_item, get_item_by_upc
@@ -19,6 +20,7 @@ from app.inventory.response import (
     ScanContextResponse,
     ScanResultResponse,
     ScanStorageOptionsResponse,
+    UnknownUpcResponse,
 )
 from app.inventory.scan_hints import scan_hints
 from app.inventory.scan_submit_service import (
@@ -36,6 +38,7 @@ from app.inventory.scan_support import (
     validate_scan_route,
 )
 from app.inventory.search_payload import build_item_search_payload, load_item_search_payload
+from app.inventory.upc_service import record_unknown_upc
 from app.shared.database import get_session
 
 AGENCY_ROUTE = "/agencies/<int:agency_id>"
@@ -152,3 +155,22 @@ def list_scan_expirations(agency_id: int, item_id: int, query_data: ExpirationOp
         if not groups:
             raise HTTPError(HTTPStatus.NOT_FOUND, NO_EXPIRATION_ENTRY_MESSAGE)
         return ExpirationEntryResponse.of(groups[0])
+
+
+@api_bp.post(f"{AGENCY_ROUTE}/unknown-barcodes")
+@api_bp.input(UpcLookupQuery, location="query")
+@api_bp.output(UnknownUpcResponse)
+@api_bp.doc(summary="Record a scanned barcode no item carries")
+def record_guest_unknown_upc(agency_id: int, query_data: UpcLookupQuery) -> UnknownUpcResponse:
+    with get_session() as session:
+        try:
+            status = record_unknown_upc(session, agency_id, query_data.upc)
+        except ValueError as exc:
+            logger.info(
+                "Unknown guest UPC not recorded: the code was invalid",
+                extra={"agency_id": agency_id, "error": str(exc)},
+            )
+            return UnknownUpcResponse(message=UNKNOWN_UPC_INVALID_MESSAGE)
+        session.commit()
+        logger.info("Unknown guest UPC recorded", extra={"agency_id": agency_id, "status": status.value})
+        return UnknownUpcResponse(message=status.message)

@@ -6,8 +6,26 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from app.inventory.expiration_service import ExpirationAllocation
 from app.inventory.schema import ScanItemRequest
+from app.shared.validation_types import AdminPin, EmailAddress128
 
 LOCKED_INPUT = ConfigDict(extra="forbid", str_strip_whitespace=True)
+
+
+class SignInRequest(BaseModel):
+    """The account email and password someone is signing in with."""
+
+    model_config = LOCKED_INPUT
+
+    email: EmailAddress128
+    password: str = Field(min_length=1)
+
+
+class AdminPinRequest(BaseModel):
+    """The 4-digit PIN someone is unlocking admin with; a PIN of any other length can never be right."""
+
+    model_config = LOCKED_INPUT
+
+    pin: AdminPin
 
 
 class StorageOptionsQuery(BaseModel):

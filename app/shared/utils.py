@@ -1,11 +1,10 @@
 """Shared utilities for route parsing and validation."""
 
-from datetime import UTC, datetime
-
-from flask import flash, request, session, url_for
+from flask import flash, request, url_for
 from flask_login import current_user
 from loguru import logger
 
+from app.auth.admin_session import AdminSessionState, touch_admin_session
 from app.auth.queries import get_agency
 from app.shared.constants import ADMIN_TIMEOUT
 from app.shared.database import get_session
@@ -54,21 +53,13 @@ def validate_agency_access(agency_id: int | None) -> str | None:
 
 def validate_admin_session(agency_id: int, timeout_seconds: int = ADMIN_TIMEOUT) -> str | None:
     """Return redirect URL on failure, None on success."""
-    if not session.get("admin"):
-        session.pop("admin", None)
-        session.pop("admin_last_active", None)
+    state = touch_admin_session(timeout_seconds)
+    if state is AdminSessionState.ACTIVE:
+        return None
+    if state is AdminSessionState.MISSING:
         logger.info("Admin session rejected: missing", extra={"agency_id": agency_id})
         flash("Admin PIN required.", "warning")
-        return url_for("guest.index", agency_id=agency_id)
-
-    now = datetime.now(UTC).timestamp()
-    last_active = session.get("admin_last_active")
-    if not last_active or now - last_active > timeout_seconds:
-        session.pop("admin", None)
-        session.pop("admin_last_active", None)
+    else:
         logger.info("Admin session rejected: expired", extra={"agency_id": agency_id})
         flash("Admin session expired. Enter your PIN again.", "warning")
-        return url_for("guest.index", agency_id=agency_id)
-
-    session["admin_last_active"] = now
-    return None
+    return url_for("guest.index", agency_id=agency_id)

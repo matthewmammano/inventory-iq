@@ -1,6 +1,35 @@
 {
   "components": {
     "schemas": {
+      "AdminPinRequest": {
+        "additionalProperties": false,
+        "description": "The 4-digit PIN someone is unlocking admin with; a PIN of any other length can never be right.",
+        "properties": {
+          "pin": {
+            "title": "Pin",
+            "type": "string"
+          }
+        },
+        "required": [
+          "pin"
+        ],
+        "title": "AdminPinRequest",
+        "type": "object"
+      },
+      "AdminSessionResponse": {
+        "description": "Whether this browser currently holds the admin unlock.",
+        "properties": {
+          "unlocked": {
+            "title": "Unlocked",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "unlocked"
+        ],
+        "title": "AdminSessionResponse",
+        "type": "object"
+      },
       "DeviceLocationRequest": {
         "additionalProperties": false,
         "description": "The location a kiosk is being bound to, saved for a year against its device cookie.",
@@ -654,6 +683,27 @@
         "title": "StorageResponse",
         "type": "object"
       },
+      "SignInRequest": {
+        "additionalProperties": false,
+        "description": "The account email and password someone is signing in with.",
+        "properties": {
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "password": {
+            "minLength": 1,
+            "title": "Password",
+            "type": "string"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "title": "SignInRequest",
+        "type": "object"
+      },
       "SignedInAgencyResponse": {
         "description": "The agency whose session is making the request, as the app shell needs it.",
         "properties": {
@@ -676,6 +726,20 @@
           "logo_url"
         ],
         "title": "SignedInAgencyResponse",
+        "type": "object"
+      },
+      "UnknownUpcResponse": {
+        "description": "What to tell a guest who scanned a barcode no item carries.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          }
+        },
+        "required": [
+          "message"
+        ],
+        "title": "UnknownUpcResponse",
         "type": "object"
       },
       "ValidationError": {
@@ -710,6 +774,177 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/agencies/{agency_id}/admin-session": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Drop the admin unlock, the way leaving for a guest screen does",
+        "tags": [
+          "V1"
+        ]
+      },
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSessionResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Say whether this browser still holds the admin unlock",
+        "tags": [
+          "V1"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPinRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSessionResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Unlock the admin screens with the agency's 4-digit PIN",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin-session/temporary-pin": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Email a new temporary admin PIN to the account address",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
     "/api/v1/agencies/{agency_id}/device/location": {
       "get": {
         "parameters": [
@@ -1237,6 +1472,67 @@
         ]
       }
     },
+    "/api/v1/agencies/{agency_id}/unknown-barcodes": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "upc",
+            "required": true,
+            "schema": {
+              "maxLength": 64,
+              "minLength": 1,
+              "title": "Upc",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnknownUpcResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Record a scanned barcode no item carries",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
     "/api/v1/me": {
       "get": {
         "parameters": [],
@@ -1253,6 +1549,63 @@
           }
         },
         "summary": "Describe the signed-in agency",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/session": {
+      "delete": {
+        "parameters": [],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          }
+        },
+        "summary": "Sign out of the account and drop any admin unlock",
+        "tags": [
+          "V1"
+        ]
+      },
+      "post": {
+        "parameters": [],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignInRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignedInAgencyResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Sign in with an account email and password",
         "tags": [
           "V1"
         ]

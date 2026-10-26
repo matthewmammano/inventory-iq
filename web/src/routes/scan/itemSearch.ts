@@ -1,11 +1,9 @@
 import Fuse from "fuse.js";
 
 import type { ItemListResponseItemResponse as Item } from "../../api/types.gen";
-import { MAX_VISIBLE_RESULTS, SEARCH_KEYS, SEARCH_THRESHOLD, UPC_LENGTH } from "../../constants";
+import { MAX_VISIBLE_RESULTS, SEARCH_KEYS, SEARCH_THRESHOLD } from "../../constants";
 
 const lastAccessedFirst = (left: Item, right: Item) => right.last_accessed.localeCompare(left.last_accessed);
-
-export const looksLikeBarcode = (query: string) => query.length === UPC_LENGTH && /^\d+$/.test(query);
 
 export const findByBarcode = (items: Item[], upc: string) => items.find((item) => item.upcs.includes(upc));
 

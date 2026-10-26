@@ -189,6 +189,7 @@ export function ScanFlow() {
           step={step}
           onSubmit={submit}
           handlers={{ pickItem, pickLocation, pickRoute, pickQuantity }}
+          onNotice={setToast}
         />
       </Page>
       <Toast message={toast} onHide={() => setToast(null)} />
@@ -210,15 +211,16 @@ type BodyProps = {
   step: Step;
   handlers: Handlers;
   onSubmit: (quantity: number, allocations: ExpirationAllocation[]) => void;
+  onNotice: (message: ToastMessage) => void;
 };
 
-function Body({ agencyId, failed, draft, step, handlers, onSubmit }: BodyProps) {
+function Body({ agencyId, failed, draft, step, handlers, onSubmit, onNotice }: BodyProps) {
   if (failed) return <Note>{LOAD_FAILED_NOTE}</Note>;
   if (agencyId === undefined) return <Loading label={LOADING_ITEMS_LABEL} />;
 
   switch (step) {
     case "item":
-      return <PickItem agencyId={agencyId} onPick={handlers.pickItem} />;
+      return <PickItem agencyId={agencyId} onPick={handlers.pickItem} onNotice={onNotice} />;
     case "location":
       return <PickLocation agencyId={agencyId} onPicked={handlers.pickLocation} />;
     case "route":

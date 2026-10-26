@@ -25,6 +25,11 @@ def failed_auth_only(response: Response) -> bool:
     return response.status_code != HTTPStatus.FOUND
 
 
+def refused_json_auth_only(response: Response) -> bool:
+    """Charge an auth limit only on rejection, for JSON routes whose success answers 2xx."""
+    return response.status_code >= HTTPStatus.BAD_REQUEST
+
+
 limiter = Limiter(key_func=get_remote_address, default_limits=list(DEFAULT_LIMITS), storage_uri="memory://")
 
 

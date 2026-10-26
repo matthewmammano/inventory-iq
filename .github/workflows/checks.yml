@@ -18,6 +18,15 @@ jobs:
       - name: Install locked dependencies
         run: uv sync --locked
 
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 26
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install locked web dependencies
+        run: npm ci --prefix web
+
       - uses: actions/cache@v6
         with:
           path: ~/.cache/pre-commit
