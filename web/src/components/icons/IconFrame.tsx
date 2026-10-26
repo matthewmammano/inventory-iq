@@ -1,5 +1,7 @@
-/** lucide chevron-right, matching the inlined set this app already uses. */
-export function ChevronRight() {
+import type { ReactNode } from "react";
+
+/** The one svg shell every inlined lucide icon in this app draws into. */
+export function IconFrame({ children }: { children: ReactNode }) {
   return (
     <svg
       viewBox="0 0 24 24"
@@ -13,7 +15,7 @@ export function ChevronRight() {
       aria-hidden="true"
       focusable="false"
     >
-      <path d="m9 18 6-6-6-6" />
+      {children}
     </svg>
   );
 }

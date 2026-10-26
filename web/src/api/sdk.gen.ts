@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { GetApiV1AgenciesByAgencyIdItemsData, GetApiV1AgenciesByAgencyIdItemsErrors, GetApiV1AgenciesByAgencyIdItemsLookupData, GetApiV1AgenciesByAgencyIdItemsLookupErrors, GetApiV1AgenciesByAgencyIdItemsLookupResponses, GetApiV1AgenciesByAgencyIdItemsResponses, GetApiV1AgenciesByAgencyIdLocationsData, GetApiV1AgenciesByAgencyIdLocationsErrors, GetApiV1AgenciesByAgencyIdLocationsResponses, GetApiV1AgenciesByAgencyIdStoragesData, GetApiV1AgenciesByAgencyIdStoragesErrors, GetApiV1AgenciesByAgencyIdStoragesResponses, GetApiV1MeData, GetApiV1MeResponses, PostApiV1AgenciesByAgencyIdScansData, PostApiV1AgenciesByAgencyIdScansErrors, PostApiV1AgenciesByAgencyIdScansResponses } from './types.gen';
+import type { GetApiV1AgenciesByAgencyIdDeviceLocationData, GetApiV1AgenciesByAgencyIdDeviceLocationErrors, GetApiV1AgenciesByAgencyIdDeviceLocationResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsData, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsErrors, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextErrors, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponses, GetApiV1AgenciesByAgencyIdItemsData, GetApiV1AgenciesByAgencyIdItemsErrors, GetApiV1AgenciesByAgencyIdItemsLookupData, GetApiV1AgenciesByAgencyIdItemsLookupErrors, GetApiV1AgenciesByAgencyIdItemsLookupResponses, GetApiV1AgenciesByAgencyIdItemsResponses, GetApiV1AgenciesByAgencyIdLocationsData, GetApiV1AgenciesByAgencyIdLocationsErrors, GetApiV1AgenciesByAgencyIdLocationsResponses, GetApiV1AgenciesByAgencyIdStoragesData, GetApiV1AgenciesByAgencyIdStoragesErrors, GetApiV1AgenciesByAgencyIdStoragesResponses, GetApiV1MeData, GetApiV1MeResponses, PostApiV1AgenciesByAgencyIdScansData, PostApiV1AgenciesByAgencyIdScansErrors, PostApiV1AgenciesByAgencyIdScansResponses, PutApiV1AgenciesByAgencyIdDeviceLocationData, PutApiV1AgenciesByAgencyIdDeviceLocationErrors, PutApiV1AgenciesByAgencyIdDeviceLocationResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -19,6 +19,23 @@ export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends 
 };
 
 /**
+ * Read the location this device is bound to
+ */
+export const getApiV1AgenciesByAgencyIdDeviceLocation = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdDeviceLocationData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdDeviceLocationResponses, GetApiV1AgenciesByAgencyIdDeviceLocationErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdDeviceLocationResponses, GetApiV1AgenciesByAgencyIdDeviceLocationErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/device/location', ...options });
+
+/**
+ * Bind this device to one location for a year
+ */
+export const putApiV1AgenciesByAgencyIdDeviceLocation = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AgenciesByAgencyIdDeviceLocationData, ThrowOnError>): RequestResult<PutApiV1AgenciesByAgencyIdDeviceLocationResponses, PutApiV1AgenciesByAgencyIdDeviceLocationErrors, ThrowOnError> => (options.client ?? client).put<PutApiV1AgenciesByAgencyIdDeviceLocationResponses, PutApiV1AgenciesByAgencyIdDeviceLocationErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/device/location',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
  * List the agency's items, most recently scanned first
  */
 export const getApiV1AgenciesByAgencyIdItems = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdItemsData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdItemsResponses, GetApiV1AgenciesByAgencyIdItemsErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdItemsResponses, GetApiV1AgenciesByAgencyIdItemsErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/items', ...options });
@@ -27,6 +44,16 @@ export const getApiV1AgenciesByAgencyIdItems = <ThrowOnError extends boolean = f
  * Find one item by a scanned barcode
  */
 export const getApiV1AgenciesByAgencyIdItemsLookup = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdItemsLookupData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdItemsLookupResponses, GetApiV1AgenciesByAgencyIdItemsLookupErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdItemsLookupResponses, GetApiV1AgenciesByAgencyIdItemsLookupErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/items/lookup', ...options });
+
+/**
+ * List the expiration dates one scan's quantity may be split across
+ */
+export const getApiV1AgenciesByAgencyIdItemsByItemIdExpirations = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/items/{item_id}/expirations', ...options });
+
+/**
+ * Describe the item and route the quantity screen is about to save
+ */
+export const getApiV1AgenciesByAgencyIdItemsByItemIdScanContext = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/items/{item_id}/scan-context', ...options });
 
 /**
  * List the agency's locations

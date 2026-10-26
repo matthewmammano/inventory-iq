@@ -1,0 +1,45 @@
+@layer iq-components {
+  .iq-button {
+    display: grid;
+    place-items: center;
+    min-height: var(--iq-action-height);
+    padding-inline: var(--iq-action-padding-inline);
+    border: var(--iq-step-border-width) solid;
+    border-radius: var(--fui-radius-control);
+    font-family: var(--iq-font-heading);
+    font-size: var(--iq-action-font);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .iq-button-primary {
+    border-color: var(--iq-accent-edge);
+    background: var(--iq-accent-deep);
+    color: var(--iq-panel);
+  }
+
+  .iq-button-primary:hover:not(:disabled) {
+    background: var(--iq-accent-edge);
+  }
+
+  .iq-button-quiet {
+    border-color: var(--iq-line-strong);
+    background: var(--iq-panel);
+    color: var(--iq-ink-soft);
+  }
+
+  .iq-button-quiet:hover:not(:disabled) {
+    background: var(--iq-hover);
+  }
+
+  .iq-button:active:not(:disabled) {
+    transform: translateY(2px);
+  }
+
+  .iq-button:disabled {
+    border-color: var(--iq-line-strong);
+    background: var(--iq-line);
+    color: var(--iq-muted);
+    cursor: not-allowed;
+  }
+}

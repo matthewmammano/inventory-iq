@@ -21,10 +21,19 @@ Inventory IQ-specific conventions only. Architecture, data, deploy, and observab
 - Set a button's color with those classes only. No per-page or inline button colors.
 - Keep the header to three buttons at most, and exactly one dark button.
 
+## Back And Home
+
+- Back goes one step; Home leaves the task entirely. A screen may carry both.
+- Guest scan flow: Back only. The flow is four steps, and there is nowhere else to go.
+- Guest scan screen: the admin key only.
+- Admin one level deep: Back and Home. Deeper or any report: Back, Home, and Print where it applies.
+- Each is a `HeaderButton` tone, so the color alone says which control it is.
+
 ## Icons
 
-- Preferred icon source for this project: [Icons8 Material Outlined](https://icons8.com/icons/all--style-material-outlined).
+- v2 inlines lucide outline icons (`web/src/components/icons/`), drawn through the shared `IconFrame`. v1 uses [Icons8 Material Outlined](https://icons8.com/icons/all--style-material-outlined).
 - Use icons sparingly and only when they clarify dense UI, support compact actions, or match existing project patterns.
+- In a choice list every card carries an icon so the labels share one left edge: a place gets a plain circle, an action its own mark plus a darker, thicker card border.
 
 ## Flash Messages
 

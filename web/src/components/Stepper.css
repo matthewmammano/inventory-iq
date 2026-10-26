@@ -1,0 +1,72 @@
+@layer iq-components {
+  .iq-stepper {
+    display: grid;
+    grid-template-columns: 1fr 1.15fr 1fr;
+    gap: var(--iq-controls-gap);
+  }
+
+  .iq-step-stack {
+    display: grid;
+    gap: var(--iq-step-stack-gap);
+  }
+
+  .iq-step {
+    display: grid;
+    place-items: center;
+    min-height: var(--iq-step-size);
+    border: var(--iq-step-border-width) solid var(--iq-line-strong);
+    border-radius: var(--fui-radius-surface);
+    background: var(--iq-row);
+    font-family: var(--iq-font-heading);
+    font-size: var(--iq-step-font);
+    font-weight: 500;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    transition: background-color 0.15s ease, transform 0.12s ease;
+  }
+
+  /* Several buttons share the slot one fills alone, so each takes about a third of it. */
+  .iq-step-stack:has(> :nth-child(2)) .iq-step {
+    min-height: var(--iq-step-stack-size);
+    font-size: var(--iq-step-stack-font);
+    font-weight: 700;
+  }
+
+  .iq-step-minus {
+    color: var(--iq-minus);
+  }
+
+  .iq-step-plus {
+    color: var(--iq-plus);
+  }
+
+  button.iq-step {
+    cursor: pointer;
+  }
+
+  button.iq-step:hover:not(:disabled) {
+    background: var(--iq-hover);
+  }
+
+  button.iq-step:active:not(:disabled) {
+    transform: translateY(2px);
+  }
+
+  .iq-step:disabled {
+    background: var(--iq-line);
+    color: var(--iq-muted);
+    cursor: not-allowed;
+  }
+
+  .iq-step-count {
+    border-color: var(--iq-accent-deep);
+    background: var(--iq-accent-wash);
+    color: var(--iq-ink);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .iq-step {
+      transition: none;
+    }
+  }
+}

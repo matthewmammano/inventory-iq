@@ -1,0 +1,26 @@
+@layer iq-components {
+  .iq-item-photo {
+    display: block;
+    height: var(--iq-photo-size);
+    aspect-ratio: 1;
+    overflow: hidden;
+    border: var(--iq-photo-border-width) solid var(--iq-line-strong);
+    border-radius: var(--fui-radius-surface);
+    background: var(--iq-panel);
+  }
+
+  .iq-item-photo img {
+    display: block;
+    height: 100%;
+    width: 100%;
+    object-fit: cover;
+  }
+
+  /* A tight screen keeps the picture, shrunk to sit inline beside the name. */
+  @media (max-width: 560px), (orientation: landscape) and (max-height: 560px) {
+    .iq-item-photo {
+      height: var(--iq-photo-inline-size);
+      border-width: var(--iq-photo-inline-border-width);
+    }
+  }
+}

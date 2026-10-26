@@ -2,8 +2,19 @@
   .iq-scan-field {
     --fui-control-height-lg: var(--iq-field-height);
     --fui-field-border: var(--iq-ink-soft);
+    --fui-stroke-hairline: var(--iq-field-border-width);
     --fui-focus-ring-offset: 0px;
     --fui-focus-ring-width: 2px;
+  }
+
+  .iq-scan-field input {
+    font-family: var(--iq-font-heading);
+    font-size: var(--iq-row-name-size);
+  }
+
+  .iq-scan-field svg {
+    height: var(--iq-field-icon-size);
+    width: var(--iq-field-icon-size);
   }
 
   .iq-scan-field button[aria-label="Clear"] {

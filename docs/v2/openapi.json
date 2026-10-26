@@ -1,6 +1,130 @@
 {
   "components": {
     "schemas": {
+      "DeviceLocationRequest": {
+        "additionalProperties": false,
+        "description": "The location a kiosk is being bound to, saved for a year against its device cookie.",
+        "properties": {
+          "location_id": {
+            "exclusiveMinimum": 0,
+            "title": "Location Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "location_id"
+        ],
+        "title": "DeviceLocationRequest",
+        "type": "object"
+      },
+      "DeviceLocationResponse": {
+        "description": "The location this kiosk is bound to; null until someone picks one.",
+        "properties": {
+          "location_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Id"
+          }
+        },
+        "required": [
+          "location_id"
+        ],
+        "title": "DeviceLocationResponse",
+        "type": "object"
+      },
+      "ExpirationEntryResponse": {
+        "description": "The dating step for one scan: how many units need a date, and which dates are on offer.",
+        "properties": {
+          "allows_new_dates": {
+            "title": "Allows New Dates",
+            "type": "boolean"
+          },
+          "allows_other": {
+            "title": "Allows Other",
+            "type": "boolean"
+          },
+          "item_name": {
+            "title": "Item Name",
+            "type": "string"
+          },
+          "max_new_rows": {
+            "title": "Max New Rows",
+            "type": "integer"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/ExpirationEntryResponse.ExpirationOptionResponse"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "requires_exact_total": {
+            "title": "Requires Exact Total",
+            "type": "boolean"
+          },
+          "storage_name": {
+            "title": "Storage Name",
+            "type": "string"
+          },
+          "subtitle": {
+            "title": "Subtitle",
+            "type": "string"
+          },
+          "target_quantity": {
+            "title": "Target Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item_name",
+          "storage_name",
+          "subtitle",
+          "target_quantity",
+          "requires_exact_total",
+          "allows_new_dates",
+          "allows_other",
+          "max_new_rows",
+          "options"
+        ],
+        "title": "ExpirationEntryResponse",
+        "type": "object"
+      },
+      "ExpirationEntryResponse.ExpirationOptionResponse": {
+        "description": "One date already tracked in the storage this scan touches.",
+        "properties": {
+          "default_quantity": {
+            "title": "Default Quantity",
+            "type": "integer"
+          },
+          "expires_on": {
+            "format": "date",
+            "title": "Expires On",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "suggested": {
+            "title": "Suggested",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expires_on",
+          "quantity",
+          "suggested",
+          "default_quantity"
+        ],
+        "title": "ExpirationOptionResponse",
+        "type": "object"
+      },
       "HTTPError": {
         "properties": {
           "detail": {
@@ -184,6 +308,99 @@
         ],
         "title": "LocationResponse",
         "type": "object"
+      },
+      "ScanContextResponse": {
+        "description": "Everything the quantity screen shows: the item, the route it is on, and its two hints.",
+        "properties": {
+          "expiration_tracking": {
+            "title": "Expiration Tracking",
+            "type": "boolean"
+          },
+          "from_label": {
+            "title": "From Label",
+            "type": "string"
+          },
+          "image_url": {
+            "title": "Image Url",
+            "type": "string"
+          },
+          "increments": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Increments"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "integer"
+          },
+          "item_name": {
+            "title": "Item Name",
+            "type": "string"
+          },
+          "minimum_quantity": {
+            "title": "Minimum Quantity",
+            "type": "integer"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/ScanContextResponse.OperationType"
+          },
+          "quick_adjust": {
+            "title": "Quick Adjust",
+            "type": "boolean"
+          },
+          "stale_count": {
+            "title": "Stale Count",
+            "type": "boolean"
+          },
+          "suggested_restock": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Restock"
+          },
+          "to_label": {
+            "title": "To Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "item_id",
+          "item_name",
+          "image_url",
+          "increments",
+          "quick_adjust",
+          "expiration_tracking",
+          "operation",
+          "minimum_quantity",
+          "from_label",
+          "to_label",
+          "stale_count",
+          "suggested_restock"
+        ],
+        "title": "ScanContextResponse",
+        "type": "object"
+      },
+      "ScanContextResponse.OperationType": {
+        "description": "Inventory operation types.",
+        "enum": [
+          "COUNT",
+          "RESTOCK",
+          "TAKEOUT",
+          "TRANSFER"
+        ],
+        "title": "OperationType",
+        "type": "string"
       },
       "ScanRequest": {
         "additionalProperties": false,
@@ -493,6 +710,103 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/agencies/{agency_id}/device/location": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceLocationResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Read the location this device is bound to",
+        "tags": [
+          "V1"
+        ]
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeviceLocationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviceLocationResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Bind this device to one location for a year",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
     "/api/v1/agencies/{agency_id}/items": {
       "get": {
         "parameters": [
@@ -589,6 +903,168 @@
           }
         },
         "summary": "Find one item by a scanned barcode",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/items/{item_id}/expirations": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_storage_id",
+            "required": true,
+            "schema": {
+              "title": "From Storage Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_storage_id",
+            "required": true,
+            "schema": {
+              "title": "To Storage Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "quantity",
+            "required": true,
+            "schema": {
+              "exclusiveMinimum": 0,
+              "title": "Quantity",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpirationEntryResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "List the expiration dates one scan's quantity may be split across",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/items/{item_id}/scan-context": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "from_storage_id",
+            "required": true,
+            "schema": {
+              "title": "From Storage Id",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "to_storage_id",
+            "required": true,
+            "schema": {
+              "title": "To Storage Id",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ScanContextResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Describe the item and route the quantity screen is about to save",
         "tags": [
           "V1"
         ]

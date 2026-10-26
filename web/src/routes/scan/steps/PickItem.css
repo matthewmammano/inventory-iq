@@ -1,0 +1,6 @@
+@layer iq-components {
+  .iq-search {
+    max-width: var(--iq-search-measure);
+    margin-inline: auto;
+  }
+}

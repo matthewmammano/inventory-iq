@@ -1,0 +1,70 @@
+@layer iq-components {
+  .iq-quantity-item {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: center;
+    gap: var(--iq-row-gap);
+  }
+
+  .iq-quantity-facts {
+    display: flex;
+    flex-direction: column;
+    gap: var(--iq-heading-gap);
+    min-width: 0;
+  }
+
+  .iq-quantity-unit {
+    margin: 0;
+    color: var(--iq-muted);
+    font-size: var(--iq-page-subtitle-size);
+    font-weight: 500;
+  }
+
+  .iq-quantity-name {
+    margin: 0;
+    min-width: 0;
+    font-size: var(--iq-item-name-size);
+    font-weight: 700;
+    line-height: 1;
+  }
+
+  .iq-quantity-hint {
+    margin: 0;
+    color: var(--iq-accent-deep);
+    font-size: var(--iq-page-subtitle-size);
+    font-weight: 700;
+  }
+
+  .iq-quantity-actions {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--iq-controls-gap);
+  }
+
+  @media (max-width: 560px) {
+    .iq-quantity-unit {
+      display: none;
+    }
+
+    .iq-quantity {
+      --iq-item-name-size: clamp(1.35rem, 7vw, 2rem);
+    }
+  }
+
+  /* A short landscape screen gives the number the whole panel: no picture, no unit, smaller keys. */
+  @media (orientation: landscape) and (max-height: 560px) {
+    .iq-quantity-unit {
+      display: none;
+    }
+
+    .iq-quantity {
+      --iq-step-size: clamp(72px, 22svh, 100px);
+      --iq-step-font: clamp(2.8rem, 8vw, 4.6rem);
+      --iq-step-stack-size: clamp(22px, 6svh, 32px);
+      --iq-step-stack-font: clamp(0.9rem, 3.5vw, 1.3rem);
+      --iq-action-height: clamp(44px, 10svh, 54px);
+      --iq-action-font: clamp(1rem, 3vw, 1.35rem);
+      --iq-item-name-size: clamp(1.15rem, 3.4vw, 1.7rem);
+    }
+  }
+}

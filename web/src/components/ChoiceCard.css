@@ -1,0 +1,74 @@
+@layer iq-components {
+  .iq-choice {
+    display: flex;
+    align-items: center;
+    gap: var(--iq-row-gap);
+    width: 100%;
+    min-height: var(--iq-choice-height);
+    padding: var(--iq-row-padding);
+    border: var(--iq-choice-border-width) solid var(--iq-choice-edge);
+    border-radius: var(--fui-radius-surface);
+    background: var(--fui-bg-primary);
+    color: inherit;
+    font: inherit;
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .iq-choice:hover {
+    background: var(--fui-bg-hover);
+  }
+
+  .iq-choice[aria-pressed="true"] {
+    border-color: var(--iq-accent-deep);
+    border-width: var(--iq-choice-selected-width);
+    background: var(--iq-active);
+  }
+
+  .iq-choice-text {
+    display: flex;
+    flex-direction: column;
+    gap: var(--iq-heading-gap);
+    min-width: 0;
+  }
+
+  .iq-choice-icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    width: var(--iq-choice-icon-size);
+    color: var(--iq-ink-soft);
+  }
+
+  .iq-choice-icon svg {
+    width: 100%;
+    height: auto;
+  }
+
+  /* An action is the heavier card; a place is the quiet default. */
+  .iq-choice-action {
+    --iq-choice-border-width: var(--iq-choice-action-border-width);
+    --iq-choice-edge: var(--iq-line-strong);
+  }
+
+  .iq-choice-label {
+    font-size: var(--iq-choice-label-size);
+    font-weight: 700;
+    line-height: 1.1;
+  }
+
+  .iq-choice-hint {
+    font-size: var(--iq-choice-hint-size);
+    color: var(--iq-muted);
+  }
+
+  .iq-choice-list {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--iq-results-gap);
+  }
+
+  @media (max-width: 560px) {
+    .iq-choice-list { grid-template-columns: minmax(0, 1fr); }
+  }
+}

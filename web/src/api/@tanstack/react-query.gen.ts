@@ -3,8 +3,8 @@
 import { type DefaultError, queryOptions, type UseMutationOptions } from '@tanstack/react-query';
 
 import { client } from '../client.gen';
-import { getApiV1AgenciesByAgencyIdItems, getApiV1AgenciesByAgencyIdItemsLookup, getApiV1AgenciesByAgencyIdLocations, getApiV1AgenciesByAgencyIdStorages, getApiV1Me, type Options, postApiV1AgenciesByAgencyIdScans } from '../sdk.gen';
-import type { GetApiV1AgenciesByAgencyIdItemsData, GetApiV1AgenciesByAgencyIdItemsError, GetApiV1AgenciesByAgencyIdItemsLookupData, GetApiV1AgenciesByAgencyIdItemsLookupError, GetApiV1AgenciesByAgencyIdItemsLookupResponse, GetApiV1AgenciesByAgencyIdItemsResponse, GetApiV1AgenciesByAgencyIdLocationsData, GetApiV1AgenciesByAgencyIdLocationsError, GetApiV1AgenciesByAgencyIdLocationsResponse, GetApiV1AgenciesByAgencyIdStoragesData, GetApiV1AgenciesByAgencyIdStoragesError, GetApiV1AgenciesByAgencyIdStoragesResponse, GetApiV1MeData, GetApiV1MeResponse, PostApiV1AgenciesByAgencyIdScansData, PostApiV1AgenciesByAgencyIdScansError, PostApiV1AgenciesByAgencyIdScansResponse } from '../types.gen';
+import { getApiV1AgenciesByAgencyIdDeviceLocation, getApiV1AgenciesByAgencyIdItems, getApiV1AgenciesByAgencyIdItemsByItemIdExpirations, getApiV1AgenciesByAgencyIdItemsByItemIdScanContext, getApiV1AgenciesByAgencyIdItemsLookup, getApiV1AgenciesByAgencyIdLocations, getApiV1AgenciesByAgencyIdStorages, getApiV1Me, type Options, postApiV1AgenciesByAgencyIdScans, putApiV1AgenciesByAgencyIdDeviceLocation } from '../sdk.gen';
+import type { GetApiV1AgenciesByAgencyIdDeviceLocationData, GetApiV1AgenciesByAgencyIdDeviceLocationError, GetApiV1AgenciesByAgencyIdDeviceLocationResponse, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsData, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsError, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponse, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextError, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponse, GetApiV1AgenciesByAgencyIdItemsData, GetApiV1AgenciesByAgencyIdItemsError, GetApiV1AgenciesByAgencyIdItemsLookupData, GetApiV1AgenciesByAgencyIdItemsLookupError, GetApiV1AgenciesByAgencyIdItemsLookupResponse, GetApiV1AgenciesByAgencyIdItemsResponse, GetApiV1AgenciesByAgencyIdLocationsData, GetApiV1AgenciesByAgencyIdLocationsError, GetApiV1AgenciesByAgencyIdLocationsResponse, GetApiV1AgenciesByAgencyIdStoragesData, GetApiV1AgenciesByAgencyIdStoragesError, GetApiV1AgenciesByAgencyIdStoragesResponse, GetApiV1MeData, GetApiV1MeResponse, PostApiV1AgenciesByAgencyIdScansData, PostApiV1AgenciesByAgencyIdScansError, PostApiV1AgenciesByAgencyIdScansResponse, PutApiV1AgenciesByAgencyIdDeviceLocationData, PutApiV1AgenciesByAgencyIdDeviceLocationError, PutApiV1AgenciesByAgencyIdDeviceLocationResponse } from '../types.gen';
 
 export type QueryKey<TOptions extends Options> = [
     Pick<TOptions, 'baseUrl' | 'body' | 'headers' | 'path' | 'query'> & {
@@ -37,6 +37,41 @@ const createQueryKey = <TOptions extends Options>(id: string, options?: TOptions
         params.query = options.query;
     }
     return [params];
+};
+
+export const getApiV1AgenciesByAgencyIdDeviceLocationQueryKey = (options: Options<GetApiV1AgenciesByAgencyIdDeviceLocationData>) => createQueryKey('getApiV1AgenciesByAgencyIdDeviceLocation', options);
+
+/**
+ * Read the location this device is bound to
+ */
+export const getApiV1AgenciesByAgencyIdDeviceLocationOptions = (options: Options<GetApiV1AgenciesByAgencyIdDeviceLocationData>) => queryOptions<GetApiV1AgenciesByAgencyIdDeviceLocationResponse, GetApiV1AgenciesByAgencyIdDeviceLocationError, GetApiV1AgenciesByAgencyIdDeviceLocationResponse, ReturnType<typeof getApiV1AgenciesByAgencyIdDeviceLocationQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getApiV1AgenciesByAgencyIdDeviceLocation({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getApiV1AgenciesByAgencyIdDeviceLocationQueryKey(options)
+});
+
+/**
+ * Bind this device to one location for a year
+ */
+export const putApiV1AgenciesByAgencyIdDeviceLocationMutation = (options?: Partial<Options<PutApiV1AgenciesByAgencyIdDeviceLocationData>>): UseMutationOptions<PutApiV1AgenciesByAgencyIdDeviceLocationResponse, PutApiV1AgenciesByAgencyIdDeviceLocationError, Options<PutApiV1AgenciesByAgencyIdDeviceLocationData>> => {
+    const mutationOptions: UseMutationOptions<PutApiV1AgenciesByAgencyIdDeviceLocationResponse, PutApiV1AgenciesByAgencyIdDeviceLocationError, Options<PutApiV1AgenciesByAgencyIdDeviceLocationData>> = {
+        mutationFn: async (fnOptions) => {
+            const { data } = await putApiV1AgenciesByAgencyIdDeviceLocation({
+                ...options,
+                ...fnOptions,
+                throwOnError: true
+            });
+            return data;
+        }
+    };
+    return mutationOptions;
 };
 
 export const getApiV1AgenciesByAgencyIdItemsQueryKey = (options: Options<GetApiV1AgenciesByAgencyIdItemsData>) => createQueryKey('getApiV1AgenciesByAgencyIdItems', options);
@@ -73,6 +108,42 @@ export const getApiV1AgenciesByAgencyIdItemsLookupOptions = (options: Options<Ge
         return data;
     },
     queryKey: getApiV1AgenciesByAgencyIdItemsLookupQueryKey(options)
+});
+
+export const getApiV1AgenciesByAgencyIdItemsByItemIdExpirationsQueryKey = (options: Options<GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsData>) => createQueryKey('getApiV1AgenciesByAgencyIdItemsByItemIdExpirations', options);
+
+/**
+ * List the expiration dates one scan's quantity may be split across
+ */
+export const getApiV1AgenciesByAgencyIdItemsByItemIdExpirationsOptions = (options: Options<GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsData>) => queryOptions<GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponse, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsError, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponse, ReturnType<typeof getApiV1AgenciesByAgencyIdItemsByItemIdExpirationsQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getApiV1AgenciesByAgencyIdItemsByItemIdExpirations({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getApiV1AgenciesByAgencyIdItemsByItemIdExpirationsQueryKey(options)
+});
+
+export const getApiV1AgenciesByAgencyIdItemsByItemIdScanContextQueryKey = (options: Options<GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData>) => createQueryKey('getApiV1AgenciesByAgencyIdItemsByItemIdScanContext', options);
+
+/**
+ * Describe the item and route the quantity screen is about to save
+ */
+export const getApiV1AgenciesByAgencyIdItemsByItemIdScanContextOptions = (options: Options<GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData>) => queryOptions<GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponse, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextError, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponse, ReturnType<typeof getApiV1AgenciesByAgencyIdItemsByItemIdScanContextQueryKey>>({
+    queryFn: async ({ queryKey, signal }) => {
+        const { data } = await getApiV1AgenciesByAgencyIdItemsByItemIdScanContext({
+            ...options,
+            ...queryKey[0],
+            signal,
+            throwOnError: true
+        });
+        return data;
+    },
+    queryKey: getApiV1AgenciesByAgencyIdItemsByItemIdScanContextQueryKey(options)
 });
 
 export const getApiV1AgenciesByAgencyIdLocationsQueryKey = (options: Options<GetApiV1AgenciesByAgencyIdLocationsData>) => createQueryKey('getApiV1AgenciesByAgencyIdLocations', options);

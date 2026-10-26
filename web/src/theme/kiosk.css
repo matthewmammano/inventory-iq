@@ -3,19 +3,33 @@
   --iq-touch-min: 46px;
   --iq-page-gutter: clamp(10px, 2vw, 28px);
   --iq-main-width: 1560px;
+
+  /* Sizes grow on both axes, so a portrait tablet is not sized like a phone. */
+  --iq-scale-text: calc(0.6vw + 0.8vh);
+  --iq-scale-ui: calc(1.1vw + 1.4vh);
 }
 
-h1,
-h2,
-h3 {
-  font-family: var(--iq-font-heading);
-}
+/* Components sit above the element defaults, so a screen can ask for a taller control than the floor. */
+@layer iq-base, iq-components;
 
-button,
-a[role="button"],
-input,
-select {
-  min-height: var(--iq-touch-min);
+@layer iq-base {
+  h1,
+  h2,
+  h3 {
+    font-family: var(--iq-font-heading);
+  }
+
+  button,
+  a[role="button"],
+  input,
+  select {
+    min-height: var(--iq-touch-min);
+  }
+
+  ::placeholder {
+    color: var(--iq-placeholder);
+    opacity: 1;
+  }
 }
 
 :root {
@@ -25,18 +39,68 @@ select {
   --iq-row-gap: clamp(8px, 1.5vw, 20px);
   --iq-row-padding: clamp(10px, 1.6vh, 16px) clamp(12px, 1.6vw, 20px);
   --iq-tag-gap: 6px;
-  --iq-tag-padding: 2px 8px;
+  --iq-tag-padding: 3px 9px;
+  --iq-tag-min-height: 26px;
+  --iq-tag-radius: 999px;
   --iq-tag-font-size: 0.8em;
   --iq-tag-column-max: 40%;
-  --iq-chevron-size: clamp(18px, 1.8vw, 24px);
   --iq-header-padding-block: clamp(8px, 1.2vh, 14px);
-  --iq-field-height: clamp(50px, 5.6vh, 62px);
+  --iq-field-height: clamp(54px, calc(1vw + 4.5vh), 68px);
   --iq-heading-gap: 2px;
-  --iq-page-title-size: clamp(19px, 1.7vw, 26px);
-  --iq-page-subtitle-size: clamp(13px, 1.05vw, 16px);
-  --iq-row-name-size: clamp(16px, 1.3vw, 21px);
+  --iq-page-title-size: clamp(23px, calc(1.2vw + 1.5vh), 33px);
+  --iq-page-subtitle-size: clamp(14px, var(--iq-scale-text), 19px);
+  --iq-row-name-size: clamp(17px, calc(0.8vw + 1vh), 24px);
   --iq-measure: clamp(600px, 74vw, 1080px);
+  --iq-measure-wide: clamp(320px, 96vw, 1720px);
+  --iq-header-button-height: clamp(46px, calc(1vw + 4vh), 58px);
+  --iq-header-button-padding-inline: clamp(12px, 1.6vw, 20px);
+  --iq-header-button-border-width: 2px;
   --iq-page-top-gap: clamp(16px, 3vh, 34px);
+  --iq-choice-height: clamp(86px, calc(2vw + 8vh), 130px);
+  --iq-choice-min-width: 260px;
+  --iq-group-divider-width: 3px;
+  --iq-group-divider-gap: clamp(10px, 2vw, 24px);
+  --iq-step-number-size: clamp(24px, calc(0.5vw + 2.2vh), 34px);
+  --iq-step-number-font: clamp(0.85rem, calc(0.3vw + 0.9vh), 1.1rem);
+  --iq-choice-label-size: clamp(21px, var(--iq-scale-ui), 34px);
+  --iq-choice-hint-size: clamp(15px, var(--iq-scale-text), 21px);
+  --iq-choice-icon-size: clamp(28px, calc(1.3vw + 1.7vh), 44px);
+  --iq-choice-border-width: var(--fui-stroke-hairline, 1px);
+  --iq-choice-edge: var(--fui-border);
+  --iq-choice-action-border-width: 3px;
+  --iq-choice-selected-width: 4px;
+  --iq-action-padding-inline: clamp(16px, 2vw, 28px);
+  --iq-photo-size: clamp(96px, 22svh, 220px);
+  --iq-photo-border-width: 3px;
+  --iq-photo-inline-size: calc(var(--iq-item-name-size) * 2.7);
+  --iq-photo-inline-border-width: 2px;
+  --iq-search-measure: clamp(320px, 68vw, 900px);
+  --iq-panel-padding: clamp(12px, 1.8vh, 18px);
+  --iq-panel-gap: clamp(10px, 1.6vh, 14px);
+  --iq-field-icon-size: clamp(18px, calc(0.6vw + 1.1vh), 26px);
+  --iq-field-border-width: 3px;
+  --iq-header-rule-width: clamp(3px, calc(0.1vw + 0.5vh), 5px);
+  --iq-note-border-width: 2px;
+  --iq-note-padding: clamp(18px, 5vw, 30px) clamp(12px, 2vw, 16px);
+  --iq-toast-min-height: clamp(76px, 12vh, 96px);
+  --iq-toast-radius: 3rem;
+  --iq-toast-outline-width: 5px;
+  --iq-toast-icon-size: clamp(42px, 6vh, 64px);
+  --iq-toast-timer-size: 2.5rem;
+  --iq-toast-text-size: clamp(17px, 2.4vw, 22px);
+  --iq-step-size: clamp(86px, 24svh, 230px);
+  --iq-step-font: clamp(3rem, 12vw, 7.5rem);
+  --iq-step-stack-size: clamp(64px, calc(2.2vw + 6svh), 110px);
+  --iq-step-stack-font: clamp(1.4rem, calc(1.1vw + 2.6svh), 2.6rem);
+  --iq-step-stack-gap: clamp(4px, 1vh, 8px);
+  --iq-step-border-width: 3px;
+  --iq-dates-step-width: clamp(80px, calc(4vw + 3vh), 150px);
+  --iq-dates-step-height: clamp(56px, calc(1vw + 5vh), 84px);
+  --iq-dates-step-font: clamp(1.5rem, calc(0.6vw + 2.2vh), 2.4rem);
+  --iq-controls-gap: clamp(8px, 2vw, 12px);
+  --iq-action-height: clamp(64px, calc(2.4vw + 10svh), 110px);
+  --iq-action-font: clamp(22px, calc(1.2vw + 1.6vh), 32px);
+  --iq-item-name-size: clamp(1.45rem, 5vw, 3.2rem);
 }
 
 @layer iq-components {

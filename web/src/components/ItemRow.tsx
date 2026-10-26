@@ -1,7 +1,4 @@
-import { Text } from "@usefragments/ui";
-
 import type { ItemListResponseItemResponse as Item } from "../api/types.gen";
-import { ChevronRight } from "./icons/ChevronRight";
 
 import "./ItemRow.css";
 
@@ -10,14 +7,12 @@ type ItemRowProps = {
   onPick: (item: Item) => void;
 };
 
-/** One search result: the name, and the tags in the colors the agency chose. No on-hand count. */
+/** One search result: the name on the left, the tags in the agency's own colors on the right. */
 export function ItemRow({ item, onPick }: ItemRowProps) {
   return (
     <li>
       <button type="button" className="iq-item-row" onClick={() => onPick(item)}>
-        <Text as="strong" strong>
-          {item.name}
-        </Text>
+        <strong className="iq-item-name">{item.name}</strong>
         <span className="iq-item-tags">
           {item.tags.map((tag) => (
             <span
@@ -28,9 +23,6 @@ export function ItemRow({ item, onPick }: ItemRowProps) {
               {tag.name}
             </span>
           ))}
-        </span>
-        <span className="iq-item-chevron">
-          <ChevronRight />
         </span>
       </button>
     </li>

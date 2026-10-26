@@ -10,16 +10,13 @@ from sqlalchemy.orm import Session
 
 from app.auth.device_locations import request_device_location_id
 from app.auth.models import Storage
-from app.prediction.bulk_service import BulkService
 from app.shared.database import get_session
 
-from .bulk_location_service import required_count_storage_ids
 from .constants import (
     INVALID_FORM_DATA_MESSAGE,
     INVALID_STORAGE_COMBINATION_MESSAGE,
     SCAN_ITEM_NOT_FOUND_MESSAGE,
     UNKNOWN_UPC_INVALID_MESSAGE,
-    OperationType,
 )
 from .errors import InventoryError
 from .expiration_ui_service import (
@@ -30,6 +27,7 @@ from .expiration_ui_service import (
     sort_expiration_groups,
 )
 from .item_queries import get_agency_item, get_item_by_upc
+from .scan_hints import scan_hints
 from .scan_submit_service import ScanSubmitItemNotFoundError, ScanSubmitResult, ScanSubmitRouteError, save_scan_submission
 from .scan_support import (
     ScanActor,
@@ -279,7 +277,8 @@ def handle_scan_item_get(agency_id: int, query: ScanItemQuery, is_admin: bool = 
         return redirect(surface.fallback_url(agency_id))
 
     operation_type, _, _ = operation_from_storage_ids(from_storage_id, to_storage_id)
-    stale_count, suggested_restock_amount = _fillout_hints(operation_type, item, to_storage)
+    with get_session() as db:
+        hints = scan_hints(db, current_user.id, operation_type, item, to_storage)
     return render_template(
         "scan_item.html",
         agency_id=agency_id,
@@ -296,27 +295,9 @@ def handle_scan_item_get(agency_id: int, query: ScanItemQuery, is_admin: bool = 
         selected_from_location_label=format_scan_location_label(from_storage, is_admin=is_admin),
         selected_to_location_label=format_scan_location_label(to_storage, is_admin=is_admin, takeout_allowed=True),
         cancel_url=surface.scan_item_cancel_url(agency_id, from_storage_id, to_storage_id),
-        stale_count=stale_count,
-        suggested_restock_amount=suggested_restock_amount,
+        stale_count=hints.stale_count,
+        suggested_restock_amount=hints.suggested_restock,
     )
-
-
-def _fillout_hints(operation_type, item, to_storage: Storage | int | None) -> tuple[bool, int | None]:
-    """Stale-count / suggested-restock hints for the scan quantity screen.
-
-    COUNT and RESTOCK only, since TAKEOUT/TRANSFER have no target storage to evaluate against.
-    """
-    if not isinstance(to_storage, Storage):
-        return False, None
-    if operation_type == OperationType.COUNT:
-        with get_session() as db:
-            required = required_count_storage_ids(db, current_user.id, to_storage.location_id, [item])
-        return to_storage.id in required.get(item.id, set()), None
-    if operation_type == OperationType.RESTOCK:
-        with get_session() as db:
-            order_amount = BulkService.get_order_amount_for_item(db, current_user.id, to_storage.location_id, item)
-        return False, order_amount if order_amount else None
-    return False, None
 
 
 def _save_scan_or_error(

@@ -46,6 +46,7 @@ csrf = CSRFProtect()
 login_manager = LoginManager()
 
 ROUTE_MODULES = (
+    "app.api.device",
     "app.api.guest_scan",
     "app.api.session",
     "app.auth.routes",

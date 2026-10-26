@@ -1,0 +1,11 @@
+@layer iq-components {
+  .iq-panel {
+    display: flex;
+    flex-direction: column;
+    gap: var(--iq-panel-gap);
+    padding: var(--iq-panel-padding);
+    border: var(--fui-stroke-hairline, 1px) solid var(--iq-line);
+    border-radius: var(--fui-radius-surface);
+    background: var(--iq-panel);
+  }
+}

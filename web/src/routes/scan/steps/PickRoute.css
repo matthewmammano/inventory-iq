@@ -1,0 +1,58 @@
+@layer iq-components {
+  .iq-route-groups {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(var(--iq-choice-min-width), 1fr));
+    gap: var(--iq-row-gap);
+  }
+
+  .iq-route-group {
+    display: flex;
+    flex-direction: column;
+    gap: var(--iq-results-gap);
+    min-width: 0;
+  }
+
+  .iq-route-group + .iq-route-group {
+    padding-inline-start: var(--iq-group-divider-gap);
+    border-inline-start: var(--iq-group-divider-width) dotted var(--iq-line-strong);
+  }
+
+  .iq-route-group-label {
+    display: flex;
+    align-items: center;
+    gap: var(--iq-results-gap);
+    margin: 0;
+    font-size: var(--iq-page-subtitle-size);
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--iq-muted);
+  }
+
+  .iq-route-group-step {
+    flex: none;
+    display: inline-grid;
+    place-items: center;
+    height: var(--iq-step-number-size);
+    width: var(--iq-step-number-size);
+    border-radius: 50%;
+    background: var(--iq-accent-deep);
+    color: var(--iq-panel);
+    font-size: var(--iq-step-number-font);
+    line-height: 1;
+  }
+
+  /* Stacked, the divider has to move to the top edge or it draws beside nothing. */
+  @media (max-width: 560px) {
+    .iq-route-groups {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .iq-route-group + .iq-route-group {
+      padding-inline-start: 0;
+      padding-block-start: var(--iq-group-divider-gap);
+      border-inline-start: 0;
+      border-block-start: var(--iq-group-divider-width) dotted var(--iq-line-strong);
+    }
+  }
+}

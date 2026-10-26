@@ -1,6 +1,13 @@
 @layer iq-components {
-  .iq-note > * {
-    padding: var(--iq-row-padding);
-    text-align: start;
+  .iq-note {
+    margin: 0;
+    padding: var(--iq-note-padding);
+    border: var(--iq-note-border-width) dashed var(--iq-line-strong);
+    border-radius: var(--fui-radius-surface);
+    background: var(--iq-panel);
+    color: var(--iq-muted);
+    font-size: var(--iq-row-name-size);
+    font-weight: 700;
+    text-align: center;
   }
 }

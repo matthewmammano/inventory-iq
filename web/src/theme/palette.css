@@ -6,14 +6,25 @@
   --iq-ink: #111820;
   --iq-ink-soft: #3c4149;
   --iq-muted: #605f56;
+  --iq-placeholder: #a9a292;
   --iq-line: #e2d9b4;
   --iq-line-strong: #cbbd8d;
   --iq-accent: #f4c95d;
   --iq-accent-deep: #a57210;
+  --iq-accent-edge: #704c08;
   --iq-accent-wash: #fff7d6;
   --iq-hover: #ffeab0;
   --iq-active: #ffdf8c;
   --iq-header-ink: #16100c;
+  --iq-header-button-ghost: rgb(255 255 255 / 0.4);
+  --iq-ok: #2f7d45;
+  --iq-ok-wash: #e2f3e6;
+  --iq-warn: #b3760c;
+  --iq-warn-wash: #fdf0d2;
+  --iq-bad: #b3362c;
+  --iq-bad-wash: #fadedb;
+  --iq-minus: #641919;
+  --iq-plus: #123d20;
 }
 
 :root {

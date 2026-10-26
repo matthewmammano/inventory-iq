@@ -40,6 +40,12 @@ class StorageResponse(BaseModel):
         )
 
 
+class DeviceLocationResponse(BaseModel):
+    """The location this kiosk is bound to; null until someone picks one."""
+
+    location_id: int | None
+
+
 class LocationListResponse(RootModel[list[LocationResponse]]):
     """Every location an agency keeps stock in."""
 

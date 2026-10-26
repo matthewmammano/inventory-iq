@@ -1,56 +1,56 @@
 @layer iq-components {
   .iq-item-row {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr) auto auto;
+    display: flex;
+    flex-wrap: wrap;
     align-items: center;
-    gap: var(--iq-row-gap);
+    justify-content: space-between;
+    gap: var(--iq-tag-gap) var(--iq-row-gap);
     width: 100%;
     min-height: var(--iq-touch-min);
     padding: var(--iq-row-padding);
-    border: var(--fui-stroke-hairline, 1px) solid var(--fui-border);
+    border: var(--fui-stroke-hairline, 1px) solid var(--iq-line-strong);
     border-radius: var(--fui-radius-surface);
-    background: var(--fui-bg-primary);
+    background: var(--iq-row);
     color: inherit;
     font: inherit;
     text-align: start;
     cursor: pointer;
+    transition: background-color 0.15s ease, border-color 0.15s ease;
   }
 
-  .iq-item-row > strong {
+  .iq-item-row:hover,
+  .iq-item-row:focus-visible {
+    border-color: var(--iq-accent-deep);
+    background: var(--iq-accent-wash);
+  }
+
+  .iq-item-name {
     font-size: var(--iq-row-name-size);
-  }
-
-  .iq-item-row:hover {
-    background: var(--fui-bg-hover);
-    border-color: var(--fui-border-strong);
+    font-weight: 700;
   }
 
   .iq-item-tags {
     display: flex;
     flex-wrap: wrap;
     justify-content: flex-end;
-    justify-self: end;
     gap: var(--iq-tag-gap);
-    max-width: var(--iq-tag-column-max);
   }
 
   .iq-item-tag {
+    display: inline-grid;
+    place-items: center;
+    min-height: var(--iq-tag-min-height);
     padding: var(--iq-tag-padding);
     border: var(--fui-stroke-hairline, 1px) solid;
-    border-radius: var(--fui-radius-indicator);
+    border-radius: var(--iq-tag-radius);
     font-size: var(--iq-tag-font-size);
-    line-height: 1.2;
+    line-height: 1;
     white-space: nowrap;
   }
 
-  .iq-item-chevron {
-    display: grid;
-    place-items: center;
-    color: var(--iq-accent-deep);
-  }
-
-  .iq-item-chevron svg {
-    width: var(--iq-chevron-size);
-    height: var(--iq-chevron-size);
+  @media (prefers-reduced-motion: reduce) {
+    .iq-item-row {
+      transition: none;
+    }
   }
 }

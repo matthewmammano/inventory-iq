@@ -47,6 +47,8 @@ class Settings(BaseSettings):
     scheduler_enabled: bool = False
     scheduler_poll_seconds: int = 15
     dev_clock_enabled: bool = False
+    # Off lets a kiosk re-pick its location every scan, so every screen stays reachable in dev.
+    remember_device_location: bool = True
 
     contact_phone: str = ""
     port: int = 5000

@@ -1,0 +1,52 @@
+@layer iq-components {
+  .iq-route-strip {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    margin: 0;
+    border: var(--fui-stroke-hairline, 1px) solid var(--iq-line);
+    border-radius: var(--fui-radius-surface);
+    background: var(--iq-accent-wash);
+  }
+
+  .iq-route-leg {
+    display: flex;
+    align-items: baseline;
+    gap: var(--iq-tag-gap);
+    min-width: 0;
+    padding: var(--iq-row-padding);
+  }
+
+  .iq-route-leg + .iq-route-leg {
+    border-inline-start: var(--fui-stroke-hairline, 1px) solid var(--iq-line);
+  }
+
+  .iq-route-leg dt {
+    flex: none;
+    color: var(--iq-accent-deep);
+    font-size: var(--iq-page-subtitle-size);
+    font-weight: 900;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .iq-route-leg dd {
+    margin: 0;
+    min-width: 0;
+    font-family: var(--iq-font-heading);
+    font-size: var(--iq-row-name-size);
+    font-weight: 700;
+    line-height: 1.05;
+  }
+
+  /* A phone has no room for two legs side by side, so they stack. */
+  @media (max-width: 560px) {
+    .iq-route-strip {
+      grid-template-columns: minmax(0, 1fr);
+    }
+
+    .iq-route-leg + .iq-route-leg {
+      border-inline-start: none;
+      border-block-start: var(--fui-stroke-hairline, 1px) solid var(--iq-line);
+    }
+  }
+}

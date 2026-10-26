@@ -1,0 +1,26 @@
+@layer iq-components {
+  .iq-header-button {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--iq-heading-gap);
+    min-height: var(--iq-header-button-height);
+    padding-inline: var(--iq-header-button-padding-inline);
+    border: var(--iq-header-button-border-width) solid var(--iq-accent-deep);
+    border-radius: var(--fui-radius-control);
+    background: var(--iq-header-button-ghost);
+    color: var(--iq-header-ink);
+    font-family: var(--iq-font-heading);
+    font-size: var(--iq-row-name-size);
+    font-weight: 700;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .iq-header-button:hover {
+    background: var(--iq-row);
+  }
+
+  .iq-header-button:active {
+    transform: translateY(1px);
+  }
+}

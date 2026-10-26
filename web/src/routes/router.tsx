@@ -1,6 +1,6 @@
 import { createBrowserRouter } from "react-router";
 
 import { V2_BASENAME } from "../constants";
-import { ScanScreen } from "./scan/ScanScreen";
+import { ScanFlow } from "./scan/ScanFlow";
 
-export const router = createBrowserRouter([{ path: "/", element: <ScanScreen /> }], { basename: V2_BASENAME });
+export const router = createBrowserRouter([{ path: "/", element: <ScanFlow /> }], { basename: V2_BASENAME });

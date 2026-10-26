@@ -26,6 +26,29 @@ class UpcLookupQuery(BaseModel):
     upc: str = Field(min_length=1, max_length=64)
 
 
+class DeviceLocationRequest(BaseModel):
+    """The location a kiosk is being bound to, saved for a year against its device cookie."""
+
+    model_config = LOCKED_INPUT
+
+    location_id: int = Field(gt=0)
+
+
+class ScanRouteQuery(BaseModel):
+    """The from/to pair a scan screen was reached with; virtual ids are negative."""
+
+    model_config = LOCKED_INPUT
+
+    from_storage_id: int
+    to_storage_id: int
+
+
+class ExpirationOptionsQuery(ScanRouteQuery):
+    """A scan route plus the quantity being saved, which sets how many units need dating."""
+
+    quantity: int = Field(gt=0)
+
+
 class ExpirationAllocationRequest(BaseModel):
     """How many units of one scan belong to one expiration date."""
 

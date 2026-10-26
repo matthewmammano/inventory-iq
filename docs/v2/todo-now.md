@@ -107,8 +107,20 @@ never spells a raw color or a raw pixel size.
 | `DataTable` | Fragments table plus sort and paginate |
 | `FormField` | label, control, error text |
 | `Modal` | Fragments Dialog, our sizing |
-| `Toast` | Fragments Toast, our flash categories |
+| `Toast` | ours end to end, our flash categories |
 | `EmptyState` | no results, no permission, offline |
+
+## Speed
+
+Two rules, both set once.
+
+1. Every query is fresh for `QUERY_STALE_MS` (`web/src/constants.ts`), applied as the `QueryClient`
+   default in `main.tsx`. Walking back a step re-reads the cache instead of the network.
+2. A step prefetches the next step's list as soon as it knows which one that is. `ScanFlow` fetches
+   storages (or locations, when the device has none) while the person is still searching for an item.
+
+Not prefetched: `scan-context` and `expirations`, because both key off a quantity or a route the
+person has not picked yet, so a prefetch would fire a request per tap and still miss.
 
 ## Phases
 
@@ -238,6 +250,22 @@ I stop for approval on: every screen, every layout, anything that changes what a
 ## Device Priority
 
 Kiosk touchscreen first. Laptop and TV tied second. iPhone last.
+
+## Guest Scan Flow
+
+One route, no URL per step. `ScanFlow.tsx` holds the draft and swaps the body; `Page` draws the
+frame and the Back control. Steps: item, location, route, quantity, dates. A saved scan has no
+step of its own: it drops the guest straight back on the item list with a `Toast` confirming
+what it did, the way v1's bottom flash does, so nobody confirms a screen they never wanted.
+
+The location step only appears when the device cookie has no location yet. The route step hides
+TAKE once a virtual from-choice is picked, and drops the chosen shelf out of the to-list, so an
+impossible route cannot be built. When only one choice is left on a side it is picked for the
+scanner, and when the whole location can only make one route the step is passed through; Back
+from the quantity step then skips it, the same rules v1 applies server side.
+
+New shared pieces: `ChoiceCard`, `StepBar`, `Stepper`, `RouteStrip`, `Panel`, `ItemPhoto`, `Toast`.
+Four JSON endpoints back it: device location read/write, scan context, expiration options.
 
 ## Open
 

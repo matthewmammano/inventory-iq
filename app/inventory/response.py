@@ -1,11 +1,17 @@
 """Response models for the scan surface: items, storage choices, and a saved scan."""
 
+from datetime import date
+
 from pydantic import BaseModel, ConfigDict, RootModel
 
 from app.auth.models import Storage
 from app.auth.response import StorageResponse
+from app.shared.image_paths import static_image_url
 
 from .constants import OperationType
+from .expiration_ui_service import ExpirationEntryGroup, ExpirationOption
+from .models import Item
+from .scan_hints import ScanHints
 from .scan_submit_service import ScanSubmitResult
 from .scan_support import ScanPermissions, ScanStorageChoices
 from .search_payload import ItemSearchPayload
@@ -94,3 +100,90 @@ class ScanResultResponse(BaseModel):
 def _storage_response(storage: Storage | int | None) -> StorageResponse | None:
     """RESTOCK, COUNT and TAKE arrive as virtual ids, not storages; the operation already names them."""
     return StorageResponse.of(storage) if isinstance(storage, Storage) else None
+
+
+class ScanContextResponse(BaseModel):
+    """Everything the quantity screen shows: the item, the route it is on, and its two hints."""
+
+    item_id: int
+    item_name: str
+    image_url: str
+    increments: str | None
+    quick_adjust: bool
+    expiration_tracking: bool
+    operation: OperationType
+    minimum_quantity: int
+    from_label: str
+    to_label: str
+    stale_count: bool
+    suggested_restock: int | None
+
+    @classmethod
+    def of(
+        cls,
+        item: Item,
+        operation: OperationType,
+        from_label: str,
+        to_label: str,
+        hints: ScanHints,
+    ) -> "ScanContextResponse":
+        return cls(
+            item_id=item.id,
+            item_name=item.name,
+            image_url=static_image_url(item.image),
+            increments=item.increments,
+            quick_adjust=item.guest_quick_adjust,
+            expiration_tracking=item.expiration_tracking_enabled,
+            operation=operation,
+            minimum_quantity=operation.minimum_scan_quantity,
+            from_label=from_label,
+            to_label=to_label,
+            stale_count=hints.stale_count,
+            suggested_restock=hints.suggested_restock,
+        )
+
+
+class ExpirationOptionResponse(BaseModel):
+    """One date already tracked in the storage this scan touches."""
+
+    expires_on: date
+    quantity: int
+    suggested: bool
+    default_quantity: int
+
+    @classmethod
+    def of(cls, option: ExpirationOption) -> "ExpirationOptionResponse":
+        return cls(
+            expires_on=option.expires_on,
+            quantity=option.quantity,
+            suggested=option.suggested,
+            default_quantity=option.default_quantity,
+        )
+
+
+class ExpirationEntryResponse(BaseModel):
+    """The dating step for one scan: how many units need a date, and which dates are on offer."""
+
+    item_name: str
+    storage_name: str
+    subtitle: str
+    target_quantity: int
+    requires_exact_total: bool
+    allows_new_dates: bool
+    allows_other: bool
+    max_new_rows: int
+    options: list[ExpirationOptionResponse]
+
+    @classmethod
+    def of(cls, group: ExpirationEntryGroup) -> "ExpirationEntryResponse":
+        return cls(
+            item_name=group.item.name,
+            storage_name=group.storage.name,
+            subtitle=group.spec.card_subtitle,
+            target_quantity=group.spec.quantity,
+            requires_exact_total=group.spec.requires_exact_total,
+            allows_new_dates=group.spec.allows_new_dates,
+            allows_other=group.spec.allows_other,
+            max_new_rows=group.spec.new_date_row_count,
+            options=[ExpirationOptionResponse.of(option) for option in group.options],
+        )

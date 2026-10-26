@@ -1,0 +1,92 @@
+@property --iq-toast-elapsed {
+  syntax: "<percentage>";
+  inherits: false;
+  initial-value: 0%;
+}
+
+@layer iq-components {
+  .iq-toast {
+    --iq-toast-edge: var(--iq-muted);
+    --iq-toast-fill: var(--iq-panel);
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: var(--iq-row-gap);
+    min-height: var(--iq-toast-min-height);
+    padding: var(--iq-panel-padding) var(--iq-page-gutter);
+    border-start-start-radius: var(--iq-toast-radius);
+    border-start-end-radius: var(--iq-toast-radius);
+    background: var(--iq-toast-fill);
+    outline: var(--iq-toast-outline-width) solid var(--iq-toast-edge);
+    outline-offset: calc(-1 * var(--fui-stroke-hairline, 1px) * 2);
+    animation: iq-toast-rise 0.45s ease-out;
+  }
+
+  .iq-toast-success {
+    --iq-toast-edge: var(--iq-ok);
+    --iq-toast-fill: var(--iq-ok-wash);
+  }
+
+  .iq-toast-warning {
+    --iq-toast-edge: var(--iq-warn);
+    --iq-toast-fill: var(--iq-warn-wash);
+  }
+
+  .iq-toast-error {
+    --iq-toast-edge: var(--iq-bad);
+    --iq-toast-fill: var(--iq-bad-wash);
+  }
+
+  .iq-toast-icon {
+    display: grid;
+    flex: none;
+    place-items: center;
+    height: var(--iq-toast-icon-size);
+    width: var(--iq-toast-icon-size);
+    border: var(--iq-photo-border-width) solid var(--iq-toast-edge);
+    border-radius: 50%;
+    background: var(--iq-row);
+    color: var(--iq-toast-edge);
+    font-family: var(--iq-font-heading);
+    font-size: var(--iq-row-name-size);
+    font-weight: 800;
+  }
+
+  .iq-toast-text {
+    flex: 1 1 auto;
+    margin: 0;
+    color: var(--iq-ink);
+    font-size: var(--iq-toast-text-size);
+    font-weight: 700;
+  }
+
+  .iq-toast-timer {
+    flex: none;
+    height: var(--iq-toast-timer-size);
+    width: var(--iq-toast-timer-size);
+    border-radius: 50%;
+    background: conic-gradient(var(--iq-toast-fill) var(--iq-toast-elapsed), var(--iq-toast-edge) var(--iq-toast-elapsed));
+    animation: iq-toast-countdown var(--iq-toast-duration) linear forwards;
+  }
+
+  @keyframes iq-toast-rise {
+    from {
+      transform: translateY(101%);
+    }
+  }
+
+  @keyframes iq-toast-countdown {
+    to {
+      --iq-toast-elapsed: 100%;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .iq-toast {
+      animation: none;
+    }
+  }
+}

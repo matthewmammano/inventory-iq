@@ -9,10 +9,11 @@ import "./theme/palette.css";
 import "./theme/kiosk.css";
 import "./lib/apiClient";
 
+import { QUERY_STALE_MS } from "./constants";
 import { router } from "./routes/router";
 import { THEME } from "./theme/tokens";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({ defaultOptions: { queries: { staleTime: QUERY_STALE_MS } } });
 
 const container = document.getElementById("root");
 if (!container) {

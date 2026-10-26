@@ -1,0 +1,119 @@
+@layer iq-components {
+  .iq-dates {
+    display: flex;
+    flex-direction: column;
+    gap: var(--iq-results-gap);
+  }
+
+  .iq-dates-heading {
+    display: flex;
+    flex-direction: column;
+    gap: var(--iq-heading-gap);
+  }
+
+  .iq-dates-title {
+    margin: 0;
+    font-size: var(--iq-page-title-size);
+    font-weight: 800;
+  }
+
+  .iq-dates-subtitle {
+    margin: 0;
+    font-size: var(--iq-page-subtitle-size);
+    color: var(--iq-muted);
+  }
+
+  .iq-dates-progress {
+    margin: 0;
+    font-size: var(--iq-row-name-size);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .iq-dates-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--iq-row-gap);
+    padding: var(--iq-row-padding);
+    border: var(--fui-stroke-hairline, 1px) solid var(--iq-line);
+    border-radius: var(--fui-radius-surface);
+    background: var(--iq-row);
+  }
+
+  /* The row stepper is a list control, not the quantity screen's hero, so it gets its own size. */
+  .iq-dates-row .iq-stepper {
+    flex: none;
+    grid-template-columns: repeat(3, var(--iq-dates-step-width));
+    --iq-step-size: var(--iq-dates-step-height);
+    --iq-step-font: var(--iq-dates-step-font);
+  }
+
+  .iq-dates-over .iq-step-count {
+    border-color: var(--iq-bad);
+    background: var(--iq-bad-wash);
+    color: var(--iq-bad);
+  }
+
+  .iq-dates-row-label {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: var(--iq-tag-gap);
+    min-width: 0;
+  }
+
+  .iq-dates-row-name {
+    font-size: var(--iq-row-name-size);
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .iq-dates-row-hint,
+  .iq-dates-row-suggested {
+    font-size: var(--iq-page-subtitle-size);
+    color: var(--iq-muted);
+  }
+
+  .iq-dates-row-suggested {
+    padding: var(--iq-tag-padding);
+    border-radius: var(--fui-radius);
+    background: var(--iq-accent-wash);
+    color: var(--iq-accent-deep);
+    font-weight: 700;
+  }
+
+  .iq-dates-input {
+    padding: var(--iq-tag-padding);
+    border: var(--fui-stroke-hairline, 1px) solid var(--iq-ink-soft);
+    border-radius: var(--fui-radius-control);
+    background: var(--iq-row);
+    color: inherit;
+    font: inherit;
+    font-size: var(--iq-row-name-size);
+  }
+
+  .iq-dates-add {
+    align-self: start;
+    padding-inline: var(--iq-action-padding-inline);
+    border: var(--fui-stroke-hairline, 1px) dashed var(--iq-line-strong);
+    border-radius: var(--fui-radius-control);
+    background: none;
+    color: var(--iq-ink-soft);
+    font: inherit;
+    cursor: pointer;
+  }
+
+  @media (max-width: 560px) {
+    .iq-dates-row {
+      flex-direction: column;
+      align-items: stretch;
+    }
+
+    .iq-dates-row .iq-stepper {
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+  }
+}

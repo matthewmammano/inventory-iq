@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.auth.models import AgencyDevice, Location
+from app.shared.config import settings
 from app.shared.database import managed_session
 
 DEVICE_COOKIE = "inventory_iq_device"
@@ -42,6 +43,8 @@ def get_device_location_id(agency_id: int, device_token: str | None, session: Se
 
 def request_device_location_id(agency_id: int, session: Session | None = None) -> int | None:
     """The location this browser is bound to; reading the cookie belongs at the request edge."""
+    if not settings.remember_device_location:
+        return None
     return get_device_location_id(agency_id, request.cookies.get(DEVICE_COOKIE), session)
 
 

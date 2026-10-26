@@ -4,7 +4,7 @@
     align-items: center;
     gap: var(--iq-page-header-gap);
     padding: var(--iq-header-padding-block) var(--iq-page-gutter);
-    border-block-end: var(--fui-stroke-hairline, 1px) solid var(--iq-accent-deep);
+    border-block-end: var(--iq-header-rule-width) solid var(--iq-accent-deep);
     background: var(--iq-accent);
     color: var(--iq-header-ink);
   }
@@ -38,25 +38,11 @@
   }
 
   .iq-header-actions {
-    margin-inline-start: auto;
+    display: flex;
     flex: none;
-  }
-
-  .iq-header-actions > * {
-    border: var(--fui-stroke-hairline, 1px) solid var(--iq-accent-deep);
-    border-radius: var(--fui-radius);
-    background: var(--iq-accent-deep);
-    color: var(--iq-panel);
-  }
-
-  .iq-header-actions > *:hover {
-    background: var(--iq-header-ink);
-    border-color: var(--iq-header-ink);
-  }
-
-  .iq-header-actions > *:active {
-    background: var(--iq-header-ink);
-    transform: translateY(1px);
+    align-items: center;
+    gap: var(--iq-page-header-gap);
+    margin-inline-start: auto;
   }
 
   @media (max-width: 560px) {
@@ -68,7 +54,15 @@
   .iq-page-body {
     width: 100%;
     padding-block-start: var(--iq-page-top-gap);
-    max-width: min(100%, var(--iq-measure));
     margin-inline: auto;
+  }
+
+  /* Buttons and typing want the whole screen; reading wants a column it can follow. */
+  .iq-page-body-wide {
+    max-width: min(100%, var(--iq-measure-wide));
+  }
+
+  .iq-page-body-reading {
+    max-width: min(100%, var(--iq-measure));
   }
 }

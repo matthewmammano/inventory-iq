@@ -4,6 +4,98 @@ export type ClientOptions = {
     baseUrl: `${string}://${string}` | (string & {});
 };
 
+/**
+ * DeviceLocationRequest
+ *
+ * The location a kiosk is being bound to, saved for a year against its device cookie.
+ */
+export type DeviceLocationRequest = {
+    /**
+     * Location Id
+     */
+    location_id: number;
+};
+
+/**
+ * DeviceLocationResponse
+ *
+ * The location this kiosk is bound to; null until someone picks one.
+ */
+export type DeviceLocationResponse = {
+    /**
+     * Location Id
+     */
+    location_id: number | null;
+};
+
+/**
+ * ExpirationEntryResponse
+ *
+ * The dating step for one scan: how many units need a date, and which dates are on offer.
+ */
+export type ExpirationEntryResponse = {
+    /**
+     * Allows New Dates
+     */
+    allows_new_dates: boolean;
+    /**
+     * Allows Other
+     */
+    allows_other: boolean;
+    /**
+     * Item Name
+     */
+    item_name: string;
+    /**
+     * Max New Rows
+     */
+    max_new_rows: number;
+    /**
+     * Options
+     */
+    options: Array<ExpirationEntryResponseExpirationOptionResponse>;
+    /**
+     * Requires Exact Total
+     */
+    requires_exact_total: boolean;
+    /**
+     * Storage Name
+     */
+    storage_name: string;
+    /**
+     * Subtitle
+     */
+    subtitle: string;
+    /**
+     * Target Quantity
+     */
+    target_quantity: number;
+};
+
+/**
+ * ExpirationOptionResponse
+ *
+ * One date already tracked in the storage this scan touches.
+ */
+export type ExpirationEntryResponseExpirationOptionResponse = {
+    /**
+     * Default Quantity
+     */
+    default_quantity: number;
+    /**
+     * Expires On
+     */
+    expires_on: string;
+    /**
+     * Quantity
+     */
+    quantity: number;
+    /**
+     * Suggested
+     */
+    suggested: boolean;
+};
+
 export type HttpError = {
     detail?: {
         [key: string]: unknown;
@@ -144,6 +236,66 @@ export type LocationListResponseLocationResponse = {
      */
     name: string;
 };
+
+/**
+ * ScanContextResponse
+ *
+ * Everything the quantity screen shows: the item, the route it is on, and its two hints.
+ */
+export type ScanContextResponse = {
+    /**
+     * Expiration Tracking
+     */
+    expiration_tracking: boolean;
+    /**
+     * From Label
+     */
+    from_label: string;
+    /**
+     * Image Url
+     */
+    image_url: string;
+    /**
+     * Increments
+     */
+    increments: string | null;
+    /**
+     * Item Id
+     */
+    item_id: number;
+    /**
+     * Item Name
+     */
+    item_name: string;
+    /**
+     * Minimum Quantity
+     */
+    minimum_quantity: number;
+    operation: ScanContextResponseOperationType;
+    /**
+     * Quick Adjust
+     */
+    quick_adjust: boolean;
+    /**
+     * Stale Count
+     */
+    stale_count: boolean;
+    /**
+     * Suggested Restock
+     */
+    suggested_restock: number | null;
+    /**
+     * To Label
+     */
+    to_label: string;
+};
+
+/**
+ * OperationType
+ *
+ * Inventory operation types.
+ */
+export type ScanContextResponseOperationType = 'COUNT' | 'RESTOCK' | 'TAKEOUT' | 'TRANSFER';
 
 /**
  * ScanRequest
@@ -328,6 +480,64 @@ export type ValidationError = {
     message?: string;
 };
 
+export type GetApiV1AgenciesByAgencyIdDeviceLocationData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/device/location';
+};
+
+export type GetApiV1AgenciesByAgencyIdDeviceLocationErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type GetApiV1AgenciesByAgencyIdDeviceLocationError = GetApiV1AgenciesByAgencyIdDeviceLocationErrors[keyof GetApiV1AgenciesByAgencyIdDeviceLocationErrors];
+
+export type GetApiV1AgenciesByAgencyIdDeviceLocationResponses = {
+    /**
+     * Successful response
+     */
+    200: DeviceLocationResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdDeviceLocationResponse = GetApiV1AgenciesByAgencyIdDeviceLocationResponses[keyof GetApiV1AgenciesByAgencyIdDeviceLocationResponses];
+
+export type PutApiV1AgenciesByAgencyIdDeviceLocationData = {
+    body?: DeviceLocationRequest;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/device/location';
+};
+
+export type PutApiV1AgenciesByAgencyIdDeviceLocationErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PutApiV1AgenciesByAgencyIdDeviceLocationError = PutApiV1AgenciesByAgencyIdDeviceLocationErrors[keyof PutApiV1AgenciesByAgencyIdDeviceLocationErrors];
+
+export type PutApiV1AgenciesByAgencyIdDeviceLocationResponses = {
+    /**
+     * Successful response
+     */
+    200: DeviceLocationResponse;
+};
+
+export type PutApiV1AgenciesByAgencyIdDeviceLocationResponse = PutApiV1AgenciesByAgencyIdDeviceLocationResponses[keyof PutApiV1AgenciesByAgencyIdDeviceLocationResponses];
+
 export type GetApiV1AgenciesByAgencyIdItemsData = {
     body?: never;
     path: {
@@ -390,6 +600,92 @@ export type GetApiV1AgenciesByAgencyIdItemsLookupResponses = {
 };
 
 export type GetApiV1AgenciesByAgencyIdItemsLookupResponse = GetApiV1AgenciesByAgencyIdItemsLookupResponses[keyof GetApiV1AgenciesByAgencyIdItemsLookupResponses];
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsData = {
+    body?: never;
+    path: {
+        agency_id: number;
+        item_id: number;
+    };
+    query: {
+        /**
+         * From Storage Id
+         */
+        from_storage_id: number;
+        /**
+         * To Storage Id
+         */
+        to_storage_id: number;
+        /**
+         * Quantity
+         */
+        quantity: number;
+    };
+    url: '/api/v1/agencies/{agency_id}/items/{item_id}/expirations';
+};
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsError = GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsErrors[keyof GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsErrors];
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses = {
+    /**
+     * Successful response
+     */
+    200: ExpirationEntryResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponse = GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses[keyof GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses];
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData = {
+    body?: never;
+    path: {
+        agency_id: number;
+        item_id: number;
+    };
+    query: {
+        /**
+         * From Storage Id
+         */
+        from_storage_id: number;
+        /**
+         * To Storage Id
+         */
+        to_storage_id: number;
+    };
+    url: '/api/v1/agencies/{agency_id}/items/{item_id}/scan-context';
+};
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextError = GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextErrors[keyof GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextErrors];
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponses = {
+    /**
+     * Successful response
+     */
+    200: ScanContextResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponse = GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponses[keyof GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponses];
 
 export type GetApiV1AgenciesByAgencyIdLocationsData = {
     body?: never;
