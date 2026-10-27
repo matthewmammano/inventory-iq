@@ -38,6 +38,7 @@ dev = [
     "types-cachetools",
     "playwright",
     "pytest>=9.1.1",
+    "pytest-xdist>=3.8.0",
 ]
 
 [tool.uv]
@@ -117,3 +118,7 @@ ignore = "H006,H013,H014,H021,H029,H030,H031,T001,T003"
 paths = ["app", "scripts", "tasks"]
 exclude = ["scripts/demo_data/"]
 min_confidence = 80
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-n auto"
