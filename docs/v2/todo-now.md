@@ -258,7 +258,8 @@ Component layer is proven by now, so these compose faster than they look.
 - [ ] Settings
 - [ ] Help
 - [ ] Item trend modal (295 lines today, chart from Fragments, interaction custom)
-- [ ] Notifications table, 23 columns. Needs a layout decision, not just a component.
+- [ ] Notifications table, 23 columns. Each row is a plain text preview of that recipient; tapping it opens
+      the editable modal, the same interaction as the pencil on the Items screen. Decided, no layout question left.
 
 ### Phase 6 - Delete v1
 - [ ] 34 templates
@@ -310,5 +311,4 @@ Four JSON endpoints back it: device location read/write, scan context, expiratio
 
 ## Open
 
-- [ ] Real barcode scanner session, needed before Phase 3 is called done
-- [ ] Notifications table: 23 columns on a kiosk needs a decision from Matt
+- [x] Real barcode scanner session. Not needed: a scanner sends the same keystrokes as a paste, and paste works.
