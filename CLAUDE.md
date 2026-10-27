@@ -61,6 +61,9 @@ Read local project docs when they exist. For this repository:
 - **DYNAMIC OVER HARD-CODED:** express sizes with `clamp()`, viewport units (`vw`/`svh`/`dvh`), `%`, or `fr`, not flat `px`/`rem` literals repeated across the file. A value should scale by formula, not by enumerating breakpoints for it.
 - Centralize repeated "magic" sizes as CSS custom properties on `:root` (a small design-token set) the same way a Python constant replaces a repeated literal.
 - Prefer a container query (`@container`) over a viewport `@media` query when a component's own box size, not the viewport, is what should drive its layout.
+- Before reaching for either query, try to delete the breakpoint: `clamp()`, `auto-fit`/`auto-fill` with `minmax(min(<floor>, 100%), 1fr)`, and `flex-wrap` make most layouts reflow with no threshold to maintain.
+- A width `@media` query is a last resort, justified only when the device, not a box, is the subject: orientation, viewport height, or whether a screen has room for a thing at all. Say which in a one-line comment.
+- Express every stroke width through the shared stroke scale, never a flat `px`, the same way type and spacing scale.
 - Use CSS Cascade Layers (`@layer`) to make override precedence explicit and independent of source-file position; never rely on "this rule must physically come after that one" as the mechanism for a rule to win.
 - Component-scoped CSS lives in that component's own file; only truly global tokens/resets belong in the shared base stylesheet.
 - Verify a responsive change against the project's real device/breakpoint matrix, not just one browser width, before calling it done.

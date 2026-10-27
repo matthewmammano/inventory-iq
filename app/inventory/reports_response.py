@@ -13,11 +13,10 @@ from app.inventory.report_email_service import EmailDeliveryResult, ReportEmailO
 from app.inventory.restock_page_service import RestockPageRow
 from app.shared.pagination import PageWindow
 
-from .constants import OperationType
+from .constants import TAKEOUT_LABEL, OperationType
 
 ALL_LOCATIONS_NAME: Final[str] = "All Locations"
 MISSING_ITEM_LABEL: Final[str] = "None"
-TAKEOUT_LABEL: Final[str] = "TAKE"
 
 
 class ReportStorageResponse(BaseModel):

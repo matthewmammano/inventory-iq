@@ -3,7 +3,7 @@ replaying it through the real Flask app's service layer.
 
 Usage (from repo root):
     DEV_CLOCK_ENABLED=true DATABASE_URL=sqlite:///instance/inventory_iq.db \\
-        python3 scripts/demo_data/generate.py --location "POINT BORO:1.0" --location "POINT BEACH:0.6" --seed 42
+        python3 scripts/demo_data/generate.py --location "Point Boro:1.0" --location "Point Beach:0.6" --seed 42
 
 Default (--accuracy demo) showcases every feature: low-stock catches,
 expiration tracking, every alert/notification type, with only a small,

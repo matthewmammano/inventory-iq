@@ -15,7 +15,7 @@ from app.auth.queries import get_agency_permissions, get_storage, list_locations
 from app.shared.html_formatting import bold_item_name
 from app.shared.validators import parse_optional_int
 
-from .constants import INVALID_STORAGE_COMBINATION_MESSAGE, OperationType, VirtualLocation
+from .constants import INVALID_STORAGE_COMBINATION_MESSAGE, TAKEOUT_LABEL, OperationType, VirtualLocation
 
 
 class ScanSurface(StrEnum):
@@ -214,7 +214,7 @@ def format_scan_location_label(location, *, is_admin: bool, takeout_allowed: boo
     if location == VirtualLocation.COUNT:
         return "COUNT"
     if takeout_allowed and location == VirtualLocation.TAKEOUT:
-        return "TAKE"
+        return TAKEOUT_LABEL
     if not isinstance(location, Storage):
         return "Unknown"
     return _scan_route_storage_name(location, is_admin)

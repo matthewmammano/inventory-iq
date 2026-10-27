@@ -41,8 +41,8 @@
     place-items: center;
     min-height: var(--iq-tag-min-height);
     padding: var(--iq-tag-padding);
-    border: var(--fui-stroke-hairline, 1px) solid;
     border-radius: var(--iq-tag-radius);
+    box-shadow: var(--iq-tag-shadow);
     font-size: var(--iq-tag-font-size);
     line-height: 1;
     white-space: nowrap;

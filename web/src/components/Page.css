@@ -20,7 +20,7 @@
   .iq-page-heading {
     display: flex;
     flex-direction: column;
-    gap: var(--iq-heading-gap);
+    gap: var(--iq-heading-stack-gap);
     min-width: 0;
   }
 
@@ -45,6 +45,7 @@
     margin-inline-start: auto;
   }
 
+  /* Device, not box: a phone has no room for a subtitle beside the title at all. */
   @media (max-width: 560px) {
     .iq-page-subtitle {
       display: none;

@@ -20,6 +20,7 @@ from app.shared.clock import utc_now
 from app.shared.email_client import EmailAttachment
 from app.shared.timezone_utils import convert_utc_to_local
 
+from .constants import TAKEOUT_LABEL
 from .history_service import HISTORY_REPORT_LIMIT, HistoryLogQuery, list_history_logs
 
 CSV_BOM = "\ufeff"
@@ -91,7 +92,7 @@ def build_history_csv_attachment(
                 "type": log.operation_type.value,
                 "quantity": log.quantity,
                 "from": log.from_storage.history_name if log.from_storage else log.operation_type.value,
-                "to": log.to_storage.history_name if log.to_storage else "TAKE",
+                "to": log.to_storage.history_name if log.to_storage else TAKEOUT_LABEL,
                 "admin": "Yes" if log.admin_action else "No",
                 "expirations": log.expiration_summary or "-",
             }

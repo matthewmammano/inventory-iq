@@ -32,6 +32,7 @@ class ItemResponse(BaseModel):
 
     id: int
     name: str
+    image_url: str
     upc: str
     upcs: list[str]
     last_accessed: str
@@ -42,6 +43,7 @@ class ItemResponse(BaseModel):
         return cls(
             id=payload["id"],
             name=payload["name"],
+            image_url=static_image_url(payload["image"]),
             upc=payload["upc"],
             upcs=payload["upcs"],
             last_accessed=payload["last_accessed"],

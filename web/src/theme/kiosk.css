@@ -7,6 +7,12 @@
   /* Sizes grow on both axes, so a portrait tablet is not sized like a phone. */
   --iq-scale-text: calc(0.6vw + 0.8vh);
   --iq-scale-ui: calc(1.1vw + 1.4vh);
+  --iq-scale-stroke: calc(0.08vw + 0.12vh);
+
+  --iq-stroke-hair: clamp(1px, calc(var(--iq-scale-stroke) * 0.5), 2px);
+  --iq-stroke-thin: clamp(2px, var(--iq-scale-stroke), 4px);
+  --iq-stroke-medium: clamp(3px, calc(var(--iq-scale-stroke) * 1.4), 6px);
+  --iq-stroke-thick: clamp(4px, calc(var(--iq-scale-stroke) * 1.8), 8px);
 }
 
 /* Components sit above the element defaults, so a screen can ask for a taller control than the floor. */
@@ -37,16 +43,21 @@
   --iq-page-logo-size: clamp(34px, 4vw, 48px);
   --iq-results-gap: clamp(6px, 1vh, 12px);
   --iq-row-gap: clamp(8px, 1.5vw, 20px);
-  --iq-row-padding: clamp(10px, 1.6vh, 16px) clamp(12px, 1.6vw, 20px);
+  --iq-row-padding-block: clamp(10px, 1.6vh, 16px);
+  --iq-row-padding-inline: clamp(12px, 1.6vw, 20px);
+  --iq-row-padding: var(--iq-row-padding-block) var(--iq-row-padding-inline);
   --iq-tag-gap: 6px;
-  --iq-tag-padding: 3px 9px;
-  --iq-tag-min-height: 26px;
+  --iq-tag-padding: clamp(4px, 0.6vh, 7px) clamp(10px, 1.1vw, 14px);
+  --iq-tag-min-height: clamp(30px, calc(0.4vw + 1.5vh), 38px);
   --iq-tag-radius: 999px;
-  --iq-tag-font-size: 0.8em;
+  --iq-tag-shadow: 0 1px calc(var(--iq-stroke-hair) * 1.5) var(--iq-shade);
+  --iq-tag-font-size: clamp(13px, calc(var(--iq-scale-text) * 0.85), 18px);
   --iq-tag-column-max: 40%;
   --iq-header-padding-block: clamp(8px, 1.2vh, 14px);
   --iq-field-height: clamp(54px, calc(1vw + 4.5vh), 68px);
   --iq-heading-gap: 2px;
+  /* A title and the line explaining it need room to read as two things. */
+  --iq-heading-stack-gap: clamp(6px, 0.9vh, 12px);
   --iq-page-title-size: clamp(23px, calc(1.2vw + 1.5vh), 33px);
   --iq-page-subtitle-size: clamp(14px, var(--iq-scale-text), 19px);
   --iq-row-name-size: clamp(17px, calc(0.8vw + 1vh), 24px);
@@ -54,37 +65,43 @@
   --iq-measure-wide: clamp(320px, 96vw, 1720px);
   --iq-header-button-height: clamp(46px, calc(1vw + 4vh), 58px);
   --iq-header-button-padding-inline: clamp(12px, 1.6vw, 20px);
-  --iq-header-button-border-width: 2px;
+  --iq-header-button-border-width: var(--iq-stroke-thin);
   --iq-page-top-gap: clamp(16px, 3vh, 34px);
+  --iq-page-chrome: calc(var(--iq-header-button-height) + var(--iq-header-padding-block) * 2 + var(--iq-page-top-gap) + var(--iq-page-gutter) * 2);
+  /* What a screen has left under the bar, so a block of controls can promise never to run off it. */
+  --iq-fit-block: calc(100svh - var(--iq-page-chrome));
+  --iq-scroll-inset: clamp(4px, 0.6vw, 10px);
   --iq-choice-height: clamp(86px, calc(2vw + 8vh), 130px);
   --iq-choice-min-width: 260px;
-  --iq-group-divider-width: 3px;
+  --iq-group-divider-width: var(--iq-stroke-medium);
   --iq-group-divider-gap: clamp(10px, 2vw, 24px);
   --iq-step-number-size: clamp(24px, calc(0.5vw + 2.2vh), 34px);
   --iq-step-number-font: clamp(0.85rem, calc(0.3vw + 0.9vh), 1.1rem);
   --iq-choice-label-size: clamp(21px, var(--iq-scale-ui), 34px);
   --iq-choice-hint-size: clamp(15px, var(--iq-scale-text), 21px);
   --iq-choice-icon-size: clamp(28px, calc(1.3vw + 1.7vh), 44px);
-  --iq-choice-border-width: var(--fui-stroke-hairline, 1px);
+  --iq-choice-border-width: var(--iq-stroke-hair);
   --iq-choice-edge: var(--fui-border);
-  --iq-choice-action-border-width: 3px;
-  --iq-choice-selected-width: 4px;
+  --iq-choice-action-border-width: var(--iq-stroke-medium);
+  --iq-choice-selected-width: var(--iq-stroke-thick);
   --iq-action-padding-inline: clamp(16px, 2vw, 28px);
   --iq-photo-size: clamp(96px, 22svh, 220px);
-  --iq-photo-border-width: 3px;
+  --iq-photo-border-width: var(--iq-stroke-medium);
   --iq-photo-inline-size: calc(var(--iq-item-name-size) * 2.7);
-  --iq-photo-inline-border-width: 2px;
+  --iq-photo-inline-border-width: var(--iq-stroke-thin);
+  --iq-photo-fade: 200ms;
   --iq-search-measure: clamp(320px, 68vw, 900px);
   --iq-panel-padding: clamp(12px, 1.8vh, 18px);
   --iq-panel-gap: clamp(10px, 1.6vh, 14px);
   --iq-field-icon-size: clamp(18px, calc(0.6vw + 1.1vh), 26px);
-  --iq-field-border-width: 3px;
-  --iq-header-rule-width: clamp(3px, calc(0.1vw + 0.5vh), 5px);
-  --iq-note-border-width: 2px;
+  --iq-field-border-width: var(--iq-stroke-medium);
+  --iq-header-rule-width: var(--iq-stroke-medium);
+  --iq-note-border-width: var(--iq-stroke-thin);
+  --iq-focus-ring-width: var(--iq-stroke-thin);
   --iq-note-padding: clamp(18px, 5vw, 30px) clamp(12px, 2vw, 16px);
   --iq-toast-min-height: clamp(76px, 12vh, 96px);
   --iq-toast-radius: 3rem;
-  --iq-toast-outline-width: 5px;
+  --iq-toast-outline-width: var(--iq-stroke-thick);
   --iq-toast-icon-size: clamp(42px, 6vh, 64px);
   --iq-toast-timer-size: 2.5rem;
   --iq-toast-text-size: clamp(17px, 2.4vw, 22px);
@@ -93,14 +110,40 @@
   --iq-step-stack-size: clamp(64px, calc(2.2vw + 6svh), 110px);
   --iq-step-stack-font: clamp(1.4rem, calc(1.1vw + 2.6svh), 2.6rem);
   --iq-step-stack-gap: clamp(4px, 1vh, 8px);
-  --iq-step-border-width: 3px;
+  --iq-step-border-width: var(--iq-stroke-medium);
+  --iq-dates-column-gap: clamp(12px, 2.4vw, 32px);
+  --iq-dates-available-width: clamp(58px, calc(2vw + 2vh), 96px);
   --iq-dates-step-width: clamp(80px, calc(4vw + 3vh), 150px);
+  --iq-dates-selected-width: calc(3 * var(--iq-dates-step-width) + 2 * var(--iq-controls-gap));
   --iq-dates-step-height: clamp(56px, calc(1vw + 5vh), 84px);
   --iq-dates-step-font: clamp(1.5rem, calc(0.6vw + 2.2vh), 2.4rem);
   --iq-controls-gap: clamp(8px, 2vw, 12px);
   --iq-action-height: clamp(64px, calc(2.4vw + 10svh), 110px);
   --iq-action-font: clamp(22px, calc(1.2vw + 1.6vh), 32px);
+  --iq-action-height-small: clamp(46px, calc(1.2vw + 4.5vh), 62px);
+  --iq-action-font-small: clamp(16px, calc(0.5vw + 0.8vh), 21px);
+  --iq-action-padding-inline-small: var(--iq-header-button-padding-inline);
   --iq-item-name-size: clamp(1.45rem, 5vw, 3.2rem);
+  --iq-label-size: clamp(15px, var(--iq-scale-text), 20px);
+  --iq-form-measure: clamp(280px, 52vw, 620px);
+  --iq-form-gap: clamp(12px, 2.2vh, 24px);
+  /* Wide enough to use the room the screen has, so square keys fill it rather than leaving it dead. */
+  --iq-keypad-square-width: calc(3 * var(--iq-keypad-key-room) + 2 * var(--iq-keypad-gap));
+  --iq-keypad-width: clamp(280px, max(calc(16vw + 16vh), var(--iq-keypad-square-width)), min(90vw, 680px));
+  --iq-keypad-gap: clamp(8px, 1.4vh, 16px);
+  --iq-keypad-key-height: clamp(66px, calc(2vw + 8vh), 140px);
+  --iq-keypad-digit-font: clamp(1.7rem, calc(0.7vw + 2.4vh), 3.1rem);
+  --iq-keypad-word-font: clamp(0.95rem, calc(0.25vw + 1.1vh), 1.45rem);
+  --iq-keypad-slot-height: clamp(52px, calc(1.4vw + 5.4vh), 104px);
+  --iq-keypad-dot-size: clamp(14px, calc(0.4vw + 1.4vh), 28px);
+  /* Keys fill the room they are given, up to square; past that a tall screen only looks stretched. */
+  --iq-keypad-key-max-height: max(var(--iq-keypad-key-height), calc((var(--iq-keypad-width) - 2 * var(--iq-keypad-gap)) / 3));
+  --iq-keypad-max-block: calc(var(--iq-keypad-slot-height) + 4 * var(--iq-keypad-key-max-height) + 4 * var(--iq-keypad-gap));
+  --iq-keypad-min-block: calc(var(--iq-keypad-slot-height) + 4 * var(--iq-touch-min) + 4 * var(--iq-keypad-gap));
+  /* The room the PIN screen has for the keypad: the screen under the bar, less the panel, its actions and the air the page keeps at the top. */
+  --iq-keypad-room: calc(var(--iq-fit-block) - 2 * var(--iq-panel-padding) - var(--iq-panel-gap) - var(--iq-action-height) - 2 * var(--iq-form-gap) - var(--iq-action-height-small) - var(--iq-page-top-gap));
+  --iq-keypad-key-room: calc((var(--iq-keypad-room) - var(--iq-keypad-slot-height) - 4 * var(--iq-keypad-gap)) / 4);
+  --iq-keypad-icon-size: clamp(24px, calc(0.7vw + 2.2vh), 42px);
 }
 
 @layer iq-components {
@@ -112,4 +155,40 @@
     padding: 0;
     list-style: none;
   }
+
+  /* A screen that promises never to run off the bottom, so its action stays reachable without scrolling. */
+  .iq-fit {
+    display: flex;
+    flex-direction: column;
+    gap: var(--iq-row-gap);
+    min-block-size: 0;
+    max-block-size: var(--iq-fit-block);
+  }
+
+  /* The one box inside a fitted screen that gives up room first. */
+  .iq-scroll {
+    flex: 1 1 auto;
+    min-block-size: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+}
+
+:root {
+  --iq-status-gap: clamp(6px, 0.9vw, 12px);
+  --iq-status-font-size: clamp(13px, calc(var(--iq-scale-text) * 0.9), 18px);
+  --iq-status-icon-size: clamp(16px, calc(0.5vw + 1vh), 24px);
+  --iq-status-lamp-size: clamp(9px, calc(0.2vw + 0.7vh), 14px);
+  --iq-status-lamp-ring-width: var(--iq-stroke-hair);
+  --iq-status-lamp-pulse: 2.6s;
+  --iq-section-gap: clamp(8px, 1.4vw, 18px);
+  --iq-section-label-size: clamp(13px, calc(var(--iq-scale-text) * 0.85), 17px);
+  --iq-section-action-padding-inline: clamp(10px, 1.4vw, 18px);
+  --iq-modal-width: clamp(320px, 88vw, 880px);
+  --iq-modal-block-size: min(88svh, 900px);
+  --iq-modal-padding: clamp(12px, 2vw, 22px);
+  --iq-modal-gap: clamp(6px, 1vh, 12px);
+  --iq-modal-title-size: var(--iq-page-title-size);
+  --iq-modal-border-width: var(--iq-stroke-thin);
+  --iq-modal-action-width: clamp(140px, 26vw, 240px);
 }

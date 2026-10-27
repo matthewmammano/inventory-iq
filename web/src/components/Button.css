@@ -2,14 +2,25 @@
   .iq-button {
     display: grid;
     place-items: center;
-    min-height: var(--iq-action-height);
-    padding-inline: var(--iq-action-padding-inline);
     border: var(--iq-step-border-width) solid;
     border-radius: var(--fui-radius-control);
     font-family: var(--iq-font-heading);
-    font-size: var(--iq-action-font);
     font-weight: 700;
     cursor: pointer;
+  }
+
+  .iq-button-regular {
+    min-height: var(--iq-action-height);
+    padding-inline: var(--iq-action-padding-inline);
+    font-size: var(--iq-action-font);
+  }
+
+  /* A step aside that is not the screen's action: still a full touch target, just not a slab. */
+  .iq-button-small {
+    min-height: var(--iq-action-height-small);
+    padding-inline: var(--iq-action-padding-inline-small);
+    border-width: var(--iq-stroke-thin);
+    font-size: var(--iq-action-font-small);
   }
 
   .iq-button-primary {

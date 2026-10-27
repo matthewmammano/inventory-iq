@@ -1,4 +1,4 @@
-/** Every tunable number and every piece of visible copy on the guest scan screen. */
+/** Every tunable number and every piece of visible copy on the v2 screens. */
 
 import type { ScanResultResponse } from "./api/types.gen";
 
@@ -42,6 +42,9 @@ export const ROUTE_STEP_TITLE = "Where From, Where To";
 export const ROUTE_STEP_SUBTITLE = "Pick where the stock leaves, then where it lands";
 export const QUANTITY_STEP_TITLE = "How Many?";
 export const EXPIRATION_STEP_TITLE = "Expiration Dates";
+export const EXPIRATION_COLUMN_LABEL = "Expiration date";
+export const AVAILABLE_COLUMN_LABEL = "Available";
+export const SELECTED_COLUMN_LABEL = "Selected";
 
 export const FROM_GROUP_LABEL = "Take from";
 export const TO_GROUP_LABEL = "Put into";
@@ -94,8 +97,10 @@ export const SINGLE_STEP = [1] as const;
 
 export const suggestedRestockNote = (amount: number) => `Suggested restock is ${amount}.`;
 export const datedProgressLabel = (dated: number, target: number) => `${dated} of ${target} dated`;
-export const trackedHereLabel = (quantity: number) => `${quantity} tracked here`;
 export const initialCountNote = (itemName: string) => `${itemName} still needs its first full count.`;
+
+/** A photo that arrives inside this grace period replaces the empty box directly, so no backup is seen. */
+export const ITEM_PHOTO_BACKUP_DELAY_MS = 250;
 
 /** How long the confirmation bar stays up before it leaves on its own. */
 export const TOAST_VISIBLE_MS = 7000;
@@ -117,3 +122,61 @@ export function scanSavedNote(result: ScanResultResponse): string {
       return `Transferred ${result.quantity} ${result.item_name} from ${from} to ${to}.`;
   }
 }
+
+/** Whole screens the router owns. A flow's steps stay internal state, so none of them appear here. */
+export const SCAN_PATH = "/";
+export const SIGN_IN_PATH = "/sign-in";
+export const ADMIN_PATH = "/admin";
+
+/** The one status a screen branches on; every other refusal just shows the message the API sent. */
+export const HTTP_CONFLICT = 409;
+
+export const SIGN_IN_TITLE = "Sign In";
+export const SIGN_IN_SUBTITLE = "Enter the email and password for your squad account";
+export const EMAIL_LABEL = "Email";
+export const PASSWORD_LABEL = "Password";
+export const SIGN_IN_LABEL = "Sign in";
+export const SIGN_IN_PENDING_LABEL = "Signing in";
+export const SIGN_IN_UNREACHABLE_NOTE = "Could not reach the server. Try again.";
+export const SET_PASSWORD_LABEL = "Set a password";
+export const CONTINUE_TO_SCAN_LABEL = "Go to scanning";
+export const SIGN_OUT_LABEL = "Sign out";
+export const LOADING_ACCOUNT_LABEL = "Loading account";
+export const signedInAsNote = (name: string) => `This device is signed in as ${name}.`;
+
+export const ADMIN_PIN_TITLE = "Admin PIN";
+export const ADMIN_PIN_SUBTITLE = "Tap the 4-digit PIN to unlock the admin screens";
+export const ADMIN_PIN_LENGTH = 4;
+export const UNLOCK_LABEL = "Unlock admin";
+export const UNLOCK_PENDING_LABEL = "Checking PIN";
+export const UNLOCK_UNREACHABLE_NOTE = "Could not check that PIN. Try again.";
+export const TEMPORARY_PIN_LABEL = "Email me a temporary PIN";
+export const TEMPORARY_PIN_SENT_NOTE = "Temporary PIN sent to the account email.";
+export const TEMPORARY_PIN_CONFIRM_TITLE = "Email a temporary PIN?";
+export const TEMPORARY_PIN_CONFIRM_NOTE = "We will send a one-time PIN to the account email. The current PIN keeps working.";
+export const TEMPORARY_PIN_CONFIRM_LABEL = "Send it";
+export const TEMPORARY_PIN_FAILED_NOTE = "Could not send a temporary PIN. Try again.";
+export const ADMIN_UNLOCKED_TITLE = "Admin Unlocked";
+export const ADMIN_UNLOCKED_NOTE = "Admin is unlocked on this device.";
+export const OPEN_ADMIN_LABEL = "Open admin";
+export const LOCK_ADMIN_LABEL = "Lock admin now";
+export const LOADING_ADMIN_LABEL = "Checking admin";
+
+export const KEYPAD_DIGITS = ["1", "2", "3", "4", "5", "6", "7", "8", "9"] as const;
+export const KEYPAD_ZERO = "0";
+export const KEYPAD_CLEAR_LABEL = "Clear";
+export const KEYPAD_DELETE_LABEL = "Delete";
+export const pinProgressLabel = (entered: number, length: number) => `${entered} of ${length} digits entered`;
+
+export const SCAN_STATUS_READY = "Ready to scan";
+export const SCAN_STATUS_LOADING = "Loading inventory";
+export const SCAN_STATUS_OFFLINE = "No internet connection";
+export const SCAN_STATUS_FAILED = "Cannot reach the item list";
+
+export const QUICK_ACCESS_LABEL = "Quick Access";
+export const SEARCH_RESULTS_LABEL = "Search Results";
+export const VIEW_ALL_LABEL = "View All";
+export const ALL_ITEMS_TITLE = "All Items";
+export const ALL_ITEMS_SUBTITLE = "Every item in name order. Tap one to pick it.";
+export const CLOSE_LABEL = "Close";
+export const CANCEL_LABEL = "Cancel";

@@ -1,4 +1,4 @@
-import { Loading, Stack } from "@usefragments/ui";
+import { Loading } from "@usefragments/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -55,8 +55,8 @@ export function PickLocation({ agencyId, onPicked }: PickLocationProps) {
   if (all.length === 0) return <Note>{NO_LOCATIONS_NOTE}</Note>;
 
   return (
-    <Stack gap="md">
-      <div className="iq-choice-list">
+    <div className="iq-fit">
+      <div className="iq-choice-list iq-scroll">
         {all.map((location) => (
           <ChoiceCard
             key={location.id}
@@ -74,6 +74,6 @@ export function PickLocation({ agencyId, onPicked }: PickLocationProps) {
         disabled={picked === null || bind.isPending}
         onAction={save}
       />
-    </Stack>
+    </div>
   );
 }

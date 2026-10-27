@@ -1,4 +1,4 @@
-import { Loading, Stack } from "@usefragments/ui";
+import { Loading } from "@usefragments/ui";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useState, type ReactNode } from "react";
 
@@ -82,7 +82,7 @@ function RouteForm({ options, onPicked }: RouteFormProps) {
   };
 
   return (
-    <Stack gap="md">
+    <div className="iq-fit">
       <div className="iq-route-groups">
         <ChoiceGroup
           step={1}
@@ -107,7 +107,7 @@ function RouteForm({ options, onPicked }: RouteFormProps) {
         disabled={from === null || to === null}
         onAction={() => from !== null && to !== null && onPicked({ fromStorageId: from, toStorageId: to }, false)}
       />
-    </Stack>
+    </div>
   );
 }
 
@@ -136,17 +136,19 @@ function ChoiceGroup({ step, label, emptyNote, choices, picked, onPick }: Choice
       {choices.length === 0 ? (
         <Note>{emptyNote}</Note>
       ) : (
-        choices.map((choice) => (
-          <ChoiceCard
-            key={choice.id}
-            label={choice.label}
-            hint={choice.hint}
-            icon={ACTION_ICONS[choice.id] ?? <Circle />}
-            tone={choice.id in ACTION_ICONS ? "action" : "place"}
-            selected={choice.id === picked}
-            onSelect={() => onPick(choice.id)}
-          />
-        ))
+        <div className="iq-route-group-list iq-scroll">
+          {choices.map((choice) => (
+            <ChoiceCard
+              key={choice.id}
+              label={choice.label}
+              hint={choice.hint}
+              icon={ACTION_ICONS[choice.id] ?? <Circle />}
+              tone={choice.id in ACTION_ICONS ? "action" : "place"}
+              selected={choice.id === picked}
+              onSelect={() => onPick(choice.id)}
+            />
+          ))}
+        </div>
       )}
     </section>
   );

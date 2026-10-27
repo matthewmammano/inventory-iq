@@ -10,4 +10,11 @@
     font-weight: 700;
     text-align: center;
   }
+
+  .iq-note-bad {
+    border-style: solid;
+    border-color: var(--iq-bad);
+    background: var(--iq-bad-wash);
+    color: var(--iq-bad);
+  }
 }

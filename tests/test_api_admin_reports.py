@@ -14,11 +14,10 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import Location, NotificationRecipient, Storage
 from app.inventory import report_email_service
-from app.inventory.constants import OperationType
+from app.inventory.constants import TAKEOUT_LABEL, OperationType
 from app.inventory.history_service import HISTORY_PAGE_SIZE
 from app.inventory.models import ActionLog
 from app.inventory.report_email_service import ReportEmailOutcome
-from app.inventory.reports_response import TAKEOUT_LABEL
 from tests.actions import Squad
 from tests.factories import AgencyFixture, build_agency, build_item
 

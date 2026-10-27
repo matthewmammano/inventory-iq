@@ -43,11 +43,8 @@ class UnknownUpcStatus(StrEnum):
         return UNKNOWN_UPC_STATUS_MESSAGES[self]
 
 
-UNKNOWN_UPC_REVIEW_MESSAGE: Final[str] = (
-    "UPC not recognized yet. This item may already exist under another barcode. "
-    "Try scanning a different UPC for now while an admin reviews this code."
-)
-UNKNOWN_UPC_IGNORED_MESSAGE: Final[str] = "UPC is invalid. Try a different barcode or search by item name."
+UNKNOWN_UPC_REVIEW_MESSAGE: Final[str] = "An admin is already matching this barcode to an item. Search by name for now."
+UNKNOWN_UPC_IGNORED_MESSAGE: Final[str] = "An admin set this barcode aside. Search by name or ask an admin."
 UNKNOWN_UPC_INVALID_MESSAGE: Final[str] = "Barcode not valid, or not in your items yet. Search by name or ask an admin."
 UNKNOWN_UPC_LINKED_MESSAGE: Final[str] = "UPC is already linked to an item. Refresh and try scanning again."
 SCAN_ITEM_NOT_FOUND_MESSAGE: Final[str] = "Item not found for this agency."
@@ -73,6 +70,7 @@ class VirtualLocation(IntEnum):
     TAKEOUT = -3
 
 
+TAKEOUT_LABEL: Final[str] = "TAKE"
 UPC_GENERATION_PREFIX: Final[str] = "042"
 UPC_LENGTH: Final[int] = 12
 UPC_PAYLOAD_LENGTH: Final[int] = 11

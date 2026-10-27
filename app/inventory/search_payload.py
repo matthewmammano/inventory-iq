@@ -1,6 +1,7 @@
 """Build browser search payloads from inventory rows."""
 
 from collections.abc import Iterable
+from dataclasses import dataclass
 from datetime import datetime
 from typing import TYPE_CHECKING, Any, TypedDict, cast
 
@@ -25,6 +26,7 @@ class TagSearchPayload(TypedDict):
 class ItemSearchPayload(TypedDict):
     id: int
     name: str
+    image: str | None
     upc: str
     upcs: list[str]
     last_accessed: str
@@ -32,11 +34,22 @@ class ItemSearchPayload(TypedDict):
     tag_data: list[TagSearchPayload]
 
 
+@dataclass(frozen=True, slots=True)
+class _ItemFacts:
+    """The item columns every search payload entry is built from."""
+
+    id: int
+    name: str
+    image: str | None
+    last_accessed: datetime | None
+
+
 def build_item_search_payload(items: Iterable[Item]) -> list[ItemSearchPayload]:
     payload: list[ItemSearchPayload] = []
     for item in items:
         tags = cast("list[ItemTag]", item.tags)
-        payload.append(_item_payload_entry(item.id, item.name, [item.upc, *(code.upc for code in item.secondary_upcs)], item.last_accessed, tags))
+        facts = _ItemFacts(item.id, item.name, item.image, item.last_accessed)
+        payload.append(_item_payload_entry(facts, [item.upc, *(code.upc for code in item.secondary_upcs)], tags))
     return payload
 
 
@@ -52,6 +65,7 @@ def load_item_search_payload(
     stmt = select(
         Item.id,
         Item.name,
+        Item.image,
         Item.upc,
         Item.last_accessed,
         Item.tag_ids,
@@ -71,7 +85,8 @@ def load_item_search_payload(
     payload: list[ItemSearchPayload] = []
     for row in rows:
         item_tags = [tags_by_id[tag_id] for tag_id in (row.tag_ids or []) if tag_id in tags_by_id]
-        payload.append(_item_payload_entry(row.id, row.name, [row.upc, *upcs_by_item_id.get(row.id, [])], row.last_accessed, item_tags))
+        facts = _ItemFacts(row.id, row.name, row.image, row.last_accessed)
+        payload.append(_item_payload_entry(facts, [row.upc, *upcs_by_item_id.get(row.id, [])], item_tags))
     return payload
 
 
@@ -91,19 +106,14 @@ def _upcs_by_item_id(session: Session, agency_id: int, item_ids: list[int]) -> d
     return upcs_by_item
 
 
-def _item_payload_entry(
-    item_id: int,
-    name: str,
-    upcs: list[str],
-    last_accessed: datetime | None,
-    tags: list[Any],
-) -> ItemSearchPayload:
+def _item_payload_entry(facts: _ItemFacts, upcs: list[str], tags: list[Any]) -> ItemSearchPayload:
     return {
-        "id": item_id,
-        "name": name,
+        "id": facts.id,
+        "name": facts.name,
+        "image": facts.image,
         "upc": upcs[0] if upcs else "",
         "upcs": upcs,
-        "last_accessed": utc_isoformat(last_accessed),
+        "last_accessed": utc_isoformat(facts.last_accessed),
         "tags": [tag.tag_name for tag in tags],
         "tag_data": [{"name": tag.tag_name, "color": tag.color, "text_color": tag.text_color} for tag in tags],
     }

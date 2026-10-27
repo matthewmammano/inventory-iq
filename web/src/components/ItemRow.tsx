@@ -18,7 +18,7 @@ export function ItemRow({ item, onPick }: ItemRowProps) {
             <span
               key={tag.name}
               className="iq-item-tag"
-              style={{ background: tag.color, color: tag.text_color, borderColor: tag.text_color }}
+              style={{ background: tag.color, color: tag.text_color }}
             >
               {tag.name}
             </span>

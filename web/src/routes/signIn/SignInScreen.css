@@ -1,0 +1,28 @@
+@layer iq-components {
+  .iq-sign-in {
+    display: grid;
+    gap: var(--iq-form-gap);
+    max-width: var(--iq-form-measure);
+  }
+
+  .iq-sign-in-form {
+    display: grid;
+    gap: var(--iq-form-gap);
+  }
+
+  .iq-sign-in-current {
+    margin: 0;
+    font-size: var(--iq-row-name-size);
+    color: var(--iq-ink-soft);
+  }
+
+  .iq-sign-in-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--iq-controls-gap);
+  }
+
+  .iq-sign-in-actions > * {
+    flex: 1 1 auto;
+  }
+}

@@ -1,0 +1,51 @@
+@layer iq-components {
+  .iq-scan-status {
+    --iq-lamp: var(--iq-ok);
+    display: flex;
+    align-items: center;
+    gap: var(--iq-status-gap);
+    margin: 0;
+    color: var(--iq-muted);
+    font-size: var(--iq-status-font-size);
+    font-weight: 700;
+  }
+
+  .iq-scan-lamp {
+    flex: none;
+    height: var(--iq-status-lamp-size);
+    width: var(--iq-status-lamp-size);
+    border: var(--iq-status-lamp-ring-width) solid var(--iq-lamp);
+    border-radius: 50%;
+    background: var(--iq-lamp);
+    animation: iq-lamp-breathe var(--iq-status-lamp-pulse) ease-in-out infinite;
+  }
+
+  .iq-scan-status-loading {
+    --iq-lamp: var(--iq-warn);
+  }
+
+  /* A problem stays lit rather than blinking, so it reads as a condition and not an alarm. */
+  .iq-scan-status-offline,
+  .iq-scan-status-failed {
+    --iq-lamp: var(--iq-bad);
+    color: var(--iq-bad);
+  }
+
+  .iq-scan-status-offline .iq-scan-lamp,
+  .iq-scan-status-failed .iq-scan-lamp {
+    animation: none;
+  }
+
+  @keyframes iq-lamp-breathe {
+    50% {
+      opacity: 0.35;
+      box-shadow: 0 0 0 var(--iq-status-lamp-ring-width) var(--iq-lamp);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .iq-scan-lamp {
+      animation: none;
+    }
+  }
+}

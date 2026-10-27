@@ -894,6 +894,10 @@ export type ItemListResponseItemResponse = {
      */
     id: number;
     /**
+     * Image Url
+     */
+    image_url: string;
+    /**
      * Last Accessed
      */
     last_accessed: string;
@@ -1005,6 +1009,10 @@ export type ItemResponse = {
      * Id
      */
     id: number;
+    /**
+     * Image Url
+     */
+    image_url: string;
     /**
      * Last Accessed
      */
@@ -1161,9 +1169,18 @@ export type LocationListResponseLocationResponse = {
 /**
  * NotificationRecipientListResponse
  *
- * Every active recipient the agency sends alerts and summaries to.
+ * Every active recipient, with the toggle table its previews and modal columns are drawn from.
  */
-export type NotificationRecipientListResponse = Array<NotificationRecipientListResponseNotificationRecipientResponse>;
+export type NotificationRecipientListResponse = {
+    /**
+     * Recipients
+     */
+    recipients: Array<NotificationRecipientListResponseNotificationRecipientResponse>;
+    /**
+     * Toggle Fields
+     */
+    toggle_fields: Array<NotificationRecipientListResponseNotificationToggleResponse>;
+};
 
 /**
  * AlertEmailFrequency
@@ -1171,76 +1188,21 @@ export type NotificationRecipientListResponse = Array<NotificationRecipientListR
 export type NotificationRecipientListResponseAlertEmailFrequency = 'INSTANT' | 'HOURLY' | 'DAILY';
 
 /**
+ * NotificationPreferenceGroup
+ */
+export type NotificationRecipientListResponseNotificationPreferenceGroup = 'ALERT' | 'SUMMARY';
+
+/**
  * NotificationRecipientResponse
  *
- * One alert recipient: its delivery window and scope, plus every per-alert toggle it stores.
+ * One recipient as its row preview plus every field the edit modal writes back.
  */
 export type NotificationRecipientListResponseNotificationRecipientResponse = {
-    /**
-     * Active
-     */
-    active: boolean;
-    /**
-     * Alert For Count
-     */
-    alert_for_count: boolean;
-    /**
-     * Alert For Expiration Count Needed
-     */
-    alert_for_expiration_count_needed: boolean;
-    /**
-     * Alert For Expired Stock
-     */
-    alert_for_expired_stock: boolean;
-    /**
-     * Alert For Expiring Soon
-     */
-    alert_for_expiring_soon: boolean;
-    /**
-     * Alert For Low
-     */
-    alert_for_low: boolean;
-    /**
-     * Alert For Low Pred
-     */
-    alert_for_low_pred: boolean;
-    /**
-     * Alert For Rare Takeout
-     */
-    alert_for_rare_takeout: boolean;
-    /**
-     * Alert For Restock
-     */
-    alert_for_restock: boolean;
-    /**
-     * Alert For Stale Count
-     */
-    alert_for_stale_count: boolean;
-    /**
-     * Alert For Stockout
-     */
-    alert_for_stockout: boolean;
-    /**
-     * Alert For Stockout Pred
-     */
-    alert_for_stockout_pred: boolean;
-    /**
-     * Alert For Takeout
-     */
-    alert_for_takeout: boolean;
-    /**
-     * Alert For Transfer
-     */
-    alert_for_transfer: boolean;
-    /**
-     * Alert For Unknown Upc
-     */
-    alert_for_unknown_upc: boolean;
     alert_frequency: NotificationRecipientListResponseAlertEmailFrequency;
     /**
-     * Daily Summary
+     * Alert Frequency Label
      */
-    daily_summary: boolean;
+    alert_frequency_label: string;
     /**
      * Email
      */
@@ -1252,11 +1214,15 @@ export type NotificationRecipientListResponseNotificationRecipientResponse = {
     /**
      * Location Filter Ids
      */
-    location_filter_ids: Array<number> | null;
+    location_filter_ids: Array<number>;
     /**
-     * Monthly Summary
+     * Location Names
      */
-    monthly_summary: boolean;
+    location_names: Array<string>;
+    /**
+     * Preview
+     */
+    preview: string;
     /**
      * Quiet End Time
      */
@@ -1271,13 +1237,32 @@ export type NotificationRecipientListResponseNotificationRecipientResponse = {
     quiet_start_time: string | null;
     scan_alert_scope: NotificationRecipientListResponseScanAlertScope;
     /**
-     * Weekly Summary
+     * Scan Alert Scope Label
      */
-    weekly_summary: boolean;
+    scan_alert_scope_label: string;
     /**
-     * Yearly Summary
+     * Toggles
      */
-    yearly_summary: boolean;
+    toggles: {
+        [key: string]: boolean;
+    };
+};
+
+/**
+ * NotificationToggleResponse
+ *
+ * One toggle's field name, label, and group, so the client labels a row without a table of its own.
+ */
+export type NotificationRecipientListResponseNotificationToggleResponse = {
+    /**
+     * Field
+     */
+    field: string;
+    group: NotificationRecipientListResponseNotificationPreferenceGroup;
+    /**
+     * Label
+     */
+    label: string;
 };
 
 /**
@@ -1400,74 +1385,14 @@ export type NotificationRecipientRequestScanAlertScope = 'ALL' | 'FLAGGED';
 /**
  * NotificationRecipientResponse
  *
- * One alert recipient: its delivery window and scope, plus every per-alert toggle it stores.
+ * One recipient as its row preview plus every field the edit modal writes back.
  */
 export type NotificationRecipientResponse = {
-    /**
-     * Active
-     */
-    active: boolean;
-    /**
-     * Alert For Count
-     */
-    alert_for_count: boolean;
-    /**
-     * Alert For Expiration Count Needed
-     */
-    alert_for_expiration_count_needed: boolean;
-    /**
-     * Alert For Expired Stock
-     */
-    alert_for_expired_stock: boolean;
-    /**
-     * Alert For Expiring Soon
-     */
-    alert_for_expiring_soon: boolean;
-    /**
-     * Alert For Low
-     */
-    alert_for_low: boolean;
-    /**
-     * Alert For Low Pred
-     */
-    alert_for_low_pred: boolean;
-    /**
-     * Alert For Rare Takeout
-     */
-    alert_for_rare_takeout: boolean;
-    /**
-     * Alert For Restock
-     */
-    alert_for_restock: boolean;
-    /**
-     * Alert For Stale Count
-     */
-    alert_for_stale_count: boolean;
-    /**
-     * Alert For Stockout
-     */
-    alert_for_stockout: boolean;
-    /**
-     * Alert For Stockout Pred
-     */
-    alert_for_stockout_pred: boolean;
-    /**
-     * Alert For Takeout
-     */
-    alert_for_takeout: boolean;
-    /**
-     * Alert For Transfer
-     */
-    alert_for_transfer: boolean;
-    /**
-     * Alert For Unknown Upc
-     */
-    alert_for_unknown_upc: boolean;
     alert_frequency: NotificationRecipientResponseAlertEmailFrequency;
     /**
-     * Daily Summary
+     * Alert Frequency Label
      */
-    daily_summary: boolean;
+    alert_frequency_label: string;
     /**
      * Email
      */
@@ -1479,11 +1404,15 @@ export type NotificationRecipientResponse = {
     /**
      * Location Filter Ids
      */
-    location_filter_ids: Array<number> | null;
+    location_filter_ids: Array<number>;
     /**
-     * Monthly Summary
+     * Location Names
      */
-    monthly_summary: boolean;
+    location_names: Array<string>;
+    /**
+     * Preview
+     */
+    preview: string;
     /**
      * Quiet End Time
      */
@@ -1498,13 +1427,15 @@ export type NotificationRecipientResponse = {
     quiet_start_time: string | null;
     scan_alert_scope: NotificationRecipientResponseScanAlertScope;
     /**
-     * Weekly Summary
+     * Scan Alert Scope Label
      */
-    weekly_summary: boolean;
+    scan_alert_scope_label: string;
     /**
-     * Yearly Summary
+     * Toggles
      */
-    yearly_summary: boolean;
+    toggles: {
+        [key: string]: boolean;
+    };
 };
 
 /**

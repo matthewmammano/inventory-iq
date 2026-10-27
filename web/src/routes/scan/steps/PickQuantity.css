@@ -9,7 +9,7 @@
   .iq-quantity-facts {
     display: flex;
     flex-direction: column;
-    gap: var(--iq-heading-gap);
+    gap: var(--iq-heading-stack-gap);
     min-width: 0;
   }
 
@@ -41,6 +41,7 @@
     gap: var(--iq-controls-gap);
   }
 
+  /* Device, not box: a phone gives the number the screen and drops the unit beside it. */
   @media (max-width: 560px) {
     .iq-quantity-unit {
       display: none;

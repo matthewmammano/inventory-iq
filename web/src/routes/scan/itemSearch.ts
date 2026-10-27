@@ -5,6 +5,9 @@ import { MAX_VISIBLE_RESULTS, SEARCH_KEYS, SEARCH_THRESHOLD } from "../../consta
 
 const lastAccessedFirst = (left: Item, right: Item) => right.last_accessed.localeCompare(left.last_accessed);
 
+/** Every item in name order, for the list that shows all of them at once. */
+export const sortByName = (items: Item[]): Item[] => [...items].sort((left, right) => left.name.localeCompare(right.name));
+
 export const findByBarcode = (items: Item[], upc: string) => items.find((item) => item.upcs.includes(upc));
 
 /** Matches a typed query the way v1 did: fuzzy over name, barcodes and tag names, best score first. */

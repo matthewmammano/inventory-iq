@@ -1,0 +1,48 @@
+@layer iq-components {
+  .iq-section-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--iq-section-gap);
+    border-block-end: var(--iq-stroke-hair) solid var(--iq-line);
+  }
+
+  .iq-section-label {
+    margin: 0;
+    color: var(--iq-muted);
+    font-size: var(--iq-section-label-size);
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .iq-section-action {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--iq-heading-gap);
+    min-height: 0;
+    padding-block: calc((var(--iq-touch-min) - var(--iq-label-size) * 1.2) / 2);
+    padding-inline: var(--iq-section-action-padding-inline);
+    line-height: 1.2;
+    border: none;
+    border-radius: var(--fui-radius-control);
+    background: none;
+    color: var(--iq-accent-deep);
+    font-family: var(--iq-font-heading);
+    font-size: var(--iq-label-size);
+    font-weight: 600;
+    cursor: pointer;
+  }
+
+  .iq-section-action svg {
+    height: var(--iq-status-icon-size);
+    width: var(--iq-status-icon-size);
+  }
+
+  .iq-section-action:hover,
+  .iq-section-action:focus-visible {
+    background: var(--iq-accent-wash);
+    color: var(--iq-accent-edge);
+  }
+}

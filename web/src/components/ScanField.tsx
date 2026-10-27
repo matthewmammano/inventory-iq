@@ -2,7 +2,7 @@ import { Input } from "@usefragments/ui";
 import { useEffect, useRef } from "react";
 
 import { SEARCH_PLACEHOLDER } from "../constants";
-import { Search } from "./icons/Search";
+import { ScanBarcode } from "./icons/ScanBarcode";
 
 import "./ScanField.css";
 
@@ -35,7 +35,7 @@ export function ScanField({ value, onValueChange, count }: ScanFieldProps) {
         onValueChange={onValueChange}
         placeholder={SEARCH_PLACEHOLDER}
         autoComplete="off"
-        startAdornment={<Search />}
+        startAdornment={<ScanBarcode />}
         count={count}
       />
     </div>

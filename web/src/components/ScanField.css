@@ -4,7 +4,7 @@
     --fui-field-border: var(--iq-ink-soft);
     --fui-stroke-hairline: var(--iq-field-border-width);
     --fui-focus-ring-offset: 0px;
-    --fui-focus-ring-width: 2px;
+    --fui-focus-ring-width: var(--iq-focus-ring-width);
   }
 
   .iq-scan-field input {
@@ -15,6 +15,12 @@
   .iq-scan-field svg {
     height: var(--iq-field-icon-size);
     width: var(--iq-field-icon-size);
+  }
+
+  /* The barcode glyph reads as part of the prompt, so it takes the placeholder's own grey. */
+  .iq-scan-field :not(button) > svg {
+    color: var(--iq-placeholder);
+    margin-inline-start: calc(var(--iq-field-icon-size) * -0.35);
   }
 
   .iq-scan-field button[aria-label="Clear"] {

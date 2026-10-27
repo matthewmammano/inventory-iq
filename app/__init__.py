@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, cast
 
 from apiflask import APIFlask
-from flask import Flask, send_from_directory
+from flask import Flask, Response, request, send_from_directory
 from flask_login import LoginManager
 from flask_wtf import CSRFProtect
 from loguru import logger
@@ -25,6 +25,7 @@ from app.errors import register_error_handlers
 from app.frontend import register_frontend
 from app.inventory import admin_bp, guest_bp
 from app.inventory.admin_navigation import hub_back_url
+from app.inventory.constants import TAKEOUT_LABEL
 from app.shared.clock import utc_now
 from app.shared.config import settings
 from app.shared.constants import HEALTH_NO_DATABASE, HEALTH_OK, IDLE_TIMEOUT, IDLE_WARNING_SECONDS
@@ -32,7 +33,7 @@ from app.shared.database import get_session, init_db
 from app.shared.email_client import log_email_config_status
 from app.shared.form_validation import validation_attrs, validation_group_attrs
 from app.shared.html_formatting import bold_item_name
-from app.shared.image_paths import static_image_url
+from app.shared.image_paths import IMAGE_CACHE_MAX_AGE_SECONDS, IMAGE_DIRECTORY, static_image_url
 from app.shared.logging import setup_logging
 from app.shared.model_registry import import_model_modules
 from app.shared.rate_limit import register_rate_limiting
@@ -50,6 +51,7 @@ ROUTE_MODULES = (
     "app.api.admin_gate",
     "app.api.admin_help",
     "app.api.admin_items",
+    "app.api.admin_notifications",
     "app.api.admin_overview",
     "app.api.admin_reports",
     "app.api.admin_upc",
@@ -86,6 +88,7 @@ def create_app() -> APIFlask:
     )
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1)  # Railway sits one reverse-proxy hop in front
     _configure_app(app)
+    _register_image_caching(app)
     register_request_logging(app)  # must register before any extension that can short-circuit via before_request (CSRF, login)
     _init_extensions(app)
     _register_blueprints(app)
@@ -158,6 +161,17 @@ def _register_blueprints(app: Flask) -> None:
     csrf.exempt(api_bp)  # the JSON API authenticates per request, so it carries no form token
 
 
+def _register_image_caching(app: Flask) -> None:
+    @app.after_request
+    def reuse_item_images(response: Response) -> Response:
+        """Item photos change rarely, so a device may reuse one for a day without asking the server again."""
+        filename = str((request.view_args or {}).get("filename", ""))
+        if request.endpoint == "static" and filename.startswith(IMAGE_DIRECTORY):
+            response.cache_control.no_cache = None  # Flask marks every static file no-cache, which would cancel the max age
+            response.cache_control.max_age = IMAGE_CACHE_MAX_AGE_SECONDS
+        return response
+
+
 def _register_template_filters(app: Flask) -> None:
     app.add_template_filter(bold_item_name, "bold_item_name")
     app.add_template_filter(pluralize, "pluralize")
@@ -176,6 +190,10 @@ def _register_template_context(app: Flask) -> None:
     @app.context_processor
     def header_navigation() -> dict[str, Any]:
         return {"hub_back_url": hub_back_url()}
+
+    @app.context_processor
+    def scan_route_labels() -> dict[str, Any]:
+        return {"takeout_label": TAKEOUT_LABEL}
 
 
 def _register_auth_loader() -> None:

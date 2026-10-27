@@ -1321,6 +1321,10 @@
             "title": "Id",
             "type": "integer"
           },
+          "image_url": {
+            "title": "Image Url",
+            "type": "string"
+          },
           "last_accessed": {
             "title": "Last Accessed",
             "type": "string"
@@ -1351,6 +1355,7 @@
         "required": [
           "id",
           "name",
+          "image_url",
           "upc",
           "upcs",
           "last_accessed",
@@ -1497,6 +1502,10 @@
             "title": "Id",
             "type": "integer"
           },
+          "image_url": {
+            "title": "Image Url",
+            "type": "string"
+          },
           "last_accessed": {
             "title": "Last Accessed",
             "type": "string"
@@ -1527,6 +1536,7 @@
         "required": [
           "id",
           "name",
+          "image_url",
           "upc",
           "upcs",
           "last_accessed",
@@ -1749,12 +1759,29 @@
         "type": "object"
       },
       "NotificationRecipientListResponse": {
-        "description": "Every active recipient the agency sends alerts and summaries to.",
-        "items": {
-          "$ref": "#/components/schemas/NotificationRecipientListResponse.NotificationRecipientResponse"
+        "description": "Every active recipient, with the toggle table its previews and modal columns are drawn from.",
+        "properties": {
+          "recipients": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationRecipientListResponse.NotificationRecipientResponse"
+            },
+            "title": "Recipients",
+            "type": "array"
+          },
+          "toggle_fields": {
+            "items": {
+              "$ref": "#/components/schemas/NotificationRecipientListResponse.NotificationToggleResponse"
+            },
+            "title": "Toggle Fields",
+            "type": "array"
+          }
         },
+        "required": [
+          "toggle_fields",
+          "recipients"
+        ],
         "title": "NotificationRecipientListResponse",
-        "type": "array"
+        "type": "object"
       },
       "NotificationRecipientListResponse.AlertEmailFrequency": {
         "enum": [
@@ -1765,75 +1792,23 @@
         "title": "AlertEmailFrequency",
         "type": "string"
       },
+      "NotificationRecipientListResponse.NotificationPreferenceGroup": {
+        "enum": [
+          "ALERT",
+          "SUMMARY"
+        ],
+        "title": "NotificationPreferenceGroup",
+        "type": "string"
+      },
       "NotificationRecipientListResponse.NotificationRecipientResponse": {
-        "description": "One alert recipient: its delivery window and scope, plus every per-alert toggle it stores.",
+        "description": "One recipient as its row preview plus every field the edit modal writes back.",
         "properties": {
-          "active": {
-            "title": "Active",
-            "type": "boolean"
-          },
-          "alert_for_count": {
-            "title": "Alert For Count",
-            "type": "boolean"
-          },
-          "alert_for_expiration_count_needed": {
-            "title": "Alert For Expiration Count Needed",
-            "type": "boolean"
-          },
-          "alert_for_expired_stock": {
-            "title": "Alert For Expired Stock",
-            "type": "boolean"
-          },
-          "alert_for_expiring_soon": {
-            "title": "Alert For Expiring Soon",
-            "type": "boolean"
-          },
-          "alert_for_low": {
-            "title": "Alert For Low",
-            "type": "boolean"
-          },
-          "alert_for_low_pred": {
-            "title": "Alert For Low Pred",
-            "type": "boolean"
-          },
-          "alert_for_rare_takeout": {
-            "title": "Alert For Rare Takeout",
-            "type": "boolean"
-          },
-          "alert_for_restock": {
-            "title": "Alert For Restock",
-            "type": "boolean"
-          },
-          "alert_for_stale_count": {
-            "title": "Alert For Stale Count",
-            "type": "boolean"
-          },
-          "alert_for_stockout": {
-            "title": "Alert For Stockout",
-            "type": "boolean"
-          },
-          "alert_for_stockout_pred": {
-            "title": "Alert For Stockout Pred",
-            "type": "boolean"
-          },
-          "alert_for_takeout": {
-            "title": "Alert For Takeout",
-            "type": "boolean"
-          },
-          "alert_for_transfer": {
-            "title": "Alert For Transfer",
-            "type": "boolean"
-          },
-          "alert_for_unknown_upc": {
-            "title": "Alert For Unknown Upc",
-            "type": "boolean"
-          },
           "alert_frequency": {
             "$ref": "#/components/schemas/NotificationRecipientListResponse.AlertEmailFrequency"
           },
-          "daily_summary": {
-            "title": "Daily Summary",
-            "type": "boolean"
+          "alert_frequency_label": {
+            "title": "Alert Frequency Label",
+            "type": "string"
           },
           "email": {
             "title": "Email",
@@ -1844,22 +1819,22 @@
             "type": "integer"
           },
           "location_filter_ids": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "integer"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Location Filter Ids"
+            "items": {
+              "type": "integer"
+            },
+            "title": "Location Filter Ids",
+            "type": "array"
           },
-          "monthly_summary": {
-            "title": "Monthly Summary",
-            "type": "boolean"
+          "location_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Location Names",
+            "type": "array"
+          },
+          "preview": {
+            "title": "Preview",
+            "type": "string"
           },
           "quiet_end_time": {
             "anyOf": [
@@ -1890,45 +1865,57 @@
           "scan_alert_scope": {
             "$ref": "#/components/schemas/NotificationRecipientListResponse.ScanAlertScope"
           },
-          "weekly_summary": {
-            "title": "Weekly Summary",
-            "type": "boolean"
+          "scan_alert_scope_label": {
+            "title": "Scan Alert Scope Label",
+            "type": "string"
           },
-          "yearly_summary": {
-            "title": "Yearly Summary",
-            "type": "boolean"
+          "toggles": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Toggles",
+            "type": "object"
           }
         },
         "required": [
           "id",
           "email",
-          "active",
           "location_filter_ids",
+          "location_names",
           "quiet_start_time",
           "quiet_end_time",
           "quiet_hours_label",
           "alert_frequency",
+          "alert_frequency_label",
           "scan_alert_scope",
-          "alert_for_stockout",
-          "alert_for_stockout_pred",
-          "alert_for_low",
-          "alert_for_low_pred",
-          "alert_for_stale_count",
-          "alert_for_rare_takeout",
-          "alert_for_count",
-          "alert_for_restock",
-          "alert_for_takeout",
-          "alert_for_transfer",
-          "alert_for_unknown_upc",
-          "alert_for_expired_stock",
-          "alert_for_expiring_soon",
-          "alert_for_expiration_count_needed",
-          "daily_summary",
-          "weekly_summary",
-          "monthly_summary",
-          "yearly_summary"
+          "scan_alert_scope_label",
+          "toggles",
+          "preview"
         ],
         "title": "NotificationRecipientResponse",
+        "type": "object"
+      },
+      "NotificationRecipientListResponse.NotificationToggleResponse": {
+        "description": "One toggle's field name, label, and group, so the client labels a row without a table of its own.",
+        "properties": {
+          "field": {
+            "title": "Field",
+            "type": "string"
+          },
+          "group": {
+            "$ref": "#/components/schemas/NotificationRecipientListResponse.NotificationPreferenceGroup"
+          },
+          "label": {
+            "title": "Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "field",
+          "label",
+          "group"
+        ],
+        "title": "NotificationToggleResponse",
         "type": "object"
       },
       "NotificationRecipientListResponse.ScanAlertScope": {
@@ -2111,74 +2098,14 @@
         "type": "string"
       },
       "NotificationRecipientResponse": {
-        "description": "One alert recipient: its delivery window and scope, plus every per-alert toggle it stores.",
+        "description": "One recipient as its row preview plus every field the edit modal writes back.",
         "properties": {
-          "active": {
-            "title": "Active",
-            "type": "boolean"
-          },
-          "alert_for_count": {
-            "title": "Alert For Count",
-            "type": "boolean"
-          },
-          "alert_for_expiration_count_needed": {
-            "title": "Alert For Expiration Count Needed",
-            "type": "boolean"
-          },
-          "alert_for_expired_stock": {
-            "title": "Alert For Expired Stock",
-            "type": "boolean"
-          },
-          "alert_for_expiring_soon": {
-            "title": "Alert For Expiring Soon",
-            "type": "boolean"
-          },
-          "alert_for_low": {
-            "title": "Alert For Low",
-            "type": "boolean"
-          },
-          "alert_for_low_pred": {
-            "title": "Alert For Low Pred",
-            "type": "boolean"
-          },
-          "alert_for_rare_takeout": {
-            "title": "Alert For Rare Takeout",
-            "type": "boolean"
-          },
-          "alert_for_restock": {
-            "title": "Alert For Restock",
-            "type": "boolean"
-          },
-          "alert_for_stale_count": {
-            "title": "Alert For Stale Count",
-            "type": "boolean"
-          },
-          "alert_for_stockout": {
-            "title": "Alert For Stockout",
-            "type": "boolean"
-          },
-          "alert_for_stockout_pred": {
-            "title": "Alert For Stockout Pred",
-            "type": "boolean"
-          },
-          "alert_for_takeout": {
-            "title": "Alert For Takeout",
-            "type": "boolean"
-          },
-          "alert_for_transfer": {
-            "title": "Alert For Transfer",
-            "type": "boolean"
-          },
-          "alert_for_unknown_upc": {
-            "title": "Alert For Unknown Upc",
-            "type": "boolean"
-          },
           "alert_frequency": {
             "$ref": "#/components/schemas/NotificationRecipientResponse.AlertEmailFrequency"
           },
-          "daily_summary": {
-            "title": "Daily Summary",
-            "type": "boolean"
+          "alert_frequency_label": {
+            "title": "Alert Frequency Label",
+            "type": "string"
           },
           "email": {
             "title": "Email",
@@ -2189,22 +2116,22 @@
             "type": "integer"
           },
           "location_filter_ids": {
-            "anyOf": [
-              {
-                "items": {
-                  "type": "integer"
-                },
-                "type": "array"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Location Filter Ids"
+            "items": {
+              "type": "integer"
+            },
+            "title": "Location Filter Ids",
+            "type": "array"
           },
-          "monthly_summary": {
-            "title": "Monthly Summary",
-            "type": "boolean"
+          "location_names": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Location Names",
+            "type": "array"
+          },
+          "preview": {
+            "title": "Preview",
+            "type": "string"
           },
           "quiet_end_time": {
             "anyOf": [
@@ -2235,43 +2162,32 @@
           "scan_alert_scope": {
             "$ref": "#/components/schemas/NotificationRecipientResponse.ScanAlertScope"
           },
-          "weekly_summary": {
-            "title": "Weekly Summary",
-            "type": "boolean"
+          "scan_alert_scope_label": {
+            "title": "Scan Alert Scope Label",
+            "type": "string"
           },
-          "yearly_summary": {
-            "title": "Yearly Summary",
-            "type": "boolean"
+          "toggles": {
+            "additionalProperties": {
+              "type": "boolean"
+            },
+            "title": "Toggles",
+            "type": "object"
           }
         },
         "required": [
           "id",
           "email",
-          "active",
           "location_filter_ids",
+          "location_names",
           "quiet_start_time",
           "quiet_end_time",
           "quiet_hours_label",
           "alert_frequency",
+          "alert_frequency_label",
           "scan_alert_scope",
-          "alert_for_stockout",
-          "alert_for_stockout_pred",
-          "alert_for_low",
-          "alert_for_low_pred",
-          "alert_for_stale_count",
-          "alert_for_rare_takeout",
-          "alert_for_count",
-          "alert_for_restock",
-          "alert_for_takeout",
-          "alert_for_transfer",
-          "alert_for_unknown_upc",
-          "alert_for_expired_stock",
-          "alert_for_expiring_soon",
-          "alert_for_expiration_count_needed",
-          "daily_summary",
-          "weekly_summary",
-          "monthly_summary",
-          "yearly_summary"
+          "scan_alert_scope_label",
+          "toggles",
+          "preview"
         ],
         "title": "NotificationRecipientResponse",
         "type": "object"
@@ -4103,7 +4019,7 @@
             "description": "Not found"
           }
         },
-        "summary": "List every active alert and summary recipient",
+        "summary": "List every alert and summary recipient, with the toggle table its previews are drawn from",
         "tags": [
           "V1"
         ]

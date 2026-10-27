@@ -1,7 +1,10 @@
 @layer iq-components {
   .iq-route-groups {
+    container: iq-route-groups / inline-size;
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(var(--iq-choice-min-width), 1fr));
+    flex: 1 1 auto;
+    min-block-size: 0;
+    grid-template-columns: repeat(auto-fit, minmax(min(var(--iq-choice-min-width), 100%), 1fr));
     gap: var(--iq-row-gap);
   }
 
@@ -10,6 +13,14 @@
     flex-direction: column;
     gap: var(--iq-results-gap);
     min-width: 0;
+    min-block-size: 0;
+  }
+
+  .iq-route-group-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--iq-results-gap);
+    padding-inline-end: var(--iq-scroll-inset);
   }
 
   .iq-route-group + .iq-route-group {
@@ -43,11 +54,7 @@
   }
 
   /* Stacked, the divider has to move to the top edge or it draws beside nothing. */
-  @media (max-width: 560px) {
-    .iq-route-groups {
-      grid-template-columns: minmax(0, 1fr);
-    }
-
+  @container iq-route-groups (max-width: 35rem) {
     .iq-route-group + .iq-route-group {
       padding-inline-start: 0;
       padding-block-start: var(--iq-group-divider-gap);

@@ -9,15 +9,17 @@ import { StepBar } from "../../../components/StepBar";
 import { Stepper } from "../../../components/Stepper";
 import {
   ADD_DATE_LABEL,
+  AVAILABLE_COLUMN_LABEL,
+  EXPIRATION_COLUMN_LABEL,
   LOADING_DATES_LABEL,
   LOAD_FAILED_NOTE,
   NEW_DATE_LABEL,
   OTHER_DATE_LABEL,
   OVER_DATED_LABEL,
   SAVE_SCAN_LABEL,
+  SELECTED_COLUMN_LABEL,
   SINGLE_STEP,
   datedProgressLabel,
-  trackedHereLabel,
 } from "../../../constants";
 import type { ScanRoute } from "../routeChoices";
 import { allocationsOf, datedTotal, isComplete, type DateEntry } from "../expirationAllocations";
@@ -68,7 +70,7 @@ function AllocationForm({ entry, onDone }: AllocationFormProps) {
     list.map((row, at) => (at === index ? { ...row, ...patch } : row));
 
   return (
-    <div className={over ? "iq-dates iq-dates-over" : "iq-dates"}>
+    <div className={over ? "iq-dates iq-fit iq-dates-over" : "iq-dates iq-fit"}>
       <header className="iq-dates-heading">
         <h2 className="iq-dates-title">
           {entry.item_name} - {entry.storage_name}
@@ -76,41 +78,49 @@ function AllocationForm({ entry, onDone }: AllocationFormProps) {
         <p className="iq-dates-subtitle">{entry.subtitle}</p>
       </header>
 
-      {entry.options.map((option, index) => (
-        <AllocationRow
-          key={option.expires_on}
-          label={option.expires_on}
-          hint={trackedHereLabel(option.quantity)}
-          suggested={option.suggested}
-          value={known[index].quantity}
-          onChange={(next) => setKnown(setAt(known, index, { quantity: next }))}
-        />
-      ))}
+      <div className="iq-dates-list iq-scroll">
+        <div className="iq-dates-head">
+          <span>{EXPIRATION_COLUMN_LABEL}</span>
+          <span className="iq-dates-head-number">{AVAILABLE_COLUMN_LABEL}</span>
+          <span className="iq-dates-head-number">{SELECTED_COLUMN_LABEL}</span>
+        </div>
 
-      {added.map((row, index) => (
-        <AllocationRow
-          key={`added-${index}`}
-          label={NEW_DATE_LABEL}
-          value={row.quantity}
-          onChange={(next) => setAdded(setAt(added, index, { quantity: next }))}
-          date={row.expiresOn ?? ""}
-          onDateChange={(next) => setAdded(setAt(added, index, { expiresOn: next }))}
-        />
-      ))}
+        {entry.options.map((option, index) => (
+          <AllocationRow
+            key={option.expires_on}
+            label={option.expires_on}
+            available={option.quantity}
+            suggested={option.suggested}
+            value={known[index].quantity}
+            onChange={(next) => setKnown(setAt(known, index, { quantity: next }))}
+          />
+        ))}
 
-      {entry.allows_new_dates && added.length < entry.max_new_rows ? (
-        <button
-          type="button"
-          className="iq-dates-add"
-          onClick={() => setAdded([...added, { expiresOn: "", quantity: 0 }])}
-        >
-          {ADD_DATE_LABEL}
-        </button>
-      ) : null}
+        {added.map((row, index) => (
+          <AllocationRow
+            key={`added-${index}`}
+            label={NEW_DATE_LABEL}
+            value={row.quantity}
+            onChange={(next) => setAdded(setAt(added, index, { quantity: next }))}
+            date={row.expiresOn ?? ""}
+            onDateChange={(next) => setAdded(setAt(added, index, { expiresOn: next }))}
+          />
+        ))}
 
-      {entry.allows_other ? (
-        <AllocationRow label={OTHER_DATE_LABEL} value={other} onChange={setOther} />
-      ) : null}
+        {entry.allows_new_dates && added.length < entry.max_new_rows ? (
+          <button
+            type="button"
+            className="iq-dates-add"
+            onClick={() => setAdded([...added, { expiresOn: "", quantity: 0 }])}
+          >
+            {ADD_DATE_LABEL}
+          </button>
+        ) : null}
+
+        {entry.allows_other ? (
+          <AllocationRow label={OTHER_DATE_LABEL} value={other} onChange={setOther} />
+        ) : null}
+      </div>
 
       <StepBar
         summary={datedProgressLabel(total, entry.target_quantity)}
@@ -124,7 +134,7 @@ function AllocationForm({ entry, onDone }: AllocationFormProps) {
 
 type AllocationRowProps = {
   label: string;
-  hint?: string;
+  available?: number;
   suggested?: boolean;
   value: number;
   onChange: (next: number) => void;
@@ -132,7 +142,7 @@ type AllocationRowProps = {
   onDateChange?: (next: string) => void;
 };
 
-function AllocationRow({ label, hint, suggested, value, onChange, date, onDateChange }: AllocationRowProps) {
+function AllocationRow({ label, available, suggested, value, onChange, date, onDateChange }: AllocationRowProps) {
   return (
     <div className="iq-dates-row">
       <div className="iq-dates-row-label">
@@ -147,9 +157,9 @@ function AllocationRow({ label, hint, suggested, value, onChange, date, onDateCh
         ) : (
           <span className="iq-dates-row-name">{label}</span>
         )}
-        {hint ? <span className="iq-dates-row-hint">{hint}</span> : null}
         {suggested ? <span className="iq-dates-row-suggested">earliest</span> : null}
       </div>
+      <span className="iq-dates-row-available">{available ?? ""}</span>
       <Stepper value={value} min={0} steps={SINGLE_STEP} onChange={onChange} />
     </div>
   );

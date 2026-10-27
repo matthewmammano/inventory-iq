@@ -1,11 +1,14 @@
 """Resolve a stored image path to a URL the browser can load."""
 
 import re
+from datetime import timedelta
 from pathlib import Path
 
 from flask import current_app, url_for
 
-NOT_FOUND_IMAGE = "images/not-found.jpg"
+IMAGE_DIRECTORY = "images/"
+NOT_FOUND_IMAGE = f"{IMAGE_DIRECTORY}not-found.jpg"
+IMAGE_CACHE_MAX_AGE_SECONDS = int(timedelta(days=1).total_seconds())
 ABSOLUTE_IMAGE_PATTERN = re.compile(r"^(https?://|file://|[a-zA-Z]:|\.\.?/)")
 
 

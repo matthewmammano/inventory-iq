@@ -234,7 +234,7 @@ export const patchApiV1AgenciesByAgencyIdAdminItemsByItemIdMutation = (options?:
 export const getApiV1AgenciesByAgencyIdAdminNotificationRecipientsQueryKey = (options: Options<GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsData>) => createQueryKey('getApiV1AgenciesByAgencyIdAdminNotificationRecipients', options);
 
 /**
- * List every active alert and summary recipient
+ * List every alert and summary recipient, with the toggle table its previews are drawn from
  */
 export const getApiV1AgenciesByAgencyIdAdminNotificationRecipientsOptions = (options: Options<GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsData>) => queryOptions<GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponse, GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsError, GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponse, ReturnType<typeof getApiV1AgenciesByAgencyIdAdminNotificationRecipientsQueryKey>>({
     queryFn: async ({ queryKey, signal }) => {

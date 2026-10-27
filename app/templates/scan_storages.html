@@ -43,7 +43,7 @@
             {{ storage_step("to") }}
             <label class="radio-card">
                 <input type="radio" name="to_storage_id" value="-3" {% if auto_to_id == -3 %}checked{% endif %}>
-                <span class="choice">TAKE</span>
+                <span class="choice">{{ takeout_label }}</span>
             </label>
             {% for location in to_locations %}
             <label class="radio-card">

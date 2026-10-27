@@ -7,9 +7,10 @@ import pytest
 from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
-from app.inventory.constants import UNKNOWN_UPC_INVALID_MESSAGE, OperationType, VirtualLocation
+from app.inventory.constants import UNKNOWN_UPC_INVALID_MESSAGE, UNKNOWN_UPC_REVIEW_MESSAGE, OperationType, VirtualLocation
 from app.inventory.models import UnknownUpcScan
 from app.inventory.quantity_service import calculate_item_quantities
+from app.shared.image_paths import IMAGE_CACHE_MAX_AGE_SECONDS
 from tests.actions import Squad
 from tests.factories import AgencyFixture, build_agency, build_item
 
@@ -54,6 +55,22 @@ def test_the_items_endpoint_lists_name_and_tags_without_a_quantity(client: Flask
     assert item["name"] == agency.item.name
     assert item["tags"] == []
     assert "quantity" not in item
+
+
+def test_the_items_endpoint_carries_a_picture_url_so_the_scanner_can_preload_it(client: FlaskClient, agency: AgencyFixture) -> None:
+    response = client.get(_api(agency.id, "/items"))
+
+    assert response.status_code == HTTPStatus.OK
+    [item] = response.get_json()
+    assert item["image_url"] == "/static/images/not-found.jpg"
+
+
+def test_an_item_picture_may_be_reused_for_a_day_without_asking_again(client: FlaskClient) -> None:
+    response = client.get("/static/images/not-found.jpg")
+
+    assert response.status_code == HTTPStatus.OK
+    assert response.cache_control.max_age == IMAGE_CACHE_MAX_AGE_SECONDS
+    assert not response.cache_control.no_cache
 
 
 def test_the_items_endpoint_stops_at_the_agency_boundary(client: FlaskClient, agency: AgencyFixture, session: Session) -> None:
@@ -245,7 +262,7 @@ def test_an_unrecognized_barcode_is_recorded_for_admin_review(client: FlaskClien
     response = client.post(_api(agency.id, "/unknown-barcodes"), query_string={"upc": UNKNOWN_VALID_UPC})
 
     assert response.status_code == HTTPStatus.OK
-    assert "reviews" in response.get_json()["message"]
+    assert response.get_json()["message"] == UNKNOWN_UPC_REVIEW_MESSAGE
 
 
 @pytest.mark.usefixtures("no_upc_title_lookup")

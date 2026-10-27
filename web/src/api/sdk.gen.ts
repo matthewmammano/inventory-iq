@@ -95,7 +95,7 @@ export const patchApiV1AgenciesByAgencyIdAdminItemsByItemId = <ThrowOnError exte
 });
 
 /**
- * List every active alert and summary recipient
+ * List every alert and summary recipient, with the toggle table its previews are drawn from
  */
 export const getApiV1AgenciesByAgencyIdAdminNotificationRecipients = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses, GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses, GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/notification-recipients', ...options });
 

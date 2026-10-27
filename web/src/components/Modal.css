@@ -1,0 +1,49 @@
+@layer iq-components {
+  .iq-modal {
+    --fui-overlay-dialog-lg: var(--iq-modal-width);
+    max-block-size: var(--iq-modal-block-size);
+    padding-block: 0;
+    border: var(--iq-modal-border-width) solid var(--iq-line-strong);
+    background: var(--iq-panel);
+  }
+
+  .iq-modal-header {
+    gap: var(--iq-heading-stack-gap);
+    padding: var(--iq-modal-padding);
+    border-block-end: var(--iq-stroke-hair) solid var(--iq-line);
+  }
+
+  .iq-modal-title {
+    font-family: var(--iq-font-heading);
+    font-size: var(--iq-modal-title-size);
+    font-weight: 800;
+    line-height: 1.15;
+  }
+
+  .iq-modal-note {
+    margin: 0;
+    color: var(--iq-muted);
+    font-size: var(--iq-page-subtitle-size);
+  }
+
+  .iq-modal-body {
+    display: flex;
+    flex-direction: column;
+    gap: var(--iq-modal-gap);
+    padding: var(--iq-modal-padding);
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .iq-modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: var(--iq-controls-gap);
+    padding: var(--iq-modal-padding);
+    border-block-start: var(--iq-stroke-hair) solid var(--iq-line);
+  }
+
+  .iq-modal-footer .iq-button {
+    min-width: var(--iq-modal-action-width);
+  }
+}

@@ -17,6 +17,7 @@
   --iq-active: #ffdf8c;
   --iq-header-ink: #16100c;
   --iq-header-button-ghost: rgb(255 255 255 / 0.4);
+  --iq-shade: rgb(17 24 32 / 0.22);
   --iq-ok: #2f7d45;
   --iq-ok-wash: #e2f3e6;
   --iq-warn: #b3760c;
@@ -25,6 +26,7 @@
   --iq-bad-wash: #fadedb;
   --iq-minus: #641919;
   --iq-plus: #123d20;
+  --iq-scrim: rgb(17 24 32 / 0.46);
 }
 
 :root {
@@ -42,6 +44,7 @@
   --fui-text-secondary: var(--iq-ink-soft);
   --fui-text-tertiary: var(--iq-muted);
   --fui-focus-ring-color: var(--iq-accent-deep);
+  --fui-backdrop: var(--iq-scrim);
 }
 
 body {

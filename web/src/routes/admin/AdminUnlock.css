@@ -1,0 +1,36 @@
+@layer iq-components {
+  /* One column the width of the keypad, capped so the whole PIN box always fits under the bar. */
+  .iq-unlock {
+    display: grid;
+    grid-template-rows: minmax(0, auto) auto;
+    gap: var(--iq-form-gap);
+    width: min(100%, var(--iq-keypad-width));
+    max-block-size: var(--iq-fit-block);
+    margin-inline: auto;
+  }
+
+  .iq-unlock > .iq-panel {
+    min-block-size: 0;
+  }
+
+  .iq-unlock-status {
+    margin: 0;
+    font-size: var(--iq-row-name-size);
+    font-weight: 700;
+    color: var(--iq-ink-soft);
+  }
+
+  .iq-unlock-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--iq-controls-gap);
+  }
+
+  .iq-unlock-actions > * {
+    flex: 1 1 auto;
+  }
+
+  .iq-unlock-aside {
+    justify-self: center;
+  }
+}

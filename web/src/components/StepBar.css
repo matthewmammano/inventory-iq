@@ -7,7 +7,6 @@
     align-items: center;
     justify-content: space-between;
     gap: var(--iq-row-gap);
-    margin-block-start: var(--iq-results-gap);
     padding: var(--iq-row-padding);
     border-block-start: var(--fui-stroke-hairline, 1px) solid var(--iq-line-strong);
     background: var(--iq-ground);

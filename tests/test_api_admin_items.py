@@ -1,4 +1,4 @@
-"""The JSON endpoints for admin items, tags, and notification recipients, driven over real HTTP."""
+"""The JSON endpoints for admin items and tags, driven over real HTTP."""
 
 from http import HTTPStatus
 from typing import Any, Final
@@ -7,7 +7,7 @@ from flask.testing import FlaskClient
 from sqlalchemy.orm import Session
 
 from app.auth.constants import WHITE_HEX
-from app.auth.models import ItemTag, NotificationRecipient
+from app.auth.models import ItemTag
 from app.inventory.constants import UPC_GENERATION_PREFIX
 from app.inventory.models import Item
 from tests.factories import AgencyFixture, build_agency, build_item
@@ -16,7 +16,6 @@ ITEM_MIN: Final[int] = 3
 ITEM_MAX: Final[int] = 12
 REAL_SECONDARY_UPC: Final[str] = "012345678905"
 TAG_COLOR: Final[str] = "#336699"
-RECIPIENT_EMAIL: Final[str] = "alerts@example.com"
 V1_PAGE: Final[str] = "/inventory/{agency_id}/admin-panel/items-and-tags"
 
 
@@ -26,10 +25,6 @@ def _api(agency_id: int, path: str) -> str:
 
 def _item_body(**extra: Any) -> dict[str, Any]:
     return {"name": "Burn Dressing", "min_quantity": ITEM_MIN, "max_quantity": ITEM_MAX, "batch_size": 1} | extra
-
-
-def _recipient_body(agency: AgencyFixture, **extra: Any) -> dict[str, Any]:
-    return {"email": RECIPIENT_EMAIL, "location_filter_ids": [agency.location.id]} | extra
 
 
 def _reloaded_item(session: Session, item_id: int) -> Item:
@@ -43,13 +38,6 @@ def _build_tag(session: Session, agency_id: int, name: str = "Airway") -> ItemTa
     session.add(tag)
     session.commit()
     return tag
-
-
-def _build_recipient(session: Session, agency_id: int, location_id: int, email: str = RECIPIENT_EMAIL) -> NotificationRecipient:
-    recipient = NotificationRecipient(agency_id=agency_id, email=email, active=True, location_filter_ids=[location_id])
-    session.add(recipient)
-    session.commit()
-    return recipient
 
 
 def test_the_item_list_carries_every_editable_field(admin_client: FlaskClient, agency: AgencyFixture) -> None:
@@ -196,91 +184,6 @@ def test_removing_a_tag_drops_it_from_the_list(admin_client: FlaskClient, agency
 
     assert response.status_code == HTTPStatus.NO_CONTENT
     assert admin_client.get(_api(agency.id, "/tags")).get_json() == []
-
-
-def test_the_recipient_list_carries_every_delivery_setting_and_toggle(admin_client: FlaskClient, agency: AgencyFixture, session: Session) -> None:
-    _build_recipient(session, agency.id, agency.location.id)
-
-    response = admin_client.get(_api(agency.id, "/notification-recipients"))
-
-    assert response.status_code == HTTPStatus.OK
-    [recipient] = response.get_json()
-    assert recipient["email"] == RECIPIENT_EMAIL
-    assert recipient["location_filter_ids"] == [agency.location.id]
-    assert recipient["quiet_hours_label"] == "None"
-    assert recipient["alert_frequency"] == "HOURLY"
-    assert recipient["scan_alert_scope"] == "ALL"
-    assert recipient["alert_for_stockout"] is True
-    assert recipient["alert_for_takeout"] is False
-    assert recipient["daily_summary"] is False
-    assert recipient["weekly_summary"] is True
-
-
-def test_adding_a_recipient_saves_its_toggles(admin_client: FlaskClient, agency: AgencyFixture) -> None:
-    response = admin_client.post(_api(agency.id, "/notification-recipients"), json=_recipient_body(agency, alert_for_takeout=True))
-
-    assert response.status_code == HTTPStatus.CREATED
-    body = response.get_json()
-    assert body["email"] == RECIPIENT_EMAIL
-    assert body["alert_for_takeout"] is True
-
-
-def test_a_recipient_must_watch_at_least_one_location(admin_client: FlaskClient, agency: AgencyFixture) -> None:
-    response = admin_client.post(_api(agency.id, "/notification-recipients"), json=_recipient_body(agency, location_filter_ids=[]))
-
-    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-
-
-def test_a_recipient_may_not_watch_another_agencys_location(admin_client: FlaskClient, agency: AgencyFixture, session: Session) -> None:
-    other = build_agency(session)
-
-    response = admin_client.post(_api(agency.id, "/notification-recipients"), json=_recipient_body(agency, location_filter_ids=[other.location.id]))
-
-    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-
-
-def test_quiet_hours_need_both_ends(admin_client: FlaskClient, agency: AgencyFixture) -> None:
-    response = admin_client.post(_api(agency.id, "/notification-recipients"), json=_recipient_body(agency, quiet_start_time="22:00"))
-
-    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-
-
-def test_one_email_cannot_be_added_twice(admin_client: FlaskClient, agency: AgencyFixture, session: Session) -> None:
-    _build_recipient(session, agency.id, agency.location.id)
-
-    response = admin_client.post(_api(agency.id, "/notification-recipients"), json=_recipient_body(agency))
-
-    assert response.status_code == HTTPStatus.UNPROCESSABLE_ENTITY
-
-
-def test_saving_a_recipient_replaces_its_row(admin_client: FlaskClient, agency: AgencyFixture, session: Session) -> None:
-    recipient = _build_recipient(session, agency.id, agency.location.id)
-    body = _recipient_body(agency, quiet_start_time="22:00", quiet_end_time="06:00", alert_for_stockout=False)
-
-    response = admin_client.patch(_api(agency.id, f"/notification-recipients/{recipient.id}"), json=body)
-
-    assert response.status_code == HTTPStatus.OK
-    saved = response.get_json()
-    assert saved["quiet_hours_label"] == "22:00-06:00"
-    assert saved["alert_for_stockout"] is False
-
-
-def test_another_agencys_recipient_is_not_found(admin_client: FlaskClient, agency: AgencyFixture, session: Session) -> None:
-    other = build_agency(session)
-    theirs = _build_recipient(session, other.id, other.location.id, email="theirs@example.com")
-
-    response = admin_client.delete(_api(agency.id, f"/notification-recipients/{theirs.id}"))
-
-    assert response.status_code == HTTPStatus.NOT_FOUND
-
-
-def test_removing_a_recipient_drops_it_from_the_list(admin_client: FlaskClient, agency: AgencyFixture, session: Session) -> None:
-    recipient = _build_recipient(session, agency.id, agency.location.id)
-
-    response = admin_client.delete(_api(agency.id, f"/notification-recipients/{recipient.id}"))
-
-    assert response.status_code == HTTPStatus.NO_CONTENT
-    assert admin_client.get(_api(agency.id, "/notification-recipients")).get_json() == []
 
 
 def test_the_v1_data_page_still_renders(admin_client: FlaskClient, agency: AgencyFixture) -> None:

@@ -62,7 +62,7 @@
                     <td>{{ log.operation_type.value }}</td>
                     <td>{{ log.quantity }}</td>
                     <td>{{ log.from_storage.history_name if log.from_storage else log.operation_type.value }}</td>
-                    <td>{{ log.to_storage.history_name if log.to_storage else 'TAKE' }}</td>
+                    <td>{{ log.to_storage.history_name if log.to_storage else takeout_label }}</td>
                     <td>{{ 'Yes' if log.admin_action else 'No' }}</td>
                     <td>{{ log.expiration_summary or '-' }}</td>
                 </tr>

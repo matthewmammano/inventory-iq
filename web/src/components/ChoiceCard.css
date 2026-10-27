@@ -28,7 +28,7 @@
   .iq-choice-text {
     display: flex;
     flex-direction: column;
-    gap: var(--iq-heading-gap);
+    gap: var(--iq-heading-stack-gap);
     min-width: 0;
   }
 
@@ -62,13 +62,15 @@
     color: var(--iq-muted);
   }
 
+  /* Two across while both still fit, one when they do not, with no breakpoint to keep in sync. */
   .iq-choice-list {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(var(--iq-choice-min-width), 100%), 1fr));
     gap: var(--iq-results-gap);
+    align-content: start;
   }
 
-  @media (max-width: 560px) {
-    .iq-choice-list { grid-template-columns: minmax(0, 1fr); }
+  .iq-choice-list.iq-scroll {
+    padding-inline-end: var(--iq-scroll-inset);
   }
 }

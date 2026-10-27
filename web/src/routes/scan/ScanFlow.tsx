@@ -1,12 +1,12 @@
 import { Loading } from "@usefragments/ui";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
+import { Navigate, useNavigate } from "react-router";
 
 import {
   getApiV1AgenciesByAgencyIdDeviceLocationOptions,
   getApiV1AgenciesByAgencyIdLocationsOptions,
   getApiV1AgenciesByAgencyIdStoragesOptions,
-  getApiV1MeOptions,
   postApiV1AgenciesByAgencyIdScansMutation,
 } from "../../api/@tanstack/react-query.gen";
 import type { ScanContextResponse, ScanResultResponse } from "../../api/types.gen";
@@ -14,9 +14,12 @@ import { Note } from "../../components/Note";
 import { HeaderButton } from "../../components/HeaderButton";
 import { Page, type PageWidth } from "../../components/Page";
 import { Toast, type ToastMessage } from "../../components/Toast";
+import { useSignedInAgency } from "../../hooks/useSignedInAgency";
+import { preloadImage } from "../../preloadImage";
 import { KeyRound } from "../../components/icons/KeyRound";
 import {
   ADMIN_LINK_LABEL,
+  ADMIN_PATH,
   EXPIRATION_STEP_TITLE,
   LOADING_ITEMS_LABEL,
   LOAD_FAILED_NOTE,
@@ -29,10 +32,10 @@ import {
   SAVE_FAILED_NOTE,
   SCAN_SCREEN_SUBTITLE,
   SCAN_SCREEN_TITLE,
+  SIGN_IN_PATH,
   initialCountNote,
   scanSavedNote,
 } from "../../constants";
-import { adminLoginUrl } from "../../lib/urls";
 import type { ScanRoute } from "./routeChoices";
 import { PickExpirations, type ExpirationAllocation } from "./steps/PickExpirations";
 import { PickItem, type PickedItem } from "./steps/PickItem";
@@ -89,11 +92,12 @@ function usePrefetchedNextStep(agencyId: number | undefined, locationId: number 
 
 /** The whole guest scan: one route, one piece of state, four steps and a confirmation bar. */
 export function ScanFlow() {
+  const navigate = useNavigate();
   const [step, setStep] = useState<Step>("item");
   const [draft, setDraft] = useState<Draft>(EMPTY_DRAFT);
   const [toast, setToast] = useState<ToastMessage | null>(null);
 
-  const agency = useQuery(getApiV1MeOptions());
+  const agency = useSignedInAgency();
   const agencyId = agency.data?.id;
   const device = useQuery({
     ...getApiV1AgenciesByAgencyIdDeviceLocationOptions({ path: { agency_id: agencyId ?? 0 } }),
@@ -123,11 +127,13 @@ export function ScanFlow() {
           setDraft(EMPTY_DRAFT);
           setStep("item");
         },
+        onError: () => setToast({ tone: "error", text: SAVE_FAILED_NOTE }),
       },
     );
   };
 
   const pickItem = (item: PickedItem) => {
+    preloadImage(item.imageUrl);
     setDraft({ ...EMPTY_DRAFT, item, locationId: deviceLocationId });
     setStep(deviceLocationId === null ? "location" : "route");
   };
@@ -167,6 +173,8 @@ export function ScanFlow() {
   }
   const backStep = backFrom(step);
 
+  if (agency.isError) return <Navigate to={SIGN_IN_PATH} replace />;
+
   return (
     <>
       <Page
@@ -175,16 +183,14 @@ export function ScanFlow() {
         onBack={backStep ? () => setStep(backStep) : undefined}
         actions={
           step === "item" && agencyId !== undefined ? (
-            <HeaderButton label={ADMIN_LINK_LABEL} href={adminLoginUrl(agencyId)}>
+            <HeaderButton label={ADMIN_LINK_LABEL} onClick={() => navigate(ADMIN_PATH)}>
               <KeyRound />
             </HeaderButton>
           ) : null
         }
       >
-        {save.isError ? <Note>{SAVE_FAILED_NOTE}</Note> : null}
         <Body
           agencyId={agencyId}
-          failed={agency.isError}
           draft={draft}
           step={step}
           onSubmit={submit}
@@ -206,7 +212,6 @@ type Handlers = {
 
 type BodyProps = {
   agencyId: number | undefined;
-  failed: boolean;
   draft: Draft;
   step: Step;
   handlers: Handlers;
@@ -214,8 +219,7 @@ type BodyProps = {
   onNotice: (message: ToastMessage) => void;
 };
 
-function Body({ agencyId, failed, draft, step, handlers, onSubmit, onNotice }: BodyProps) {
-  if (failed) return <Note>{LOAD_FAILED_NOTE}</Note>;
+function Body({ agencyId, draft, step, handlers, onSubmit, onNotice }: BodyProps) {
   if (agencyId === undefined) return <Loading label={LOADING_ITEMS_LABEL} />;
 
   switch (step) {

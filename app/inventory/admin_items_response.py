@@ -1,11 +1,10 @@
-"""Response models for the admin data screens: items, tags, and notification recipients."""
+"""Response models for the admin data screens: items and item tags."""
 
 from typing import Final
 
 from pydantic import BaseModel, ConfigDict, RootModel
 
-from app.auth.models import ItemTag, NotificationRecipient
-from app.auth.notification_preferences import NOTIFICATION_FIELDS, AlertEmailFrequency, ScanAlertScope
+from app.auth.models import ItemTag
 
 from .models import Item
 
@@ -75,56 +74,3 @@ class TagResponse(BaseModel):
 
 class TagListResponse(RootModel[list[TagResponse]]):
     """Every active tag the agency can put on an item."""
-
-
-class NotificationRecipientResponse(BaseModel):
-    """One alert recipient: its delivery window and scope, plus every per-alert toggle it stores."""
-
-    id: int
-    email: str
-    active: bool
-    location_filter_ids: list[int] | None
-    quiet_start_time: str | None
-    quiet_end_time: str | None
-    quiet_hours_label: str
-    alert_frequency: AlertEmailFrequency
-    scan_alert_scope: ScanAlertScope
-    alert_for_stockout: bool
-    alert_for_stockout_pred: bool
-    alert_for_low: bool
-    alert_for_low_pred: bool
-    alert_for_stale_count: bool
-    alert_for_rare_takeout: bool
-    alert_for_count: bool
-    alert_for_restock: bool
-    alert_for_takeout: bool
-    alert_for_transfer: bool
-    alert_for_unknown_upc: bool
-    alert_for_expired_stock: bool
-    alert_for_expiring_soon: bool
-    alert_for_expiration_count_needed: bool
-    daily_summary: bool
-    weekly_summary: bool
-    monthly_summary: bool
-    yearly_summary: bool
-
-    @classmethod
-    def of(cls, recipient: NotificationRecipient) -> "NotificationRecipientResponse":
-        return cls.model_validate(
-            {
-                "id": recipient.id,
-                "email": recipient.email,
-                "active": recipient.active,
-                "location_filter_ids": list(recipient.location_filter_ids) if recipient.location_filter_ids else None,
-                "quiet_start_time": recipient.quiet_start_time,
-                "quiet_end_time": recipient.quiet_end_time,
-                "quiet_hours_label": recipient.quiet_hours_label,
-                "alert_frequency": recipient.alert_frequency,
-                "scan_alert_scope": recipient.scan_alert_scope,
-            }
-            | {field: recipient.preference_enabled(field) for field in NOTIFICATION_FIELDS}
-        )
-
-
-class NotificationRecipientListResponse(RootModel[list[NotificationRecipientResponse]]):
-    """Every active recipient the agency sends alerts and summaries to."""

@@ -11,7 +11,7 @@ pip install -r scripts/demo_data/requirements.txt
 
 DEV_CLOCK_ENABLED=true DATABASE_URL=sqlite:///instance/inventory_iq.db \
     python3 scripts/demo_data/generate.py \
-    --location "POINT BORO:1.0" --location "POINT BEACH:0.6" --seed 42
+    --location "Point Boro:1.0" --location "Point Beach:0.6" --seed 42
 ```
 
 - `--location NAME:MULTIPLIER` (repeatable): `1.0` = real observed volume.

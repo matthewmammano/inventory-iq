@@ -1,0 +1,22 @@
+@layer iq-components {
+  .iq-text-field {
+    --fui-control-height-lg: var(--iq-field-height);
+    --fui-field-border: var(--iq-ink-soft);
+    --fui-stroke-hairline: var(--iq-field-border-width);
+    display: flex;
+    flex-direction: column;
+    gap: var(--iq-heading-gap);
+  }
+
+  .iq-text-field label {
+    font-family: var(--iq-font-heading);
+    font-size: var(--iq-label-size);
+    font-weight: 700;
+    color: var(--iq-ink-soft);
+  }
+
+  .iq-text-field input {
+    font-family: var(--iq-font-heading);
+    font-size: var(--iq-row-name-size);
+  }
+}

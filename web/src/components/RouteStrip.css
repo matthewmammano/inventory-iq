@@ -1,5 +1,6 @@
 @layer iq-components {
   .iq-route-strip {
+    container: iq-route-strip / inline-size;
     display: grid;
     grid-template-columns: repeat(2, minmax(0, 1fr));
     margin: 0;
@@ -38,8 +39,8 @@
     line-height: 1.05;
   }
 
-  /* A phone has no room for two legs side by side, so they stack. */
-  @media (max-width: 560px) {
+  /* Narrower than two legs, so they stack and the divider moves to the top edge. */
+  @container iq-route-strip (max-width: 35rem) {
     .iq-route-strip {
       grid-template-columns: minmax(0, 1fr);
     }

@@ -1,0 +1,89 @@
+@layer iq-components {
+  /* Fills the room the screen has, so the keys grow into it rather than leaving it dead. */
+  .iq-keypad {
+    display: flex;
+    flex-direction: column;
+    gap: var(--iq-keypad-gap);
+    width: min(100%, var(--iq-keypad-width));
+    block-size: clamp(var(--iq-keypad-min-block), var(--iq-keypad-room), var(--iq-keypad-max-block));
+    min-block-size: 0;
+  }
+
+  .iq-keypad-entry {
+    display: flex;
+    gap: var(--iq-keypad-gap);
+  }
+
+  .iq-keypad-slot {
+    display: grid;
+    flex: 1;
+    place-items: center;
+    block-size: var(--iq-keypad-slot-height);
+    min-block-size: 0;
+    border: var(--iq-field-border-width) solid var(--iq-ink-soft);
+    border-radius: var(--fui-radius-control);
+    background: var(--iq-row);
+  }
+
+  .iq-keypad-dot {
+    width: var(--iq-keypad-dot-size);
+    height: var(--iq-keypad-dot-size);
+    border-radius: 50%;
+    background: var(--iq-accent-edge);
+  }
+
+  .iq-keypad-keys {
+    display: grid;
+    flex: 1 1 auto;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-auto-rows: minmax(var(--iq-touch-min), 1fr);
+    gap: var(--iq-keypad-gap);
+    min-block-size: 0;
+  }
+
+  .iq-keypad-key {
+    display: grid;
+    place-items: center;
+    gap: calc(var(--iq-keypad-gap) / 2);
+    min-block-size: 0;
+    border: var(--iq-step-border-width) solid var(--iq-line-strong);
+    border-radius: var(--fui-radius-control);
+    background: var(--iq-panel);
+    color: var(--iq-ink);
+    font-family: var(--iq-font-heading);
+    font-weight: 700;
+    cursor: pointer;
+  }
+
+  .iq-keypad-key-digit {
+    font-size: var(--iq-keypad-digit-font);
+  }
+
+  .iq-keypad-key-word {
+    grid-auto-flow: row;
+    align-content: center;
+    color: var(--iq-ink-soft);
+    font-size: var(--iq-keypad-word-font);
+  }
+
+  .iq-keypad-key svg {
+    inline-size: var(--iq-keypad-icon-size);
+    block-size: var(--iq-keypad-icon-size);
+  }
+
+  .iq-keypad-key:hover:not(:disabled) {
+    background: var(--iq-hover);
+  }
+
+  .iq-keypad-key:active:not(:disabled) {
+    background: var(--iq-active);
+    transform: translateY(2px);
+  }
+
+  .iq-keypad-key:disabled {
+    border-color: var(--iq-line);
+    background: var(--iq-line);
+    color: var(--iq-muted);
+    cursor: not-allowed;
+  }
+}

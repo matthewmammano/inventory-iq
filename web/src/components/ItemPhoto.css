@@ -1,6 +1,7 @@
 @layer iq-components {
   .iq-item-photo {
     display: block;
+    position: relative;
     height: var(--iq-photo-size);
     aspect-ratio: 1;
     overflow: hidden;
@@ -9,11 +10,38 @@
     background: var(--iq-panel);
   }
 
+  .iq-item-photo::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: var(--iq-item-photo-backup) center / cover no-repeat;
+    opacity: 0;
+    transition: opacity var(--iq-photo-fade) ease-out;
+  }
+
+  .iq-item-photo-late::before {
+    opacity: 1;
+  }
+
   .iq-item-photo img {
     display: block;
+    position: relative;
     height: 100%;
     width: 100%;
     object-fit: cover;
+    opacity: 0;
+    transition: opacity var(--iq-photo-fade) ease-out;
+  }
+
+  .iq-item-photo img.iq-item-photo-shown {
+    opacity: 1;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .iq-item-photo::before,
+    .iq-item-photo img {
+      transition: none;
+    }
   }
 
   /* A tight screen keeps the picture, shrunk to sit inline beside the name. */

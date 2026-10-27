@@ -2,5 +2,15 @@
   .iq-search {
     max-width: var(--iq-search-measure);
     margin-inline: auto;
+    width: 100%;
+  }
+
+  .iq-search > .iq-panel {
+    flex: 1 1 auto;
+    min-block-size: 0;
+  }
+
+  .iq-search .iq-results.iq-scroll {
+    padding-inline-end: var(--iq-scroll-inset);
   }
 }
