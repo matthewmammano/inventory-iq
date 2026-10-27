@@ -21,6 +21,7 @@ from .constants import (
 from .models import Item, ItemSecondaryUpc, UnknownUpcScan, agency_upc_exists, validate_upc_code
 from .upc_lookup_service import lookup_upc_title
 
+BARCODE_READY_TO_LINK_MESSAGE = "Barcode ready to link."
 MIN_SUGGESTION_SCORE = 0.3
 MATCH_EQUIVALENCES = (
     ("bvm", "bag valve mask", "resuscitator", "resuscitator"),
@@ -46,6 +47,14 @@ MATCH_EQUIVALENCES = (
     ("quick clot", "quikclot", "hemostatic", "combat gauze"),
 )
 SINGLE_TOKEN_MIN_SCORE = 0.38
+
+
+@dataclass(frozen=True, slots=True)
+class UnknownUpcReviewGroups:
+    """The two lists the unknown-barcode screen shows side by side."""
+
+    pending: list[UnknownUpcScan]
+    ignored: list[UnknownUpcScan]
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,6 +130,19 @@ def list_review_unknown_upcs(session: Session, agency_id: int) -> list[UnknownUp
         .scalars()
         .all()
     )
+
+
+def group_review_unknown_upcs(session: Session, agency_id: int) -> UnknownUpcReviewGroups:
+    scans = list_review_unknown_upcs(session, agency_id)
+    return UnknownUpcReviewGroups(
+        pending=[scan for scan in scans if scan.status == UnknownUpcStatus.PENDING],
+        ignored=[scan for scan in scans if scan.status == UnknownUpcStatus.IGNORE],
+    )
+
+
+def recorded_upc_message(status: UnknownUpcStatus) -> str:
+    """What to tell an admin who added a barcode by hand, once it has a review status."""
+    return BARCODE_READY_TO_LINK_MESSAGE if status is UnknownUpcStatus.PENDING else status.message
 
 
 def resolve_unknown_upc(session: Session, agency_id: int, unknown_upc_id: int, item_id: int) -> None:

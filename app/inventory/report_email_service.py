@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from typing import NamedTuple
 
 from sqlalchemy import select
@@ -29,11 +30,25 @@ REPORT_SEVERITY = AlertSeverity.INFO
 ReportRow = dict[str, str | int | float | None]
 
 
+class ReportEmailOutcome(StrEnum):
+    """How a report email request turned out, judged once for every surface that reports it."""
+
+    NO_RECIPIENTS = "NO_RECIPIENTS"
+    SENT = "SENT"
+    PARTIAL = "PARTIAL"
+
+
 class EmailDeliveryResult(NamedTuple):
     """How many of the selected recipients a report email actually reached."""
 
     sent: int
     total: int
+
+    @property
+    def outcome(self) -> ReportEmailOutcome:
+        if self.total == 0:
+            return ReportEmailOutcome.NO_RECIPIENTS
+        return ReportEmailOutcome.SENT if self.sent == self.total else ReportEmailOutcome.PARTIAL
 
 
 @dataclass(frozen=True, slots=True)

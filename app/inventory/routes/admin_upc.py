@@ -10,12 +10,13 @@ from pydantic import ValidationError
 from app.inventory import admin_bp as bp
 from app.inventory.constants import UnknownUpcStatus
 from app.inventory.item_queries import list_items
-from app.inventory.models import UnknownUpcScan, validate_upc_code
+from app.inventory.models import validate_upc_code
 from app.inventory.upc_review_schema import PendingUpcReviewAction, PendingUpcReviewRequest
 from app.inventory.upc_service import (
+    group_review_unknown_upcs,
     ignore_unknown_upc,
-    list_review_unknown_upcs,
     record_unknown_upc,
+    recorded_upc_message,
     remove_unknown_upc,
     resolve_unknown_upc,
     unignore_unknown_upc,
@@ -36,14 +37,14 @@ def unknown_barcodes(agency_id: int) -> Any:
     if request.method == "POST":
         return _save_pending_upc_review(agency_id)
     with get_session() as s:
-        review_upcs = list_review_unknown_upcs(s, current_user.id)
+        review_upcs = group_review_unknown_upcs(s, current_user.id)
         items = list_items(current_user.id, session=s)
     focus_upc = request.args.get("focus_upc", "").strip()
     return render_template(
         "admin_unknown_barcodes.html",
         agency_id=agency_id,
-        pending_upcs=_upcs_by_status(review_upcs, UnknownUpcStatus.PENDING),
-        ignored_upcs=_upcs_by_status(review_upcs, UnknownUpcStatus.IGNORE),
+        pending_upcs=review_upcs.pending,
+        ignored_upcs=review_upcs.ignored,
         items=items,
         focus_upc=focus_upc,
         admin=True,
@@ -105,7 +106,7 @@ def _add_pending_upc(agency_id: int) -> Any:
             s.commit()
         is_pending = status == UnknownUpcStatus.PENDING
         logger.info("Pending UPC added from admin review", extra={"status": status.value, "upc": upc})
-        flash("Barcode ready to link." if is_pending else status.message, "success" if is_pending else "warning")
+        flash(recorded_upc_message(status), "success" if is_pending else "warning")
         return redirect(_pending_upc_redirect(agency_id, focus_upc=upc))
     except ValueError as exc:
         logger.warning("Pending UPC validation reached backend", extra={"error": str(exc)})
@@ -117,10 +118,6 @@ def _pending_upc_service_error(error: str) -> str:
     if error == "Private UPCs must already be linked as primary item UPCs.":
         return "Private item UPCs are already linked."
     return SAVE_RETRY_MESSAGE
-
-
-def _upcs_by_status(scans: list[UnknownUpcScan], status: UnknownUpcStatus) -> list[UnknownUpcScan]:
-    return [scan for scan in scans if scan.status == status]
 
 
 def _pending_upc_redirect(agency_id: int, *, focus_upc: str | None = None):

@@ -7,12 +7,13 @@ from flask import make_response
 from loguru import logger
 
 from app.api.blueprint import api_bp
+from app.api.constants import AGENCY_ROUTE
 from app.api.schema import DeviceLocationRequest
 from app.auth.device_locations import current_device_token, request_device_location_id, save_device_location, set_device_cookie
 from app.auth.response import DeviceLocationResponse
 from app.shared.database import get_session
 
-DEVICE_ROUTE = "/agencies/<int:agency_id>/device/location"
+DEVICE_ROUTE = f"{AGENCY_ROUTE}/device/location"
 UNKNOWN_LOCATION_MESSAGE = "That location is not one of this agency's."
 
 

@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.inventory.expiration_ui_service import ExpirationBreakdown, expiration_breakdowns_by_item
 from app.prediction.bulk_service import BulkService, RestockAnalysisRow
+from app.shared.cache import ttl_cache
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +40,12 @@ def build_restock_page_rows(session: Session, agency_id: int, agency_location_id
     expiration_breakdowns = expiration_breakdowns_by_item(session, agency_id, agency_location_id)
     analysis_rows = BulkService.get_restock_analysis(session, agency_id, agency_location_id)
     return [_page_row(row, expiration_breakdowns.get(row.item.id)) for row in analysis_rows]
+
+
+@ttl_cache(skip_first_args=1)
+def cached_restock_page_rows(session: Session, agency_id: int, agency_location_id: int) -> list[RestockPageRow]:
+    """Restock analysis is expensive, so one TTL window serves every read of that location's rows."""
+    return build_restock_page_rows(session, agency_id, agency_location_id)
 
 
 def _page_row(row: RestockAnalysisRow, expiration_breakdown: ExpirationBreakdown | None) -> RestockPageRow:

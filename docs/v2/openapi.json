@@ -1,6 +1,299 @@
 {
   "components": {
     "schemas": {
+      "AddBarcodeRequest": {
+        "additionalProperties": false,
+        "description": "A barcode an admin typed in by hand; a malformed one is refused, not recorded.",
+        "properties": {
+          "upc": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Upc",
+            "type": "string"
+          }
+        },
+        "required": [
+          "upc"
+        ],
+        "title": "AddBarcodeRequest",
+        "type": "object"
+      },
+      "AddedBarcodeResponse": {
+        "description": "What became of a barcode an admin typed in by hand.",
+        "properties": {
+          "message": {
+            "title": "Message",
+            "type": "string"
+          },
+          "status": {
+            "$ref": "#/components/schemas/AddedBarcodeResponse.UnknownUpcStatus"
+          },
+          "upc": {
+            "title": "Upc",
+            "type": "string"
+          }
+        },
+        "required": [
+          "upc",
+          "status",
+          "message"
+        ],
+        "title": "AddedBarcodeResponse",
+        "type": "object"
+      },
+      "AddedBarcodeResponse.UnknownUpcStatus": {
+        "enum": [
+          "PENDING",
+          "RESOLVED",
+          "IGNORE"
+        ],
+        "title": "UnknownUpcStatus",
+        "type": "string"
+      },
+      "AdminItemListResponse": {
+        "description": "Every active item the agency keeps.",
+        "items": {
+          "$ref": "#/components/schemas/AdminItemListResponse.AdminItemResponse"
+        },
+        "title": "AdminItemListResponse",
+        "type": "array"
+      },
+      "AdminItemListResponse.AdminItemResponse": {
+        "description": "One item carrying every field its admin editor can change.",
+        "properties": {
+          "batch_size": {
+            "title": "Batch Size",
+            "type": "integer"
+          },
+          "expiration_notice_days_override": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiration Notice Days Override"
+          },
+          "expiration_tracking_enabled": {
+            "title": "Expiration Tracking Enabled",
+            "type": "boolean"
+          },
+          "guest_quick_adjust": {
+            "title": "Guest Quick Adjust",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image"
+          },
+          "increments": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Increments"
+          },
+          "max_quantity": {
+            "title": "Max Quantity",
+            "type": "integer"
+          },
+          "min_quantity": {
+            "title": "Min Quantity",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "restock_delivery_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restock Delivery Days"
+          },
+          "scan_alert_flagged": {
+            "title": "Scan Alert Flagged",
+            "type": "boolean"
+          },
+          "secondary_upcs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Secondary Upcs",
+            "type": "array"
+          },
+          "tag_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Tag Ids",
+            "type": "array"
+          },
+          "upc": {
+            "title": "Upc",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "upc",
+          "secondary_upcs",
+          "guest_quick_adjust",
+          "increments",
+          "tag_ids",
+          "image",
+          "expiration_tracking_enabled",
+          "expiration_notice_days_override",
+          "scan_alert_flagged",
+          "min_quantity",
+          "max_quantity",
+          "batch_size",
+          "restock_delivery_days"
+        ],
+        "title": "AdminItemResponse",
+        "type": "object"
+      },
+      "AdminItemResponse": {
+        "description": "One item carrying every field its admin editor can change.",
+        "properties": {
+          "batch_size": {
+            "title": "Batch Size",
+            "type": "integer"
+          },
+          "expiration_notice_days_override": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Expiration Notice Days Override"
+          },
+          "expiration_tracking_enabled": {
+            "title": "Expiration Tracking Enabled",
+            "type": "boolean"
+          },
+          "guest_quick_adjust": {
+            "title": "Guest Quick Adjust",
+            "type": "boolean"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image"
+          },
+          "increments": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Increments"
+          },
+          "max_quantity": {
+            "title": "Max Quantity",
+            "type": "integer"
+          },
+          "min_quantity": {
+            "title": "Min Quantity",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "restock_delivery_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Restock Delivery Days"
+          },
+          "scan_alert_flagged": {
+            "title": "Scan Alert Flagged",
+            "type": "boolean"
+          },
+          "secondary_upcs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Secondary Upcs",
+            "type": "array"
+          },
+          "tag_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Tag Ids",
+            "type": "array"
+          },
+          "upc": {
+            "title": "Upc",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "upc",
+          "secondary_upcs",
+          "guest_quick_adjust",
+          "increments",
+          "tag_ids",
+          "image",
+          "expiration_tracking_enabled",
+          "expiration_notice_days_override",
+          "scan_alert_flagged",
+          "min_quantity",
+          "max_quantity",
+          "batch_size",
+          "restock_delivery_days"
+        ],
+        "title": "AdminItemResponse",
+        "type": "object"
+      },
       "AdminPinRequest": {
         "additionalProperties": false,
         "description": "The 4-digit PIN someone is unlocking admin with; a PIN of any other length can never be right.",
@@ -28,6 +321,462 @@
           "unlocked"
         ],
         "title": "AdminSessionResponse",
+        "type": "object"
+      },
+      "AdminSettingsRequest": {
+        "additionalProperties": false,
+        "description": "Every admin setting at once; `pin` is set only when it is being changed.",
+        "properties": {
+          "alert_rare_scan_days": {
+            "title": "Alert Rare Scan Days",
+            "type": "integer"
+          },
+          "count_last_days": {
+            "title": "Count Last Days",
+            "type": "integer"
+          },
+          "expiration_notice_days": {
+            "title": "Expiration Notice Days",
+            "type": "integer"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Image"
+          },
+          "lead_time_days": {
+            "title": "Lead Time Days",
+            "type": "integer"
+          },
+          "pin": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Pin"
+          },
+          "user_count_allow": {
+            "default": false,
+            "title": "User Count Allow",
+            "type": "boolean"
+          },
+          "user_restock_allow": {
+            "default": false,
+            "title": "User Restock Allow",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "lead_time_days",
+          "count_last_days",
+          "alert_rare_scan_days",
+          "expiration_notice_days"
+        ],
+        "title": "AdminSettingsRequest",
+        "type": "object"
+      },
+      "AdminSettingsResponse": {
+        "description": "The agency's own settings. The admin PIN is write-only and never answered back.",
+        "properties": {
+          "alert_rare_scan_days": {
+            "title": "Alert Rare Scan Days",
+            "type": "integer"
+          },
+          "count_last_days": {
+            "title": "Count Last Days",
+            "type": "integer"
+          },
+          "expiration_notice_days": {
+            "title": "Expiration Notice Days",
+            "type": "integer"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Image"
+          },
+          "lead_time_days": {
+            "title": "Lead Time Days",
+            "type": "integer"
+          },
+          "user_count_allow": {
+            "title": "User Count Allow",
+            "type": "boolean"
+          },
+          "user_restock_allow": {
+            "title": "User Restock Allow",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "image",
+          "user_count_allow",
+          "user_restock_allow",
+          "lead_time_days",
+          "count_last_days",
+          "alert_rare_scan_days",
+          "expiration_notice_days"
+        ],
+        "title": "AdminSettingsResponse",
+        "type": "object"
+      },
+      "AttentionTileListResponse": {
+        "description": "Every dashboard tile in urgency order, cleared ones last.",
+        "items": {
+          "$ref": "#/components/schemas/AttentionTileListResponse.AttentionTileResponse"
+        },
+        "title": "AttentionTileListResponse",
+        "type": "array"
+      },
+      "AttentionTileListResponse.AlertType": {
+        "description": "Supported stock-state and discrete inventory alert types.",
+        "enum": [
+          "STOCKOUT",
+          "STOCKOUT_FORECAST",
+          "LOW_STOCK",
+          "LOW_STOCK_FORECAST",
+          "STALE_COUNT",
+          "RARE_TAKEOUT",
+          "COUNT_ACTION",
+          "RESTOCK_ACTION",
+          "TAKEOUT_ACTION",
+          "TRANSFER_ACTION",
+          "UNKNOWN_UPC",
+          "EXPIRED_STOCK",
+          "EXPIRING_SOON",
+          "EXPIRATION_COUNT_NEEDED"
+        ],
+        "title": "AlertType",
+        "type": "string"
+      },
+      "AttentionTileListResponse.AttentionCounter": {
+        "description": "What a tile's big number counts, and what the smaller number beside it adds.",
+        "enum": [
+          "item_pieces",
+          "item_spots",
+          "item_locations",
+          "alert_rows"
+        ],
+        "title": "AttentionCounter",
+        "type": "string"
+      },
+      "AttentionTileListResponse.AttentionSeverity": {
+        "description": "How hard a tile pushes: stock you cannot use, stock heading that way, or a records gap.",
+        "enum": [
+          "critical",
+          "warning",
+          "watch"
+        ],
+        "title": "AttentionSeverity",
+        "type": "string"
+      },
+      "AttentionTileListResponse.AttentionTileResponse": {
+        "description": "One dashboard tile: what needs attention, how much of it, and how hard it pushes.",
+        "properties": {
+          "alert_type": {
+            "$ref": "#/components/schemas/AttentionTileListResponse.AlertType"
+          },
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "counter": {
+            "$ref": "#/components/schemas/AttentionTileListResponse.AttentionCounter"
+          },
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "extra": {
+            "title": "Extra",
+            "type": "integer"
+          },
+          "severity": {
+            "$ref": "#/components/schemas/AttentionTileListResponse.AttentionSeverity"
+          },
+          "sort_direction": {
+            "title": "Sort Direction",
+            "type": "string"
+          },
+          "sort_key": {
+            "title": "Sort Key",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "alert_type",
+          "title",
+          "detail",
+          "severity",
+          "counter",
+          "count",
+          "extra",
+          "sort_key",
+          "sort_direction"
+        ],
+        "title": "AttentionTileResponse",
+        "type": "object"
+      },
+      "BulkEditGridResponse": {
+        "description": "Every active item against every storage of one location, as the grid screen reads it.",
+        "properties": {
+          "location_id": {
+            "title": "Location Id",
+            "type": "integer"
+          },
+          "location_name": {
+            "title": "Location Name",
+            "type": "string"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/BulkEditGridResponse.BulkEditRowResponse"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "stale_count_days": {
+            "title": "Stale Count Days",
+            "type": "integer"
+          },
+          "storages": {
+            "items": {
+              "$ref": "#/components/schemas/BulkEditGridResponse.StorageResponse"
+            },
+            "title": "Storages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "location_id",
+          "location_name",
+          "stale_count_days",
+          "storages",
+          "rows"
+        ],
+        "title": "BulkEditGridResponse",
+        "type": "object"
+      },
+      "BulkEditGridResponse.BulkEditCellResponse": {
+        "description": "One item's quantity in one storage, and whether its count is too old to restock against.",
+        "properties": {
+          "count_required": {
+            "title": "Count Required",
+            "type": "boolean"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "storage_id": {
+            "title": "Storage Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "storage_id",
+          "quantity",
+          "count_required"
+        ],
+        "title": "BulkEditCellResponse",
+        "type": "object"
+      },
+      "BulkEditGridResponse.BulkEditRowResponse": {
+        "description": "One item's row of the grid.",
+        "properties": {
+          "cells": {
+            "items": {
+              "$ref": "#/components/schemas/BulkEditGridResponse.BulkEditCellResponse"
+            },
+            "title": "Cells",
+            "type": "array"
+          },
+          "expiration_tracking": {
+            "title": "Expiration Tracking",
+            "type": "boolean"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "integer"
+          },
+          "item_name": {
+            "title": "Item Name",
+            "type": "string"
+          },
+          "suggested_restock": {
+            "title": "Suggested Restock",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "item_id",
+          "item_name",
+          "expiration_tracking",
+          "suggested_restock",
+          "cells"
+        ],
+        "title": "BulkEditRowResponse",
+        "type": "object"
+      },
+      "BulkEditGridResponse.StorageResponse": {
+        "description": "One storage unit, carrying the location name the kiosk shows beside it.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "location_id": {
+            "title": "Location Id",
+            "type": "integer"
+          },
+          "location_name": {
+            "title": "Location Name",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "location_id",
+          "location_name"
+        ],
+        "title": "StorageResponse",
+        "type": "object"
+      },
+      "BulkEditRequest": {
+        "additionalProperties": false,
+        "description": "One bulk submission for a location: the counts and vendor restocks the admin entered in the grid.",
+        "properties": {
+          "counts": {
+            "items": {
+              "$ref": "#/components/schemas/BulkEditRequest.BulkQuantityRequest"
+            },
+            "title": "Counts",
+            "type": "array"
+          },
+          "restocks": {
+            "items": {
+              "$ref": "#/components/schemas/BulkEditRequest.BulkQuantityRequest"
+            },
+            "title": "Restocks",
+            "type": "array"
+          }
+        },
+        "title": "BulkEditRequest",
+        "type": "object"
+      },
+      "BulkEditRequest.BulkQuantityRequest": {
+        "additionalProperties": false,
+        "description": "One cell of the bulk grid: the quantity this item reaches in this storage, plus its dates when tracked.",
+        "properties": {
+          "expiration_allocations": {
+            "items": {
+              "$ref": "#/components/schemas/BulkEditRequest.ExpirationAllocationRequest"
+            },
+            "title": "Expiration Allocations",
+            "type": "array"
+          },
+          "item_id": {
+            "exclusiveMinimum": 0,
+            "title": "Item Id",
+            "type": "integer"
+          },
+          "quantity": {
+            "minimum": 0,
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "storage_id": {
+            "exclusiveMinimum": 0,
+            "title": "Storage Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item_id",
+          "storage_id",
+          "quantity"
+        ],
+        "title": "BulkQuantityRequest",
+        "type": "object"
+      },
+      "BulkEditRequest.ExpirationAllocationRequest": {
+        "additionalProperties": false,
+        "description": "How many units of one scan belong to one expiration date.",
+        "properties": {
+          "expires_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expires On"
+          },
+          "quantity": {
+            "minimum": 0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quantity"
+        ],
+        "title": "ExpirationAllocationRequest",
+        "type": "object"
+      },
+      "BulkEditSaveResponse": {
+        "description": "What one saved bulk submission wrote. The caller phrases its own confirmation from these counts.",
+        "properties": {
+          "count_entry_count": {
+            "title": "Count Entry Count",
+            "type": "integer"
+          },
+          "location_id": {
+            "title": "Location Id",
+            "type": "integer"
+          },
+          "restock_entry_count": {
+            "title": "Restock Entry Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "location_id",
+          "count_entry_count",
+          "restock_entry_count"
+        ],
+        "title": "BulkEditSaveResponse",
         "type": "object"
       },
       "DeviceLocationRequest": {
@@ -65,6 +814,99 @@
           "location_id"
         ],
         "title": "DeviceLocationResponse",
+        "type": "object"
+      },
+      "ExpirationCorrectionResultResponse": {
+        "description": "How many item/storage pairs one correction save rewrote.",
+        "properties": {
+          "corrected_pair_count": {
+            "title": "Corrected Pair Count",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "corrected_pair_count"
+        ],
+        "title": "ExpirationCorrectionResultResponse",
+        "type": "object"
+      },
+      "ExpirationCorrectionsRequest": {
+        "additionalProperties": false,
+        "description": "One correction per pair still waiting on dates; every pending pair has to be answered.",
+        "properties": {
+          "corrections": {
+            "items": {
+              "$ref": "#/components/schemas/ExpirationCorrectionsRequest.ExpirationCorrectionRequest"
+            },
+            "minItems": 1,
+            "title": "Corrections",
+            "type": "array"
+          }
+        },
+        "required": [
+          "corrections"
+        ],
+        "title": "ExpirationCorrectionsRequest",
+        "type": "object"
+      },
+      "ExpirationCorrectionsRequest.ExpirationAllocationRequest": {
+        "additionalProperties": false,
+        "description": "How many units of one scan belong to one expiration date.",
+        "properties": {
+          "expires_on": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expires On"
+          },
+          "quantity": {
+            "minimum": 0,
+            "title": "Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "quantity"
+        ],
+        "title": "ExpirationAllocationRequest",
+        "type": "object"
+      },
+      "ExpirationCorrectionsRequest.ExpirationCorrectionRequest": {
+        "additionalProperties": false,
+        "description": "The dates one item/storage pair's counted stock actually carries.",
+        "properties": {
+          "allocations": {
+            "items": {
+              "$ref": "#/components/schemas/ExpirationCorrectionsRequest.ExpirationAllocationRequest"
+            },
+            "minItems": 1,
+            "title": "Allocations",
+            "type": "array"
+          },
+          "item_id": {
+            "exclusiveMinimum": 0,
+            "title": "Item Id",
+            "type": "integer"
+          },
+          "storage_id": {
+            "exclusiveMinimum": 0,
+            "title": "Storage Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item_id",
+          "storage_id",
+          "allocations"
+        ],
+        "title": "ExpirationCorrectionRequest",
         "type": "object"
       },
       "ExpirationEntryResponse": {
@@ -165,6 +1007,305 @@
         },
         "type": "object"
       },
+      "HelpArticleResponse": {
+        "description": "One article, its body already rendered to the narrow HTML the help renderer allows.",
+        "properties": {
+          "body_html": {
+            "title": "Body Html",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "tags",
+          "body_html"
+        ],
+        "title": "HelpArticleResponse",
+        "type": "object"
+      },
+      "HelpIndexResponse": {
+        "description": "Every help article plus the tag filters the index offers.",
+        "properties": {
+          "articles": {
+            "items": {
+              "$ref": "#/components/schemas/HelpIndexResponse.HelpArticleSummaryResponse"
+            },
+            "title": "Articles",
+            "type": "array"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          }
+        },
+        "required": [
+          "articles",
+          "tags"
+        ],
+        "title": "HelpIndexResponse",
+        "type": "object"
+      },
+      "HelpIndexResponse.HelpArticleSummaryResponse": {
+        "description": "One article as the help index lists it, with the text its search box matches on.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "search_text": {
+            "title": "Search Text",
+            "type": "string"
+          },
+          "summary": {
+            "title": "Summary",
+            "type": "string"
+          },
+          "tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Tags",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "summary",
+          "tags",
+          "search_text"
+        ],
+        "title": "HelpArticleSummaryResponse",
+        "type": "object"
+      },
+      "HistoryEmailRequest": {
+        "additionalProperties": false,
+        "description": "A history report email, bounded by agency-local dates; either date may be left out.",
+        "properties": {
+          "end_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "End Date"
+          },
+          "location_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Location Id"
+          },
+          "notification_recipient_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "title": "Notification Recipient Ids",
+            "type": "array"
+          },
+          "start_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Start Date"
+          }
+        },
+        "required": [
+          "notification_recipient_ids"
+        ],
+        "title": "HistoryEmailRequest",
+        "type": "object"
+      },
+      "HistoryReportResponse": {
+        "description": "One page of action history, plus the window the caller draws its own pager from.",
+        "properties": {
+          "descending": {
+            "title": "Descending",
+            "type": "boolean"
+          },
+          "location": {
+            "$ref": "#/components/schemas/HistoryReportResponse.ReportLocationResponse"
+          },
+          "page": {
+            "title": "Page",
+            "type": "integer"
+          },
+          "page_size": {
+            "title": "Page Size",
+            "type": "integer"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/HistoryReportResponse.HistoryRowResponse"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "sort_key": {
+            "title": "Sort Key",
+            "type": "string"
+          },
+          "total_pages": {
+            "title": "Total Pages",
+            "type": "integer"
+          },
+          "total_rows": {
+            "title": "Total Rows",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "location",
+          "sort_key",
+          "descending",
+          "page",
+          "page_size",
+          "total_pages",
+          "total_rows",
+          "rows"
+        ],
+        "title": "HistoryReportResponse",
+        "type": "object"
+      },
+      "HistoryReportResponse.HistoryRowResponse": {
+        "description": "One logged inventory action, as the history table reads it.",
+        "properties": {
+          "admin_action": {
+            "title": "Admin Action",
+            "type": "boolean"
+          },
+          "at": {
+            "format": "date-time",
+            "title": "At",
+            "type": "string"
+          },
+          "expiration_summary": {
+            "title": "Expiration Summary",
+            "type": "string"
+          },
+          "from_label": {
+            "title": "From Label",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "item_name": {
+            "title": "Item Name",
+            "type": "string"
+          },
+          "operation": {
+            "$ref": "#/components/schemas/HistoryReportResponse.OperationType"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "to_label": {
+            "title": "To Label",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "at",
+          "item_name",
+          "operation",
+          "quantity",
+          "from_label",
+          "to_label",
+          "admin_action",
+          "expiration_summary"
+        ],
+        "title": "HistoryRowResponse",
+        "type": "object"
+      },
+      "HistoryReportResponse.OperationType": {
+        "description": "Inventory operation types.",
+        "enum": [
+          "COUNT",
+          "RESTOCK",
+          "TAKEOUT",
+          "TRANSFER"
+        ],
+        "title": "OperationType",
+        "type": "string"
+      },
+      "HistoryReportResponse.ReportLocationResponse": {
+        "description": "The location a report is about; null ids mean every location at once.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ReportLocationResponse",
+        "type": "object"
+      },
       "ItemListResponse": {
         "description": "A page of searchable items.",
         "items": {
@@ -242,6 +1383,113 @@
         "title": "ItemTagResponse",
         "type": "object"
       },
+      "ItemRequest": {
+        "additionalProperties": false,
+        "description": "One whole item row as the admin editor submits it; every field is replaced, not merged.",
+        "properties": {
+          "batch_size": {
+            "title": "Batch Size",
+            "type": "integer"
+          },
+          "expiration_notice_days_override": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expiration Notice Days Override"
+          },
+          "expiration_tracking_enabled": {
+            "default": false,
+            "title": "Expiration Tracking Enabled",
+            "type": "boolean"
+          },
+          "guest_quick_adjust": {
+            "default": false,
+            "title": "Guest Quick Adjust",
+            "type": "boolean"
+          },
+          "image": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Image"
+          },
+          "increments": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Increments"
+          },
+          "max_quantity": {
+            "title": "Max Quantity",
+            "type": "integer"
+          },
+          "min_quantity": {
+            "title": "Min Quantity",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "restock_delivery_days": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Restock Delivery Days"
+          },
+          "scan_alert_flagged": {
+            "default": false,
+            "title": "Scan Alert Flagged",
+            "type": "boolean"
+          },
+          "secondary_upcs": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Secondary Upcs",
+            "type": "array"
+          },
+          "tag_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "title": "Tag Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "name",
+          "min_quantity",
+          "max_quantity",
+          "batch_size"
+        ],
+        "title": "ItemRequest",
+        "type": "object"
+      },
       "ItemResponse": {
         "description": "One searchable item. Name and tags only; the scan list shows no on-hand count.",
         "properties": {
@@ -311,6 +1559,168 @@
         "title": "ItemTagResponse",
         "type": "object"
       },
+      "ItemTrendChartResponse": {
+        "description": "Historical item/location trend chart payload.",
+        "properties": {
+          "agency_location_id": {
+            "title": "Agency Location Id",
+            "type": "integer"
+          },
+          "confidence_percent": {
+            "anyOf": [
+              {
+                "maximum": 100,
+                "minimum": 0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Confidence Percent"
+          },
+          "count_points": {
+            "items": {
+              "$ref": "#/components/schemas/ItemTrendChartResponse.TrendChartPoint"
+            },
+            "title": "Count Points",
+            "type": "array"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "integer"
+          },
+          "item_name": {
+            "title": "Item Name",
+            "type": "string"
+          },
+          "location_name": {
+            "title": "Location Name",
+            "type": "string"
+          },
+          "operation_points": {
+            "items": {
+              "$ref": "#/components/schemas/ItemTrendChartResponse.TrendChartPoint"
+            },
+            "title": "Operation Points",
+            "type": "array"
+          },
+          "trend_per_day": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Trend Per Day"
+          },
+          "trend_rate_display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Trend Rate Display"
+          },
+          "trendline_points": {
+            "items": {
+              "$ref": "#/components/schemas/ItemTrendChartResponse.TrendChartPoint"
+            },
+            "title": "Trendline Points",
+            "type": "array"
+          }
+        },
+        "required": [
+          "item_id",
+          "item_name",
+          "agency_location_id",
+          "location_name",
+          "count_points",
+          "operation_points",
+          "trendline_points"
+        ],
+        "title": "ItemTrendChartResponse",
+        "type": "object"
+      },
+      "ItemTrendChartResponse.TrendChartPoint": {
+        "description": "One point on an item/location trend chart.",
+        "properties": {
+          "at": {
+            "title": "At",
+            "type": "string"
+          },
+          "discrepancy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Discrepancy"
+          },
+          "expected_quantity": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Expected Quantity"
+          },
+          "operation": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Operation"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "number"
+          }
+        },
+        "required": [
+          "at",
+          "quantity"
+        ],
+        "title": "TrendChartPoint",
+        "type": "object"
+      },
+      "LinkBarcodeRequest": {
+        "additionalProperties": false,
+        "description": "The item a reviewed barcode should open from now on.",
+        "properties": {
+          "item_id": {
+            "exclusiveMinimum": 0,
+            "title": "Item Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item_id"
+        ],
+        "title": "LinkBarcodeRequest",
+        "type": "object"
+      },
       "LocationListResponse": {
         "description": "Every location an agency keeps stock in.",
         "items": {
@@ -336,6 +1746,1007 @@
           "name"
         ],
         "title": "LocationResponse",
+        "type": "object"
+      },
+      "NotificationRecipientListResponse": {
+        "description": "Every active recipient the agency sends alerts and summaries to.",
+        "items": {
+          "$ref": "#/components/schemas/NotificationRecipientListResponse.NotificationRecipientResponse"
+        },
+        "title": "NotificationRecipientListResponse",
+        "type": "array"
+      },
+      "NotificationRecipientListResponse.AlertEmailFrequency": {
+        "enum": [
+          "INSTANT",
+          "HOURLY",
+          "DAILY"
+        ],
+        "title": "AlertEmailFrequency",
+        "type": "string"
+      },
+      "NotificationRecipientListResponse.NotificationRecipientResponse": {
+        "description": "One alert recipient: its delivery window and scope, plus every per-alert toggle it stores.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "alert_for_count": {
+            "title": "Alert For Count",
+            "type": "boolean"
+          },
+          "alert_for_expiration_count_needed": {
+            "title": "Alert For Expiration Count Needed",
+            "type": "boolean"
+          },
+          "alert_for_expired_stock": {
+            "title": "Alert For Expired Stock",
+            "type": "boolean"
+          },
+          "alert_for_expiring_soon": {
+            "title": "Alert For Expiring Soon",
+            "type": "boolean"
+          },
+          "alert_for_low": {
+            "title": "Alert For Low",
+            "type": "boolean"
+          },
+          "alert_for_low_pred": {
+            "title": "Alert For Low Pred",
+            "type": "boolean"
+          },
+          "alert_for_rare_takeout": {
+            "title": "Alert For Rare Takeout",
+            "type": "boolean"
+          },
+          "alert_for_restock": {
+            "title": "Alert For Restock",
+            "type": "boolean"
+          },
+          "alert_for_stale_count": {
+            "title": "Alert For Stale Count",
+            "type": "boolean"
+          },
+          "alert_for_stockout": {
+            "title": "Alert For Stockout",
+            "type": "boolean"
+          },
+          "alert_for_stockout_pred": {
+            "title": "Alert For Stockout Pred",
+            "type": "boolean"
+          },
+          "alert_for_takeout": {
+            "title": "Alert For Takeout",
+            "type": "boolean"
+          },
+          "alert_for_transfer": {
+            "title": "Alert For Transfer",
+            "type": "boolean"
+          },
+          "alert_for_unknown_upc": {
+            "title": "Alert For Unknown Upc",
+            "type": "boolean"
+          },
+          "alert_frequency": {
+            "$ref": "#/components/schemas/NotificationRecipientListResponse.AlertEmailFrequency"
+          },
+          "daily_summary": {
+            "title": "Daily Summary",
+            "type": "boolean"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "location_filter_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Filter Ids"
+          },
+          "monthly_summary": {
+            "title": "Monthly Summary",
+            "type": "boolean"
+          },
+          "quiet_end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet End Time"
+          },
+          "quiet_hours_label": {
+            "title": "Quiet Hours Label",
+            "type": "string"
+          },
+          "quiet_start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Start Time"
+          },
+          "scan_alert_scope": {
+            "$ref": "#/components/schemas/NotificationRecipientListResponse.ScanAlertScope"
+          },
+          "weekly_summary": {
+            "title": "Weekly Summary",
+            "type": "boolean"
+          },
+          "yearly_summary": {
+            "title": "Yearly Summary",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "active",
+          "location_filter_ids",
+          "quiet_start_time",
+          "quiet_end_time",
+          "quiet_hours_label",
+          "alert_frequency",
+          "scan_alert_scope",
+          "alert_for_stockout",
+          "alert_for_stockout_pred",
+          "alert_for_low",
+          "alert_for_low_pred",
+          "alert_for_stale_count",
+          "alert_for_rare_takeout",
+          "alert_for_count",
+          "alert_for_restock",
+          "alert_for_takeout",
+          "alert_for_transfer",
+          "alert_for_unknown_upc",
+          "alert_for_expired_stock",
+          "alert_for_expiring_soon",
+          "alert_for_expiration_count_needed",
+          "daily_summary",
+          "weekly_summary",
+          "monthly_summary",
+          "yearly_summary"
+        ],
+        "title": "NotificationRecipientResponse",
+        "type": "object"
+      },
+      "NotificationRecipientListResponse.ScanAlertScope": {
+        "description": "Which items a recipient's scan-activity alerts (count/restock/takeout/transfer) cover.",
+        "enum": [
+          "ALL",
+          "FLAGGED"
+        ],
+        "title": "ScanAlertScope",
+        "type": "string"
+      },
+      "NotificationRecipientRequest": {
+        "additionalProperties": false,
+        "description": "One whole recipient row: its delivery settings plus every alert and summary toggle.",
+        "properties": {
+          "alert_for_count": {
+            "default": true,
+            "title": "Alert For Count",
+            "type": "boolean"
+          },
+          "alert_for_expiration_count_needed": {
+            "default": true,
+            "title": "Alert For Expiration Count Needed",
+            "type": "boolean"
+          },
+          "alert_for_expired_stock": {
+            "default": true,
+            "title": "Alert For Expired Stock",
+            "type": "boolean"
+          },
+          "alert_for_expiring_soon": {
+            "default": true,
+            "title": "Alert For Expiring Soon",
+            "type": "boolean"
+          },
+          "alert_for_low": {
+            "default": true,
+            "title": "Alert For Low",
+            "type": "boolean"
+          },
+          "alert_for_low_pred": {
+            "default": true,
+            "title": "Alert For Low Pred",
+            "type": "boolean"
+          },
+          "alert_for_rare_takeout": {
+            "default": false,
+            "title": "Alert For Rare Takeout",
+            "type": "boolean"
+          },
+          "alert_for_restock": {
+            "default": true,
+            "title": "Alert For Restock",
+            "type": "boolean"
+          },
+          "alert_for_stale_count": {
+            "default": true,
+            "title": "Alert For Stale Count",
+            "type": "boolean"
+          },
+          "alert_for_stockout": {
+            "default": true,
+            "title": "Alert For Stockout",
+            "type": "boolean"
+          },
+          "alert_for_stockout_pred": {
+            "default": true,
+            "title": "Alert For Stockout Pred",
+            "type": "boolean"
+          },
+          "alert_for_takeout": {
+            "default": false,
+            "title": "Alert For Takeout",
+            "type": "boolean"
+          },
+          "alert_for_transfer": {
+            "default": false,
+            "title": "Alert For Transfer",
+            "type": "boolean"
+          },
+          "alert_for_unknown_upc": {
+            "default": true,
+            "title": "Alert For Unknown Upc",
+            "type": "boolean"
+          },
+          "alert_frequency": {
+            "$ref": "#/components/schemas/NotificationRecipientRequest.AlertEmailFrequency",
+            "default": "HOURLY"
+          },
+          "daily_summary": {
+            "default": false,
+            "title": "Daily Summary",
+            "type": "boolean"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "location_filter_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Location Filter Ids"
+          },
+          "monthly_summary": {
+            "default": true,
+            "title": "Monthly Summary",
+            "type": "boolean"
+          },
+          "quiet_end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Quiet End Time"
+          },
+          "quiet_start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Quiet Start Time"
+          },
+          "scan_alert_scope": {
+            "$ref": "#/components/schemas/NotificationRecipientRequest.ScanAlertScope",
+            "default": "ALL"
+          },
+          "weekly_summary": {
+            "default": true,
+            "title": "Weekly Summary",
+            "type": "boolean"
+          },
+          "yearly_summary": {
+            "default": true,
+            "title": "Yearly Summary",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "email"
+        ],
+        "title": "NotificationRecipientRequest",
+        "type": "object"
+      },
+      "NotificationRecipientRequest.AlertEmailFrequency": {
+        "enum": [
+          "INSTANT",
+          "HOURLY",
+          "DAILY"
+        ],
+        "title": "AlertEmailFrequency",
+        "type": "string"
+      },
+      "NotificationRecipientRequest.ScanAlertScope": {
+        "description": "Which items a recipient's scan-activity alerts (count/restock/takeout/transfer) cover.",
+        "enum": [
+          "ALL",
+          "FLAGGED"
+        ],
+        "title": "ScanAlertScope",
+        "type": "string"
+      },
+      "NotificationRecipientResponse": {
+        "description": "One alert recipient: its delivery window and scope, plus every per-alert toggle it stores.",
+        "properties": {
+          "active": {
+            "title": "Active",
+            "type": "boolean"
+          },
+          "alert_for_count": {
+            "title": "Alert For Count",
+            "type": "boolean"
+          },
+          "alert_for_expiration_count_needed": {
+            "title": "Alert For Expiration Count Needed",
+            "type": "boolean"
+          },
+          "alert_for_expired_stock": {
+            "title": "Alert For Expired Stock",
+            "type": "boolean"
+          },
+          "alert_for_expiring_soon": {
+            "title": "Alert For Expiring Soon",
+            "type": "boolean"
+          },
+          "alert_for_low": {
+            "title": "Alert For Low",
+            "type": "boolean"
+          },
+          "alert_for_low_pred": {
+            "title": "Alert For Low Pred",
+            "type": "boolean"
+          },
+          "alert_for_rare_takeout": {
+            "title": "Alert For Rare Takeout",
+            "type": "boolean"
+          },
+          "alert_for_restock": {
+            "title": "Alert For Restock",
+            "type": "boolean"
+          },
+          "alert_for_stale_count": {
+            "title": "Alert For Stale Count",
+            "type": "boolean"
+          },
+          "alert_for_stockout": {
+            "title": "Alert For Stockout",
+            "type": "boolean"
+          },
+          "alert_for_stockout_pred": {
+            "title": "Alert For Stockout Pred",
+            "type": "boolean"
+          },
+          "alert_for_takeout": {
+            "title": "Alert For Takeout",
+            "type": "boolean"
+          },
+          "alert_for_transfer": {
+            "title": "Alert For Transfer",
+            "type": "boolean"
+          },
+          "alert_for_unknown_upc": {
+            "title": "Alert For Unknown Upc",
+            "type": "boolean"
+          },
+          "alert_frequency": {
+            "$ref": "#/components/schemas/NotificationRecipientResponse.AlertEmailFrequency"
+          },
+          "daily_summary": {
+            "title": "Daily Summary",
+            "type": "boolean"
+          },
+          "email": {
+            "title": "Email",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "location_filter_ids": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "integer"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Location Filter Ids"
+          },
+          "monthly_summary": {
+            "title": "Monthly Summary",
+            "type": "boolean"
+          },
+          "quiet_end_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet End Time"
+          },
+          "quiet_hours_label": {
+            "title": "Quiet Hours Label",
+            "type": "string"
+          },
+          "quiet_start_time": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Quiet Start Time"
+          },
+          "scan_alert_scope": {
+            "$ref": "#/components/schemas/NotificationRecipientResponse.ScanAlertScope"
+          },
+          "weekly_summary": {
+            "title": "Weekly Summary",
+            "type": "boolean"
+          },
+          "yearly_summary": {
+            "title": "Yearly Summary",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "id",
+          "email",
+          "active",
+          "location_filter_ids",
+          "quiet_start_time",
+          "quiet_end_time",
+          "quiet_hours_label",
+          "alert_frequency",
+          "scan_alert_scope",
+          "alert_for_stockout",
+          "alert_for_stockout_pred",
+          "alert_for_low",
+          "alert_for_low_pred",
+          "alert_for_stale_count",
+          "alert_for_rare_takeout",
+          "alert_for_count",
+          "alert_for_restock",
+          "alert_for_takeout",
+          "alert_for_transfer",
+          "alert_for_unknown_upc",
+          "alert_for_expired_stock",
+          "alert_for_expiring_soon",
+          "alert_for_expiration_count_needed",
+          "daily_summary",
+          "weekly_summary",
+          "monthly_summary",
+          "yearly_summary"
+        ],
+        "title": "NotificationRecipientResponse",
+        "type": "object"
+      },
+      "NotificationRecipientResponse.AlertEmailFrequency": {
+        "enum": [
+          "INSTANT",
+          "HOURLY",
+          "DAILY"
+        ],
+        "title": "AlertEmailFrequency",
+        "type": "string"
+      },
+      "NotificationRecipientResponse.ScanAlertScope": {
+        "description": "Which items a recipient's scan-activity alerts (count/restock/takeout/transfer) cover.",
+        "enum": [
+          "ALL",
+          "FLAGGED"
+        ],
+        "title": "ScanAlertScope",
+        "type": "string"
+      },
+      "PendingExpirationListResponse": {
+        "description": "Every pair still waiting on expiration dates, by item then storage.",
+        "items": {
+          "$ref": "#/components/schemas/PendingExpirationListResponse.PendingExpirationGroupResponse"
+        },
+        "title": "PendingExpirationListResponse",
+        "type": "array"
+      },
+      "PendingExpirationListResponse.ExpirationOptionResponse": {
+        "description": "One date already tracked in the storage this scan touches.",
+        "properties": {
+          "default_quantity": {
+            "title": "Default Quantity",
+            "type": "integer"
+          },
+          "expires_on": {
+            "format": "date",
+            "title": "Expires On",
+            "type": "string"
+          },
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "suggested": {
+            "title": "Suggested",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "expires_on",
+          "quantity",
+          "suggested",
+          "default_quantity"
+        ],
+        "title": "ExpirationOptionResponse",
+        "type": "object"
+      },
+      "PendingExpirationListResponse.PendingExpirationGroupResponse": {
+        "description": "One item/storage pair whose tracked dates no longer add up to its counted quantity.",
+        "properties": {
+          "allows_new_dates": {
+            "title": "Allows New Dates",
+            "type": "boolean"
+          },
+          "allows_other": {
+            "title": "Allows Other",
+            "type": "boolean"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "integer"
+          },
+          "item_name": {
+            "title": "Item Name",
+            "type": "string"
+          },
+          "max_new_rows": {
+            "title": "Max New Rows",
+            "type": "integer"
+          },
+          "options": {
+            "items": {
+              "$ref": "#/components/schemas/PendingExpirationListResponse.ExpirationOptionResponse"
+            },
+            "title": "Options",
+            "type": "array"
+          },
+          "storage_id": {
+            "title": "Storage Id",
+            "type": "integer"
+          },
+          "storage_name": {
+            "title": "Storage Name",
+            "type": "string"
+          },
+          "subtitle": {
+            "title": "Subtitle",
+            "type": "string"
+          },
+          "target_quantity": {
+            "title": "Target Quantity",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item_id",
+          "storage_id",
+          "item_name",
+          "storage_name",
+          "subtitle",
+          "target_quantity",
+          "allows_new_dates",
+          "allows_other",
+          "max_new_rows",
+          "options"
+        ],
+        "title": "PendingExpirationGroupResponse",
+        "type": "object"
+      },
+      "ReportEmailRequest": {
+        "additionalProperties": false,
+        "description": "Which notification recipients one report email goes to, and which location it covers.",
+        "properties": {
+          "location_id": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Location Id"
+          },
+          "notification_recipient_ids": {
+            "items": {
+              "type": "integer"
+            },
+            "minItems": 1,
+            "title": "Notification Recipient Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "notification_recipient_ids"
+        ],
+        "title": "ReportEmailRequest",
+        "type": "object"
+      },
+      "ReportEmailResultResponse": {
+        "description": "How many of the selected recipients one report email reached.",
+        "properties": {
+          "outcome": {
+            "$ref": "#/components/schemas/ReportEmailResultResponse.ReportEmailOutcome"
+          },
+          "sent": {
+            "title": "Sent",
+            "type": "integer"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "outcome",
+          "sent",
+          "total"
+        ],
+        "title": "ReportEmailResultResponse",
+        "type": "object"
+      },
+      "ReportEmailResultResponse.ReportEmailOutcome": {
+        "description": "How a report email request turned out, judged once for every surface that reports it.",
+        "enum": [
+          "NO_RECIPIENTS",
+          "SENT",
+          "PARTIAL"
+        ],
+        "title": "ReportEmailOutcome",
+        "type": "string"
+      },
+      "RestockReportResponse": {
+        "description": "What one location should reorder, newest prediction first.",
+        "properties": {
+          "location": {
+            "$ref": "#/components/schemas/RestockReportResponse.ReportLocationResponse"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/RestockReportResponse.RestockRowResponse"
+            },
+            "title": "Rows",
+            "type": "array"
+          }
+        },
+        "required": [
+          "location",
+          "rows"
+        ],
+        "title": "RestockReportResponse",
+        "type": "object"
+      },
+      "RestockReportResponse.ExpirationBreakdownResponse": {
+        "description": "How one item's stock in one location is spread across expiration dates.",
+        "properties": {
+          "expired_count": {
+            "title": "Expired Count",
+            "type": "integer"
+          },
+          "expiring_soon_count": {
+            "title": "Expiring Soon Count",
+            "type": "integer"
+          },
+          "good_count": {
+            "title": "Good Count",
+            "type": "integer"
+          },
+          "missing_count": {
+            "title": "Missing Count",
+            "type": "integer"
+          },
+          "soonest_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Soonest Date"
+          }
+        },
+        "required": [
+          "soonest_date",
+          "expired_count",
+          "expiring_soon_count",
+          "good_count",
+          "missing_count"
+        ],
+        "title": "ExpirationBreakdownResponse",
+        "type": "object"
+      },
+      "RestockReportResponse.ReportLocationResponse": {
+        "description": "The location a report is about; null ids mean every location at once.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ReportLocationResponse",
+        "type": "object"
+      },
+      "RestockReportResponse.RestockRowResponse": {
+        "description": "One item's restock analysis, with the severity classes the table colors cells by.",
+        "properties": {
+          "confidence_display": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence Display"
+          },
+          "confidence_percent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confidence Percent"
+          },
+          "current_total": {
+            "title": "Current Total",
+            "type": "integer"
+          },
+          "current_total_class": {
+            "title": "Current Total Class",
+            "type": "string"
+          },
+          "daily_usage_rate": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Usage Rate"
+          },
+          "days_until_low": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Until Low"
+          },
+          "days_until_stockout": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Days Until Stockout"
+          },
+          "expiration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/RestockReportResponse.ExpirationBreakdownResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "gap_to_min": {
+            "title": "Gap To Min",
+            "type": "integer"
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "integer"
+          },
+          "item_name": {
+            "title": "Item Name",
+            "type": "string"
+          },
+          "last_counted_at": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Counted At"
+          },
+          "lead_time_days": {
+            "title": "Lead Time Days",
+            "type": "integer"
+          },
+          "maximum_quantity": {
+            "title": "Maximum Quantity",
+            "type": "integer"
+          },
+          "min_quantity_class": {
+            "title": "Min Quantity Class",
+            "type": "string"
+          },
+          "minimum_quantity": {
+            "title": "Minimum Quantity",
+            "type": "integer"
+          },
+          "order_amount": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Order Amount"
+          },
+          "order_amount_display": {
+            "title": "Order Amount Display",
+            "type": "string"
+          },
+          "projected_lead_time_total": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Projected Lead Time Total"
+          },
+          "projected_total_class": {
+            "title": "Projected Total Class",
+            "type": "string"
+          },
+          "suggested_reorder_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Reorder Date"
+          },
+          "usage_display": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Usage Display"
+          }
+        },
+        "required": [
+          "item_id",
+          "item_name",
+          "current_total",
+          "projected_lead_time_total",
+          "minimum_quantity",
+          "maximum_quantity",
+          "gap_to_min",
+          "lead_time_days",
+          "suggested_reorder_date",
+          "last_counted_at",
+          "days_until_low",
+          "days_until_stockout",
+          "order_amount",
+          "order_amount_display",
+          "confidence_percent",
+          "confidence_display",
+          "daily_usage_rate",
+          "usage_display",
+          "current_total_class",
+          "projected_total_class",
+          "min_quantity_class",
+          "expiration"
+        ],
+        "title": "RestockRowResponse",
         "type": "object"
       },
       "ScanContextResponse": {
@@ -728,6 +3139,383 @@
         "title": "SignedInAgencyResponse",
         "type": "object"
       },
+      "StockLevelsReportResponse": {
+        "description": "What every item holds right now in one location, storage by storage.",
+        "properties": {
+          "expiration_notice_days": {
+            "title": "Expiration Notice Days",
+            "type": "integer"
+          },
+          "location": {
+            "$ref": "#/components/schemas/StockLevelsReportResponse.ReportLocationResponse"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/StockLevelsReportResponse.StockLevelRowResponse"
+            },
+            "title": "Rows",
+            "type": "array"
+          },
+          "storages": {
+            "items": {
+              "$ref": "#/components/schemas/StockLevelsReportResponse.ReportStorageResponse"
+            },
+            "title": "Storages",
+            "type": "array"
+          }
+        },
+        "required": [
+          "location",
+          "expiration_notice_days",
+          "storages",
+          "rows"
+        ],
+        "title": "StockLevelsReportResponse",
+        "type": "object"
+      },
+      "StockLevelsReportResponse.ExpirationBreakdownResponse": {
+        "description": "How one item's stock in one location is spread across expiration dates.",
+        "properties": {
+          "expired_count": {
+            "title": "Expired Count",
+            "type": "integer"
+          },
+          "expiring_soon_count": {
+            "title": "Expiring Soon Count",
+            "type": "integer"
+          },
+          "good_count": {
+            "title": "Good Count",
+            "type": "integer"
+          },
+          "missing_count": {
+            "title": "Missing Count",
+            "type": "integer"
+          },
+          "soonest_date": {
+            "anyOf": [
+              {
+                "format": "date",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Soonest Date"
+          }
+        },
+        "required": [
+          "soonest_date",
+          "expired_count",
+          "expiring_soon_count",
+          "good_count",
+          "missing_count"
+        ],
+        "title": "ExpirationBreakdownResponse",
+        "type": "object"
+      },
+      "StockLevelsReportResponse.ReportLocationResponse": {
+        "description": "The location a report is about; null ids mean every location at once.",
+        "properties": {
+          "id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Id"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ReportLocationResponse",
+        "type": "object"
+      },
+      "StockLevelsReportResponse.ReportStorageResponse": {
+        "description": "One storage column of a stock levels table.",
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "name"
+        ],
+        "title": "ReportStorageResponse",
+        "type": "object"
+      },
+      "StockLevelsReportResponse.StockLevelRowResponse": {
+        "description": "One item's row of the stock levels table.",
+        "properties": {
+          "expiration": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/StockLevelsReportResponse.ExpirationBreakdownResponse"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "item_id": {
+            "title": "Item Id",
+            "type": "integer"
+          },
+          "item_name": {
+            "title": "Item Name",
+            "type": "string"
+          },
+          "minimum_quantity": {
+            "title": "Minimum Quantity",
+            "type": "integer"
+          },
+          "storage_counts": {
+            "items": {
+              "$ref": "#/components/schemas/StockLevelsReportResponse.StorageCountResponse"
+            },
+            "title": "Storage Counts",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "item_id",
+          "item_name",
+          "minimum_quantity",
+          "storage_counts",
+          "total",
+          "expiration"
+        ],
+        "title": "StockLevelRowResponse",
+        "type": "object"
+      },
+      "StockLevelsReportResponse.StorageCountResponse": {
+        "description": "What one storage holds of one item.",
+        "properties": {
+          "quantity": {
+            "title": "Quantity",
+            "type": "integer"
+          },
+          "storage_id": {
+            "title": "Storage Id",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "storage_id",
+          "quantity"
+        ],
+        "title": "StorageCountResponse",
+        "type": "object"
+      },
+      "TagListResponse": {
+        "description": "Every active tag the agency can put on an item.",
+        "items": {
+          "$ref": "#/components/schemas/TagListResponse.TagResponse"
+        },
+        "title": "TagListResponse",
+        "type": "array"
+      },
+      "TagListResponse.TagResponse": {
+        "description": "One item tag, with the contrasting text color its chip is drawn in.",
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "tag_name": {
+            "title": "Tag Name",
+            "type": "string"
+          },
+          "text_color": {
+            "title": "Text Color",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tag_name",
+          "color",
+          "text_color"
+        ],
+        "title": "TagResponse",
+        "type": "object"
+      },
+      "TagRequest": {
+        "additionalProperties": false,
+        "description": "One whole tag row as the admin editor submits it.",
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "tag_name": {
+            "title": "Tag Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "tag_name",
+          "color"
+        ],
+        "title": "TagRequest",
+        "type": "object"
+      },
+      "TagResponse": {
+        "description": "One item tag, with the contrasting text color its chip is drawn in.",
+        "properties": {
+          "color": {
+            "title": "Color",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "tag_name": {
+            "title": "Tag Name",
+            "type": "string"
+          },
+          "text_color": {
+            "title": "Text Color",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "tag_name",
+          "color",
+          "text_color"
+        ],
+        "title": "TagResponse",
+        "type": "object"
+      },
+      "UnknownBarcodeReviewResponse": {
+        "description": "Every barcode awaiting review, in the two groups the admin screen lists.",
+        "properties": {
+          "ignored": {
+            "items": {
+              "$ref": "#/components/schemas/UnknownBarcodeReviewResponse.UnknownBarcodeResponse"
+            },
+            "title": "Ignored",
+            "type": "array"
+          },
+          "pending": {
+            "items": {
+              "$ref": "#/components/schemas/UnknownBarcodeReviewResponse.UnknownBarcodeResponse"
+            },
+            "title": "Pending",
+            "type": "array"
+          }
+        },
+        "required": [
+          "pending",
+          "ignored"
+        ],
+        "title": "UnknownBarcodeReviewResponse",
+        "type": "object"
+      },
+      "UnknownBarcodeReviewResponse.UnknownBarcodeResponse": {
+        "description": "One scanned barcode waiting for an admin decision, with the online guess that came with it.",
+        "properties": {
+          "first_scanned_at": {
+            "title": "First Scanned At",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "integer"
+          },
+          "last_scanned_at": {
+            "title": "Last Scanned At",
+            "type": "string"
+          },
+          "lookup_title": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lookup Title"
+          },
+          "status": {
+            "$ref": "#/components/schemas/UnknownBarcodeReviewResponse.UnknownUpcStatus"
+          },
+          "suggested_item_id": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Item Id"
+          },
+          "suggested_item_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Suggested Item Name"
+          },
+          "upc": {
+            "title": "Upc",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "upc",
+          "status",
+          "lookup_title",
+          "suggested_item_id",
+          "suggested_item_name",
+          "first_scanned_at",
+          "last_scanned_at"
+        ],
+        "title": "UnknownBarcodeResponse",
+        "type": "object"
+      },
+      "UnknownBarcodeReviewResponse.UnknownUpcStatus": {
+        "enum": [
+          "PENDING",
+          "RESOLVED",
+          "IGNORE"
+        ],
+        "title": "UnknownUpcStatus",
+        "type": "string"
+      },
       "UnknownUpcResponse": {
         "description": "What to tell a guest who scanned a barcode no item carries.",
         "properties": {
@@ -940,6 +3728,1252 @@
           }
         },
         "summary": "Email a new temporary admin PIN to the account address",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/dashboard": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AttentionTileListResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "List the dashboard tiles for everything needing attention",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/help/articles": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HelpIndexResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "List every help article and the tags they can be filtered by",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/help/articles/{article_id}": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "article_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HelpArticleResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Read one help article",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/items": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminItemListResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "List every active item with the fields its admin editor changes",
+        "tags": [
+          "V1"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminItemResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Add one item",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/items/{item_id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Hide one item, keeping its history",
+        "tags": [
+          "V1"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ItemRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminItemResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Save one item's whole row",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/notification-recipients": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationRecipientListResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "List every active alert and summary recipient",
+        "tags": [
+          "V1"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationRecipientRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationRecipientResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Add one alert and summary recipient",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/notification-recipients/{recipient_id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Stop sending to one recipient",
+        "tags": [
+          "V1"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "recipient_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/NotificationRecipientRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NotificationRecipientResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Save one recipient's whole row",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/pending-expirations": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PendingExpirationListResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "List the counted item/storage pairs still waiting on expiration dates",
+        "tags": [
+          "V1"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExpirationCorrectionsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExpirationCorrectionResultResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Record the expiration dates every pending count actually carries",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/settings": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Read the agency's guest permissions and alert thresholds",
+        "tags": [
+          "V1"
+        ]
+      },
+      "put": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSettingsRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSettingsResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Save the agency's guest permissions, alert thresholds, and admin PIN",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/tags": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagListResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "List every active item tag",
+        "tags": [
+          "V1"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Add one item tag, reviving a hidden tag of the same name",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/tags/{tag_id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tag_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Hide one item tag",
+        "tags": [
+          "V1"
+        ]
+      },
+      "patch": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "tag_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TagRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TagResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Save one tag's name and color",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/unknown-barcodes": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UnknownBarcodeReviewResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "List the barcodes guests scanned that no item carries, grouped by review status",
+        "tags": [
+          "V1"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddBarcodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddedBarcodeResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Add a barcode by hand to the review list",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/unknown-barcodes/{unknown_upc_id}": {
+      "delete": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "unknown_upc_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Delete a barcode from the review list",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/unknown-barcodes/{unknown_upc_id}/ignore": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "unknown_upc_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Move a reviewed barcode to the ignored list",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/unknown-barcodes/{unknown_upc_id}/item": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "unknown_upc_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LinkBarcodeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Link a reviewed barcode to an existing item",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/admin/unknown-barcodes/{unknown_upc_id}/pending": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "unknown_upc_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Move an ignored barcode back to the pending list",
         "tags": [
           "V1"
         ]
@@ -1229,6 +5263,62 @@
         ]
       }
     },
+    "/api/v1/agencies/{agency_id}/items/{item_id}/locations/{agency_location_id}/trend": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "item_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "agency_location_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ItemTrendChartResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Read one item's count, operation, and trendline series in one location",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
     "/api/v1/agencies/{agency_id}/items/{item_id}/scan-context": {
       "get": {
         "parameters": [
@@ -1340,6 +5430,535 @@
           }
         },
         "summary": "List the agency's locations",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/locations/{agency_location_id}/bulk-edit": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "agency_location_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkEditGridResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          }
+        },
+        "summary": "Read one location's bulk-edit grid of items, storages, and current quantities",
+        "tags": [
+          "V1"
+        ]
+      },
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "path",
+            "name": "agency_location_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/BulkEditRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BulkEditSaveResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "409": {
+            "content": {},
+            "description": "Tracked items still need their expiration dates"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Save one bulk submission of counts and restocks",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/reports/history": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Location Id"
+            }
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "default": 1,
+              "minimum": 1,
+              "title": "Page",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "descending",
+            "required": false,
+            "schema": {
+              "default": true,
+              "title": "Descending",
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HistoryReportResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Read one page of action history, newest first",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/reports/history/email": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HistoryEmailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportEmailResultResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Email the history report for one date range to the chosen recipients",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/reports/restock": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Location Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestockReportResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Read what one location should reorder",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/reports/restock/email": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportEmailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportEmailResultResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Email the restock report to the chosen recipients",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/reports/stock-levels": {
+      "get": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "location_id",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "exclusiveMinimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "default": null,
+              "title": "Location Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StockLevelsReportResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Read what every item holds right now in one location",
+        "tags": [
+          "V1"
+        ]
+      }
+    },
+    "/api/v1/agencies/{agency_id}/reports/stock-levels/email": {
+      "post": {
+        "parameters": [
+          {
+            "in": "path",
+            "name": "agency_id",
+            "required": true,
+            "schema": {
+              "type": "integer"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportEmailRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportEmailResultResponse"
+                }
+              }
+            },
+            "description": "Successful response"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Not found"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ValidationError"
+                }
+              }
+            },
+            "description": "Validation error"
+          }
+        },
+        "summary": "Email the stock levels report to the chosen recipients",
         "tags": [
           "V1"
         ]

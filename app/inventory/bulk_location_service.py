@@ -2,6 +2,7 @@
 
 from dataclasses import dataclass
 from datetime import timedelta
+from typing import Final
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
@@ -9,6 +10,7 @@ from sqlalchemy.orm import Session
 from app.alerts.alert_service import record_action_log_alerts
 from app.auth.models import Agency, Location, Storage
 from app.inventory.balance_service import get_required_count_storage_ids
+from app.inventory.constants import OperationType
 from app.inventory.expiration_service import ExpirationAllocation, sync_expiration_lines_for_action
 from app.inventory.item_queries import list_items
 from app.inventory.location_operations import (
@@ -20,6 +22,8 @@ from app.inventory.location_state_service import sync_location_states_for_action
 from app.inventory.models import Item
 from app.prediction.bulk_service import BulkService
 from app.shared.clock import utc_now_naive
+
+DEFAULT_STALE_COUNT_DAYS: Final[int] = 1
 
 type StorageQuantityGrid = dict[tuple[int, int], int]
 
@@ -119,6 +123,12 @@ def save_bulk_location_restock(
     return len(logs)
 
 
+def stale_count_days(session: Session, agency_id: int) -> int:
+    """How many days an agency lets a count stand before it reads as stale."""
+    agency = session.get(Agency, agency_id)
+    return int(agency.count_last_days if agency and agency.count_last_days else DEFAULT_STALE_COUNT_DAYS)
+
+
 def required_count_storage_ids(
     session: Session,
     agency_id: int,
@@ -128,9 +138,7 @@ def required_count_storage_ids(
     """Return stale storage IDs per item before restock is allowed."""
     if not items:
         return {}
-    agency = session.get(Agency, agency_id)
-    stale_days = int(agency.count_last_days if agency and agency.count_last_days else 1)
-    cutoff = utc_now_naive() - timedelta(days=stale_days)
+    cutoff = utc_now_naive() - timedelta(days=stale_count_days(session, agency_id))
     return get_required_count_storage_ids(session, agency_id, agency_location_id, [item.id for item in items], cutoff)
 
 
@@ -151,6 +159,11 @@ def suggested_restock_item_ids(
     }
 
 
+def bulk_expiration_key(operation_type: OperationType, item_id: int, storage_id: int) -> str:
+    """The key one bulk cell's expiration allocations are filed under, matching `bulk_expiration_specs`."""
+    return f"{operation_type.value.lower()}_{item_id}_{storage_id}"
+
+
 def _sync_bulk_expirations(
     session: Session,
     logs,
@@ -161,5 +174,5 @@ def _sync_bulk_expirations(
     for action in logs:
         if action.to_storage_id is None:
             continue
-        key = f"{action.operation_type.value.lower()}_{action.item_id}_{action.to_storage_id}"
+        key = bulk_expiration_key(action.operation_type, action.item_id, action.to_storage_id)
         sync_expiration_lines_for_action(session, action, expiration_allocations_by_key.get(key, []))

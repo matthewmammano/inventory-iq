@@ -5,6 +5,183 @@ export type ClientOptions = {
 };
 
 /**
+ * AddBarcodeRequest
+ *
+ * A barcode an admin typed in by hand; a malformed one is refused, not recorded.
+ */
+export type AddBarcodeRequest = {
+    /**
+     * Upc
+     */
+    upc: string;
+};
+
+/**
+ * AddedBarcodeResponse
+ *
+ * What became of a barcode an admin typed in by hand.
+ */
+export type AddedBarcodeResponse = {
+    /**
+     * Message
+     */
+    message: string;
+    status: AddedBarcodeResponseUnknownUpcStatus;
+    /**
+     * Upc
+     */
+    upc: string;
+};
+
+/**
+ * UnknownUpcStatus
+ */
+export type AddedBarcodeResponseUnknownUpcStatus = 'PENDING' | 'RESOLVED' | 'IGNORE';
+
+/**
+ * AdminItemListResponse
+ *
+ * Every active item the agency keeps.
+ */
+export type AdminItemListResponse = Array<AdminItemListResponseAdminItemResponse>;
+
+/**
+ * AdminItemResponse
+ *
+ * One item carrying every field its admin editor can change.
+ */
+export type AdminItemListResponseAdminItemResponse = {
+    /**
+     * Batch Size
+     */
+    batch_size: number;
+    /**
+     * Expiration Notice Days Override
+     */
+    expiration_notice_days_override: number | null;
+    /**
+     * Expiration Tracking Enabled
+     */
+    expiration_tracking_enabled: boolean;
+    /**
+     * Guest Quick Adjust
+     */
+    guest_quick_adjust: boolean;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Image
+     */
+    image: string | null;
+    /**
+     * Increments
+     */
+    increments: string | null;
+    /**
+     * Max Quantity
+     */
+    max_quantity: number;
+    /**
+     * Min Quantity
+     */
+    min_quantity: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Restock Delivery Days
+     */
+    restock_delivery_days: number | null;
+    /**
+     * Scan Alert Flagged
+     */
+    scan_alert_flagged: boolean;
+    /**
+     * Secondary Upcs
+     */
+    secondary_upcs: Array<string>;
+    /**
+     * Tag Ids
+     */
+    tag_ids: Array<number>;
+    /**
+     * Upc
+     */
+    upc: string;
+};
+
+/**
+ * AdminItemResponse
+ *
+ * One item carrying every field its admin editor can change.
+ */
+export type AdminItemResponse = {
+    /**
+     * Batch Size
+     */
+    batch_size: number;
+    /**
+     * Expiration Notice Days Override
+     */
+    expiration_notice_days_override: number | null;
+    /**
+     * Expiration Tracking Enabled
+     */
+    expiration_tracking_enabled: boolean;
+    /**
+     * Guest Quick Adjust
+     */
+    guest_quick_adjust: boolean;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Image
+     */
+    image: string | null;
+    /**
+     * Increments
+     */
+    increments: string | null;
+    /**
+     * Max Quantity
+     */
+    max_quantity: number;
+    /**
+     * Min Quantity
+     */
+    min_quantity: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Restock Delivery Days
+     */
+    restock_delivery_days: number | null;
+    /**
+     * Scan Alert Flagged
+     */
+    scan_alert_flagged: boolean;
+    /**
+     * Secondary Upcs
+     */
+    secondary_upcs: Array<string>;
+    /**
+     * Tag Ids
+     */
+    tag_ids: Array<number>;
+    /**
+     * Upc
+     */
+    upc: string;
+};
+
+/**
  * AdminPinRequest
  *
  * The 4-digit PIN someone is unlocking admin with; a PIN of any other length can never be right.
@@ -29,6 +206,321 @@ export type AdminSessionResponse = {
 };
 
 /**
+ * AdminSettingsRequest
+ *
+ * Every admin setting at once; `pin` is set only when it is being changed.
+ */
+export type AdminSettingsRequest = {
+    /**
+     * Alert Rare Scan Days
+     */
+    alert_rare_scan_days: number;
+    /**
+     * Count Last Days
+     */
+    count_last_days: number;
+    /**
+     * Expiration Notice Days
+     */
+    expiration_notice_days: number;
+    /**
+     * Image
+     */
+    image?: string | null;
+    /**
+     * Lead Time Days
+     */
+    lead_time_days: number;
+    /**
+     * Pin
+     */
+    pin?: string | null;
+    /**
+     * User Count Allow
+     */
+    user_count_allow?: boolean;
+    /**
+     * User Restock Allow
+     */
+    user_restock_allow?: boolean;
+};
+
+/**
+ * AdminSettingsResponse
+ *
+ * The agency's own settings. The admin PIN is write-only and never answered back.
+ */
+export type AdminSettingsResponse = {
+    /**
+     * Alert Rare Scan Days
+     */
+    alert_rare_scan_days: number;
+    /**
+     * Count Last Days
+     */
+    count_last_days: number;
+    /**
+     * Expiration Notice Days
+     */
+    expiration_notice_days: number;
+    /**
+     * Image
+     */
+    image: string | null;
+    /**
+     * Lead Time Days
+     */
+    lead_time_days: number;
+    /**
+     * User Count Allow
+     */
+    user_count_allow: boolean;
+    /**
+     * User Restock Allow
+     */
+    user_restock_allow: boolean;
+};
+
+/**
+ * AttentionTileListResponse
+ *
+ * Every dashboard tile in urgency order, cleared ones last.
+ */
+export type AttentionTileListResponse = Array<AttentionTileListResponseAttentionTileResponse>;
+
+/**
+ * AlertType
+ *
+ * Supported stock-state and discrete inventory alert types.
+ */
+export type AttentionTileListResponseAlertType = 'STOCKOUT' | 'STOCKOUT_FORECAST' | 'LOW_STOCK' | 'LOW_STOCK_FORECAST' | 'STALE_COUNT' | 'RARE_TAKEOUT' | 'COUNT_ACTION' | 'RESTOCK_ACTION' | 'TAKEOUT_ACTION' | 'TRANSFER_ACTION' | 'UNKNOWN_UPC' | 'EXPIRED_STOCK' | 'EXPIRING_SOON' | 'EXPIRATION_COUNT_NEEDED';
+
+/**
+ * AttentionCounter
+ *
+ * What a tile's big number counts, and what the smaller number beside it adds.
+ */
+export type AttentionTileListResponseAttentionCounter = 'item_pieces' | 'item_spots' | 'item_locations' | 'alert_rows';
+
+/**
+ * AttentionSeverity
+ *
+ * How hard a tile pushes: stock you cannot use, stock heading that way, or a records gap.
+ */
+export type AttentionTileListResponseAttentionSeverity = 'critical' | 'warning' | 'watch';
+
+/**
+ * AttentionTileResponse
+ *
+ * One dashboard tile: what needs attention, how much of it, and how hard it pushes.
+ */
+export type AttentionTileListResponseAttentionTileResponse = {
+    alert_type: AttentionTileListResponseAlertType;
+    /**
+     * Count
+     */
+    count: number;
+    counter: AttentionTileListResponseAttentionCounter;
+    /**
+     * Detail
+     */
+    detail: string;
+    /**
+     * Extra
+     */
+    extra: number;
+    severity: AttentionTileListResponseAttentionSeverity;
+    /**
+     * Sort Direction
+     */
+    sort_direction: string;
+    /**
+     * Sort Key
+     */
+    sort_key: string;
+    /**
+     * Title
+     */
+    title: string;
+};
+
+/**
+ * BulkEditGridResponse
+ *
+ * Every active item against every storage of one location, as the grid screen reads it.
+ */
+export type BulkEditGridResponse = {
+    /**
+     * Location Id
+     */
+    location_id: number;
+    /**
+     * Location Name
+     */
+    location_name: string;
+    /**
+     * Rows
+     */
+    rows: Array<BulkEditGridResponseBulkEditRowResponse>;
+    /**
+     * Stale Count Days
+     */
+    stale_count_days: number;
+    /**
+     * Storages
+     */
+    storages: Array<BulkEditGridResponseStorageResponse>;
+};
+
+/**
+ * BulkEditCellResponse
+ *
+ * One item's quantity in one storage, and whether its count is too old to restock against.
+ */
+export type BulkEditGridResponseBulkEditCellResponse = {
+    /**
+     * Count Required
+     */
+    count_required: boolean;
+    /**
+     * Quantity
+     */
+    quantity: number;
+    /**
+     * Storage Id
+     */
+    storage_id: number;
+};
+
+/**
+ * BulkEditRowResponse
+ *
+ * One item's row of the grid.
+ */
+export type BulkEditGridResponseBulkEditRowResponse = {
+    /**
+     * Cells
+     */
+    cells: Array<BulkEditGridResponseBulkEditCellResponse>;
+    /**
+     * Expiration Tracking
+     */
+    expiration_tracking: boolean;
+    /**
+     * Item Id
+     */
+    item_id: number;
+    /**
+     * Item Name
+     */
+    item_name: string;
+    /**
+     * Suggested Restock
+     */
+    suggested_restock: boolean;
+};
+
+/**
+ * StorageResponse
+ *
+ * One storage unit, carrying the location name the kiosk shows beside it.
+ */
+export type BulkEditGridResponseStorageResponse = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Location Id
+     */
+    location_id: number;
+    /**
+     * Location Name
+     */
+    location_name: string;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * BulkEditRequest
+ *
+ * One bulk submission for a location: the counts and vendor restocks the admin entered in the grid.
+ */
+export type BulkEditRequest = {
+    /**
+     * Counts
+     */
+    counts?: Array<BulkEditRequestBulkQuantityRequest>;
+    /**
+     * Restocks
+     */
+    restocks?: Array<BulkEditRequestBulkQuantityRequest>;
+};
+
+/**
+ * BulkQuantityRequest
+ *
+ * One cell of the bulk grid: the quantity this item reaches in this storage, plus its dates when tracked.
+ */
+export type BulkEditRequestBulkQuantityRequest = {
+    /**
+     * Expiration Allocations
+     */
+    expiration_allocations?: Array<BulkEditRequestExpirationAllocationRequest>;
+    /**
+     * Item Id
+     */
+    item_id: number;
+    /**
+     * Quantity
+     */
+    quantity: number;
+    /**
+     * Storage Id
+     */
+    storage_id: number;
+};
+
+/**
+ * ExpirationAllocationRequest
+ *
+ * How many units of one scan belong to one expiration date.
+ */
+export type BulkEditRequestExpirationAllocationRequest = {
+    /**
+     * Expires On
+     */
+    expires_on?: string | null;
+    /**
+     * Quantity
+     */
+    quantity: number;
+};
+
+/**
+ * BulkEditSaveResponse
+ *
+ * What one saved bulk submission wrote. The caller phrases its own confirmation from these counts.
+ */
+export type BulkEditSaveResponse = {
+    /**
+     * Count Entry Count
+     */
+    count_entry_count: number;
+    /**
+     * Location Id
+     */
+    location_id: number;
+    /**
+     * Restock Entry Count
+     */
+    restock_entry_count: number;
+};
+
+/**
  * DeviceLocationRequest
  *
  * The location a kiosk is being bound to, saved for a year against its device cookie.
@@ -50,6 +542,66 @@ export type DeviceLocationResponse = {
      * Location Id
      */
     location_id: number | null;
+};
+
+/**
+ * ExpirationCorrectionResultResponse
+ *
+ * How many item/storage pairs one correction save rewrote.
+ */
+export type ExpirationCorrectionResultResponse = {
+    /**
+     * Corrected Pair Count
+     */
+    corrected_pair_count: number;
+};
+
+/**
+ * ExpirationCorrectionsRequest
+ *
+ * One correction per pair still waiting on dates; every pending pair has to be answered.
+ */
+export type ExpirationCorrectionsRequest = {
+    /**
+     * Corrections
+     */
+    corrections: Array<ExpirationCorrectionsRequestExpirationCorrectionRequest>;
+};
+
+/**
+ * ExpirationAllocationRequest
+ *
+ * How many units of one scan belong to one expiration date.
+ */
+export type ExpirationCorrectionsRequestExpirationAllocationRequest = {
+    /**
+     * Expires On
+     */
+    expires_on?: string | null;
+    /**
+     * Quantity
+     */
+    quantity: number;
+};
+
+/**
+ * ExpirationCorrectionRequest
+ *
+ * The dates one item/storage pair's counted stock actually carries.
+ */
+export type ExpirationCorrectionsRequestExpirationCorrectionRequest = {
+    /**
+     * Allocations
+     */
+    allocations: Array<ExpirationCorrectionsRequestExpirationAllocationRequest>;
+    /**
+     * Item Id
+     */
+    item_id: number;
+    /**
+     * Storage Id
+     */
+    storage_id: number;
 };
 
 /**
@@ -128,6 +680,203 @@ export type HttpError = {
 };
 
 /**
+ * HelpArticleResponse
+ *
+ * One article, its body already rendered to the narrow HTML the help renderer allows.
+ */
+export type HelpArticleResponse = {
+    /**
+     * Body Html
+     */
+    body_html: string;
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Summary
+     */
+    summary: string;
+    /**
+     * Tags
+     */
+    tags: Array<string>;
+    /**
+     * Title
+     */
+    title: string;
+};
+
+/**
+ * HelpIndexResponse
+ *
+ * Every help article plus the tag filters the index offers.
+ */
+export type HelpIndexResponse = {
+    /**
+     * Articles
+     */
+    articles: Array<HelpIndexResponseHelpArticleSummaryResponse>;
+    /**
+     * Tags
+     */
+    tags: Array<string>;
+};
+
+/**
+ * HelpArticleSummaryResponse
+ *
+ * One article as the help index lists it, with the text its search box matches on.
+ */
+export type HelpIndexResponseHelpArticleSummaryResponse = {
+    /**
+     * Id
+     */
+    id: string;
+    /**
+     * Search Text
+     */
+    search_text: string;
+    /**
+     * Summary
+     */
+    summary: string;
+    /**
+     * Tags
+     */
+    tags: Array<string>;
+    /**
+     * Title
+     */
+    title: string;
+};
+
+/**
+ * HistoryEmailRequest
+ *
+ * A history report email, bounded by agency-local dates; either date may be left out.
+ */
+export type HistoryEmailRequest = {
+    /**
+     * End Date
+     */
+    end_date?: string | null;
+    /**
+     * Location Id
+     */
+    location_id?: number | null;
+    /**
+     * Notification Recipient Ids
+     */
+    notification_recipient_ids: Array<number>;
+    /**
+     * Start Date
+     */
+    start_date?: string | null;
+};
+
+/**
+ * HistoryReportResponse
+ *
+ * One page of action history, plus the window the caller draws its own pager from.
+ */
+export type HistoryReportResponse = {
+    /**
+     * Descending
+     */
+    descending: boolean;
+    location: HistoryReportResponseReportLocationResponse;
+    /**
+     * Page
+     */
+    page: number;
+    /**
+     * Page Size
+     */
+    page_size: number;
+    /**
+     * Rows
+     */
+    rows: Array<HistoryReportResponseHistoryRowResponse>;
+    /**
+     * Sort Key
+     */
+    sort_key: string;
+    /**
+     * Total Pages
+     */
+    total_pages: number;
+    /**
+     * Total Rows
+     */
+    total_rows: number;
+};
+
+/**
+ * HistoryRowResponse
+ *
+ * One logged inventory action, as the history table reads it.
+ */
+export type HistoryReportResponseHistoryRowResponse = {
+    /**
+     * Admin Action
+     */
+    admin_action: boolean;
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * Expiration Summary
+     */
+    expiration_summary: string;
+    /**
+     * From Label
+     */
+    from_label: string;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Item Name
+     */
+    item_name: string;
+    operation: HistoryReportResponseOperationType;
+    /**
+     * Quantity
+     */
+    quantity: number;
+    /**
+     * To Label
+     */
+    to_label: string;
+};
+
+/**
+ * OperationType
+ *
+ * Inventory operation types.
+ */
+export type HistoryReportResponseOperationType = 'COUNT' | 'RESTOCK' | 'TAKEOUT' | 'TRANSFER';
+
+/**
+ * ReportLocationResponse
+ *
+ * The location a report is about; null ids mean every location at once.
+ */
+export type HistoryReportResponseReportLocationResponse = {
+    /**
+     * Id
+     */
+    id: number | null;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
  * ItemListResponse
  *
  * A page of searchable items.
@@ -187,6 +936,66 @@ export type ItemListResponseItemTagResponse = {
 };
 
 /**
+ * ItemRequest
+ *
+ * One whole item row as the admin editor submits it; every field is replaced, not merged.
+ */
+export type ItemRequest = {
+    /**
+     * Batch Size
+     */
+    batch_size: number;
+    /**
+     * Expiration Notice Days Override
+     */
+    expiration_notice_days_override?: number | null;
+    /**
+     * Expiration Tracking Enabled
+     */
+    expiration_tracking_enabled?: boolean;
+    /**
+     * Guest Quick Adjust
+     */
+    guest_quick_adjust?: boolean;
+    /**
+     * Image
+     */
+    image?: string | null;
+    /**
+     * Increments
+     */
+    increments?: string | null;
+    /**
+     * Max Quantity
+     */
+    max_quantity: number;
+    /**
+     * Min Quantity
+     */
+    min_quantity: number;
+    /**
+     * Name
+     */
+    name: string;
+    /**
+     * Restock Delivery Days
+     */
+    restock_delivery_days?: number | null;
+    /**
+     * Scan Alert Flagged
+     */
+    scan_alert_flagged?: boolean;
+    /**
+     * Secondary Upcs
+     */
+    secondary_upcs?: Array<string>;
+    /**
+     * Tag Ids
+     */
+    tag_ids?: Array<number>;
+};
+
+/**
  * ItemResponse
  *
  * One searchable item. Name and tags only; the scan list shows no on-hand count.
@@ -239,6 +1048,94 @@ export type ItemResponseItemTagResponse = {
 };
 
 /**
+ * ItemTrendChartResponse
+ *
+ * Historical item/location trend chart payload.
+ */
+export type ItemTrendChartResponse = {
+    /**
+     * Agency Location Id
+     */
+    agency_location_id: number;
+    /**
+     * Confidence Percent
+     */
+    confidence_percent?: number | null;
+    /**
+     * Count Points
+     */
+    count_points: Array<ItemTrendChartResponseTrendChartPoint>;
+    /**
+     * Item Id
+     */
+    item_id: number;
+    /**
+     * Item Name
+     */
+    item_name: string;
+    /**
+     * Location Name
+     */
+    location_name: string;
+    /**
+     * Operation Points
+     */
+    operation_points: Array<ItemTrendChartResponseTrendChartPoint>;
+    /**
+     * Trend Per Day
+     */
+    trend_per_day?: number | null;
+    /**
+     * Trend Rate Display
+     */
+    trend_rate_display?: string | null;
+    /**
+     * Trendline Points
+     */
+    trendline_points: Array<ItemTrendChartResponseTrendChartPoint>;
+};
+
+/**
+ * TrendChartPoint
+ *
+ * One point on an item/location trend chart.
+ */
+export type ItemTrendChartResponseTrendChartPoint = {
+    /**
+     * At
+     */
+    at: string;
+    /**
+     * Discrepancy
+     */
+    discrepancy?: number | null;
+    /**
+     * Expected Quantity
+     */
+    expected_quantity?: number | null;
+    /**
+     * Operation
+     */
+    operation?: string | null;
+    /**
+     * Quantity
+     */
+    quantity: number;
+};
+
+/**
+ * LinkBarcodeRequest
+ *
+ * The item a reviewed barcode should open from now on.
+ */
+export type LinkBarcodeRequest = {
+    /**
+     * Item Id
+     */
+    item_id: number;
+};
+
+/**
  * LocationListResponse
  *
  * Every location an agency keeps stock in.
@@ -259,6 +1156,636 @@ export type LocationListResponseLocationResponse = {
      * Name
      */
     name: string;
+};
+
+/**
+ * NotificationRecipientListResponse
+ *
+ * Every active recipient the agency sends alerts and summaries to.
+ */
+export type NotificationRecipientListResponse = Array<NotificationRecipientListResponseNotificationRecipientResponse>;
+
+/**
+ * AlertEmailFrequency
+ */
+export type NotificationRecipientListResponseAlertEmailFrequency = 'INSTANT' | 'HOURLY' | 'DAILY';
+
+/**
+ * NotificationRecipientResponse
+ *
+ * One alert recipient: its delivery window and scope, plus every per-alert toggle it stores.
+ */
+export type NotificationRecipientListResponseNotificationRecipientResponse = {
+    /**
+     * Active
+     */
+    active: boolean;
+    /**
+     * Alert For Count
+     */
+    alert_for_count: boolean;
+    /**
+     * Alert For Expiration Count Needed
+     */
+    alert_for_expiration_count_needed: boolean;
+    /**
+     * Alert For Expired Stock
+     */
+    alert_for_expired_stock: boolean;
+    /**
+     * Alert For Expiring Soon
+     */
+    alert_for_expiring_soon: boolean;
+    /**
+     * Alert For Low
+     */
+    alert_for_low: boolean;
+    /**
+     * Alert For Low Pred
+     */
+    alert_for_low_pred: boolean;
+    /**
+     * Alert For Rare Takeout
+     */
+    alert_for_rare_takeout: boolean;
+    /**
+     * Alert For Restock
+     */
+    alert_for_restock: boolean;
+    /**
+     * Alert For Stale Count
+     */
+    alert_for_stale_count: boolean;
+    /**
+     * Alert For Stockout
+     */
+    alert_for_stockout: boolean;
+    /**
+     * Alert For Stockout Pred
+     */
+    alert_for_stockout_pred: boolean;
+    /**
+     * Alert For Takeout
+     */
+    alert_for_takeout: boolean;
+    /**
+     * Alert For Transfer
+     */
+    alert_for_transfer: boolean;
+    /**
+     * Alert For Unknown Upc
+     */
+    alert_for_unknown_upc: boolean;
+    alert_frequency: NotificationRecipientListResponseAlertEmailFrequency;
+    /**
+     * Daily Summary
+     */
+    daily_summary: boolean;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Location Filter Ids
+     */
+    location_filter_ids: Array<number> | null;
+    /**
+     * Monthly Summary
+     */
+    monthly_summary: boolean;
+    /**
+     * Quiet End Time
+     */
+    quiet_end_time: string | null;
+    /**
+     * Quiet Hours Label
+     */
+    quiet_hours_label: string;
+    /**
+     * Quiet Start Time
+     */
+    quiet_start_time: string | null;
+    scan_alert_scope: NotificationRecipientListResponseScanAlertScope;
+    /**
+     * Weekly Summary
+     */
+    weekly_summary: boolean;
+    /**
+     * Yearly Summary
+     */
+    yearly_summary: boolean;
+};
+
+/**
+ * ScanAlertScope
+ *
+ * Which items a recipient's scan-activity alerts (count/restock/takeout/transfer) cover.
+ */
+export type NotificationRecipientListResponseScanAlertScope = 'ALL' | 'FLAGGED';
+
+/**
+ * NotificationRecipientRequest
+ *
+ * One whole recipient row: its delivery settings plus every alert and summary toggle.
+ */
+export type NotificationRecipientRequest = {
+    /**
+     * Alert For Count
+     */
+    alert_for_count?: boolean;
+    /**
+     * Alert For Expiration Count Needed
+     */
+    alert_for_expiration_count_needed?: boolean;
+    /**
+     * Alert For Expired Stock
+     */
+    alert_for_expired_stock?: boolean;
+    /**
+     * Alert For Expiring Soon
+     */
+    alert_for_expiring_soon?: boolean;
+    /**
+     * Alert For Low
+     */
+    alert_for_low?: boolean;
+    /**
+     * Alert For Low Pred
+     */
+    alert_for_low_pred?: boolean;
+    /**
+     * Alert For Rare Takeout
+     */
+    alert_for_rare_takeout?: boolean;
+    /**
+     * Alert For Restock
+     */
+    alert_for_restock?: boolean;
+    /**
+     * Alert For Stale Count
+     */
+    alert_for_stale_count?: boolean;
+    /**
+     * Alert For Stockout
+     */
+    alert_for_stockout?: boolean;
+    /**
+     * Alert For Stockout Pred
+     */
+    alert_for_stockout_pred?: boolean;
+    /**
+     * Alert For Takeout
+     */
+    alert_for_takeout?: boolean;
+    /**
+     * Alert For Transfer
+     */
+    alert_for_transfer?: boolean;
+    /**
+     * Alert For Unknown Upc
+     */
+    alert_for_unknown_upc?: boolean;
+    alert_frequency?: NotificationRecipientRequestAlertEmailFrequency;
+    /**
+     * Daily Summary
+     */
+    daily_summary?: boolean;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Location Filter Ids
+     */
+    location_filter_ids?: Array<number> | null;
+    /**
+     * Monthly Summary
+     */
+    monthly_summary?: boolean;
+    /**
+     * Quiet End Time
+     */
+    quiet_end_time?: string | null;
+    /**
+     * Quiet Start Time
+     */
+    quiet_start_time?: string | null;
+    scan_alert_scope?: NotificationRecipientRequestScanAlertScope;
+    /**
+     * Weekly Summary
+     */
+    weekly_summary?: boolean;
+    /**
+     * Yearly Summary
+     */
+    yearly_summary?: boolean;
+};
+
+/**
+ * AlertEmailFrequency
+ */
+export type NotificationRecipientRequestAlertEmailFrequency = 'INSTANT' | 'HOURLY' | 'DAILY';
+
+/**
+ * ScanAlertScope
+ *
+ * Which items a recipient's scan-activity alerts (count/restock/takeout/transfer) cover.
+ */
+export type NotificationRecipientRequestScanAlertScope = 'ALL' | 'FLAGGED';
+
+/**
+ * NotificationRecipientResponse
+ *
+ * One alert recipient: its delivery window and scope, plus every per-alert toggle it stores.
+ */
+export type NotificationRecipientResponse = {
+    /**
+     * Active
+     */
+    active: boolean;
+    /**
+     * Alert For Count
+     */
+    alert_for_count: boolean;
+    /**
+     * Alert For Expiration Count Needed
+     */
+    alert_for_expiration_count_needed: boolean;
+    /**
+     * Alert For Expired Stock
+     */
+    alert_for_expired_stock: boolean;
+    /**
+     * Alert For Expiring Soon
+     */
+    alert_for_expiring_soon: boolean;
+    /**
+     * Alert For Low
+     */
+    alert_for_low: boolean;
+    /**
+     * Alert For Low Pred
+     */
+    alert_for_low_pred: boolean;
+    /**
+     * Alert For Rare Takeout
+     */
+    alert_for_rare_takeout: boolean;
+    /**
+     * Alert For Restock
+     */
+    alert_for_restock: boolean;
+    /**
+     * Alert For Stale Count
+     */
+    alert_for_stale_count: boolean;
+    /**
+     * Alert For Stockout
+     */
+    alert_for_stockout: boolean;
+    /**
+     * Alert For Stockout Pred
+     */
+    alert_for_stockout_pred: boolean;
+    /**
+     * Alert For Takeout
+     */
+    alert_for_takeout: boolean;
+    /**
+     * Alert For Transfer
+     */
+    alert_for_transfer: boolean;
+    /**
+     * Alert For Unknown Upc
+     */
+    alert_for_unknown_upc: boolean;
+    alert_frequency: NotificationRecipientResponseAlertEmailFrequency;
+    /**
+     * Daily Summary
+     */
+    daily_summary: boolean;
+    /**
+     * Email
+     */
+    email: string;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Location Filter Ids
+     */
+    location_filter_ids: Array<number> | null;
+    /**
+     * Monthly Summary
+     */
+    monthly_summary: boolean;
+    /**
+     * Quiet End Time
+     */
+    quiet_end_time: string | null;
+    /**
+     * Quiet Hours Label
+     */
+    quiet_hours_label: string;
+    /**
+     * Quiet Start Time
+     */
+    quiet_start_time: string | null;
+    scan_alert_scope: NotificationRecipientResponseScanAlertScope;
+    /**
+     * Weekly Summary
+     */
+    weekly_summary: boolean;
+    /**
+     * Yearly Summary
+     */
+    yearly_summary: boolean;
+};
+
+/**
+ * AlertEmailFrequency
+ */
+export type NotificationRecipientResponseAlertEmailFrequency = 'INSTANT' | 'HOURLY' | 'DAILY';
+
+/**
+ * ScanAlertScope
+ *
+ * Which items a recipient's scan-activity alerts (count/restock/takeout/transfer) cover.
+ */
+export type NotificationRecipientResponseScanAlertScope = 'ALL' | 'FLAGGED';
+
+/**
+ * PendingExpirationListResponse
+ *
+ * Every pair still waiting on expiration dates, by item then storage.
+ */
+export type PendingExpirationListResponse = Array<PendingExpirationListResponsePendingExpirationGroupResponse>;
+
+/**
+ * ExpirationOptionResponse
+ *
+ * One date already tracked in the storage this scan touches.
+ */
+export type PendingExpirationListResponseExpirationOptionResponse = {
+    /**
+     * Default Quantity
+     */
+    default_quantity: number;
+    /**
+     * Expires On
+     */
+    expires_on: string;
+    /**
+     * Quantity
+     */
+    quantity: number;
+    /**
+     * Suggested
+     */
+    suggested: boolean;
+};
+
+/**
+ * PendingExpirationGroupResponse
+ *
+ * One item/storage pair whose tracked dates no longer add up to its counted quantity.
+ */
+export type PendingExpirationListResponsePendingExpirationGroupResponse = {
+    /**
+     * Allows New Dates
+     */
+    allows_new_dates: boolean;
+    /**
+     * Allows Other
+     */
+    allows_other: boolean;
+    /**
+     * Item Id
+     */
+    item_id: number;
+    /**
+     * Item Name
+     */
+    item_name: string;
+    /**
+     * Max New Rows
+     */
+    max_new_rows: number;
+    /**
+     * Options
+     */
+    options: Array<PendingExpirationListResponseExpirationOptionResponse>;
+    /**
+     * Storage Id
+     */
+    storage_id: number;
+    /**
+     * Storage Name
+     */
+    storage_name: string;
+    /**
+     * Subtitle
+     */
+    subtitle: string;
+    /**
+     * Target Quantity
+     */
+    target_quantity: number;
+};
+
+/**
+ * ReportEmailRequest
+ *
+ * Which notification recipients one report email goes to, and which location it covers.
+ */
+export type ReportEmailRequest = {
+    /**
+     * Location Id
+     */
+    location_id?: number | null;
+    /**
+     * Notification Recipient Ids
+     */
+    notification_recipient_ids: Array<number>;
+};
+
+/**
+ * ReportEmailResultResponse
+ *
+ * How many of the selected recipients one report email reached.
+ */
+export type ReportEmailResultResponse = {
+    outcome: ReportEmailResultResponseReportEmailOutcome;
+    /**
+     * Sent
+     */
+    sent: number;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
+ * ReportEmailOutcome
+ *
+ * How a report email request turned out, judged once for every surface that reports it.
+ */
+export type ReportEmailResultResponseReportEmailOutcome = 'NO_RECIPIENTS' | 'SENT' | 'PARTIAL';
+
+/**
+ * RestockReportResponse
+ *
+ * What one location should reorder, newest prediction first.
+ */
+export type RestockReportResponse = {
+    location: RestockReportResponseReportLocationResponse;
+    /**
+     * Rows
+     */
+    rows: Array<RestockReportResponseRestockRowResponse>;
+};
+
+/**
+ * ExpirationBreakdownResponse
+ *
+ * How one item's stock in one location is spread across expiration dates.
+ */
+export type RestockReportResponseExpirationBreakdownResponse = {
+    /**
+     * Expired Count
+     */
+    expired_count: number;
+    /**
+     * Expiring Soon Count
+     */
+    expiring_soon_count: number;
+    /**
+     * Good Count
+     */
+    good_count: number;
+    /**
+     * Missing Count
+     */
+    missing_count: number;
+    /**
+     * Soonest Date
+     */
+    soonest_date: string | null;
+};
+
+/**
+ * ReportLocationResponse
+ *
+ * The location a report is about; null ids mean every location at once.
+ */
+export type RestockReportResponseReportLocationResponse = {
+    /**
+     * Id
+     */
+    id: number | null;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * RestockRowResponse
+ *
+ * One item's restock analysis, with the severity classes the table colors cells by.
+ */
+export type RestockReportResponseRestockRowResponse = {
+    /**
+     * Confidence Display
+     */
+    confidence_display: number | null;
+    /**
+     * Confidence Percent
+     */
+    confidence_percent: number | null;
+    /**
+     * Current Total
+     */
+    current_total: number;
+    /**
+     * Current Total Class
+     */
+    current_total_class: string;
+    /**
+     * Daily Usage Rate
+     */
+    daily_usage_rate: number | null;
+    /**
+     * Days Until Low
+     */
+    days_until_low: number | null;
+    /**
+     * Days Until Stockout
+     */
+    days_until_stockout: number | null;
+    expiration: RestockReportResponseExpirationBreakdownResponse | null;
+    /**
+     * Gap To Min
+     */
+    gap_to_min: number;
+    /**
+     * Item Id
+     */
+    item_id: number;
+    /**
+     * Item Name
+     */
+    item_name: string;
+    /**
+     * Last Counted At
+     */
+    last_counted_at: string | null;
+    /**
+     * Lead Time Days
+     */
+    lead_time_days: number;
+    /**
+     * Maximum Quantity
+     */
+    maximum_quantity: number;
+    /**
+     * Min Quantity Class
+     */
+    min_quantity_class: string;
+    /**
+     * Minimum Quantity
+     */
+    minimum_quantity: number;
+    /**
+     * Order Amount
+     */
+    order_amount: number | null;
+    /**
+     * Order Amount Display
+     */
+    order_amount_display: string;
+    /**
+     * Projected Lead Time Total
+     */
+    projected_lead_time_total: number | null;
+    /**
+     * Projected Total Class
+     */
+    projected_total_class: string;
+    /**
+     * Suggested Reorder Date
+     */
+    suggested_reorder_date: string | string | null;
+    /**
+     * Usage Display
+     */
+    usage_display: string | null;
 };
 
 /**
@@ -512,6 +2039,261 @@ export type SignedInAgencyResponse = {
 };
 
 /**
+ * StockLevelsReportResponse
+ *
+ * What every item holds right now in one location, storage by storage.
+ */
+export type StockLevelsReportResponse = {
+    /**
+     * Expiration Notice Days
+     */
+    expiration_notice_days: number;
+    location: StockLevelsReportResponseReportLocationResponse;
+    /**
+     * Rows
+     */
+    rows: Array<StockLevelsReportResponseStockLevelRowResponse>;
+    /**
+     * Storages
+     */
+    storages: Array<StockLevelsReportResponseReportStorageResponse>;
+};
+
+/**
+ * ExpirationBreakdownResponse
+ *
+ * How one item's stock in one location is spread across expiration dates.
+ */
+export type StockLevelsReportResponseExpirationBreakdownResponse = {
+    /**
+     * Expired Count
+     */
+    expired_count: number;
+    /**
+     * Expiring Soon Count
+     */
+    expiring_soon_count: number;
+    /**
+     * Good Count
+     */
+    good_count: number;
+    /**
+     * Missing Count
+     */
+    missing_count: number;
+    /**
+     * Soonest Date
+     */
+    soonest_date: string | null;
+};
+
+/**
+ * ReportLocationResponse
+ *
+ * The location a report is about; null ids mean every location at once.
+ */
+export type StockLevelsReportResponseReportLocationResponse = {
+    /**
+     * Id
+     */
+    id: number | null;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * ReportStorageResponse
+ *
+ * One storage column of a stock levels table.
+ */
+export type StockLevelsReportResponseReportStorageResponse = {
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Name
+     */
+    name: string;
+};
+
+/**
+ * StockLevelRowResponse
+ *
+ * One item's row of the stock levels table.
+ */
+export type StockLevelsReportResponseStockLevelRowResponse = {
+    expiration: StockLevelsReportResponseExpirationBreakdownResponse | null;
+    /**
+     * Item Id
+     */
+    item_id: number;
+    /**
+     * Item Name
+     */
+    item_name: string;
+    /**
+     * Minimum Quantity
+     */
+    minimum_quantity: number;
+    /**
+     * Storage Counts
+     */
+    storage_counts: Array<StockLevelsReportResponseStorageCountResponse>;
+    /**
+     * Total
+     */
+    total: number;
+};
+
+/**
+ * StorageCountResponse
+ *
+ * What one storage holds of one item.
+ */
+export type StockLevelsReportResponseStorageCountResponse = {
+    /**
+     * Quantity
+     */
+    quantity: number;
+    /**
+     * Storage Id
+     */
+    storage_id: number;
+};
+
+/**
+ * TagListResponse
+ *
+ * Every active tag the agency can put on an item.
+ */
+export type TagListResponse = Array<TagListResponseTagResponse>;
+
+/**
+ * TagResponse
+ *
+ * One item tag, with the contrasting text color its chip is drawn in.
+ */
+export type TagListResponseTagResponse = {
+    /**
+     * Color
+     */
+    color: string;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Tag Name
+     */
+    tag_name: string;
+    /**
+     * Text Color
+     */
+    text_color: string;
+};
+
+/**
+ * TagRequest
+ *
+ * One whole tag row as the admin editor submits it.
+ */
+export type TagRequest = {
+    /**
+     * Color
+     */
+    color: string;
+    /**
+     * Tag Name
+     */
+    tag_name: string;
+};
+
+/**
+ * TagResponse
+ *
+ * One item tag, with the contrasting text color its chip is drawn in.
+ */
+export type TagResponse = {
+    /**
+     * Color
+     */
+    color: string;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Tag Name
+     */
+    tag_name: string;
+    /**
+     * Text Color
+     */
+    text_color: string;
+};
+
+/**
+ * UnknownBarcodeReviewResponse
+ *
+ * Every barcode awaiting review, in the two groups the admin screen lists.
+ */
+export type UnknownBarcodeReviewResponse = {
+    /**
+     * Ignored
+     */
+    ignored: Array<UnknownBarcodeReviewResponseUnknownBarcodeResponse>;
+    /**
+     * Pending
+     */
+    pending: Array<UnknownBarcodeReviewResponseUnknownBarcodeResponse>;
+};
+
+/**
+ * UnknownBarcodeResponse
+ *
+ * One scanned barcode waiting for an admin decision, with the online guess that came with it.
+ */
+export type UnknownBarcodeReviewResponseUnknownBarcodeResponse = {
+    /**
+     * First Scanned At
+     */
+    first_scanned_at: string;
+    /**
+     * Id
+     */
+    id: number;
+    /**
+     * Last Scanned At
+     */
+    last_scanned_at: string;
+    /**
+     * Lookup Title
+     */
+    lookup_title: string | null;
+    status: UnknownBarcodeReviewResponseUnknownUpcStatus;
+    /**
+     * Suggested Item Id
+     */
+    suggested_item_id: number | null;
+    /**
+     * Suggested Item Name
+     */
+    suggested_item_name: string | null;
+    /**
+     * Upc
+     */
+    upc: string;
+};
+
+/**
+ * UnknownUpcStatus
+ */
+export type UnknownBarcodeReviewResponseUnknownUpcStatus = 'PENDING' | 'RESOLVED' | 'IGNORE';
+
+/**
  * UnknownUpcResponse
  *
  * What to tell a guest who scanned a barcode no item carries.
@@ -634,6 +2416,718 @@ export type PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinErrors = {
 export type PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinError = PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinErrors[keyof PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinErrors];
 
 export type PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinResponses = {
+    /**
+     * Successful response
+     */
+    200: unknown;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminDashboardData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/dashboard';
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminDashboardErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminDashboardError = GetApiV1AgenciesByAgencyIdAdminDashboardErrors[keyof GetApiV1AgenciesByAgencyIdAdminDashboardErrors];
+
+export type GetApiV1AgenciesByAgencyIdAdminDashboardResponses = {
+    /**
+     * Successful response
+     */
+    200: AttentionTileListResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminDashboardResponse = GetApiV1AgenciesByAgencyIdAdminDashboardResponses[keyof GetApiV1AgenciesByAgencyIdAdminDashboardResponses];
+
+export type GetApiV1AgenciesByAgencyIdAdminHelpArticlesData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/help/articles';
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminHelpArticlesErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminHelpArticlesError = GetApiV1AgenciesByAgencyIdAdminHelpArticlesErrors[keyof GetApiV1AgenciesByAgencyIdAdminHelpArticlesErrors];
+
+export type GetApiV1AgenciesByAgencyIdAdminHelpArticlesResponses = {
+    /**
+     * Successful response
+     */
+    200: HelpIndexResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminHelpArticlesResponse = GetApiV1AgenciesByAgencyIdAdminHelpArticlesResponses[keyof GetApiV1AgenciesByAgencyIdAdminHelpArticlesResponses];
+
+export type GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdData = {
+    body?: never;
+    path: {
+        agency_id: number;
+        article_id: string;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/help/articles/{article_id}';
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdError = GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdErrors[keyof GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdErrors];
+
+export type GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdResponses = {
+    /**
+     * Successful response
+     */
+    200: HelpArticleResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdResponse = GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdResponses[keyof GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdResponses];
+
+export type GetApiV1AgenciesByAgencyIdAdminItemsData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/items';
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminItemsErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminItemsError = GetApiV1AgenciesByAgencyIdAdminItemsErrors[keyof GetApiV1AgenciesByAgencyIdAdminItemsErrors];
+
+export type GetApiV1AgenciesByAgencyIdAdminItemsResponses = {
+    /**
+     * Successful response
+     */
+    200: AdminItemListResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminItemsResponse = GetApiV1AgenciesByAgencyIdAdminItemsResponses[keyof GetApiV1AgenciesByAgencyIdAdminItemsResponses];
+
+export type PostApiV1AgenciesByAgencyIdAdminItemsData = {
+    body?: ItemRequest;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/items';
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminItemsErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminItemsError = PostApiV1AgenciesByAgencyIdAdminItemsErrors[keyof PostApiV1AgenciesByAgencyIdAdminItemsErrors];
+
+export type PostApiV1AgenciesByAgencyIdAdminItemsResponses = {
+    /**
+     * Successful response
+     */
+    201: AdminItemResponse;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminItemsResponse = PostApiV1AgenciesByAgencyIdAdminItemsResponses[keyof PostApiV1AgenciesByAgencyIdAdminItemsResponses];
+
+export type DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdData = {
+    body?: never;
+    path: {
+        agency_id: number;
+        item_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/items/{item_id}';
+};
+
+export type DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdError = DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdErrors[keyof DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdErrors];
+
+export type DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdResponses = {
+    /**
+     * Successful response
+     */
+    200: unknown;
+};
+
+export type PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdData = {
+    body?: ItemRequest;
+    path: {
+        agency_id: number;
+        item_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/items/{item_id}';
+};
+
+export type PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdError = PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdErrors[keyof PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdErrors];
+
+export type PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdResponses = {
+    /**
+     * Successful response
+     */
+    200: AdminItemResponse;
+};
+
+export type PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdResponse = PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdResponses[keyof PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdResponses];
+
+export type GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/notification-recipients';
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsError = GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors[keyof GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors];
+
+export type GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses = {
+    /**
+     * Successful response
+     */
+    200: NotificationRecipientListResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponse = GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses[keyof GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses];
+
+export type PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsData = {
+    body?: NotificationRecipientRequest;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/notification-recipients';
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsError = PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors[keyof PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors];
+
+export type PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses = {
+    /**
+     * Successful response
+     */
+    201: NotificationRecipientResponse;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponse = PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses[keyof PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses];
+
+export type DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdData = {
+    body?: never;
+    path: {
+        agency_id: number;
+        recipient_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/notification-recipients/{recipient_id}';
+};
+
+export type DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdError = DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdErrors[keyof DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdErrors];
+
+export type DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdResponses = {
+    /**
+     * Successful response
+     */
+    200: unknown;
+};
+
+export type PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdData = {
+    body?: NotificationRecipientRequest;
+    path: {
+        agency_id: number;
+        recipient_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/notification-recipients/{recipient_id}';
+};
+
+export type PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdError = PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdErrors[keyof PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdErrors];
+
+export type PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdResponses = {
+    /**
+     * Successful response
+     */
+    200: NotificationRecipientResponse;
+};
+
+export type PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdResponse = PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdResponses[keyof PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdResponses];
+
+export type GetApiV1AgenciesByAgencyIdAdminPendingExpirationsData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/pending-expirations';
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminPendingExpirationsErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminPendingExpirationsError = GetApiV1AgenciesByAgencyIdAdminPendingExpirationsErrors[keyof GetApiV1AgenciesByAgencyIdAdminPendingExpirationsErrors];
+
+export type GetApiV1AgenciesByAgencyIdAdminPendingExpirationsResponses = {
+    /**
+     * Successful response
+     */
+    200: PendingExpirationListResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminPendingExpirationsResponse = GetApiV1AgenciesByAgencyIdAdminPendingExpirationsResponses[keyof GetApiV1AgenciesByAgencyIdAdminPendingExpirationsResponses];
+
+export type PostApiV1AgenciesByAgencyIdAdminPendingExpirationsData = {
+    body?: ExpirationCorrectionsRequest;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/pending-expirations';
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminPendingExpirationsErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminPendingExpirationsError = PostApiV1AgenciesByAgencyIdAdminPendingExpirationsErrors[keyof PostApiV1AgenciesByAgencyIdAdminPendingExpirationsErrors];
+
+export type PostApiV1AgenciesByAgencyIdAdminPendingExpirationsResponses = {
+    /**
+     * Successful response
+     */
+    200: ExpirationCorrectionResultResponse;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminPendingExpirationsResponse = PostApiV1AgenciesByAgencyIdAdminPendingExpirationsResponses[keyof PostApiV1AgenciesByAgencyIdAdminPendingExpirationsResponses];
+
+export type GetApiV1AgenciesByAgencyIdAdminSettingsData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/settings';
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminSettingsErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminSettingsError = GetApiV1AgenciesByAgencyIdAdminSettingsErrors[keyof GetApiV1AgenciesByAgencyIdAdminSettingsErrors];
+
+export type GetApiV1AgenciesByAgencyIdAdminSettingsResponses = {
+    /**
+     * Successful response
+     */
+    200: AdminSettingsResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminSettingsResponse = GetApiV1AgenciesByAgencyIdAdminSettingsResponses[keyof GetApiV1AgenciesByAgencyIdAdminSettingsResponses];
+
+export type PutApiV1AgenciesByAgencyIdAdminSettingsData = {
+    body?: AdminSettingsRequest;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/settings';
+};
+
+export type PutApiV1AgenciesByAgencyIdAdminSettingsErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PutApiV1AgenciesByAgencyIdAdminSettingsError = PutApiV1AgenciesByAgencyIdAdminSettingsErrors[keyof PutApiV1AgenciesByAgencyIdAdminSettingsErrors];
+
+export type PutApiV1AgenciesByAgencyIdAdminSettingsResponses = {
+    /**
+     * Successful response
+     */
+    200: AdminSettingsResponse;
+};
+
+export type PutApiV1AgenciesByAgencyIdAdminSettingsResponse = PutApiV1AgenciesByAgencyIdAdminSettingsResponses[keyof PutApiV1AgenciesByAgencyIdAdminSettingsResponses];
+
+export type GetApiV1AgenciesByAgencyIdAdminTagsData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/tags';
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminTagsErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminTagsError = GetApiV1AgenciesByAgencyIdAdminTagsErrors[keyof GetApiV1AgenciesByAgencyIdAdminTagsErrors];
+
+export type GetApiV1AgenciesByAgencyIdAdminTagsResponses = {
+    /**
+     * Successful response
+     */
+    200: TagListResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminTagsResponse = GetApiV1AgenciesByAgencyIdAdminTagsResponses[keyof GetApiV1AgenciesByAgencyIdAdminTagsResponses];
+
+export type PostApiV1AgenciesByAgencyIdAdminTagsData = {
+    body?: TagRequest;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/tags';
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminTagsErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminTagsError = PostApiV1AgenciesByAgencyIdAdminTagsErrors[keyof PostApiV1AgenciesByAgencyIdAdminTagsErrors];
+
+export type PostApiV1AgenciesByAgencyIdAdminTagsResponses = {
+    /**
+     * Successful response
+     */
+    201: TagResponse;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminTagsResponse = PostApiV1AgenciesByAgencyIdAdminTagsResponses[keyof PostApiV1AgenciesByAgencyIdAdminTagsResponses];
+
+export type DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdData = {
+    body?: never;
+    path: {
+        agency_id: number;
+        tag_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/tags/{tag_id}';
+};
+
+export type DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdError = DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdErrors[keyof DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdErrors];
+
+export type DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdResponses = {
+    /**
+     * Successful response
+     */
+    200: unknown;
+};
+
+export type PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdData = {
+    body?: TagRequest;
+    path: {
+        agency_id: number;
+        tag_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/tags/{tag_id}';
+};
+
+export type PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdError = PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdErrors[keyof PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdErrors];
+
+export type PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdResponses = {
+    /**
+     * Successful response
+     */
+    200: TagResponse;
+};
+
+export type PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdResponse = PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdResponses[keyof PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdResponses];
+
+export type GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/unknown-barcodes';
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesError = GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesErrors[keyof GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesErrors];
+
+export type GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponses = {
+    /**
+     * Successful response
+     */
+    200: UnknownBarcodeReviewResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponse = GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponses[keyof GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponses];
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesData = {
+    body?: AddBarcodeRequest;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/unknown-barcodes';
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesError = PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesErrors[keyof PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesErrors];
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponses = {
+    /**
+     * Successful response
+     */
+    201: AddedBarcodeResponse;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponse = PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponses[keyof PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponses];
+
+export type DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdData = {
+    body?: never;
+    path: {
+        agency_id: number;
+        unknown_upc_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/unknown-barcodes/{unknown_upc_id}';
+};
+
+export type DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdError = DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdErrors[keyof DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdErrors];
+
+export type DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdResponses = {
+    /**
+     * Successful response
+     */
+    200: unknown;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreData = {
+    body?: never;
+    path: {
+        agency_id: number;
+        unknown_upc_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/unknown-barcodes/{unknown_upc_id}/ignore';
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreError = PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreErrors[keyof PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreErrors];
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreResponses = {
+    /**
+     * Successful response
+     */
+    200: unknown;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemData = {
+    body?: LinkBarcodeRequest;
+    path: {
+        agency_id: number;
+        unknown_upc_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/unknown-barcodes/{unknown_upc_id}/item';
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemError = PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemErrors[keyof PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemErrors];
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemResponses = {
+    /**
+     * Successful response
+     */
+    200: unknown;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingData = {
+    body?: never;
+    path: {
+        agency_id: number;
+        unknown_upc_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/admin/unknown-barcodes/{unknown_upc_id}/pending';
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingError = PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingErrors[keyof PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingErrors];
+
+export type PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingResponses = {
     /**
      * Successful response
      */
@@ -806,6 +3300,35 @@ export type GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses = {
 
 export type GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponse = GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses[keyof GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses];
 
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendData = {
+    body?: never;
+    path: {
+        agency_id: number;
+        item_id: number;
+        agency_location_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/items/{item_id}/locations/{agency_location_id}/trend';
+};
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendError = GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendErrors[keyof GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendErrors];
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendResponses = {
+    /**
+     * Successful response
+     */
+    200: ItemTrendChartResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendResponse = GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendResponses[keyof GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendResponses];
+
 export type GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData = {
     body?: never;
     path: {
@@ -873,6 +3396,283 @@ export type GetApiV1AgenciesByAgencyIdLocationsResponses = {
 };
 
 export type GetApiV1AgenciesByAgencyIdLocationsResponse = GetApiV1AgenciesByAgencyIdLocationsResponses[keyof GetApiV1AgenciesByAgencyIdLocationsResponses];
+
+export type GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditData = {
+    body?: never;
+    path: {
+        agency_id: number;
+        agency_location_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/locations/{agency_location_id}/bulk-edit';
+};
+
+export type GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+};
+
+export type GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditError = GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditErrors[keyof GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditErrors];
+
+export type GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponses = {
+    /**
+     * Successful response
+     */
+    200: BulkEditGridResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponse = GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponses[keyof GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponses];
+
+export type PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditData = {
+    body?: BulkEditRequest;
+    path: {
+        agency_id: number;
+        agency_location_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/locations/{agency_location_id}/bulk-edit';
+};
+
+export type PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Tracked items still need their expiration dates
+     */
+    409: unknown;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditError = PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditErrors[keyof PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditErrors];
+
+export type PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponses = {
+    /**
+     * Successful response
+     */
+    201: BulkEditSaveResponse;
+};
+
+export type PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponse = PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponses[keyof PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponses];
+
+export type GetApiV1AgenciesByAgencyIdReportsHistoryData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: {
+        /**
+         * Location Id
+         */
+        location_id?: number | null;
+        /**
+         * Page
+         */
+        page?: number;
+        /**
+         * Sort
+         */
+        sort?: string;
+        /**
+         * Descending
+         */
+        descending?: boolean;
+    };
+    url: '/api/v1/agencies/{agency_id}/reports/history';
+};
+
+export type GetApiV1AgenciesByAgencyIdReportsHistoryErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type GetApiV1AgenciesByAgencyIdReportsHistoryError = GetApiV1AgenciesByAgencyIdReportsHistoryErrors[keyof GetApiV1AgenciesByAgencyIdReportsHistoryErrors];
+
+export type GetApiV1AgenciesByAgencyIdReportsHistoryResponses = {
+    /**
+     * Successful response
+     */
+    200: HistoryReportResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdReportsHistoryResponse = GetApiV1AgenciesByAgencyIdReportsHistoryResponses[keyof GetApiV1AgenciesByAgencyIdReportsHistoryResponses];
+
+export type PostApiV1AgenciesByAgencyIdReportsHistoryEmailData = {
+    body?: HistoryEmailRequest;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/reports/history/email';
+};
+
+export type PostApiV1AgenciesByAgencyIdReportsHistoryEmailErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PostApiV1AgenciesByAgencyIdReportsHistoryEmailError = PostApiV1AgenciesByAgencyIdReportsHistoryEmailErrors[keyof PostApiV1AgenciesByAgencyIdReportsHistoryEmailErrors];
+
+export type PostApiV1AgenciesByAgencyIdReportsHistoryEmailResponses = {
+    /**
+     * Successful response
+     */
+    200: ReportEmailResultResponse;
+};
+
+export type PostApiV1AgenciesByAgencyIdReportsHistoryEmailResponse = PostApiV1AgenciesByAgencyIdReportsHistoryEmailResponses[keyof PostApiV1AgenciesByAgencyIdReportsHistoryEmailResponses];
+
+export type GetApiV1AgenciesByAgencyIdReportsRestockData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: {
+        /**
+         * Location Id
+         */
+        location_id?: number | null;
+    };
+    url: '/api/v1/agencies/{agency_id}/reports/restock';
+};
+
+export type GetApiV1AgenciesByAgencyIdReportsRestockErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type GetApiV1AgenciesByAgencyIdReportsRestockError = GetApiV1AgenciesByAgencyIdReportsRestockErrors[keyof GetApiV1AgenciesByAgencyIdReportsRestockErrors];
+
+export type GetApiV1AgenciesByAgencyIdReportsRestockResponses = {
+    /**
+     * Successful response
+     */
+    200: RestockReportResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdReportsRestockResponse = GetApiV1AgenciesByAgencyIdReportsRestockResponses[keyof GetApiV1AgenciesByAgencyIdReportsRestockResponses];
+
+export type PostApiV1AgenciesByAgencyIdReportsRestockEmailData = {
+    body?: ReportEmailRequest;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/reports/restock/email';
+};
+
+export type PostApiV1AgenciesByAgencyIdReportsRestockEmailErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PostApiV1AgenciesByAgencyIdReportsRestockEmailError = PostApiV1AgenciesByAgencyIdReportsRestockEmailErrors[keyof PostApiV1AgenciesByAgencyIdReportsRestockEmailErrors];
+
+export type PostApiV1AgenciesByAgencyIdReportsRestockEmailResponses = {
+    /**
+     * Successful response
+     */
+    200: ReportEmailResultResponse;
+};
+
+export type PostApiV1AgenciesByAgencyIdReportsRestockEmailResponse = PostApiV1AgenciesByAgencyIdReportsRestockEmailResponses[keyof PostApiV1AgenciesByAgencyIdReportsRestockEmailResponses];
+
+export type GetApiV1AgenciesByAgencyIdReportsStockLevelsData = {
+    body?: never;
+    path: {
+        agency_id: number;
+    };
+    query?: {
+        /**
+         * Location Id
+         */
+        location_id?: number | null;
+    };
+    url: '/api/v1/agencies/{agency_id}/reports/stock-levels';
+};
+
+export type GetApiV1AgenciesByAgencyIdReportsStockLevelsErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type GetApiV1AgenciesByAgencyIdReportsStockLevelsError = GetApiV1AgenciesByAgencyIdReportsStockLevelsErrors[keyof GetApiV1AgenciesByAgencyIdReportsStockLevelsErrors];
+
+export type GetApiV1AgenciesByAgencyIdReportsStockLevelsResponses = {
+    /**
+     * Successful response
+     */
+    200: StockLevelsReportResponse;
+};
+
+export type GetApiV1AgenciesByAgencyIdReportsStockLevelsResponse = GetApiV1AgenciesByAgencyIdReportsStockLevelsResponses[keyof GetApiV1AgenciesByAgencyIdReportsStockLevelsResponses];
+
+export type PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailData = {
+    body?: ReportEmailRequest;
+    path: {
+        agency_id: number;
+    };
+    query?: never;
+    url: '/api/v1/agencies/{agency_id}/reports/stock-levels/email';
+};
+
+export type PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailErrors = {
+    /**
+     * Not found
+     */
+    404: HttpError;
+    /**
+     * Validation error
+     */
+    422: ValidationError;
+};
+
+export type PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailError = PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailErrors[keyof PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailErrors];
+
+export type PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailResponses = {
+    /**
+     * Successful response
+     */
+    200: ReportEmailResultResponse;
+};
+
+export type PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailResponse = PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailResponses[keyof PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailResponses];
 
 export type PostApiV1AgenciesByAgencyIdScansData = {
     body?: ScanRequest;

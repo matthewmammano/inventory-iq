@@ -46,7 +46,13 @@ csrf = CSRFProtect()
 login_manager = LoginManager()
 
 ROUTE_MODULES = (
+    "app.api.admin_bulk",
     "app.api.admin_gate",
+    "app.api.admin_help",
+    "app.api.admin_items",
+    "app.api.admin_overview",
+    "app.api.admin_reports",
+    "app.api.admin_upc",
     "app.api.device",
     "app.api.guest_scan",
     "app.api.session",

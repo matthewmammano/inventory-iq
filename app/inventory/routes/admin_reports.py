@@ -15,9 +15,16 @@ from app.auth.models import Agency, Location
 from app.auth.queries import list_active_emails, list_top_locations
 from app.inventory import admin_bp as bp
 from app.inventory.constants import INVALID_FORM_DATA_MESSAGE
-from app.inventory.count_page_service import InventoryCountPage, build_inventory_count_page
+from app.inventory.count_page_service import (
+    ALL_LOCATIONS_ID,
+    InventoryCountPage,
+    build_inventory_count_page,
+    select_history_location,
+    select_report_location,
+)
 from app.inventory.history_service import (
     HISTORY_COLUMNS,
+    HISTORY_PAGE_SIZE,
     HISTORY_REPORT_LIMIT,
     HistoryLogQuery,
     count_history_logs,
@@ -25,18 +32,21 @@ from app.inventory.history_service import (
     normalize_history_sort_key,
 )
 from app.inventory.models import Item
-from app.inventory.report_email_service import HistoryReportRange, send_history_report, send_inventory_count_report, send_restock_report
-from app.inventory.restock_page_service import RestockPageRow, build_restock_page_rows
+from app.inventory.report_email_service import (
+    EmailDeliveryResult,
+    HistoryReportRange,
+    ReportEmailOutcome,
+    send_history_report,
+    send_inventory_count_report,
+    send_restock_report,
+)
+from app.inventory.restock_page_service import cached_restock_page_rows
 from app.inventory.schema import HistoryDateRange, HistoryPageQuery
 from app.prediction.history_service import build_item_trend_chart
-from app.shared.cache import ttl_cache
 from app.shared.database import get_session
 from app.shared.form_parsing import selected_int_ids
 from app.shared.pagination import PageNav, PageWindow, build_page_nav
 from app.shared.validators import first_validation_error_message, parse_optional_int
-
-HISTORY_PAGE_SIZE = 50
-ALL_LOCATIONS_ID = 0
 
 
 @bp.route("/<int:agency_id>/items/<int:item_id>/locations/<int:agency_location_id>/trend", methods=["GET"])
@@ -80,8 +90,8 @@ def send_stock_levels_email(agency_id: int) -> Any:
     selected_ids = _selected_notification_recipient_ids(request.form.getlist("notification_recipient_ids"))
     active_location_id = parse_optional_int(request.form.get("active_location_id"))
     with get_session() as s:
-        sent, total = send_inventory_count_report(s, current_user.id, selected_ids)
-    _flash_email_delivery_result("Inventory report", sent, total, selected_count=len(selected_ids), log_name="Inventory report email")
+        result = send_inventory_count_report(s, current_user.id, selected_ids)
+    _flash_email_delivery_result("Inventory report", result, selected_count=len(selected_ids), log_name="Inventory report email")
     return redirect(_stock_levels_url(agency_id, active_location_id))
 
 
@@ -116,7 +126,7 @@ def restock(agency_id: int, agency_location_id: int | None = None) -> Any:
             locations = list_top_locations(current_user.id, s)
             notification_recipients = list_active_emails(current_user.id, s)
             active_location = _active_location(locations, agency_location_id)
-            restock_data = _restock_rows(s, current_user.id, active_location.id) if active_location else []
+            restock_data = cached_restock_page_rows(s, current_user.id, active_location.id) if active_location else []
     except Exception:
         logger.exception("Restock analysis page failed to load", extra={"agency_location_id": agency_location_id})
         flash("Restock analysis could not load. Try again.", "error")
@@ -143,8 +153,8 @@ def send_restock_email(agency_id: int) -> Any:
     selected_ids = _selected_notification_recipient_ids(request.form.getlist("notification_recipient_ids"))
     active_location_id = parse_optional_int(request.form.get("active_location_id"))
     with get_session() as s:
-        sent, total = send_restock_report(s, current_user.id, selected_ids, active_location_id)
-    _flash_email_delivery_result("Restock report", sent, total, selected_count=len(selected_ids), log_name="Restock report email")
+        result = send_restock_report(s, current_user.id, selected_ids, active_location_id)
+    _flash_email_delivery_result("Restock report", result, selected_count=len(selected_ids), log_name="Restock report email")
     return redirect(_restock_url(agency_id, active_location_id))
 
 
@@ -154,7 +164,7 @@ def restock_print(agency_id: int, agency_location_id: int | None = None) -> Any:
     with get_session() as s:
         locations = list_top_locations(current_user.id, s)
         active_location = _active_location(locations, agency_location_id)
-        restock_data = _restock_rows(s, current_user.id, active_location.id) if active_location else []
+        restock_data = cached_restock_page_rows(s, current_user.id, active_location.id) if active_location else []
     return render_template(
         "admin_restock_print_partial.html",
         agency_id=agency_id,
@@ -164,11 +174,6 @@ def restock_print(agency_id: int, agency_location_id: int | None = None) -> Any:
         detailed=request.args.get("detailed") == "1",
         admin=True,
     )
-
-
-@ttl_cache(skip_first_args=1)
-def _restock_rows(session, agency_id: int, agency_location_id: int) -> list[RestockPageRow]:
-    return build_restock_page_rows(session, agency_id, agency_location_id)
 
 
 def _restock_url(agency_id: int, agency_location_id: int | None) -> str:
@@ -181,24 +186,17 @@ def _selected_notification_recipient_ids(raw_ids: list[str]) -> list[int]:
     return sorted(selected_int_ids(raw_ids))
 
 
-def _flash_email_delivery_result(
-    label: str,
-    sent: int,
-    total: int,
-    *,
-    selected_count: int,
-    log_name: str,
-) -> None:
-    if total == 0:
-        logger.info(f"{log_name} request rejected: no recipients selected", extra={"selected_recipient_count": selected_count})
-        flash("Select at least one email recipient.", "warning")
-        return
-    if sent == total:
-        logger.info(f"{log_name} sent successfully", extra={"recipient_count": sent})
-        flash(f"Sent {label.lower()} to {sent} email recipient(s).", "success")
-        return
-    logger.error(f"{log_name} partially failed", extra={"sent": sent, "recipient_count": total})
-    flash(f"Sent {sent} of {total} {label.lower()} email(s).", "error")
+def _flash_email_delivery_result(label: str, result: EmailDeliveryResult, *, selected_count: int, log_name: str) -> None:
+    match result.outcome:
+        case ReportEmailOutcome.NO_RECIPIENTS:
+            logger.info(f"{log_name} request rejected: no recipients selected", extra={"selected_recipient_count": selected_count})
+            flash("Select at least one email recipient.", "warning")
+        case ReportEmailOutcome.SENT:
+            logger.info(f"{log_name} sent successfully", extra={"recipient_count": result.sent})
+            flash(f"Sent {label.lower()} to {result.sent} email recipient(s).", "success")
+        case ReportEmailOutcome.PARTIAL:
+            logger.error(f"{log_name} partially failed", extra={"sent": result.sent, "recipient_count": result.total})
+            flash(f"Sent {result.sent} of {result.total} {label.lower()} email(s).", "error")
 
 
 def _history_date_range(
@@ -293,14 +291,14 @@ def admin_history_email(agency_id: int) -> Any:
         flash(error, "error")
         return redirect(_history_url(agency_id, agency_location_id))
     with get_session() as s:
-        sent, total = send_history_report(
+        result = send_history_report(
             s,
             current_user.id,
             selected_ids,
             agency_location_id,
             HistoryReportRange(date_range.start_utc, date_range.end_utc, date_range.start_label, date_range.end_label),
         )
-    _flash_email_delivery_result("History report", sent, total, selected_count=len(selected_ids), log_name="History report email")
+    _flash_email_delivery_result("History report", result, selected_count=len(selected_ids), log_name="History report email")
     return redirect(_history_url(agency_id, agency_location_id))
 
 
@@ -348,16 +346,8 @@ def _history_url(agency_id: int, agency_location_id: int | None) -> str:
 
 
 def _history_location(locations: list[Location], agency_location_id: int | None) -> Location | None:
-    """History spans every squad unless a tab or this device's setting names one."""
-    if agency_location_id == ALL_LOCATIONS_ID:
-        return None
-    wanted_id = agency_location_id or request_device_location_id(current_user.id)
-    return next((location for location in locations if location.id == wanted_id), None)
+    return select_history_location(locations, agency_location_id, device_location_id=request_device_location_id(current_user.id))
 
 
 def _active_location(locations: list[Location], agency_location_id: int | None) -> Location | None:
-    """Falls back to the location this device is set to in settings, so a kiosk opens on its own squad."""
-    if not locations:
-        return None
-    wanted_id = agency_location_id if agency_location_id is not None else request_device_location_id(current_user.id)
-    return next((location for location in locations if location.id == wanted_id), locations[0])
+    return select_report_location(locations, agency_location_id, device_location_id=request_device_location_id(current_user.id))

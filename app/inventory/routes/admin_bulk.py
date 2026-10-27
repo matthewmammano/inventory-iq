@@ -1,7 +1,7 @@
 """Admin bulk inventory routes."""
 
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 
 from flask import flash, redirect, render_template, request, url_for
@@ -10,7 +10,7 @@ from loguru import logger
 
 from app.auth.queries import list_top_locations
 from app.inventory import admin_bp as bp
-from app.inventory.bulk_edit_service import BulkEditData, BulkEditEmptyError, save_bulk_edit
+from app.inventory.bulk_edit_service import BulkEditData, BulkEditEmptyError, bulk_dating_groups, save_bulk_edit
 from app.inventory.bulk_forms import BulkEditSubmission
 from app.inventory.bulk_location_service import (
     LocationQuantityGrid,
@@ -20,13 +20,7 @@ from app.inventory.bulk_location_service import (
     required_count_storage_ids,
     suggested_restock_item_ids,
 )
-from app.inventory.expiration_ui_service import (
-    build_expiration_entry_groups,
-    bulk_expiration_specs,
-    hidden_form_fields,
-    parse_expiration_allocations,
-    sort_expiration_groups,
-)
+from app.inventory.expiration_ui_service import hidden_form_fields, parse_expiration_allocations
 from app.shared.database import get_session
 from app.shared.form_parsing import selected_int_ids
 
@@ -224,27 +218,19 @@ def _render_bulk_edit(
 
 
 def _save_bulk_edit(session, agency_id: int, location, submission: BulkEditSubmission, item_ids: set[int]) -> Any:
+    data = BulkEditData(submission.counts, submission.restocks)
     try:
-        groups = build_expiration_entry_groups(
-            session,
-            current_user.id,
-            bulk_expiration_specs(counts=submission.counts, restocks=submission.restocks),
-        )
+        groups = bulk_dating_groups(session, current_user.id, data)
         if groups and request.form.get("expiration_confirmed") != "1":
             return _render_bulk_expiration_entry(agency_id, location, groups, item_ids)
-        expiration_allocations_by_key = parse_expiration_allocations(request.form, groups) if groups else {}
+        data = replace(data, expiration_allocations_by_key=parse_expiration_allocations(request.form, groups) if groups else {})
     except ValueError as exc:
         logger.info("Bulk expiration entry rejected", extra={"agency_location_id": location.id, "error": str(exc)})
         flash(str(exc), "warning")
         return redirect(_bulk_edit_items_url(agency_id, location.id, item_ids))
 
     try:
-        result = save_bulk_edit(
-            session,
-            agency_id=current_user.id,
-            agency_location_id=location.id,
-            data=BulkEditData(submission.counts, submission.restocks, expiration_allocations_by_key),
-        )
+        result = save_bulk_edit(session, agency_id=current_user.id, agency_location_id=location.id, data=data)
     except BulkEditEmptyError:
         logger.info("Bulk action rejected: no count or restock entries submitted", extra={"agency_location_id": location.id})
         flash("No count or restock entries entered.", "info")
@@ -284,7 +270,7 @@ def _render_bulk_expiration_entry(agency_id: int, location, groups, item_ids: se
     return render_template(
         "expiration_entry.html",
         agency_id=agency_id,
-        groups=sort_expiration_groups(groups),
+        groups=groups,
         hidden_fields=hidden_form_fields(request.form),
         form_action=None,
         cancel_url=_bulk_edit_items_url(agency_id, location.id, item_ids),

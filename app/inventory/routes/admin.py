@@ -16,12 +16,11 @@ from app.inventory.admin_edit_service import save_admin_settings
 from app.inventory.admin_navigation import DASHBOARD_LINKS, NAV_HUBS, nav_cards
 from app.inventory.barcodes import upc_bars
 from app.inventory.dashboard_service import attention_tiles
-from app.inventory.expiration_service import save_expiration_count_correction
 from app.inventory.expiration_ui_service import (
-    build_expiration_entry_groups,
-    expiration_count_correction_specs,
     hidden_form_fields,
     parse_expiration_allocations,
+    pending_expiration_corrections,
+    save_expiration_corrections,
     sort_expiration_groups,
 )
 from app.inventory.item_queries import list_items
@@ -101,27 +100,15 @@ def admin_hub(agency_id: int, hub_slug: str) -> Any:
 
 @bp.route("/<int:agency_id>/admin-panel/expiration-dates", methods=["GET", "POST"])
 def pending_expiration_dates(agency_id: int) -> Any:
-    from app.alerts.alert_service import sync_expiration_alerts
-
     with get_session() as s:
-        groups = build_expiration_entry_groups(s, current_user.id, expiration_count_correction_specs(s, current_user.id))
+        groups = pending_expiration_corrections(s, current_user.id)
         if not groups:
-            sync_expiration_alerts(s, agency_id=current_user.id)
             s.commit()
             flash("No missing expiration dates need review.", "info")
             return redirect(url_for("admin.admin_panel", agency_id=agency_id))
         if request.method == "POST":
             try:
-                allocations_by_key = parse_expiration_allocations(request.form, groups)
-                for group in groups:
-                    save_expiration_count_correction(
-                        s,
-                        current_user.id,
-                        group.spec.item_id,
-                        group.spec.storage_id,
-                        allocations_by_key[group.spec.key],
-                    )
-                sync_expiration_alerts(s, agency_id=current_user.id)
+                saved_count = save_expiration_corrections(s, current_user.id, groups, parse_expiration_allocations(request.form, groups))
                 s.commit()
             except ValueError as exc:
                 s.rollback()
@@ -130,9 +117,9 @@ def pending_expiration_dates(agency_id: int) -> Any:
                 return _render_pending_expiration_dates(agency_id, groups)
             logger.info(
                 "Expiration counts corrected without inventory history",
-                extra={"agency_id": current_user.id, "item_storage_pair_count": len(groups)},
+                extra={"agency_id": current_user.id, "item_storage_pair_count": saved_count},
             )
-            flash(f"Saved expiration dates for {len(groups)} item/storage pair(s).", "success")
+            flash(f"Saved expiration dates for {saved_count} item/storage pair(s).", "success")
             return redirect(url_for("admin.admin_panel", agency_id=agency_id))
         return _render_pending_expiration_dates(agency_id, groups)
 

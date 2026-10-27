@@ -9,3 +9,5 @@ API_SPEC_VERSION: Final[str] = "1.0.0"
 OPENAPI_SPEC_PATH: Final[str] = "/api/openapi.json"
 OPENAPI_DOCS_PATH: Final[str] = "/api/docs"
 OPENAPI_SPEC_FILE: Final[str] = "docs/v2/openapi.json"
+
+AGENCY_ROUTE: Final[str] = "/agencies/<int:agency_id>"

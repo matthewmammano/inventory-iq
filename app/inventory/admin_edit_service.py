@@ -25,6 +25,10 @@ from app.shared.validators import parse_non_negative_int
 ADMIN_PIN_DIGITS = 4
 
 
+class AdminRowNotFoundError(ValueError):
+    """The row is missing or belongs to another agency, so the caller may neither see nor change it."""
+
+
 def create_item(session: Session, agency_id: int, form: AdminItemForm) -> Item:
     from app.alerts.alert_service import generate_scheduled_alerts
 
@@ -250,7 +254,7 @@ def _active_secondary_upcs(session: Session, agency_id: int, item_id: int) -> li
 def _get_owned_row(session: Session, model_class: type[Any], agency_id: int, row_id: int, label: str) -> Any:
     row = session.get(model_class, row_id)
     if row is None or row.agency_id != agency_id:
-        raise ValueError(f"{label} not found.")
+        raise AdminRowNotFoundError(f"{label} not found.")
     return row
 
 

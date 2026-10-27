@@ -31,6 +31,7 @@ class AttentionCounter(StrEnum):
 class AttentionTile:
     """One alert type as the dashboard shows it, in plain language for a non-technical admin."""
 
+    alert_type: AlertType
     title: str
     detail: str
     endpoint: str
@@ -51,8 +52,9 @@ class AttentionTile:
 
 
 # Insertion order is the dashboard's urgency order: real problems first, predictions after, housekeeping last.
-ATTENTION_TILES: dict[AlertType, AttentionTile] = {
-    AlertType.STOCKOUT: AttentionTile(
+ATTENTION_TILES: tuple[AttentionTile, ...] = (
+    AttentionTile(
+        AlertType.STOCKOUT,
         "Out of Stock",
         "Items with nothing left on the shelf, at {extra}. Order first.",
         "admin.restock",
@@ -62,7 +64,8 @@ ATTENTION_TILES: dict[AlertType, AttentionTile] = {
         sort_key="total",
         sort_direction="asc",
     ),
-    AlertType.EXPIRED_STOCK: AttentionTile(
+    AttentionTile(
+        AlertType.EXPIRED_STOCK,
         "Expired",
         "Items past the expiration date. {extra} to pull off the shelf.",
         "admin.stock_levels",
@@ -71,7 +74,8 @@ ATTENTION_TILES: dict[AlertType, AttentionTile] = {
         extra_noun="piece",
         sort_key="expired",
     ),
-    AlertType.LOW_STOCK: AttentionTile(
+    AttentionTile(
+        AlertType.LOW_STOCK,
         "Low Stock",
         "Items below the reorder amount you set, at {extra}.",
         "admin.restock",
@@ -81,7 +85,8 @@ ATTENTION_TILES: dict[AlertType, AttentionTile] = {
         sort_key="total",
         sort_direction="asc",
     ),
-    AlertType.EXPIRING_SOON: AttentionTile(
+    AttentionTile(
+        AlertType.EXPIRING_SOON,
         "Expiring Soon",
         "Items with a date coming up soon. {extra} in all.",
         "admin.stock_levels",
@@ -90,7 +95,8 @@ ATTENTION_TILES: dict[AlertType, AttentionTile] = {
         extra_noun="piece",
         sort_key="expiring_soon",
     ),
-    AlertType.STOCKOUT_FORECAST: AttentionTile(
+    AttentionTile(
+        AlertType.STOCKOUT_FORECAST,
         "Will Run Out",
         "Items on track to hit zero at {extra}, at the current rate of use.",
         "admin.restock",
@@ -100,7 +106,8 @@ ATTENTION_TILES: dict[AlertType, AttentionTile] = {
         sort_key="days_until_stockout",
         sort_direction="asc",
     ),
-    AlertType.LOW_STOCK_FORECAST: AttentionTile(
+    AttentionTile(
+        AlertType.LOW_STOCK_FORECAST,
         "Will Run Low",
         "Items on track to drop below the reorder amount at {extra}.",
         "admin.restock",
@@ -110,7 +117,8 @@ ATTENTION_TILES: dict[AlertType, AttentionTile] = {
         sort_key="days_until_stockout",
         sort_direction="asc",
     ),
-    AlertType.EXPIRATION_COUNT_NEEDED: AttentionTile(
+    AttentionTile(
+        AlertType.EXPIRATION_COUNT_NEEDED,
         "Missing Dates",
         "Items needing an expiration date. {extra} to fill in.",
         "admin.pending_expiration_dates",
@@ -118,14 +126,16 @@ ATTENTION_TILES: dict[AlertType, AttentionTile] = {
         AttentionCounter.ITEM_SPOTS,
         extra_noun="shelf spot",
     ),
-    AlertType.UNKNOWN_UPC: AttentionTile(
+    AttentionTile(
+        AlertType.UNKNOWN_UPC,
         "Unknown Barcodes",
         "Someone scanned a barcode no item uses yet.",
         "admin.unknown_barcodes",
         AttentionSeverity.WATCH,
         AttentionCounter.ALERT_ROWS,
     ),
-    AlertType.STALE_COUNT: AttentionTile(
+    AttentionTile(
+        AlertType.STALE_COUNT,
         "Not Counted Lately",
         "Items nobody has counted in a while, at {extra}.",
         "admin.stock_levels",
@@ -133,20 +143,21 @@ ATTENTION_TILES: dict[AlertType, AttentionTile] = {
         AttentionCounter.ITEM_LOCATIONS,
         extra_noun="squad",
     ),
-    AlertType.RARE_TAKEOUT: AttentionTile(
+    AttentionTile(
+        AlertType.RARE_TAKEOUT,
         "Unusual Takeouts",
         "Taken out after a long quiet stretch.",
         "admin.admin_history",
         AttentionSeverity.WATCH,
         AttentionCounter.ALERT_ROWS,
     ),
-}
+)
 
 
 def attention_tiles(session: Session, agency_id: int) -> list[AttentionTile]:
     """Every dashboard tile in urgency order, with the cleared ones pushed to the end."""
     open_alerts = _open_alerts_by_type(session, agency_id)
-    tiles = [_counted_tile(tile, open_alerts.get(alert_type, [])) for alert_type, tile in ATTENTION_TILES.items()]
+    tiles = [_counted_tile(tile, open_alerts.get(tile.alert_type, [])) for tile in ATTENTION_TILES]
     return sorted(tiles, key=lambda tile: tile.count == 0)
 
 

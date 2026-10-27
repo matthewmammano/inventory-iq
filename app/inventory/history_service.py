@@ -12,6 +12,7 @@ from app.inventory.location_operations import get_location_storages
 from app.inventory.models import ActionLog, Item
 
 HISTORY_REPORT_LIMIT = 5000
+HISTORY_PAGE_SIZE = 50
 
 
 @dataclass(frozen=True, slots=True)

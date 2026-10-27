@@ -2,7 +2,7 @@
 
 import type { Client, ClientMeta, Options as Options2, RequestResult, TDataShape } from './client';
 import { client } from './client.gen';
-import type { DeleteApiV1AgenciesByAgencyIdAdminSessionData, DeleteApiV1AgenciesByAgencyIdAdminSessionErrors, DeleteApiV1AgenciesByAgencyIdAdminSessionResponses, DeleteApiV1SessionData, DeleteApiV1SessionResponses, GetApiV1AgenciesByAgencyIdAdminSessionData, GetApiV1AgenciesByAgencyIdAdminSessionErrors, GetApiV1AgenciesByAgencyIdAdminSessionResponses, GetApiV1AgenciesByAgencyIdDeviceLocationData, GetApiV1AgenciesByAgencyIdDeviceLocationErrors, GetApiV1AgenciesByAgencyIdDeviceLocationResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsData, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsErrors, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextErrors, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponses, GetApiV1AgenciesByAgencyIdItemsData, GetApiV1AgenciesByAgencyIdItemsErrors, GetApiV1AgenciesByAgencyIdItemsLookupData, GetApiV1AgenciesByAgencyIdItemsLookupErrors, GetApiV1AgenciesByAgencyIdItemsLookupResponses, GetApiV1AgenciesByAgencyIdItemsResponses, GetApiV1AgenciesByAgencyIdLocationsData, GetApiV1AgenciesByAgencyIdLocationsErrors, GetApiV1AgenciesByAgencyIdLocationsResponses, GetApiV1AgenciesByAgencyIdStoragesData, GetApiV1AgenciesByAgencyIdStoragesErrors, GetApiV1AgenciesByAgencyIdStoragesResponses, GetApiV1MeData, GetApiV1MeResponses, PostApiV1AgenciesByAgencyIdAdminSessionData, PostApiV1AgenciesByAgencyIdAdminSessionErrors, PostApiV1AgenciesByAgencyIdAdminSessionResponses, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinData, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinErrors, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinResponses, PostApiV1AgenciesByAgencyIdScansData, PostApiV1AgenciesByAgencyIdScansErrors, PostApiV1AgenciesByAgencyIdScansResponses, PostApiV1AgenciesByAgencyIdUnknownBarcodesData, PostApiV1AgenciesByAgencyIdUnknownBarcodesErrors, PostApiV1AgenciesByAgencyIdUnknownBarcodesResponses, PostApiV1SessionData, PostApiV1SessionErrors, PostApiV1SessionResponses, PutApiV1AgenciesByAgencyIdDeviceLocationData, PutApiV1AgenciesByAgencyIdDeviceLocationErrors, PutApiV1AgenciesByAgencyIdDeviceLocationResponses } from './types.gen';
+import type { DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdData, DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdErrors, DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdResponses, DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdData, DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdErrors, DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdResponses, DeleteApiV1AgenciesByAgencyIdAdminSessionData, DeleteApiV1AgenciesByAgencyIdAdminSessionErrors, DeleteApiV1AgenciesByAgencyIdAdminSessionResponses, DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdData, DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdErrors, DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdResponses, DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdData, DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdErrors, DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdResponses, DeleteApiV1SessionData, DeleteApiV1SessionResponses, GetApiV1AgenciesByAgencyIdAdminDashboardData, GetApiV1AgenciesByAgencyIdAdminDashboardErrors, GetApiV1AgenciesByAgencyIdAdminDashboardResponses, GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdData, GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdErrors, GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdResponses, GetApiV1AgenciesByAgencyIdAdminHelpArticlesData, GetApiV1AgenciesByAgencyIdAdminHelpArticlesErrors, GetApiV1AgenciesByAgencyIdAdminHelpArticlesResponses, GetApiV1AgenciesByAgencyIdAdminItemsData, GetApiV1AgenciesByAgencyIdAdminItemsErrors, GetApiV1AgenciesByAgencyIdAdminItemsResponses, GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsData, GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors, GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses, GetApiV1AgenciesByAgencyIdAdminPendingExpirationsData, GetApiV1AgenciesByAgencyIdAdminPendingExpirationsErrors, GetApiV1AgenciesByAgencyIdAdminPendingExpirationsResponses, GetApiV1AgenciesByAgencyIdAdminSessionData, GetApiV1AgenciesByAgencyIdAdminSessionErrors, GetApiV1AgenciesByAgencyIdAdminSessionResponses, GetApiV1AgenciesByAgencyIdAdminSettingsData, GetApiV1AgenciesByAgencyIdAdminSettingsErrors, GetApiV1AgenciesByAgencyIdAdminSettingsResponses, GetApiV1AgenciesByAgencyIdAdminTagsData, GetApiV1AgenciesByAgencyIdAdminTagsErrors, GetApiV1AgenciesByAgencyIdAdminTagsResponses, GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesData, GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesErrors, GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponses, GetApiV1AgenciesByAgencyIdDeviceLocationData, GetApiV1AgenciesByAgencyIdDeviceLocationErrors, GetApiV1AgenciesByAgencyIdDeviceLocationResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsData, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsErrors, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendData, GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendErrors, GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextErrors, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponses, GetApiV1AgenciesByAgencyIdItemsData, GetApiV1AgenciesByAgencyIdItemsErrors, GetApiV1AgenciesByAgencyIdItemsLookupData, GetApiV1AgenciesByAgencyIdItemsLookupErrors, GetApiV1AgenciesByAgencyIdItemsLookupResponses, GetApiV1AgenciesByAgencyIdItemsResponses, GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditData, GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditErrors, GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponses, GetApiV1AgenciesByAgencyIdLocationsData, GetApiV1AgenciesByAgencyIdLocationsErrors, GetApiV1AgenciesByAgencyIdLocationsResponses, GetApiV1AgenciesByAgencyIdReportsHistoryData, GetApiV1AgenciesByAgencyIdReportsHistoryErrors, GetApiV1AgenciesByAgencyIdReportsHistoryResponses, GetApiV1AgenciesByAgencyIdReportsRestockData, GetApiV1AgenciesByAgencyIdReportsRestockErrors, GetApiV1AgenciesByAgencyIdReportsRestockResponses, GetApiV1AgenciesByAgencyIdReportsStockLevelsData, GetApiV1AgenciesByAgencyIdReportsStockLevelsErrors, GetApiV1AgenciesByAgencyIdReportsStockLevelsResponses, GetApiV1AgenciesByAgencyIdStoragesData, GetApiV1AgenciesByAgencyIdStoragesErrors, GetApiV1AgenciesByAgencyIdStoragesResponses, GetApiV1MeData, GetApiV1MeResponses, PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdData, PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdErrors, PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdResponses, PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdData, PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdErrors, PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdResponses, PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdData, PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdErrors, PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdResponses, PostApiV1AgenciesByAgencyIdAdminItemsData, PostApiV1AgenciesByAgencyIdAdminItemsErrors, PostApiV1AgenciesByAgencyIdAdminItemsResponses, PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsData, PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors, PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses, PostApiV1AgenciesByAgencyIdAdminPendingExpirationsData, PostApiV1AgenciesByAgencyIdAdminPendingExpirationsErrors, PostApiV1AgenciesByAgencyIdAdminPendingExpirationsResponses, PostApiV1AgenciesByAgencyIdAdminSessionData, PostApiV1AgenciesByAgencyIdAdminSessionErrors, PostApiV1AgenciesByAgencyIdAdminSessionResponses, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinData, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinErrors, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinResponses, PostApiV1AgenciesByAgencyIdAdminTagsData, PostApiV1AgenciesByAgencyIdAdminTagsErrors, PostApiV1AgenciesByAgencyIdAdminTagsResponses, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreData, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreErrors, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreResponses, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemData, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemErrors, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemResponses, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingData, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingErrors, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingResponses, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesData, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesErrors, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponses, PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditData, PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditErrors, PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponses, PostApiV1AgenciesByAgencyIdReportsHistoryEmailData, PostApiV1AgenciesByAgencyIdReportsHistoryEmailErrors, PostApiV1AgenciesByAgencyIdReportsHistoryEmailResponses, PostApiV1AgenciesByAgencyIdReportsRestockEmailData, PostApiV1AgenciesByAgencyIdReportsRestockEmailErrors, PostApiV1AgenciesByAgencyIdReportsRestockEmailResponses, PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailData, PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailErrors, PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailResponses, PostApiV1AgenciesByAgencyIdScansData, PostApiV1AgenciesByAgencyIdScansErrors, PostApiV1AgenciesByAgencyIdScansResponses, PostApiV1AgenciesByAgencyIdUnknownBarcodesData, PostApiV1AgenciesByAgencyIdUnknownBarcodesErrors, PostApiV1AgenciesByAgencyIdUnknownBarcodesResponses, PostApiV1SessionData, PostApiV1SessionErrors, PostApiV1SessionResponses, PutApiV1AgenciesByAgencyIdAdminSettingsData, PutApiV1AgenciesByAgencyIdAdminSettingsErrors, PutApiV1AgenciesByAgencyIdAdminSettingsResponses, PutApiV1AgenciesByAgencyIdDeviceLocationData, PutApiV1AgenciesByAgencyIdDeviceLocationErrors, PutApiV1AgenciesByAgencyIdDeviceLocationResponses } from './types.gen';
 
 export type Options<TData extends TDataShape = TDataShape, ThrowOnError extends boolean = boolean, TResponse = unknown> = Options2<TData, ThrowOnError, TResponse> & {
     /**
@@ -46,6 +46,201 @@ export const postApiV1AgenciesByAgencyIdAdminSession = <ThrowOnError extends boo
 export const postApiV1AgenciesByAgencyIdAdminSessionTemporaryPin = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinResponses, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinResponses, PostApiV1AgenciesByAgencyIdAdminSessionTemporaryPinErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin-session/temporary-pin', ...options });
 
 /**
+ * List the dashboard tiles for everything needing attention
+ */
+export const getApiV1AgenciesByAgencyIdAdminDashboard = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdAdminDashboardData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdAdminDashboardResponses, GetApiV1AgenciesByAgencyIdAdminDashboardErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdAdminDashboardResponses, GetApiV1AgenciesByAgencyIdAdminDashboardErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/dashboard', ...options });
+
+/**
+ * List every help article and the tags they can be filtered by
+ */
+export const getApiV1AgenciesByAgencyIdAdminHelpArticles = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdAdminHelpArticlesData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdAdminHelpArticlesResponses, GetApiV1AgenciesByAgencyIdAdminHelpArticlesErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdAdminHelpArticlesResponses, GetApiV1AgenciesByAgencyIdAdminHelpArticlesErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/help/articles', ...options });
+
+/**
+ * Read one help article
+ */
+export const getApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleId = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdResponses, GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdResponses, GetApiV1AgenciesByAgencyIdAdminHelpArticlesByArticleIdErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/help/articles/{article_id}', ...options });
+
+/**
+ * List every active item with the fields its admin editor changes
+ */
+export const getApiV1AgenciesByAgencyIdAdminItems = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdAdminItemsData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdAdminItemsResponses, GetApiV1AgenciesByAgencyIdAdminItemsErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdAdminItemsResponses, GetApiV1AgenciesByAgencyIdAdminItemsErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/items', ...options });
+
+/**
+ * Add one item
+ */
+export const postApiV1AgenciesByAgencyIdAdminItems = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdAdminItemsData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdAdminItemsResponses, PostApiV1AgenciesByAgencyIdAdminItemsErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdAdminItemsResponses, PostApiV1AgenciesByAgencyIdAdminItemsErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/admin/items',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Hide one item, keeping its history
+ */
+export const deleteApiV1AgenciesByAgencyIdAdminItemsByItemId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdData, ThrowOnError>): RequestResult<DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdResponses, DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdResponses, DeleteApiV1AgenciesByAgencyIdAdminItemsByItemIdErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/items/{item_id}', ...options });
+
+/**
+ * Save one item's whole row
+ */
+export const patchApiV1AgenciesByAgencyIdAdminItemsByItemId = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdData, ThrowOnError>): RequestResult<PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdResponses, PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdResponses, PatchApiV1AgenciesByAgencyIdAdminItemsByItemIdErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/admin/items/{item_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List every active alert and summary recipient
+ */
+export const getApiV1AgenciesByAgencyIdAdminNotificationRecipients = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses, GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses, GetApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/notification-recipients', ...options });
+
+/**
+ * Add one alert and summary recipient
+ */
+export const postApiV1AgenciesByAgencyIdAdminNotificationRecipients = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses, PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsResponses, PostApiV1AgenciesByAgencyIdAdminNotificationRecipientsErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/admin/notification-recipients',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Stop sending to one recipient
+ */
+export const deleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdData, ThrowOnError>): RequestResult<DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdResponses, DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdResponses, DeleteApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/notification-recipients/{recipient_id}', ...options });
+
+/**
+ * Save one recipient's whole row
+ */
+export const patchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientId = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdData, ThrowOnError>): RequestResult<PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdResponses, PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdResponses, PatchApiV1AgenciesByAgencyIdAdminNotificationRecipientsByRecipientIdErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/admin/notification-recipients/{recipient_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List the counted item/storage pairs still waiting on expiration dates
+ */
+export const getApiV1AgenciesByAgencyIdAdminPendingExpirations = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdAdminPendingExpirationsData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdAdminPendingExpirationsResponses, GetApiV1AgenciesByAgencyIdAdminPendingExpirationsErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdAdminPendingExpirationsResponses, GetApiV1AgenciesByAgencyIdAdminPendingExpirationsErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/pending-expirations', ...options });
+
+/**
+ * Record the expiration dates every pending count actually carries
+ */
+export const postApiV1AgenciesByAgencyIdAdminPendingExpirations = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdAdminPendingExpirationsData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdAdminPendingExpirationsResponses, PostApiV1AgenciesByAgencyIdAdminPendingExpirationsErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdAdminPendingExpirationsResponses, PostApiV1AgenciesByAgencyIdAdminPendingExpirationsErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/admin/pending-expirations',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Read the agency's guest permissions and alert thresholds
+ */
+export const getApiV1AgenciesByAgencyIdAdminSettings = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdAdminSettingsData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdAdminSettingsResponses, GetApiV1AgenciesByAgencyIdAdminSettingsErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdAdminSettingsResponses, GetApiV1AgenciesByAgencyIdAdminSettingsErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/settings', ...options });
+
+/**
+ * Save the agency's guest permissions, alert thresholds, and admin PIN
+ */
+export const putApiV1AgenciesByAgencyIdAdminSettings = <ThrowOnError extends boolean = false>(options: Options<PutApiV1AgenciesByAgencyIdAdminSettingsData, ThrowOnError>): RequestResult<PutApiV1AgenciesByAgencyIdAdminSettingsResponses, PutApiV1AgenciesByAgencyIdAdminSettingsErrors, ThrowOnError> => (options.client ?? client).put<PutApiV1AgenciesByAgencyIdAdminSettingsResponses, PutApiV1AgenciesByAgencyIdAdminSettingsErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/admin/settings',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List every active item tag
+ */
+export const getApiV1AgenciesByAgencyIdAdminTags = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdAdminTagsData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdAdminTagsResponses, GetApiV1AgenciesByAgencyIdAdminTagsErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdAdminTagsResponses, GetApiV1AgenciesByAgencyIdAdminTagsErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/tags', ...options });
+
+/**
+ * Add one item tag, reviving a hidden tag of the same name
+ */
+export const postApiV1AgenciesByAgencyIdAdminTags = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdAdminTagsData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdAdminTagsResponses, PostApiV1AgenciesByAgencyIdAdminTagsErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdAdminTagsResponses, PostApiV1AgenciesByAgencyIdAdminTagsErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/admin/tags',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Hide one item tag
+ */
+export const deleteApiV1AgenciesByAgencyIdAdminTagsByTagId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdData, ThrowOnError>): RequestResult<DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdResponses, DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdResponses, DeleteApiV1AgenciesByAgencyIdAdminTagsByTagIdErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/tags/{tag_id}', ...options });
+
+/**
+ * Save one tag's name and color
+ */
+export const patchApiV1AgenciesByAgencyIdAdminTagsByTagId = <ThrowOnError extends boolean = false>(options: Options<PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdData, ThrowOnError>): RequestResult<PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdResponses, PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdErrors, ThrowOnError> => (options.client ?? client).patch<PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdResponses, PatchApiV1AgenciesByAgencyIdAdminTagsByTagIdErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/admin/tags/{tag_id}',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * List the barcodes guests scanned that no item carries, grouped by review status
+ */
+export const getApiV1AgenciesByAgencyIdAdminUnknownBarcodes = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponses, GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponses, GetApiV1AgenciesByAgencyIdAdminUnknownBarcodesErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/unknown-barcodes', ...options });
+
+/**
+ * Add a barcode by hand to the review list
+ */
+export const postApiV1AgenciesByAgencyIdAdminUnknownBarcodes = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponses, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesResponses, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/admin/unknown-barcodes',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Delete a barcode from the review list
+ */
+export const deleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcId = <ThrowOnError extends boolean = false>(options: Options<DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdData, ThrowOnError>): RequestResult<DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdResponses, DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdErrors, ThrowOnError> => (options.client ?? client).delete<DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdResponses, DeleteApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/unknown-barcodes/{unknown_upc_id}', ...options });
+
+/**
+ * Move a reviewed barcode to the ignored list
+ */
+export const postApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnore = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreResponses, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreResponses, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdIgnoreErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/unknown-barcodes/{unknown_upc_id}/ignore', ...options });
+
+/**
+ * Link a reviewed barcode to an existing item
+ */
+export const postApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItem = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemResponses, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemResponses, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdItemErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/admin/unknown-barcodes/{unknown_upc_id}/item',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Move an ignored barcode back to the pending list
+ */
+export const postApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPending = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingResponses, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingResponses, PostApiV1AgenciesByAgencyIdAdminUnknownBarcodesByUnknownUpcIdPendingErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/admin/unknown-barcodes/{unknown_upc_id}/pending', ...options });
+
+/**
  * Read the location this device is bound to
  */
 export const getApiV1AgenciesByAgencyIdDeviceLocation = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdDeviceLocationData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdDeviceLocationResponses, GetApiV1AgenciesByAgencyIdDeviceLocationErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdDeviceLocationResponses, GetApiV1AgenciesByAgencyIdDeviceLocationErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/device/location', ...options });
@@ -78,6 +273,11 @@ export const getApiV1AgenciesByAgencyIdItemsLookup = <ThrowOnError extends boole
 export const getApiV1AgenciesByAgencyIdItemsByItemIdExpirations = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdExpirationsErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/items/{item_id}/expirations', ...options });
 
 /**
+ * Read one item's count, operation, and trendline series in one location
+ */
+export const getApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrend = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdLocationsByAgencyLocationIdTrendErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/items/{item_id}/locations/{agency_location_id}/trend', ...options });
+
+/**
  * Describe the item and route the quantity screen is about to save
  */
 export const getApiV1AgenciesByAgencyIdItemsByItemIdScanContext = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextResponses, GetApiV1AgenciesByAgencyIdItemsByItemIdScanContextErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/items/{item_id}/scan-context', ...options });
@@ -86,6 +286,74 @@ export const getApiV1AgenciesByAgencyIdItemsByItemIdScanContext = <ThrowOnError 
  * List the agency's locations
  */
 export const getApiV1AgenciesByAgencyIdLocations = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdLocationsData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdLocationsResponses, GetApiV1AgenciesByAgencyIdLocationsErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdLocationsResponses, GetApiV1AgenciesByAgencyIdLocationsErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/locations', ...options });
+
+/**
+ * Read one location's bulk-edit grid of items, storages, and current quantities
+ */
+export const getApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEdit = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponses, GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponses, GetApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/locations/{agency_location_id}/bulk-edit', ...options });
+
+/**
+ * Save one bulk submission of counts and restocks
+ */
+export const postApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEdit = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponses, PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditResponses, PostApiV1AgenciesByAgencyIdLocationsByAgencyLocationIdBulkEditErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/locations/{agency_location_id}/bulk-edit',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Read one page of action history, newest first
+ */
+export const getApiV1AgenciesByAgencyIdReportsHistory = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdReportsHistoryData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdReportsHistoryResponses, GetApiV1AgenciesByAgencyIdReportsHistoryErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdReportsHistoryResponses, GetApiV1AgenciesByAgencyIdReportsHistoryErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/reports/history', ...options });
+
+/**
+ * Email the history report for one date range to the chosen recipients
+ */
+export const postApiV1AgenciesByAgencyIdReportsHistoryEmail = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdReportsHistoryEmailData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdReportsHistoryEmailResponses, PostApiV1AgenciesByAgencyIdReportsHistoryEmailErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdReportsHistoryEmailResponses, PostApiV1AgenciesByAgencyIdReportsHistoryEmailErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/reports/history/email',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Read what one location should reorder
+ */
+export const getApiV1AgenciesByAgencyIdReportsRestock = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdReportsRestockData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdReportsRestockResponses, GetApiV1AgenciesByAgencyIdReportsRestockErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdReportsRestockResponses, GetApiV1AgenciesByAgencyIdReportsRestockErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/reports/restock', ...options });
+
+/**
+ * Email the restock report to the chosen recipients
+ */
+export const postApiV1AgenciesByAgencyIdReportsRestockEmail = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdReportsRestockEmailData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdReportsRestockEmailResponses, PostApiV1AgenciesByAgencyIdReportsRestockEmailErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdReportsRestockEmailResponses, PostApiV1AgenciesByAgencyIdReportsRestockEmailErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/reports/restock/email',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
+
+/**
+ * Read what every item holds right now in one location
+ */
+export const getApiV1AgenciesByAgencyIdReportsStockLevels = <ThrowOnError extends boolean = false>(options: Options<GetApiV1AgenciesByAgencyIdReportsStockLevelsData, ThrowOnError>): RequestResult<GetApiV1AgenciesByAgencyIdReportsStockLevelsResponses, GetApiV1AgenciesByAgencyIdReportsStockLevelsErrors, ThrowOnError> => (options.client ?? client).get<GetApiV1AgenciesByAgencyIdReportsStockLevelsResponses, GetApiV1AgenciesByAgencyIdReportsStockLevelsErrors, ThrowOnError>({ url: '/api/v1/agencies/{agency_id}/reports/stock-levels', ...options });
+
+/**
+ * Email the stock levels report to the chosen recipients
+ */
+export const postApiV1AgenciesByAgencyIdReportsStockLevelsEmail = <ThrowOnError extends boolean = false>(options: Options<PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailData, ThrowOnError>): RequestResult<PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailResponses, PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailErrors, ThrowOnError> => (options.client ?? client).post<PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailResponses, PostApiV1AgenciesByAgencyIdReportsStockLevelsEmailErrors, ThrowOnError>({
+    url: '/api/v1/agencies/{agency_id}/reports/stock-levels/email',
+    ...options,
+    headers: {
+        'Content-Type': 'application/json',
+        ...options.headers
+    }
+});
 
 /**
  * Save one scan

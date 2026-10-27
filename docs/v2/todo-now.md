@@ -160,7 +160,9 @@ Coupling the tests exposed, both cleaned up in Phase 2:
 ### Phase 2 - Backend
 54 routes become JSON endpoints. Business rules move and get cleaned, never reinvented. Models and migrations are not touched.
 
-- [ ] Response models per boundary, separate from request models (done for the scan surface: `app/auth/response.py`, `app/inventory/response.py`)
+- [x] Response models per boundary, separate from request models, each with its own `of(...)` builder:
+      `app/auth/response.py`, `app/inventory/response.py`, `admin_items_response.py`, `overview_response.py`,
+      `reports_response.py`, `bulk_response.py`, `upc_review_response.py`, `app/admin_help/response.py`
 - [x] Guest scan endpoints, all five live and covered by 23 tests:
       `GET /api/v1/agencies/{id}/locations`
       `GET .../storages?location_id=`
@@ -174,10 +176,26 @@ Coupling the tests exposed, both cleaned up in Phase 2:
       `POST .../admin-session`
       `DELETE .../admin-session`
       `POST .../admin-session/temporary-pin`
-- [ ] Remaining admin endpoints by domain
-- [ ] Thin handlers, decisions in services, persistence in queries
+- [x] Remaining admin endpoints by domain, 34 live behind the admin PIN unlock and covered by 162 tests:
+      items, tags and notification recipients, 12 endpoints, 28 tests
+      `GET|POST .../admin/items`, `PATCH|DELETE .../admin/items/{id}`, same shape for `/admin/tags` and `/admin/notification-recipients`
+      overview, 5 endpoints, 28 tests
+      `GET .../admin/dashboard`, `GET|PUT .../admin/settings`, `GET|POST .../admin/pending-expirations`
+      reports, 7 endpoints, 26 tests
+      `GET .../reports/stock-levels`, `/restock`, `/history`, a `POST .../email` beside each, and `GET .../items/{id}/locations/{id}/trend`
+      bulk edit, 2 endpoints, 24 tests
+      `GET|POST .../locations/{id}/bulk-edit`
+      unknown barcodes, 6 endpoints, 28 tests
+      `GET|POST .../admin/unknown-barcodes`, `DELETE .../{id}`, `POST .../{id}/item`, `/ignore`, `/pending`
+      help articles, 2 endpoints, 9 tests
+      `GET .../admin/help/articles`, `GET .../admin/help/articles/{slug}`
+- [x] Thin handlers, decisions in services, persistence in queries. Every v1 route file the move touched came
+      out net shorter, and `tests/test_v1_pages_render.py` holds all 19 v1 admin pages at 200 so nothing was lost.
 
 Every agency-scoped route is gated once in `app/api/agency_access.py`: signed in, own agency, account active.
+Admin routes carry a second gate, `app/api/admin_access.py`. `@admin_only` only marks the view; the check runs in a
+blueprint `before_request`, so a locked browser is refused before APIFlask parses its body and is never told what
+else was wrong with the request. A view wrapper ran after validation and answered 422 instead of 403.
 
 Picked up while building these:
 - A list response is declared as a Pydantic `RootModel`, not `list[Model]`. APIFlask accepts both, only one type-checks.
@@ -255,13 +273,13 @@ Component layer is proven by now, so these compose faster than they look.
 
 | Thing | Count |
 |---|---|
-| Python files / lines | 139 / 18,496 |
-| Tests | 108 |
-| Routes | 54 v1 + 12 JSON |
+| Python files / lines | 150 / 19,552 |
+| Tests | 393 |
+| Routes | 54 v1 + 51 JSON endpoints across 37 rules |
 | Templates | 34 |
-| CSS files / lines | 12 / 3,885 |
+| CSS files / lines | 31 / 4,892 (12 v1 `app/static/css`, 19 v2 `web/src`) |
 | Client JS files / lines | 36 / 2,480 |
-| Migrations | 2 |
+| Migrations | 1 |
 | Fragments components available | 71 across 9 categories |
 
 ## Work Split

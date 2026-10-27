@@ -3,6 +3,7 @@
 import os
 import tempfile
 from collections.abc import Iterator
+from datetime import UTC, datetime
 from pathlib import Path
 
 import email_validator
@@ -20,6 +21,7 @@ from flask.testing import FlaskClient  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
 from app import create_app  # noqa: E402
+from app.auth.admin_session import ADMIN_FLAG_KEY, ADMIN_LAST_ACTIVE_KEY  # noqa: E402
 from app.shared.database import create_all, get_session, init_db  # noqa: E402
 from app.shared.model_registry import import_model_modules  # noqa: E402
 from tests.actions import Squad  # noqa: E402
@@ -85,6 +87,17 @@ def client(app: Flask, agency: AgencyFixture) -> Iterator[FlaskClient]:
     with app.test_client() as test_client:
         with test_client.session_transaction() as flask_session:
             flask_session["_user_id"] = str(agency.id)
+        yield test_client
+
+
+@pytest.fixture
+def admin_client(app: Flask, agency: AgencyFixture) -> Iterator[FlaskClient]:
+    """A browser signed in as the agency with the admin PIN unlock already held."""
+    with app.test_client() as test_client:
+        with test_client.session_transaction() as flask_session:
+            flask_session["_user_id"] = str(agency.id)
+            flask_session[ADMIN_FLAG_KEY] = True
+            flask_session[ADMIN_LAST_ACTIVE_KEY] = datetime.now(UTC).timestamp()
         yield test_client
 
 

@@ -6,6 +6,7 @@ from apiflask import HTTPError
 from loguru import logger
 
 from app.api.blueprint import api_bp
+from app.api.constants import AGENCY_ROUTE
 from app.api.schema import AdminPinRequest
 from app.auth.admin_session import AdminSessionState, clear_admin_session, start_admin_session, touch_admin_session
 from app.auth.queries import get_agency
@@ -14,7 +15,7 @@ from app.inventory.admin_edit_service import send_temporary_admin_pin
 from app.shared.database import get_session
 from app.shared.rate_limit import AUTH_RATE_LIMIT, limiter, refused_json_auth_only
 
-ADMIN_SESSION_ROUTE = "/agencies/<int:agency_id>/admin-session"
+ADMIN_SESSION_ROUTE = f"{AGENCY_ROUTE}/admin-session"
 UNKNOWN_AGENCY_MESSAGE = "Invalid agency."
 INVALID_PIN_MESSAGE = "Invalid PIN."  # nosec B105 - user-facing copy, not a credential
 TEMPORARY_PIN_FAILED_MESSAGE = "Temporary PIN could not be sent. Try again."  # nosec B105 - user-facing copy, not a credential

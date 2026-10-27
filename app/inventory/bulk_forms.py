@@ -39,7 +39,7 @@ class BulkEditSubmission:
             invalid_restock_cells=_invalid_quantity_cells(raw_restocks),
             counts=counts,
             restocks=restocks,
-            missing_required_count_cells=_missing_required_count_cells(required, counts, restocks),
+            missing_required_count_cells=missing_required_count_cells(required, counts, restocks),
         )
 
     @property
@@ -68,11 +68,12 @@ def _non_negative_quantities(values: dict[tuple[int, int], str]) -> dict[tuple[i
     return {key: parsed for key, value in values.items() if (parsed := parse_non_negative_int(value)) is not None}
 
 
-def _missing_required_count_cells(
+def missing_required_count_cells(
     required: dict[int, set[int]],
     counts: dict[tuple[int, int], int],
     restocks: dict[tuple[int, int], int],
 ) -> set[tuple[int, int]]:
+    """Cells a restock may not touch yet: a storage whose count has gone stale must be counted first."""
     restocked_item_ids = {item_id for (item_id, _), quantity in restocks.items() if quantity > 0}
     return {
         (item_id, storage_id) for item_id in restocked_item_ids for storage_id in required.get(item_id, set()) if (item_id, storage_id) not in counts

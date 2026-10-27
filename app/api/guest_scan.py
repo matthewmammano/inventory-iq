@@ -6,6 +6,7 @@ from apiflask import HTTPError
 from loguru import logger
 
 from app.api.blueprint import api_bp
+from app.api.constants import AGENCY_ROUTE
 from app.api.schema import ExpirationOptionsQuery, ScanRequest, ScanRouteQuery, StorageOptionsQuery, UpcLookupQuery
 from app.auth.queries import list_top_locations
 from app.auth.response import LocationListResponse, LocationResponse
@@ -41,7 +42,6 @@ from app.inventory.search_payload import build_item_search_payload, load_item_se
 from app.inventory.upc_service import record_unknown_upc
 from app.shared.database import get_session
 
-AGENCY_ROUTE = "/agencies/<int:agency_id>"
 ITEM_NOT_FOUND_MESSAGE = "No item carries that barcode."
 SCAN_ITEM_NOT_FOUND_MESSAGE = "That item is not in this agency's inventory."
 NO_EXPIRATION_ENTRY_MESSAGE = "This scan needs no expiration dates."

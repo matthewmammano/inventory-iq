@@ -10,7 +10,12 @@ from sqlalchemy.orm import Session
 
 from app.auth.models import Agency, Location, Storage
 from app.inventory.constants import OperationType
-from app.inventory.expiration_service import ExpirationAllocation, effective_expiration_notice_days, known_expiration_options
+from app.inventory.expiration_service import (
+    ExpirationAllocation,
+    effective_expiration_notice_days,
+    known_expiration_options,
+    save_expiration_count_correction,
+)
 from app.inventory.models import InventoryExpirationBalance, InventoryStorageBalance, Item
 from app.shared.clock import utc_now_naive
 from app.shared.validators import parse_non_negative_int, validate_plausible_date, validate_quantity_bound
@@ -215,13 +220,51 @@ def parse_expiration_allocations(
     allocations_by_key: dict[str, list[ExpirationAllocation]] = {}
     for group in groups:
         allocations = _parse_group_allocations(form, group)
-        total = sum(allocation.quantity for allocation in allocations)
-        if group.spec.requires_exact_total and total != group.spec.quantity:
-            raise ValueError(f"Enter expiration quantities for all {group.spec.quantity} {group.item.name}.")
-        if not group.spec.requires_exact_total and total == 0:
-            raise ValueError(f"Enter at least one expiration date for {group.item.name}.")
+        validate_group_allocations(group, allocations)
         allocations_by_key[group.spec.key] = allocations
     return allocations_by_key
+
+
+def validate_group_allocations(group: ExpirationEntryGroup, allocations: Sequence[ExpirationAllocation]) -> None:
+    """A dated group must account for every unit, except a takeout, which needs at least one date."""
+    if any(allocation.expires_on is None for allocation in allocations) and not group.spec.allows_other:
+        raise ValueError(f"Every {group.item.name} needs an expiration date.")
+    total = sum(allocation.quantity for allocation in allocations)
+    if group.spec.requires_exact_total and total != group.spec.quantity:
+        raise ValueError(f"Enter expiration quantities for all {group.spec.quantity} {group.item.name}.")
+    if not group.spec.requires_exact_total and total == 0:
+        raise ValueError(f"Enter at least one expiration date for {group.item.name}.")
+
+
+def pending_expiration_corrections(session: Session, agency_id: int) -> list[ExpirationEntryGroup]:
+    """Every item/storage pair whose tracked dates no longer add up to its count, newest alerts reconciled."""
+    from app.alerts.alert_service import sync_expiration_alerts
+
+    groups = build_expiration_entry_groups(session, agency_id, expiration_count_correction_specs(session, agency_id))
+    if not groups:
+        sync_expiration_alerts(session, agency_id=agency_id)
+    return groups
+
+
+def save_expiration_corrections(
+    session: Session,
+    agency_id: int,
+    groups: Sequence[ExpirationEntryGroup],
+    allocations_by_key: Mapping[str, Sequence[ExpirationAllocation]],
+) -> int:
+    """Rewrite each pending pair's dates, then reconcile the alerts those pairs raised."""
+    from app.alerts.alert_service import sync_expiration_alerts
+
+    for group in groups:
+        save_expiration_count_correction(
+            session,
+            agency_id,
+            group.spec.item_id,
+            group.spec.storage_id,
+            allocations_by_key[group.spec.key],
+        )
+    sync_expiration_alerts(session, agency_id=agency_id)
+    return len(groups)
 
 
 def hidden_form_fields(form: Any, *, skip_prefixes: Sequence[str] = ("exp_",)) -> list[tuple[str, str]]:
@@ -305,6 +348,13 @@ def action_expiration_summary(lines: Sequence[Any]) -> str:
         return ""
     sorted_lines = sorted(lines, key=lambda line: (line.expires_on is None, line.expires_on or date.max))
     return ", ".join(f"{line.expires_on.isoformat() if line.expires_on else 'Other'} x{line.quantity}" for line in sorted_lines if line.quantity)
+
+
+def validate_expiration_date(value: date) -> date:
+    """Refuse a date outside the shelf life any real package could carry."""
+    today = utc_now_naive().date()
+    max_date = date(today.year + EXPIRATION_DATE_MAX_YEARS_AHEAD, 12, 31)
+    return validate_plausible_date(value, "Expiration date", min_date=EXPIRATION_DATE_MIN, max_date=max_date)
 
 
 def _parse_group_allocations(form: Any, group: ExpirationEntryGroup) -> list[ExpirationAllocation]:
@@ -452,6 +502,4 @@ def _date_value(value: str | None) -> date | None:
         parsed = date.fromisoformat(value)
     except ValueError as exc:
         raise ValueError("Enter expiration dates as YYYY-MM-DD.") from exc
-    today = utc_now_naive().date()
-    max_date = date(today.year + EXPIRATION_DATE_MAX_YEARS_AHEAD, 12, 31)
-    return validate_plausible_date(parsed, "Expiration date", min_date=EXPIRATION_DATE_MIN, max_date=max_date)
+    return validate_expiration_date(parsed)

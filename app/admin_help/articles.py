@@ -1,5 +1,6 @@
 """File-backed admin help articles."""
 
+from dataclasses import dataclass
 from pathlib import Path
 
 from app.admin_help.rendering import render_help_markdown
@@ -7,6 +8,19 @@ from app.admin_help.schema import HelpArticle, HelpArticleMetadata
 
 ARTICLES_DIR = Path(__file__).with_name("articles")
 FRONT_MATTER_DELIMITER = "---"
+
+
+@dataclass(frozen=True, slots=True)
+class HelpIndex:
+    """Every article plus the tag filters offered for them."""
+
+    articles: tuple[HelpArticle, ...]
+    tags: tuple[str, ...]
+
+
+def load_help_index() -> HelpIndex:
+    articles = list_help_articles()
+    return HelpIndex(articles=articles, tags=list_help_tags(articles))
 
 
 def list_help_articles() -> tuple[HelpArticle, ...]:
