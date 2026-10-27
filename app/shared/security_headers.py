@@ -4,10 +4,13 @@ from flask import Flask, Response
 
 from app.shared.config import settings
 
+# the one inline <style> Fragments' Theme injects to freeze transitions while colors swap
+FRAGMENTS_TRANSITION_STYLE_HASH = "'sha256-B3RmA7pKFzSG13mhQcZHuHWgE+slkmcZti0ek8GFSHI='"
+
 _CSP_DIRECTIVES = (
     "default-src 'self'",
     "script-src 'self'",
-    "style-src 'self' https://fonts.googleapis.com",
+    f"style-src 'self' https://fonts.googleapis.com {FRAGMENTS_TRANSITION_STYLE_HASH}",
     "font-src 'self' https://fonts.gstatic.com",
     "img-src 'self' data: https:",  # agencies can set an externally-hosted logo URL (see Agency.image / validate_image_url)
     "connect-src 'self'",
